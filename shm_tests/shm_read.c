@@ -23,12 +23,7 @@ int main()
 	int shm_id;
 	struct shm_seg *shm;
 	
-	shm_id = shmget(SHM_KEY, sizeof(struct shm_seg), 0666 | IPC_CREAT);
-	if (shm_id == -1) {
-		perror("shared memory");
-		return 1;
-	}
-	
+	//no need to create!
 	//attach to the shared memory and get pointer
 	shm = shmat(shm_id, NULL, 0); //same as in write function
 	if (shm == (void *) - 1) {
