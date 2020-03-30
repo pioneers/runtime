@@ -15,6 +15,11 @@
 
 #define MAX_DEVICES 16
 
+#define SHM_CATALOG_KEY 0x12345678 //use this for the shared memory block holding info on device indices
+#define CATALOG_SNAME "cat_name" //name of catalog semaphore
+
+//each process needs to read from a text file with all the open devices on it before using this library, EXCEPT for device handler
+
 //hold a single param
 typedef struct param {
 	int num; //param number
@@ -23,8 +28,10 @@ typedef struct param {
 	bool p_b; //data if bool
 } param_t;
 
+//takes care of initialization of the shm wrapper facilities for a process
 void shm_init ();
 
+//takes care of closing of the shm wrapper facilities for a process
 void shm_close ();
 
 int device_create (uint16_t dev_type, uint64_t uid); //will return the dev_ix for new device, or -1 on failure
@@ -41,5 +48,7 @@ void device_close (int dev_ix);
 //indices 1 - 16 will be a bitmap of which params for those devices have changed
 //for those params that have changed, retrieve updated value by calling device_read()
 int get_updated_params (uint16_t *update_info); 
+
+void get_dev_info (int dev_ix, uint16_t &dev_type, uint64_t &uid); //get the device info
 
 #endif

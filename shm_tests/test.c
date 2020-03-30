@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#define SNAME "hi\n"
+
 struct s1 {
 	int i1;
 	int i2;
@@ -29,6 +31,8 @@ int main()
 	printf("sizeof(struct s2) = %lu\n", sizeof(struct s2));
 	printf("sizeof(struct s3) = %lu\n", sizeof(struct s3));
 	printf("sizeof(struct s4) = %lu\n", sizeof(struct s4));
+	
+	printf(SNAME);
 	
 	return 0;
 }

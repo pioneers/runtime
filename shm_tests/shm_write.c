@@ -41,6 +41,7 @@ int main()
 	char *buf;
 	
 	shm_id = shmget(SHM_KEY, sizeof(struct shm_seg), 0666 | IPC_CREAT); //everybody can read/write to this piece of shared memory
+	printf("shm_id = %d\n", shm_id);
 	if (shm_id == -1) {
 		perror("shared memory");
 		return 1;

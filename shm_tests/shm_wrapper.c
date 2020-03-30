@@ -3,18 +3,26 @@
 //info about a device
 typedef struct dev {
 	int dev_ix; //index into the devs array (speed up lookup)
-	uint16_t dev_id; //LIMITSWITCH, KOALABEAR, etc
+	uint16_t dev_type; //LIMITSWITCH, KOALABEAR, etc
 	uint64_t uid; //unique identifier
 	param_t params[16]; //all of the parameters associated with this device; position in the array corresponds to param number
 } dev_t;
 
 //holds device info in shared memory
 typedef struct dev_shm {
-	key_t up_id;
-	key_t down_id;
+	int up_id;
+	int down_id;
+	dev_t *up_info;
+	dev_t *down_info;
 	sem_t up_sem;
 	sem_t down_sem;
 } dev_shm_t;
+
+//catalog for which device indices are being used go in here
+typedef struct catalog {
+	uint16_t bitmap; //0 in invalid spot; 1 in valid spot
+	sem_t *cat_sem; //catalog sempahore
+} catalog_t;
 
 //a device will have the same index into these arrays
 dev_t **devs; //devices
@@ -57,6 +65,7 @@ void shm_close ()
 int device_create (uint16_t dev_type, uint64_t uid); //will return the dev_ix for new device, or -1 on failure
 {
 	int dev_ix;
+	dev_shm_t *new_dev_shm;
 	
 	//find a spot in the two arrays to store the device and fill it in
 	for (dev_ix = 0; dev_ix < MAX_DEVICES; dev_ix++) {
@@ -71,6 +80,30 @@ int device_create (uint16_t dev_type, uint64_t uid); //will return the dev_ix fo
 	//look up what device it is <-- use the device config, whatever that ends up looking like TODO
 	
 	
+	//get and initialize a new dev_shm_t structure
+	new_dev_shm = (dev_shm_t *) malloc (sizeof(dev_shm_t) * 1);
+	new_dev_shm->up_id = shmget((key_t) (dev_ix * 2), sizeof(struct dev_t), 0666 | IPC_CREAT); //use the dev_ix * 2 and dev_ix * 2 + 1 as keys
+	new_dev_shm->down_id = shmget((key_t) (dev_ix * 2 + 1), sizeof(struct dev_t), 0666 | IPC_CREAT);
+	new_dev_shm->up_info = shmat(new_dev_shm->up_id, NULL, 0);
+	new_dev_shm->down_info = shmat(new_dev_shm->down_id, NULL, 0);
+	
+	if (sem_init(&(new_dev_shm->up_sem), 1, 0) == -1) {
+		printf("init upstream semaphore error\n");
+		perror();
+		return 1;
+	}
+	if (sem_init(&(new_dev_shm->down_sem), 1, 0) == -1) {
+		printf("init downstream semaphore error\n");
+		perror();
+		return 1;
+	}
+	
+	
+	 	
+	new_dev->dev_ix = dev_ix;
+	new_dev->dev_type = dev_type;
+	new_dev->uid = uid;
+	
 	//create two new keys
 	//create shared memory blocks
 	//attach to them
@@ -78,6 +111,8 @@ int device_create (uint16_t dev_type, uint64_t uid); //will return the dev_ix fo
 	//malloc a struct 
 	//put the keys and semaphores in it
 	//put the newly created dev_shm struct into the array
+	
+	return dev_ix;
 }
 
 void device_write (int dev_ix, uint16_t params_to_write, param_t *params)

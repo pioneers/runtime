@@ -23,7 +23,13 @@ int main()
 	int shm_id;
 	struct shm_seg *shm;
 	
-	//no need to create!
+	shm_id = shmget(SHM_KEY, sizeof(struct shm_seg), 0666 | IPC_CREAT); //everybody can read/write to this piece of shared memory
+	printf("shm_id = %d\n", shm_id);
+	if (shm_id == -1) {
+		perror("shared memory");
+		return 1;
+	}
+	
 	//attach to the shared memory and get pointer
 	shm = shmat(shm_id, NULL, 0); //same as in write function
 	if (shm == (void *) - 1) {
