@@ -6,26 +6,9 @@
 #define CONN_SNAME "/conn_name" //name of device connection semaphore
 #define SHM_CATALOG_KEY 0x12345678 //use this key for the catalog
 
-#define SNAME_SIZE 32; //size of buffers that hold semaphore names, in bytes
+#define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
 #define DEVICE_ID 2 //array index into the dev_shmids array to match the already defined UPSTREAM 0 and DOWNSTREAM 1
-
-// *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
-
-sem_t *prm_map_sem; //semaphore on updated params bitmap
-prm_map_t *prm_map; //struct mapped to updated params bitmap (shm)
-int prm_map_shmid; //shm id of the params bitmap (only used by device handler)
-
-sem_t *dev_conn_sem; //semaphore on all data involved in device connect, disconnect, register i.e. catalog, dev_id
-catalog_t *catalog; //struct mapped to catalog (shm)
-int catalog_shmid; //shm id of the catalog (only used by device handler)
-uint16_t catalog_local; //local catalog for other processes to compare to shm catalog
-
-dev_data_t *upstream[MAX_DEVICES]; //array of pointers to upstream info for all devices (shm)
-dev_data_t *downstream[MAX_DEVICES]; //array of pointers to downstream info for all devices (shm)
-dev_id_t *dev_id[MAX_DEVICES]; //array of pointers to device identification info for all devices (shm)
-dual_sem_t *sems[MAX_DEVICES]; //array of semaphores for the upstream and downstream dev_infos
-int dev_shmids[3][MAX_DEVICES]; //shm ids of the upstream, downstream, and device id infos (only used by device handler)
 
 // ***************************************** PRIVATE TYPEDEFS ********************************************* //
 
@@ -47,6 +30,23 @@ typedef struct dual_sem {
 	sem_t *down_sem;
 } dual_sem_t;
 
+// *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
+
+sem_t *prm_map_sem; //semaphore on updated params bitmap
+prm_map_t *prm_map; //struct mapped to updated params bitmap (shm)
+int prm_map_shmid; //shm id of the params bitmap (only used by device handler)
+
+sem_t *dev_conn_sem; //semaphore on all data involved in device connect, disconnect, register i.e. catalog, dev_id
+catalog_t *catalog; //struct mapped to catalog (shm)
+int catalog_shmid; //shm id of the catalog (only used by device handler)
+uint16_t catalog_local; //local catalog for other processes to compare to shm catalog
+
+dev_data_t *upstream[MAX_DEVICES]; //array of pointers to upstream info for all devices (shm)
+dev_data_t *downstream[MAX_DEVICES]; //array of pointers to downstream info for all devices (shm)
+dev_id_t *dev_id[MAX_DEVICES]; //array of pointers to device identification info for all devices (shm)
+dual_sem_t *sems[MAX_DEVICES]; //array of semaphores for the upstream and downstream dev_infos
+int dev_shmids[3][MAX_DEVICES]; //shm ids of the upstream, downstream, and device id infos (only used by device handler)
+
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
 static void generate_sem_name (uint8_t stream, int dev_ix, char *name)
@@ -63,7 +63,7 @@ static int device_attach (int dev_ix, int *tmp_shmid_up, int *tmp_shmid_down, in
 {
 	//get and attach the upstream and downstream device data shared memory blocks
 	*tmp_shmid_up = shmget(catalog->keys[UPSTREAM][dev_ix], sizeof(dev_data_t), 0666 | IPC_CREAT);
-	*tmp_shmid_down = shmget(catalog->keys[DOWNSTREAM][dev_ix], sizeof(dev_data_t, 0666 | IPC_CREAT);
+	*tmp_shmid_down = shmget(catalog->keys[DOWNSTREAM][dev_ix], sizeof(dev_data_t), 0666 | IPC_CREAT);
 	if (*tmp_shmid_up == -1 || *tmp_shmid_down == -1) {
 		perror("dev data create");
 		return 1;
@@ -89,7 +89,7 @@ static int device_attach (int dev_ix, int *tmp_shmid_up, int *tmp_shmid_down, in
 		perror("dev id create");
 		return 3;
 	}
-	dev_id[dev_ix] = shmat(tmp_shmid_dev_id, NULL, 0);
+	dev_id[dev_ix] = shmat(*tmp_shmid_dev_id, NULL, 0);
 	if (dev_id[dev_ix] == (void *) -1) {
 		perror("dev id attach");
 		return 4;
@@ -189,11 +189,12 @@ Returns 0 on success, various numbers from 1 - 7 on various errors (prints to st
 */
 int shm_stop (uint8_t process)
 {
+	int ret;
 	//disconnect all remaining devices
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		if (catalog_local & (1 << i)) { //if device has mappings on this process
 			//detach the associated shared memory blocks
-			ret = device_detach(dev_ix);
+			ret = device_detach(i);
 			if (ret != 0) { //if errored
 				return ret + 4; //+4 since other functions return 1 - 4 already
 			}
@@ -244,7 +245,8 @@ Returns 0 on success, various numbers from 1 - 4 for various errors (prints to s
 int device_connect (uint16_t dev_type, uint64_t dev_uid)
 {
 	int dev_ix, tmp_shmid_up, tmp_shmid_down, tmp_shmid_dev_id, ret;
-	char sname_up[SNAME_SIZE], sname_down[SNAME_SIZE];
+	char sname_up[SNAME_SIZE];
+	char sname_down[SNAME_SIZE];
 	
 	//lock device connection semaphore
 	sem_wait(dev_conn_sem);
@@ -290,7 +292,8 @@ Returns 0 on success, various numbers from 1 - 6 for various errors (prints to s
 int device_disconnect (int dev_ix)
 {
 	int ret;
-	char sname_up[SNAME_SIZE], sname_down[SNAME_SIZE];
+	char sname_up[SNAME_SIZE];
+	char sname_down[SNAME_SIZE];
 	
 	//lock device connection semaphore
 	sem_wait(dev_conn_sem);
@@ -313,7 +316,7 @@ int device_disconnect (int dev_ix)
 		perror("downstream removal");
 		return 5;
 	}
-	if (shmctl(dev_shmids[DEVICE_ID][dev_ix], IPC_REMID, 0) == -1) {
+	if (shmctl(dev_shmids[DEVICE_ID][dev_ix], IPC_RMID, 0) == -1) {
 		perror("dev_id removal");
 		return 6;
 	}
@@ -340,7 +343,8 @@ Returns 0 on success, various numbers from 1 - 7 for various errors (prints to s
 int device_update_registry ()
 {
 	int dev_ix, tmp_shmid_up, tmp_shmid_down, tmp_shmid_dev_id, ret;
-	char sname_up[SNAME_SIZE], sname_down[SNAME_SIZE];
+	char sname_up[SNAME_SIZE];
+	char sname_down[SNAME_SIZE];
 	
 	//lock device connection sempahore
 	sem_wait(dev_conn_sem);
@@ -417,16 +421,16 @@ void device_read (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_t
 	//loop through param bits and pull out requested params into provided pointer
 	for (int i = 0; i < 16; i++) {
 		if (params_to_read & (1 << i)) {
-			params[i]->num = i;
+			params[i].num = i;
 			
 			if (stream == UPSTREAM) {
-				params[i]->p_i = upstream[dev_ix]->params[i].p_i;
-				params[i]->p_f = upstream[dev_ix]->params[i].p_f;
-				params[i]->p_b = upstream[dev_ix]->params[i].p_b;
+				params[i].p_i = upstream[dev_ix]->params[i].p_i;
+				params[i].p_f = upstream[dev_ix]->params[i].p_f;
+				params[i].p_b = upstream[dev_ix]->params[i].p_b;
 			} else if (stream == DOWNSTREAM) {
-				params[i]->p_i = downstream[dev_ix]->params[i].p_i;
-				params[i]->p_f = downstream[dev_ix]->params[i].p_f;
-				params[i]->p_b = downstream[dev_ix]->params[i].p_b;
+				params[i].p_i = downstream[dev_ix]->params[i].p_i;
+				params[i].p_f = downstream[dev_ix]->params[i].p_f;
+				params[i].p_b = downstream[dev_ix]->params[i].p_b;
 
 				//only on downstream block from device handler do we zero out corresponding bits
 				if (process == DEV_HANDLER) {
@@ -438,7 +442,7 @@ void device_read (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_t
 	
 	//only on downstream block from device handler do we zero out the corresponding device bit
 	if (process == DEV_HANDLER && prm_map->maps[dev_ix + 1] == 0) {
-		prm_map->maps[0] &= (~(1 << i));
+		prm_map->maps[0] &= (~(1 << dev_ix));
 	}
 	
 	//release associated semaphore depending on which stream was requested
@@ -483,17 +487,17 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_
 	
 	//loop through param bits and write in requested params into the shared memory
 	for (int i = 0; i < 16; i++) {
-		if (params_to_read & (1 << i)) {
-			params[i]->num = i;
+		if (params_to_write & (1 << i)) {
+			params[i].num = i;
 			
 			if (stream == UPSTREAM) {
-				upstream[dev_ix]->params[i].p_i = params[i]->p_i;
-				upstream[dev_ix]->params[i].p_f = params[i]->p_f;
-				upstream[dev_ix]->params[i].p_b = params[i]->p_b;
+				upstream[dev_ix]->params[i].p_i = params[i].p_i;
+				upstream[dev_ix]->params[i].p_f = params[i].p_f;
+				upstream[dev_ix]->params[i].p_b = params[i].p_b;
 			} else if (stream == DOWNSTREAM) {
-				downstream[dev_ix]->params[i].p_i = params[i]->p_i;
-				downstream[dev_ix]->params[i].p_f = params[i]->p_f;
-				downstream[dev_ix]->params[i].p_b = params[i]->p_b;
+				downstream[dev_ix]->params[i].p_i = params[i].p_i;
+				downstream[dev_ix]->params[i].p_f = params[i].p_f;
+				downstream[dev_ix]->params[i].p_b = params[i].p_b;
 
 				//only on downstream block from device handler do we turn on the corresponding bits
 				if (process == DEV_HANDLER) {
@@ -505,7 +509,7 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_
 	
 	//only on downstream block from device handler do we turn on the corresponding device bit
 	if (process == DEV_HANDLER) {
-		prm_map->maps[0] |= (1 << i);
+		prm_map->maps[0] |= (1 << dev_ix);
 	}
 	
 	//release associated semaphore depending on which stream was requested

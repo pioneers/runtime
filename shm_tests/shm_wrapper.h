@@ -11,7 +11,7 @@
 #include <sys/shm.h> //shm functions and constants 
 #include <sys/ipc.h> //for IPC_CREAT and other constants like that
 #include <sys/types.h> //time_t, size_t, ssize_t, pthread types, ipc types
-#include <sempahore.h> //semaphore functions and constants
+#include <semaphore.h> //semaphore functions and constants
 
 #define MAX_DEVICES 16 //maximum number of connected devices
 #define MAX_PARAMS 16 //maximum number of parameters per connected device (probably should be defined elsewhere)
