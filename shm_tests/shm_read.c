@@ -32,7 +32,7 @@ int main()
 	
 	//attach to the shared memory and get pointer
 	shm = shmat(shm_id, NULL, 0); //same as in write function
-	if (shm == (void *) - 1) {
+	if (shm == (void *) -1) {
 		perror("attaching");
 		return 2;
 	}

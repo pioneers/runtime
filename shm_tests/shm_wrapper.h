@@ -15,10 +15,12 @@
 
 #define MAX_DEVICES 16
 
-#define SHM_CATALOG_KEY 0x12345678 //use this for the shared memory block holding info on device indices
-#define CATALOG_SNAME "cat_name" //name of catalog semaphore
+#define UPSTREAM 0
+#define DOWNSTREAM 1
 
-//each process needs to read from a text file with all the open devices on it before using this library, EXCEPT for device handler
+#define DEV_HANDLER 0
+#define EXECUTOR 1
+#define NET_HANDLER 2
 
 //hold a single param
 typedef struct param {
@@ -28,17 +30,27 @@ typedef struct param {
 	bool p_b; //data if bool
 } param_t;
 
+//holds the device identification information of a single device
+typedef struct dev_id {
+	uint16_t type;
+	uint64_t uid;
+} dev_id_t;
+
 //takes care of initialization of the shm wrapper facilities for a process
-void shm_init ();
+int shm_init (uint8_t process);
 
 //takes care of closing of the shm wrapper facilities for a process
-void shm_close ();
+int shm_stop (uint8_t process);
 
-int device_create (uint16_t dev_type, uint64_t uid); //will return the dev_ix for new device, or -1 on failure
+void device_connect (uint16_t dev_type, uint64_t dev_uid);
 
-void device_write (int dev_ix, uint16_t params_to_write, param_t *params);
+void device_disconnect (int dev_ix);
 
-void device_read (int dev_ix, uint16_t params_to_read, param_t *params);
+void device_update_registry ();
+
+void device_read (int dev_ix, uint8_t stream, uint16_t params_to_read, param_t *params);
+
+void device_write (int dev_ix, uint8_t stream, uint16_t params_to_write, param_t *params);
 
 void device_close (int dev_ix);
 
@@ -47,8 +59,8 @@ void device_close (int dev_ix);
 //index 0 will be a bitmap of which devices have changed params
 //indices 1 - 16 will be a bitmap of which params for those devices have changed
 //for those params that have changed, retrieve updated value by calling device_read()
-int get_updated_params (uint16_t *update_info); 
+void get_param_bitmap (uint16_t *bitmap);
 
-void get_dev_info (int dev_ix, uint16_t &dev_type, uint64_t &uid); //get the device info
+void get_device_identifiers (dev_id_t **dev_ids);
 
 #endif
