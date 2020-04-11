@@ -1,0 +1,7 @@
+[Unit]
+Description=asdf
+BindsTo=test1.service
+
+[Service]
+ExecStart=/path/to/executable2
+Restart=on-failure
