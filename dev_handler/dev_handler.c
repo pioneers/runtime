@@ -1,3 +1,7 @@
+/*
+Handles lowcar device connects/disconnects and acts as the interface between the devices and shared memory
+*/
+
 //#include <libusb-1.0/libusb.h> //For Linux
 #include <libusb.h> // For Mac
 #include <stdio.h>
@@ -45,7 +49,7 @@ hashset = {
 // If a device is connected,
 //   From libusb, we know it's vendorid, productid, serialnumber, etc
 //   Ask for its type and UID (hibike_process.py, subscription request))
-//   Add to as hashmap: libusbID --> type, uid 
+//   Add to as hashmap: libusbID --> type, uid
 //      Ex: (123) --> (KOALA_BEAR, 0x13)
 //      Now we know libusb associates vendorID 123 with a KoalaBear
 //   shared memory device_connect(type, UID)
