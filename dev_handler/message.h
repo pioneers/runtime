@@ -9,8 +9,25 @@
 (There's a 1-to-1 mapping between types and device names)
 See hibikeDevices.json for the numbers. */
 
-// Load in devices.json, which defines all the devices and parameters for each device
-//https://progur.com/2018/12/how-to-parse-json-in-c.html
+// A struct defining the params of a device (devices.json)
+typedef struct param {
+  int number;
+  char* name;
+  char* type;
+  int read;
+  int write;
+} param;
+
+// A struct defining a dev (devices.json)
+typedef struct dev {
+  int type;
+  char* name;
+  int num_params;
+  param params[16]; // There are 16 possible parameters for a device
+} dev;
+
+// An array of devices known to lowcar
+dev devs[14];
 
 // The types of message
 enum packet_type {
