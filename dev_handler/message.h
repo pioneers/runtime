@@ -1,5 +1,10 @@
 #include <stdio.h>
-#include <json-c/json.h>
+// Including json-c is different for linux and mac
+#if defined(__linux__)
+    #include <json-c/json.h>
+#elif defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
+    #include <json-c/json.h>
+#endif
 /* A Device is defined by a 16-bit type, an 8-bit year, and a 64-bit uid*
 (There's a 1-to-1 mapping between types and device names)
 See hibikeDevices.json for the numbers. */
@@ -62,10 +67,10 @@ message_t* make_device_data();
 message_t* make_error();
 
 /* Functions to split up a message (string of bits) into individual components */
-subscription_response_t parse_subscription_response(/* 120 bit message */);
-param_value_t** decode_device_write(/*120 bit message*/, /*device_id*/);
-param_value_t** parse_device_data(/*120 bit message*/, /*device_id*/);
-message_t* parse_bytes(/*msg_bytes*/);
+//subscription_response_t parse_subscription_response(/* 120 bit message */);
+//param_value_t** decode_device_write(/*120 bit message*/, /*device_id*/);
+//param_value_t** parse_device_data(/*120 bit message*/, /*device_id*/);
+//message_t* parse_bytes(/*msg_bytes*/);
 
 /* Core read/write */
 message_t* read(/* */);
