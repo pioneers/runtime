@@ -1,33 +1,6 @@
 #include <stdio.h>
-// Including json-c is different for linux and mac
-#if defined(__linux__)
-    #include <json-c/json.h>
-#elif defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
-    #include <json-c/json.h>
-#endif
-/* A Device is defined by a 16-bit type, an 8-bit year, and a 64-bit uid*
-(There's a 1-to-1 mapping between types and device names)
-See hibikeDevices.json for the numbers. */
-
-// A struct defining the params of a device (devices.json)
-typedef struct param {
-  int number;
-  char* name;
-  char* type;
-  int read;
-  int write;
-} param;
-
-// A struct defining a dev (devices.json)
-typedef struct dev {
-  int type;
-  char* name;
-  int num_params;
-  param params[16]; // There are 16 possible parameters for a device
-} dev;
-
-// An array of devices known to lowcar
-dev devs[14];
+#include "devices.h"
+#include <stdint.h>
 
 // The types of message
 enum packet_type {
