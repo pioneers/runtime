@@ -34,12 +34,12 @@ typedef struct param_value_t {
 } param_value_t;
 
 /* Utility functions for breaking apart 88-bit device info */
-uint16_t get_device_type(/* 88 bit thing */);
-uint8_t get_year(/* 88 bit thing*/);
-uint64_t get_uid(/* 88 bit thing */);
+uint16_t get_device_type(char[] id);
+uint8_t get_year(char[] id);
+uint64_t get_uid(char[] id);
 
 
-uint8_t checksum(/*data*/);
+char checksum(char[] data, int len);
 void send(/* Connection */);
 // encode_params
 // decode_params
