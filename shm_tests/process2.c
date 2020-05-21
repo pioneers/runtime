@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "shm_wrapper.h"
 
-//test process 1 for shm_wrapper
+//test process 2 for shm_wrapper
 
 void print_dev_ids ()
 {
@@ -50,35 +50,38 @@ int main()
 	
 	uint16_t pmap[17];
 	
-	shm_init(DEV_HANDLER);
+	shm_init(EXECUTOR);
 	
-	device_connect(0, 382726112);
+	printf("hi1\n");
+	
+	device_update_registry();
+	
+	printf("hi2\n");
 	
 	print_dev_ids();
 	
-	sleep(2); //start up the other process during this time
+	printf("hi3\n");
 	
+	//write 5 times to the downstream block of the device at varying times
 	for (int i = 0; i < 5; i++) {
-		while (1) {
-			get_param_bitmap(pmap);
-			if (pmap[0] != 0) {
-				break;
-			}
-			usleep(1000);
-		}
-		for (int j = 0; j < MAX_DEVICES; j++) {
-			if (pmap[0] & (1 << j)) {
-				device_read(j, DEV_HANDLER, DOWNSTREAM, pmap[j + 1], params_out);
-				print_params(pmap[j + 1], params_out);
-			}
-		}
+		params_in[1].p_i += 10;
+		params_in[1].p_f += 0.1;
+		params_in[1].p_b = 1 - params_in[1].p_b;
+
+		device_write(0, EXECUTOR, DOWNSTREAM, 2, params_in);
+		
+		get_param_bitmap(pmap);
+		print_pmap(pmap);
+		
+		sleep((unsigned int) ((float) (i + 2)) / 2.0);
 	}
 	
-	sleep(1);
+	get_param_bitmap(pmap);
+	print_pmap(pmap);
 	
-	device_disconnect(0);
+	sleep(5);
 	
-	shm_stop(DEV_HANDLER);
+	shm_stop(EXECUTOR);
 	
 	return 0;
 }

@@ -18,7 +18,7 @@ typedef struct pmap {
 
 typedef struct catalog {
 	uint16_t valid_dev_bitmap; //valid devices bitmap
-	key_t keys[3][MAX_DEVICES]; //all keys for upstream (keys[0]), downstream (keys[1]) dev_data_t's, and dev_id (keys[2])
+	int ids[3][MAX_DEVICES]; //all keys for upstream (keys[0]), downstream (keys[1]) dev_data_t's, and dev_id (keys[2])
 } catalog_t;
 
 typedef struct dev_data {
@@ -58,22 +58,45 @@ static void generate_sem_name (uint8_t stream, int dev_ix, char *name)
 	}
 }
 
-//sets up a device at dev_ix, puts the tmp_shmids and snames into the pointer arguments
-static int device_attach (int dev_ix, int *tmp_shmid_up, int *tmp_shmid_down, int *tmp_shmid_dev_id, char *sname_up, char *sname_down)
+static int generate_key (uint8_t block, int dev_ix)
 {
+	if (block == UPSTREAM) {
+		return (4096 * dev_ix);
+	} else if (block == DOWNSTREAM) {
+		return (4096 * dev_ix) + 1024;
+	} else if (block == DEVICE_ID) {
+		return (4096 * dev_ix) + 2048;
+	}
+	return -1;
+}
+
+//sets up a device at dev_ix, puts the tmp_shmids and snames into the pointer arguments
+static int device_attach (int dev_ix, char *sname_up, char *sname_down)
+{
+	printf("in device attach\n");
+	
+	/*
+	printf("upstream key = %d, downstream key = %d\n", catalog->keys[UPSTREAM][dev_ix], catalog->keys[DOWNSTREAM][dev_ix]);
 	//get and attach the upstream and downstream device data shared memory blocks
 	*tmp_shmid_up = shmget(catalog->keys[UPSTREAM][dev_ix], sizeof(dev_data_t), 0666 | IPC_CREAT);
+	printf("got upstream shm with key = %d, shmid = %d\n", catalog->keys[UPSTREAM][dev_ix], *tmp_shmid_up);
 	*tmp_shmid_down = shmget(catalog->keys[DOWNSTREAM][dev_ix], sizeof(dev_data_t), 0666 | IPC_CREAT);
+	printf("got downstream shm with key = %d, shmid = %d\n", catalog->keys[DOWNSTREAM][dev_ix], *tmp_shmid_down);
 	if (*tmp_shmid_up == -1 || *tmp_shmid_down == -1) {
 		perror("dev data create");
 		return 1;
 	}
-	upstream[dev_ix] = shmat(*tmp_shmid_up, NULL, 0);
-	downstream[dev_ix] = shmat(*tmp_shmid_down, NULL, 0);
+	printf("got shared memory\n");
+	*/
+	upstream[dev_ix] = shmat(catalog->ids[UPSTREAM][dev_ix], NULL, 0);
+	printf("attached upstream memory\n");
+	downstream[dev_ix] = shmat(catalog->ids[DOWNSTREAM][dev_ix], NULL, 0);
+	printf("attached downstream memory\n");
 	if ((upstream[dev_ix] == (void *) -1) || (downstream[dev_ix] == (void *) -1)) {
 		perror("dev data attach");
 		return 2;
 	}
+	printf("attached shared memory\n");
 	
 	//open two named semaphores and store them in sems[dev_ix]
 	//memory freed in device_update_registry or shm_stop
@@ -82,14 +105,16 @@ static int device_attach (int dev_ix, int *tmp_shmid_up, int *tmp_shmid_down, in
 	generate_sem_name(DOWNSTREAM, dev_ix, sname_down);
 	sems[dev_ix]->up_sem = sem_open((const char *) sname_up, O_CREAT, 0666, 1);
 	sems[dev_ix]->down_sem = sem_open((const char *) sname_down, O_CREAT, 0666, 1);
-	
+	printf("opened semaphores\n");
+	/*
 	//get and attach device id shared memory block
 	*tmp_shmid_dev_id = shmget(catalog->keys[DEVICE_ID][dev_ix], sizeof(dev_id_t), 0666 | IPC_CREAT);
 	if (*tmp_shmid_dev_id == -1) {
 		perror("dev id create");
 		return 3;
 	}
-	dev_id[dev_ix] = shmat(*tmp_shmid_dev_id, NULL, 0);
+	*/
+	dev_id[dev_ix] = shmat(catalog->ids[DEVICE_ID][dev_ix], NULL, 0);
 	if (dev_id[dev_ix] == (void *) -1) {
 		perror("dev id attach");
 		return 4;
@@ -131,8 +156,9 @@ int shm_init (uint8_t process)
 {
 	int tmp_shmid;
 		
-	//get and attach param bitmap; open semaphore on that bitmap
+	//get and attach param bitmap; open semaphore on that bitmap (unlink for safety if device handler)
 	tmp_shmid = shmget(SHM_PMAP_KEY, sizeof(prm_map_t), 0666 | IPC_CREAT);
+	//printf("shm pmap id = %d\n", tmp_shmid);
 	if (tmp_shmid == -1) {
 		perror("param map create");
 		return 1;
@@ -141,6 +167,9 @@ int shm_init (uint8_t process)
 	if (prm_map == (void *) -1) {
 		perror("param map attach");
 		return 2;
+	}////////////
+	if (process == DEV_HANDLER) {
+		sem_unlink(PRM_SNAME);
 	}
 	prm_map_sem = sem_open(PRM_SNAME, O_CREAT, 0666, 1);
 	//save the shmid if it's the device handler, and zero out the param bitmap
@@ -148,11 +177,12 @@ int shm_init (uint8_t process)
 		prm_map_shmid = tmp_shmid;
 		for (int i = 0; i < MAX_DEVICES + 1; i++) {
 			prm_map->maps[i] = 0;
-		}
+			}
 	}
 	
-	//get and attach catalog; open semaphore on the catalog
+	//get and attach catalog; open semaphore on the catalog (unlink for safety if device handler)
 	tmp_shmid = shmget(SHM_CATALOG_KEY, sizeof(catalog_t), 0666 | IPC_CREAT);
+	//printf("shm catalog id = %d\n", tmp_shmid);
 	if (tmp_shmid == -1) {
 		perror("catalog create");
 		return 3;
@@ -162,15 +192,19 @@ int shm_init (uint8_t process)
 		perror("catalog attach");
 		return 4;
 	}
+	if (process == DEV_HANDLER) {
+		sem_unlink(CONN_SNAME);
+	}
 	dev_conn_sem = sem_open(CONN_SNAME, O_CREAT, 0666, 1);
+	
 	//save the shmid if it's the device handler, and initialize catalog bitmap
 	if (process == DEV_HANDLER) {
 		catalog_shmid = tmp_shmid;
 		catalog->valid_dev_bitmap = 0;
 		for (int i = 0; i < MAX_DEVICES; i++) {
-			catalog->keys[UPSTREAM][i] = i * 4096;
-			catalog->keys[DOWNSTREAM][i] = i * 4096 + 1024;
-			catalog->keys[DEVICE_ID][i] = i * 4096 + 2048;
+			catalog->ids[UPSTREAM][i] = 0;
+			catalog->ids[DOWNSTREAM][i] = 0;
+			catalog->ids[DEVICE_ID][i] = 0;
 		}
 	} else { //otherwise set local copy of catalog to 0
 		catalog_local = 0;
@@ -192,7 +226,7 @@ int shm_stop (uint8_t process)
 	int ret;
 	//disconnect all remaining devices
 	for (int i = 0; i < MAX_DEVICES; i++) {
-		if (catalog_local & (1 << i)) { //if device has mappings on this process
+		if (catalog_local & (1 << i)) { //if this device index has mappings in this process
 			//detach the associated shared memory blocks
 			ret = device_detach(i);
 			if (ret != 0) { //if errored
@@ -258,8 +292,20 @@ int device_connect (uint16_t dev_type, uint64_t dev_uid)
 		}
 	}
 	
-	//attach the device (gets and opens associated shared memory blocks)
-	ret = device_attach(dev_ix, &tmp_shmid_up, &tmp_shmid_down, &tmp_shmid_dev_id, sname_up, sname_down);
+	//get the shared memory
+	tmp_shmid_up = shmget(generate_key(UPSTREAM, dev_ix), sizeof(dev_data_t), 0666 | IPC_CREAT);
+	tmp_shmid_down = shmget(generate_key(DOWNSTREAM, dev_ix), sizeof(dev_data_t), 0666 | IPC_CREAT);
+	tmp_shmid_dev_id = shmget(generate_key(DEVICE_ID, dev_ix), sizeof(dev_id_t), 0666 | IPC_CREAT);
+	if (tmp_shmid_up == -1 || tmp_shmid_down == -1 || tmp_shmid_dev_id == -1) {
+		perror("dev data create");
+		return 1;
+	}
+	catalog->ids[UPSTREAM][dev_ix] = tmp_shmid_up;
+	catalog->ids[DOWNSTREAM][dev_ix] = tmp_shmid_down;
+	catalog->ids[DEVICE_ID][dev_ix] = tmp_shmid_dev_id;
+	
+	//attach the device (attaches the associated shared memory blocks)
+	ret = device_attach(dev_ix, sname_up, sname_down);
 	if (ret != 0) { //if errored
 		return ret;
 	}
@@ -294,6 +340,11 @@ int device_disconnect (int dev_ix)
 	int ret;
 	char sname_up[SNAME_SIZE];
 	char sname_down[SNAME_SIZE];
+	
+	//if device is already disconnected, just return immediately
+	if (!(catalog->valid_dev_bitmap & (1 << dev_ix))) {
+		return 0;
+	}
 	
 	//lock device connection semaphore
 	sem_wait(dev_conn_sem);
@@ -359,7 +410,7 @@ int device_update_registry ()
 		//if we have a new device in the shm catalog, we need to set up that device
 		if (!((1 << i) & catalog_local) && ((1 << i) & catalog->valid_dev_bitmap)) {
 			//get and attach the associated shared memory blocks
-			ret = device_attach(dev_ix, &tmp_shmid_up, &tmp_shmid_down, &tmp_shmid_dev_id, sname_up, sname_down);
+			ret = device_attach(dev_ix, sname_up, sname_down);
 			if (ret != 0) { //if errored
 				return ret;
 			}
@@ -473,8 +524,8 @@ No return value.
 */
 void device_write (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_to_write, param_t *params)
 {
-	//only wait for the param bitmap semaphore if reading downstream block from device handler
-	if (process == DEV_HANDLER && stream == DOWNSTREAM) {
+	//only wait for the param bitmap semaphore if writing downstream block from executor
+	if (process == EXECUTOR && stream == DOWNSTREAM) {
 		sem_wait(prm_map_sem);
 	}
 	
@@ -499,16 +550,16 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_
 				downstream[dev_ix]->params[i].p_f = params[i].p_f;
 				downstream[dev_ix]->params[i].p_b = params[i].p_b;
 
-				//only on downstream block from device handler do we turn on the corresponding bits
-				if (process == DEV_HANDLER) {
+				//only on downstream block from executor do we turn on the corresponding bits
+				if (process == EXECUTOR) {
 					prm_map->maps[dev_ix + 1] |= (1 << i);
 				}
 			}
 		}
 	}
 	
-	//only on downstream block from device handler do we turn on the corresponding device bit
-	if (process == DEV_HANDLER) {
+	//only on downstream block from executor do we turn on the corresponding device bit
+	if (process == EXECUTOR) {
 		prm_map->maps[0] |= (1 << dev_ix);
 	}
 	
@@ -519,8 +570,8 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint16_t params_
 		sem_post(sems[dev_ix]->down_sem);
 	}
 	
-	//only release the param bitmap semaphore again if reading downstream block from device handler
-	if (process == DEV_HANDLER && stream == DOWNSTREAM) {
+	//only release the param bitmap semaphore again if reading downstream block from executor
+	if (process == EXECUTOR && stream == DOWNSTREAM) {
 		sem_post(prm_map_sem);
 	}
 }
@@ -561,6 +612,9 @@ void get_device_identifiers (dev_id_t *dev_ids)
 		if (catalog->valid_dev_bitmap & (1 << i)) { //if valid device here
 			dev_ids[i].type = dev_id[i]->type;
 			dev_ids[i].uid = dev_id[i]->uid;
+		} else {
+			dev_ids[i].type = MAX_DEVICES + 1;
+			dev_ids[i].uid = 0;
 		}
 	}
 	
