@@ -23,9 +23,10 @@ typedef struct dev {
 } dev;
 
 
-const dev LimitSwitch = {
+dev LimitSwitch = {
   .type = 0,
   .name = "LimitSwitch",
+  .num_params = 3,
   .params = {
     {.number = 0  , .name = "switch0"    , .type = "int"    , .read = 1 , .write = 0 },
     {.number = 1  , .name = "switch1"    , .type = "int"    , .read = 1 , .write = 0 },
@@ -33,9 +34,10 @@ const dev LimitSwitch = {
   }
 };
 
-const dev LineFollower = {
+dev LineFollower = {
   .type = 1,
   .name = "LineFollower",
+  .num_params = 3,
   .params = {
     {.number = 0  , .name = "left"       , .type = "float"   , .read = 1 , .write = 0 },
     {.number = 1  , .name = "center"     , .type = "float"   , .read = 1 , .write = 0 },
@@ -43,9 +45,10 @@ const dev LineFollower = {
   }
 };
 
-const dev Potentiometer = {
+ dev Potentiometer = {
   .type = 2,
   .name = "Potentiometer",
+  .num_params = 3,
   .params = {
     {.number = 0  , .name = "pot0"       , .type = "float"   , .read = 1 , .write = 0 },
     {.number = 1  , .name = "pot1"       , .type = "float"   , .read = 1 , .write = 0 },
@@ -53,17 +56,19 @@ const dev Potentiometer = {
   }
 };
 
-const dev Encoder = {
+dev Encoder = {
   .type = 3,
   .name = "Encoder",
+  .num_params = 1,
   .params = {
     {.number = 0  , .name = "rotation"   , .type = "int16_t" , .read = 1 , .write = 0 }
   }
 };
 
-const dev BatteryBuzzer = {
+dev BatteryBuzzer = {
   .type = 4,
   .name = "BatteryBuzzer",
+  .num_params = 8,
   .params = {
     {.number = 0  , .name = "is_unsafe"  , .type = "int"     , .read = 1 , .write = 0 },
     {.number = 1  , .name = "calibrated" , .type = "int"     , .read = 1 , .write = 0  },
@@ -76,9 +81,10 @@ const dev BatteryBuzzer = {
   }
 };
 
-const dev TeamFlag = {
+ dev TeamFlag = {
   .type = 5,
   .name = "TeamFlag",
+  .num_params = 7,
   .params = {
     {.number = 0  , .name = "mode"  , .type = "int"    , .read = 1 , .write = 1},
     {.number = 1  , .name = "blue"  , .type = "int"    , .read = 1 , .write = 1},
@@ -90,18 +96,20 @@ const dev TeamFlag = {
   }
 };
 
-const dev ServoControl = {
+dev ServoControl = {
   .type = 7,
   .name= "ServoControl",
+  .num_params = 2,
   .params = {
     {.number = 0  , .name = "servo0"     , .type = "float" , .read = 1 , .write = 1  },
     {.number = 1  , .name = "servo1"     , .type = "float" , .read = 1 , .write = 1  }
   }
 };
 
-const dev KoalaBear = {
+dev KoalaBear = {
   .type = 13,
   .name = "KoalaBear",
+  .num_params = 16,
   .params = {
       {.number = 0  , .name = "duty_cycle_a"		, .type = "float"	, .read = 1 , .write = 1  },
       {.number = 1  , .name = "duty_cycle_b"		, .type = "float"	, .read = 1 , .write = 1  },
@@ -122,9 +130,10 @@ const dev KoalaBear = {
   }
 };
 
-const dev PolarBear = {
+dev PolarBear = {
   .type = 12,
   .name = "PolarBear",
+  .num_params = 14,
   .params = {
     {.number = 0  , .name = "duty_cycle"          , .type = "float"    , .read = 1 , .write = 1  },
     {.number = 1  , .name = "pid_pos_setpoint"    , .type = "float"    , .read = 0 , .write = 1  },
@@ -144,9 +153,10 @@ const dev PolarBear = {
 };
 
 
-const dev YogiBear = {
+dev YogiBear = {
   .type = 10,
   .name = "YogiBear",
+  .num_params = 14,
   .params = {
     {.number = 0  , .name = "duty_cycle"          , .type = "float"    , .read = 1 , .write = 1  },
     {.number = 1  , .name = "pid_pos_setpoint"    , .type = "float"    , .read = 0 , .write = 1  },
@@ -165,18 +175,20 @@ const dev YogiBear = {
   }
 };
 
-const dev RFID = {
+dev RFID = {
   .type = 11,
   .name = "RFID",
+  .num_params = 2,
   .params = {
     {.number = 0  , .name = "type"           , .type = "uint32_t"    , .read = 1 , .write = 0  },
     {.number = 1  , .name = "tag_detect"     , .type = "uint8_t"     , .read = 1 , .write = 0  }
   }
 };
 
-const dev ExampleDevice = {
+dev ExampleDevice = {
   .type = 65535,
   .name = "ExampleDevice",
+  .num_params = 16,
   .params = {
     {.number = 0  , .name = "kumiko"     , .type = "int"    , .read = 1 , .write = 1  },
     {.number = 1  , .name = "hazuki"     , .type = "uint8_t" , .read = 1 , .write = 1  },

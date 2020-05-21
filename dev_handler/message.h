@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include "devices.h"
 #include <stdint.h>
+#include <string.h>
+
+// An array of pointers to official devices
+dev* DEVICES[14];
 
 // The types of message
 enum packet_type {
@@ -33,13 +37,25 @@ typedef struct param_value_t {
     int value;
 } param_value_t;
 
+/* A struct to hold the 88-bit identifier for a device
+ * 16 bits: Device Type (ex: LimitSwitch)
+ *  8 bits: Year (ex: 0x00 for 2015-2016 season)
+ * 64 bits: "UID": A random hash for a specific physical device within a specific type/year
+ * See page 9 of book.pdf for further details
+*/
+typedef struct dev_id_t {
+    uint16_t type;
+    uint8_t year;
+    uint64_t uid;
+} dev_id_t;
+
 /* Utility functions for breaking apart 88-bit device info */
-uint16_t get_device_type(char[] id);
-uint8_t get_year(char[] id);
-uint64_t get_uid(char[] id);
+uint16_t get_device_type(dev_id_t id);
+uint8_t get_year(dev_id_t id);
+uint64_t get_uid(dev_id_t id);
 
 
-char checksum(char[] data, int len);
+char checksum(char* data, int len);
 void send(/* Connection */);
 // encode_params
 // decode_params

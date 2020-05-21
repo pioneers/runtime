@@ -8,17 +8,13 @@ Linux: json-c:      sudo apt-get install -y libjson-c-dev
 Mac:
        compile:     gcc -I/usr/local/include/json-c -L/usr/local/lib/ message.c -o message -ljson-c
 
-
 */
-#include <stdio.h>
 #include "message.h"
-#include <math.h>
 
 /*
  * Instantiates the array with all the known devices to lowcar
 */
-dev* make_devices() {
-    dev* devices[NUM_DEVICES]; // NUM_DEVICES defined in devices.h
+void make_devices(dev* devices[]) {
     devices[0] = &LimitSwitch;
     devices[1] = &LineFollower;
     devices[2] = &Potentiometer;
@@ -33,7 +29,6 @@ dev* make_devices() {
     devices[12] = &PolarBear;
     devices[10] = &YogiBear;
     devices[11] = &RFID;
-    return devices;
 }
 
 /*
@@ -41,33 +36,21 @@ dev* make_devices() {
  * ID should be a size 88 array of 1's and 0's
  * See page 9 of the BOOK
 */
-uint16_t get_device_type(char[] id) {
-    uint16_t type;
-    for (int i = 15; i >= 0; i++) {
-        type += pow(2, 15-i) * id[i];
-    }
-    return type;
+uint16_t get_device_type(dev_id_t id) {
+    return id.type;
 }
 
-uint8_t get_year(char[] id) {
-    uint8_t year;
-    for (int i = 23; i >= 16; i++) {
-        year += pow(2, 23-i) * id[i];
-    }
-    return year;
+uint8_t get_year(dev_id_t id) {
+    return id.year;
 }
-uint64_t get_uid(char[] id) {
-    uint64_t uid;
-    for (int i = 87; i >= 24; i++) {
-        uid += pow(2, 87-i) * id[i];
-    }
-    return uid;
+uint64_t get_uid(dev_id_t id) {
+    return id.uid;
 }
 
 /*
  * Compute the checksum of byte-array DATA of length LEN
 */
-char checksum(char[] data, int len) {
+char checksum(char* data, int len) {
     char chk = data[0];
     for (int i = 0; i < len; i++) {
         chk ^= data[i];
@@ -84,13 +67,14 @@ char checksum(char[] data, int len) {
 */
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     uint8_t param_nums[len]; // [1, 9, 2] -> [0001, 1001, 0010]
-    int params_in_dev = DEVICES[device_type].num_params;
+    int num_params_in_dev = DEVICES[device_type]->num_params;
     // Iterate through PARAMS and find its corresponding number in the official list
     for (int i = 0; i < len; i++) {
         // Iterate through official list of params to find the param number
-        for (int j = 0; j < params_in_dev; j++) {
-            if (strcmp(DEVICES[device_type].params[j].name, params[i])) {
-                params_nums[i] = DEVICES[device_type].params[j].number;
+        for (int j = 0; j < num_params_in_dev; j++) {
+            if (strcmp(DEVICES[device_type]->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
+                param_nums[i] = DEVICES[device_type]->params[j].number;
+                break;
             }
         }
     }
@@ -107,10 +91,11 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
  * Encode 1, 9, 2 --> 1^9^2 = 10
  * Decode 10 --> 1, 9, 2
 */
+/* To be determined; not yet sure how we want to return an array of strings
 char** decode_params(uint16_t device_type, uint32_t mask) {
     // Iterate through MASK to find the name of the parameter
     int len = 0;
-    int copy = mask;
+    int copy = mask; // 111 --> ["switch0", "switch1", "switch2"]
     // Count the number of bits that are on (number of params encoded)
     while (copy != 0) {
         len += copy & 1;
@@ -121,14 +106,34 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
     // Get the names of the params
     for (int j = 0; j < 32; j++) {
         if (mask & (1 << j)) { // If jth bit is on (from the right)
-            params_names[i] = DEVICES[device_type].params[j].name;
+            param_names[i] = DEVICES[device_type]->params[j].name;
             i++;
         }
     }
-    return params_names;
+    return param_names;
 }
+*/
 
 int main(void) {
-    const dev* DEVICES[14] = make_devices();
-
+    make_devices(DEVICES);
+    // 88 bits: 16 bits for type, 8 bits for year, 64 bits for ID
+    // Type: 0x1234
+    // Year: 0xAB
+    // ID: 0xFEDC BA09 8765 4321
+    dev_id_t id = {
+        .type = 0x1234,
+        .year = 0xAB,
+        .uid = 0xFEDCBA0987654321
+    };
+    /*
+    uint16_t type = get_device_type(id);
+    printf("Device Type: %d\n", type);
+    uint8_t year = get_year(id);
+    printf("Device Year: %d\n", year);
+    uint64_t uid = get_uid(id);
+    printf("Device UID: %lu\n", uid);
+    */
+    char* params[2] = {"switch2", "switch1"};
+    uint32_t encoded_params = encode_params(LimitSwitch.type, params, 2);
+    printf("Encoded params in decimal: %d\n", encoded_params);
 }
