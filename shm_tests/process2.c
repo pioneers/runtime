@@ -9,18 +9,20 @@
 void print_dev_ids ()
 {
 	dev_id_t dev_ids[MAX_DEVICES];
+	uint32_t catalog;
 	
 	get_device_identifiers(dev_ids);
+	get_catalog(&catalog);
 	
 	for (int i = 0; i < MAX_DEVICES; i++) {
-		if (dev_ids[i].uid != 0) {
-			printf("dev_ix = %d: type = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].uid);
+		if (catalog & (1 << i)) {
+			printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 		}
 	}
 	printf("\n");
 }
 
-void print_params (uint16_t params_to_print, param_t *params)
+void print_params (uint32_t params_to_print, param_t *params)
 {
 	for (int i = 0; i < MAX_PARAMS; i++) {
 		if (params_to_print & (1 << i)) {
@@ -29,11 +31,11 @@ void print_params (uint16_t params_to_print, param_t *params)
 	}
 }
 
-void print_pmap (uint16_t *pmap)
+void print_pmap (uint32_t *pmap)
 {
 	printf("changed devices: %d\n changed params:", pmap[0]);
-	for (int i = 1; i < 17; i++) {
-		printf("   %d", pmap[i]);
+	for (int i = 1; i < 33; i++) {
+		printf(" %d", pmap[i]);
 	}
 	printf("\n");
 }
@@ -48,13 +50,9 @@ int main()
 	
 	param_t params_out[MAX_PARAMS];
 	
-	uint16_t pmap[17];
+	uint32_t pmap[33];
 	
 	shm_init(EXECUTOR);
-	
-	printf("hi1\n");
-	
-	device_update_registry();
 	
 	printf("hi2\n");
 	
