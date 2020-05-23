@@ -109,12 +109,12 @@ void single_thread_load_test ()
 		printf("count = %d completed in %f seconds for %f writes / second\n", count, time_taken, 1.0 / (time_taken / (double) count));
 	}
 	
+	//manually calculate and print the average bc laziness :P
 	printf("\naverage: %f writes / second\n", (double)(counts[0] + counts[1] + counts[2] + counts[3] + counts[4]) / 5.0);
 	
 	//tell process1 to stop reading
 	params_in[0].p_b = 1;
 	device_write(1, EXECUTOR, UPSTREAM, 1, params_in);
-	sleep(1);
 }
 
 int main()
