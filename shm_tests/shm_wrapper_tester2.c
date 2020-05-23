@@ -7,6 +7,7 @@
 
 //test process 2 for shm_wrapper. is a dummy executor
 
+// *************************************************************************************************** //
 //test the param bitmap and sanity check to make sure shm connection is functioning
 void sanity_test()
 {
@@ -39,6 +40,7 @@ void sanity_test()
 	sleep(1);
 }
 
+// *************************************************************************************************** //
 //test connecting devices in quick succession
 //test failure message print when connecting too many devices
 //test disconnecting and reconnecting devices on system at capacity
@@ -53,6 +55,7 @@ void dev_conn_test ()
 	}
 }
 
+// *************************************************************************************************** //
 //test to find approximately how many read/write operations
 //can be done in a second on a device downstream block between
 //exeuctor and device handler
@@ -117,6 +120,7 @@ void single_thread_load_test ()
 	device_write(1, EXECUTOR, UPSTREAM, 1, params_in);
 }
 
+// *************************************************************************************************** //
 int main()
 {	
 	shm_init(EXECUTOR);

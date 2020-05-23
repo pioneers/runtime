@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <pthread.h>
 #include "shm_wrapper.h"
 
 //test process 1 for shm_wrapper. is a dummy device handler.
@@ -10,6 +11,7 @@
 //if for some reason you need to quit before the processes terminate (or they're stuck) 
 //you'll need to remove the shm file or change the name in shm_wrapper.c
 
+// *************************************************************************************************** //
 //test the param bitmap and sanity check to make sure shm connection is functioning
 void sanity_test ()
 {
@@ -28,7 +30,7 @@ void sanity_test ()
 	
 	print_dev_ids();
 	
-	printf("Go!\n");
+	printf("Beginning sanity test...\n");
 	
 	sleep(2); //start up the other process during this time
 	
@@ -56,8 +58,11 @@ void sanity_test ()
 	device_disconnect(0);
 	
 	sleep(2);
+	
+	printf("Done!\n");
 }
 
+// *************************************************************************************************** //
 //test connecting devices in quick succession
 //test failure message print when connecting too many devices
 //test disconnecting and reconnecting devices on system at capacity
@@ -101,6 +106,7 @@ void dev_conn_test ()
 	printf("Done!\n");
 }
 
+// *************************************************************************************************** //
 //test to find approximately how many read/write operations
 //can be done in a second on a device downstream block between
 //exeuctor and device handler
@@ -151,6 +157,87 @@ void single_thread_load_test ()
 	printf("Done!\n");
 }
 
+// *************************************************************************************************** //
+//threaded function for reading in Dual Thread Read Write Test
+void *read_thread_dtrwt (void *arg)
+{
+	int prev_val = 0, count = 0;
+	param_t params_test[MAX_PARAMS];
+	param_t params_out[MAX_PARAMS];
+	
+	//we are reading from the device downstream block
+	//use the device downstream block on device 1 so that tester2 can signal end of test
+	params_test[0].p_b = 0;
+	device_write(1, DEV_HANDLER, DOWNSTREAM, 1, params_test);
+	
+	//use the second device device's p_b on param 0 to indicate when test is done
+	//sit here pulling information from the block as fast as possible, 
+	//and count how many unique values we get until tester2 says we're done
+	while (1) {
+		//check if time to stop
+		i++;
+		if (i == 1000) {
+			device_read(1, DEV_HANDLER, DOWNSTREAM, 1, params_test); //use the upstream block to not touch the param bitmap
+			if (params_test[0].p_b) {
+				break;
+			}
+			i = 0;
+		}
+		
+		//if something changed, pull it out and record it
+		get_param_bitmap(pmap);
+		if (pmap[0]) {
+			device_read(0, DEV_HANDLER, DOWNSTREAM, pmap[1], params_out);
+			if (prev_val != params_out[0].p_i) {
+				prev_val = params_out[0].p_i;
+				count++;
+			}
+		}
+	}
+	printf("read_thread from tester1 pulled %d unique values from tester2 on downstream block\n", count);
+	
+	return NULL;
+}
+
+//threaded function for writing in Dual Thread Read Write Test
+void *write_thread_dtrwt (void *arg)
+{
+	
+}
+
+//test reading and writing on a device's upstream and downstream block
+//at the same time using two threads. from the device handler, we will be
+//writing to the upstream block and reading from the downstream block
+void dual_thread_read_write_test ()
+{
+	int dev_ix = -1;
+	int status;
+	pthread_t read_tid, write_tid; //thread_ids for the two threads
+	
+	printf("Beginning dual thread read write test...\n");
+	
+	device_connect(0, 1, 4894249, &dev_ix);
+	device_connect()
+	
+	//create threads
+	if ((status = pthread_create(&read_tid, NULL, read_thread_dtrwt, NULL)) != 0) {
+		printf("read pthread creation failed with exit code %d\n", status);
+	}
+	
+	if ((status = pthread_create(&write_tid, NULL, write_thread_dtrwt, NULL)) != 0) {
+		printf("write pthread creation failed with exit code %d\n", status);
+	}
+	
+	//wait for the threads to finish
+	pthread_join(read_tid, NULL);
+	pthread_join(write_tid, NULL);
+	
+	device_disconnect(0);
+	
+	printf("Done!\n");
+}
+
+// *************************************************************************************************** //
 int main()
 {
 	shm_init(DEV_HANDLER);
