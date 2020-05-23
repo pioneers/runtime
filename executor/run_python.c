@@ -1,5 +1,5 @@
 #define PY_SSIZE_T_CLEAN
-#include <python3.5m/Python.h>
+#include <Python.h>
 
 int
 main(int argc, char *argv[])
@@ -16,7 +16,7 @@ main(int argc, char *argv[])
     Py_Initialize();
     pName = PyUnicode_DecodeFSDefault(argv[1]);
     /* Error checking of pName left out */
-
+    printf("%s\n", pName);
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
 
