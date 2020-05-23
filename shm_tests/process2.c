@@ -2,48 +2,15 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/time.h>
 #include "shm_wrapper.h"
 
-//test process 2 for shm_wrapper
+//test process 2 for shm_wrapper. is a dummy executor
 
-void print_dev_ids ()
-{
-	dev_id_t dev_ids[MAX_DEVICES];
-	uint32_t catalog;
-	
-	get_device_identifiers(dev_ids);
-	get_catalog(&catalog);
-	
-	for (int i = 0; i < MAX_DEVICES; i++) {
-		if (catalog & (1 << i)) {
-			printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
-		}
-	}
-	printf("\n");
-}
-
-void print_params (uint32_t params_to_print, param_t *params)
-{
-	for (int i = 0; i < MAX_PARAMS; i++) {
-		if (params_to_print & (1 << i)) {
-			printf("num = %d, p_i = %d, p_f = %f, p_b = %u\n", params[i].num, params[i].p_i, params[i].p_f, params[i].p_b);
-		}
-	}
-}
-
-void print_pmap (uint32_t *pmap)
-{
-	printf("changed devices: %d\n changed params:", pmap[0]);
-	for (int i = 1; i < 33; i++) {
-		printf(" %d", pmap[i]);
-	}
-	printf("\n");
-}
-
-int main()
+//test the param bitmap and sanity check to make sure shm connection is functioning
+void sanity_test()
 {
 	param_t params_in[MAX_PARAMS];
-	params_in[1].num = 0;
 	params_in[1].p_i = 10;
 	params_in[1].p_f = -0.9;
 	params_in[1].p_b = 1;
@@ -52,13 +19,7 @@ int main()
 	
 	uint32_t pmap[33];
 	
-	shm_init(EXECUTOR);
-	
-	printf("hi2\n");
-	
 	print_dev_ids();
-	
-	printf("hi3\n");
 	
 	//write 5 times to the downstream block of the device at varying times
 	for (int i = 0; i < 5; i++) {
@@ -68,18 +29,107 @@ int main()
 
 		device_write(0, EXECUTOR, DOWNSTREAM, 2, params_in);
 		
-		get_param_bitmap(pmap);
-		print_pmap(pmap);
+		print_pmap();
 		
 		sleep((unsigned int) ((float) (i + 2)) / 2.0);
 	}
 	
-	get_param_bitmap(pmap);
-	print_pmap(pmap);
+	print_pmap();
 	
-	sleep(5);
+	sleep(1);
+}
+
+//test connecting devices in quick succession
+//test failure message print when connecting too many devices
+//test disconnecting and reconnecting devices on system at capacity
+//test disconnecting devices in quick succession
+void dev_conn_test ()
+{
+	//process2's job is simply to monitor what's going on in the catalog
+	//as devices connect and disconnect. all the work is being done from process1
+	for (int i = 0; i < 7; i++) {
+		print_dev_ids();
+		usleep(500000); //sleep for 0.5 seconds between prints
+	}
+}
+
+//test to find approximately how many read/write operations
+//can be done in a second on a device downstream block between
+//exeuctor and device handler
+void single_thread_load_test ()
+{
+	int dev_ix = -1;
+	
+	int count = 100; //starting number of writes to complete
+	double gain = 40000;
+	
+	double range = 0.01; //tolerance range of time taken around 1 second for test to complete
+	int counts[5]; //to hold the counts that resulted in those times
+	int good_trials = 0;
+	
+	struct timeval start, end;
+	double time_taken;
+	
+	uint32_t catalog = 0;
+	uint32_t pmap[MAX_DEVICES + 1];
+	param_t params_in[MAX_PARAMS];
+	params_in[0].p_b = 0;
+	params_in[0].p_i = 1;
+	params_in[0].p_f = 2.0;
+	
+	//wait until the two devices connect
+	while (1) {
+		get_catalog(&catalog);
+		if ((catalog & 1) && (catalog & 2)) {
+			break;
+		}
+	}
+	
+	//adjust the count until 5 trials lie within 0.01 second of 1 second
+	while (good_trials < 5) {
+		gettimeofday(&start, NULL);
+		for (int i = 0; i < count; i++) {
+			//wait until previous write has been pulled out by process1
+			while (1) {
+				get_param_bitmap(pmap);
+				if (!pmap[0]) {
+					break;
+				}
+			}
+			device_write(0, EXECUTOR, DOWNSTREAM, 1, params_in); //write into block
+		}
+		gettimeofday(&end, NULL);
+		
+		time_taken = (double)(end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec) / 1000000.0);
+		if (time_taken > (1.0 - range) && time_taken < (1.0 + range)) {
+			counts[good_trials++] = count;
+		} else {
+			count += (int)((1.0 - time_taken) * gain);
+		}
+		printf("count = %d completed in %f seconds for %f writes / second\n", count, time_taken, 1.0 / (time_taken / (double) count));
+	}
+	
+	printf("\naverage: %f writes / second\n", (double)(counts[0] + counts[1] + counts[2] + counts[3] + counts[4]) / 5.0);
+	
+	//tell process1 to stop reading
+	params_in[0].p_b = 1;
+	device_write(1, EXECUTOR, UPSTREAM, 1, params_in);
+	sleep(1);
+}
+
+int main()
+{	
+	shm_init(EXECUTOR);
+	
+	sanity_test();	
+	
+	dev_conn_test();
+	
+	single_thread_load_test();
 	
 	shm_stop(EXECUTOR);
+	
+	sleep(2);
 	
 	return 0;
 }

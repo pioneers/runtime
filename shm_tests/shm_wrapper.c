@@ -15,9 +15,9 @@ int sem_wait (sem_t *sem);
 int sem_post (sem_t *sem);
 */
 
-#define CATALOG_MUTEX_NAME "/ct-mutex"	//name of semaphore used as a mutex on the catalog
-#define PMAP_MUTEX_NAME "/pmap-mutex" 	//name of semaphore used as a mutex on the param bitmap
-#define SHARED_MEM_NAME "/dev-shm"		//name of shared memory block across devices
+#define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
+#define PMAP_MUTEX_NAME "/pmap-mutex"   //name of semaphore used as a mutex on the param bitmap
+#define SHARED_MEM_NAME "/dev-shm"     //name of shared memory block across devices
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
@@ -25,10 +25,10 @@ int sem_post (sem_t *sem);
 
 //shared memory has these parts in it
 typedef struct shm {
-	uint16_t catalog;								//catalog of valid devices
-	uint32_t pmap[MAX_DEVICES + 1]; 				//param bitmap is 17 32-bit integers (changed devices and changed params of devices)
-	param_t params[2][MAX_DEVICES][MAX_PARAMS]; 	//all the device paramtere info, upstream and downstream
-	dev_id_t dev_ids[MAX_DEVICES];					//all the device identification info
+	uint32_t catalog;                               //catalog of valid devices
+	uint32_t pmap[MAX_DEVICES + 1];                 //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
+	param_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device paramtere info, upstream and downstream
+	dev_id_t dev_ids[MAX_DEVICES];                  //all the device identification info
 } shm_t;
 
 //two mutex semaphores for each device
@@ -39,10 +39,10 @@ typedef struct sems {
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
-dual_sem_t sems[MAX_DEVICES];		//array of semaphores, two for each possiblie device (one for upstream and one for downstream)
-shm_t *shm_ptr;						//points to memory-mapped shared memory block
-sem_t *catalog_sem;					//semaphore used as a mutex on the catalog
-sem_t *pmap_sem;					//semaphore used as a mutex on the param bitmap
+dual_sem_t sems[MAX_DEVICES];       //array of semaphores, two for each possiblie device (one for upstream and one for downstream)
+shm_t *shm_ptr;                     //points to memory-mapped shared memory block
+sem_t *catalog_sem;                 //semaphore used as a mutex on the catalog
+sem_t *pmap_sem;                    //semaphore used as a mutex on the param bitmap
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
@@ -61,7 +61,72 @@ static void generate_sem_name (uint8_t stream, int dev_ix, char *name)
 	}
 }
 
-// ******************************************** PUBLIC FUNCTIONS ****************************************** //
+static void print_bitmap (int num_bits, uint32_t bitmap) 
+{
+	for (int i = 0; i < num_bits; i++) {
+		printf("%d", (bitmap & (1 << i)) ? 1 : 0);
+	}
+	printf("\n");
+}
+
+// ************************************ PUBLIC UTILITY FUNCTIONS ****************************************** //
+
+void print_pmap ()
+{
+	uint32_t pmap[MAX_DEVICES + 1];
+	get_param_bitmap(pmap);
+	
+	printf("changed devices: ");
+	print_bitmap(MAX_DEVICES, pmap[0]);
+	
+	printf("changed params:\n");
+	
+	for (int i = 1; i < 33; i++) {
+		if (pmap[0] & (1 << (i - 1))) {
+			printf("\tdevice %d: ", i - 1);
+			print_bitmap(MAX_PARAMS, pmap[i]);
+		}
+	}
+}
+
+void print_dev_ids ()
+{
+	dev_id_t dev_ids[MAX_DEVICES];
+	uint32_t catalog;
+	
+	get_device_identifiers(dev_ids);
+	get_catalog(&catalog);
+	
+	if (catalog == 0) {
+		printf("no connected devices\n");
+	} else {
+		for (int i = 0; i < MAX_DEVICES; i++) {
+			if (catalog & (1 << i)) {
+				printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+			}
+		}
+		printf("\n");
+	}
+}
+
+void print_catalog ()
+{
+	uint32_t catalog;
+	
+	get_catalog(&catalog);
+	print_bitmap(MAX_DEVICES, catalog);
+}
+
+void print_params (uint32_t params_to_print, param_t *params)
+{
+	for (int i = 0; i < MAX_PARAMS; i++) {
+		if (params_to_print & (1 << i)) {
+			printf("num = %d, p_i = %d, p_f = %f, p_b = %u\n", i, params[i].p_i, params[i].p_f, params[i].p_b);
+		}
+	}
+}
+
+// ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
 
 /*
 Call this function from every process that wants to use the shared memory wrapper
@@ -246,6 +311,10 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	}
 	if (*dev_ix == MAX_DEVICES) {
 		printf("too many devices, connection unsuccessful\n"); //turn into a logger message later
+		if (sem_post(catalog_sem) == -1) { //release the catalog semaphore
+			error("sem_post: catalog_sem");
+		}
+		return;
 	}
 	
 	
@@ -261,9 +330,6 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	shm_ptr->dev_ids[*dev_ix].type = dev_type;
 	shm_ptr->dev_ids[*dev_ix].year = dev_year;
 	shm_ptr->dev_ids[*dev_ix].uid = dev_uid;
-	
-	printf("dev_type = %d\n", dev_year);
-	printf("shm_ptr->dev_ids[*dev_ix].year = %d\n", shm_ptr->dev_ids[*dev_ix].year);
 	
 	//update the catalog
 	shm_ptr->catalog |= (1 << *dev_ix);
@@ -337,7 +403,7 @@ void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_t
 {
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
-		printf("no device at this index, read failed");
+		printf("no device at this index, read failed\n");
 		return;
 	}
 	
@@ -404,7 +470,7 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_
 {
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
-		printf("no device at this index, write failed");
+		printf("no device at this index, write failed\n");
 		return;
 	}
 	
