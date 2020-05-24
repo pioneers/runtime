@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <pthread.h>
+#include <signal.h>
 #include "shm_wrapper.h"
 
 //test process 2 for shm_wrapper. is a dummy executor
@@ -118,18 +120,128 @@ void single_thread_load_test ()
 	//tell process1 to stop reading
 	params_in[0].p_b = 1;
 	device_write(1, EXECUTOR, UPSTREAM, 1, params_in);
+	sleep(1);
 }
 
 // *************************************************************************************************** //
+//threaded function for reading in Dual Thread Read Write Test
+void *read_thread_dtrwt (void *arg)
+{
+	int prev_val = 0, count = 0, i = 0;
+	param_t params_test[MAX_PARAMS];
+	param_t params_out[MAX_PARAMS];
+	
+	//we are reading from the device upstream block
+	//use the device upstream block on device 1 so that tester2 can signal end of test
+	params_test[0].p_b = 0;
+	device_write(1, EXECUTOR, UPSTREAM, 1, params_test);
+	
+	//use the second device device's p_b on param 0 to indicate when test is done
+	//sit here pulling information from the block as fast as possible, 
+	//and count how many unique values we get until tester1 says we're done
+	while (1) {
+		//check if time to stop
+		i++;
+		if (i == 1000) {
+			device_read(1, EXECUTOR, UPSTREAM, 1, params_test);
+			if (params_test[0].p_b) {
+				break;
+			}
+			i = 0;
+		}
+		
+		//pull from that block and record it if changed
+		device_read(0, EXECUTOR, UPSTREAM, 1, params_out);
+		if (prev_val != params_out[0].p_i) {
+			prev_val = params_out[0].p_i;
+			count++;
+		}
+	}
+	printf("read_thread from tester2 pulled %d unique values from tester2 on upstream block\n", count);
+	
+	return NULL;
+}
+
+//threaded function for writing in Dual Thread Read Write Test
+void *write_thread_dtrwt (void *arg)
+{
+	const int trials = 100000; //write 100,000 times to the block
+	param_t params_test[MAX_PARAMS];
+	param_t params_in[MAX_PARAMS];
+	uint32_t pmap[MAX_DEVICES + 1];
+	
+	//we are writing to the device upstream block
+	//write 100,000 times on the device upstream block as fast as possible
+	params_in[0].p_i = 1;
+	for (int i = 0; i < trials; i++) {
+		(params_in[0].p_i)++;
+		while (1) {
+			get_param_bitmap(pmap);
+			if (!pmap[0]) {
+				break;
+			}
+		}
+		device_write(0, EXECUTOR, DOWNSTREAM, 1, params_in); //write into block
+	}
+	printf("write_thread from tester2 wrote %d values to downstream block\n", trials);
+	
+	//signal on the device downnstream block on device 1 so tester1 can stop reading
+	params_test[0].p_b = 1;
+	device_write(1, EXECUTOR, DOWNSTREAM, 1, params_test);
+	
+	return NULL;
+}
+
+//test reading and writing on a device's upstream and downstream block
+//at the same time using two threads. from the executor, we will be
+//writing to the downstream block and reading from the upstream block
+void dual_thread_read_write_test ()
+{
+	int dev_ix = -1;
+	int status;
+	pthread_t read_tid, write_tid; //thread_ids for the two threads
+	
+	printf("Beginning dual thread read write test...\n");
+	
+	//create threads
+	if ((status = pthread_create(&read_tid, NULL, read_thread_dtrwt, NULL)) != 0) {
+		printf("read pthread creation failed with exit code %d\n", status);
+	}
+	printf("Read thread created\n");
+	
+	if ((status = pthread_create(&write_tid, NULL, write_thread_dtrwt, NULL)) != 0) {
+		printf("write pthread creation failed with exit code %d\n", status);
+	}
+	printf("Write thread created\n");
+	
+	//wait for the threads to finish
+	pthread_join(read_tid, NULL);
+	pthread_join(write_tid, NULL);
+	
+	printf("Done!\n");
+}
+
+// *************************************************************************************************** //
+void ctrl_c_handler (int sig_num)
+{
+	printf("Aborting and cleaning up\n");
+	fflush(stdout);
+	shm_stop(EXECUTOR);
+	exit(1);
+}
+
 int main()
 {	
 	shm_init(EXECUTOR);
+	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
 	sanity_test();	
 	
 	dev_conn_test();
 	
 	single_thread_load_test();
+	
+	dual_thread_read_write_test();
 	
 	shm_stop(EXECUTOR);
 	
