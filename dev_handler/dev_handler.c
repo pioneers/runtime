@@ -129,6 +129,15 @@ int main ()
 		sleep(delaySec);
 	}
 
+	/* 1) Continuously poll for newly connected devices (Use libusb)
+	 * 2) Add it to a running list of connected devices
+	 * 3) Make a thread for it
+	 *		shm_init()
+	 *		*** If Ctrl+C is hit, call shm_stop() before quitting program
+	 		shm_stop(DEV_HANDLER);
+	 		shm_stop(EXECUTOR);
+	*/
+
 	//free malloced stuff
 	free(desc);
 	free(data_buf);
