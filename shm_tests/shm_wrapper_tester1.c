@@ -16,12 +16,12 @@
 //test the param bitmap and sanity check to make sure shm connection is functioning
 void sanity_test ()
 {
-	param_t params_in[MAX_PARAMS];
+	param_val_t params_in[MAX_PARAMS];
 	params_in[1].p_i = 10;
 	params_in[1].p_f = -0.9;
 	params_in[1].p_b = 1;
 	
-	param_t params_out[MAX_PARAMS];
+	param_val_t params_out[MAX_PARAMS];
 	
 	uint32_t pmap[33];
 	
@@ -118,8 +118,8 @@ void single_thread_load_test ()
 	int dev_ix = -1;
 	int i = 0;
 	
-	param_t params_out[MAX_PARAMS];
-	param_t params_test[MAX_PARAMS];
+	param_val_t params_out[MAX_PARAMS];
+	param_val_t params_test[MAX_PARAMS];
 	uint32_t pmap[MAX_DEVICES + 1];
 	
 	printf("Beginning single threaded load test...\n");
@@ -165,8 +165,8 @@ void single_thread_load_test ()
 void *read_thread_dtrwt (void *arg)
 {
 	int prev_val = 0, count = 0, i = 0;
-	param_t params_test[MAX_PARAMS];
-	param_t params_out[MAX_PARAMS];
+	param_val_t params_test[MAX_PARAMS];
+	param_val_t params_out[MAX_PARAMS];
 	uint32_t pmap[MAX_DEVICES + 1];
 	
 	//we are reading from the device downstream block
@@ -207,8 +207,8 @@ void *read_thread_dtrwt (void *arg)
 void *write_thread_dtrwt (void *arg)
 {
 	const int trials = 100000; //write 100000 times to the block
-	param_t params_test[MAX_PARAMS];
-	param_t params_in[MAX_PARAMS];
+	param_val_t params_test[MAX_PARAMS];
+	param_val_t params_in[MAX_PARAMS];
 	int x;
 	
 	//we are writing to the device upstream block

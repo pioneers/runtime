@@ -27,7 +27,7 @@ typedef struct param {
 	int p_i;       //data if int
 	float p_f;     //data if float
 	uint8_t p_b;   //data if bool
-} param_t;
+} param_val_t;
 
 //holds the device identification information of a single device
 typedef struct dev_id {
@@ -44,7 +44,7 @@ void print_dev_ids ();
 
 void print_catalog ();
 
-void print_params (uint32_t params_to_print, param_t *params);
+void print_params (uint32_t params_to_print, param_val_t *params);
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
@@ -97,11 +97,11 @@ Grabs either one or two semaphores depending on calling process and stream reque
 	- stream: the requested block to read from, one of UPSTREAM, DOWNSTREAM
 	- params_to_read: bitmap representing which params to be read 
 		(nonexistent params should have corresponding bits set to 0)
-	- params: pointer to array of param_t's that is at least as long as highest requested param number
-		device data will be read into the corresponding param_t's
+	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
+		device data will be read into the corresponding param_val_t's
 No return value.
 */
-void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_read, param_t *params);
+void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_read, param_val_t *params);
 
 /*	
 Should be called from every process wanting to write to the device data
@@ -112,11 +112,11 @@ Grabs either one or two semaphores depending on calling process and stream reque
 	- stream: the requested block to write to, one of UPSTREAM, DOWNSTREAM
 	- params_to_read: bitmap representing which params to be written
 		(nonexistent params should have corresponding bits set to 0)
-	- params: pointer to array of param_t's that is at least as long as highest requested param number
-		device data will be written into the corresponding param_t's
+	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
+		device data will be written into the corresponding param_val_t's
 No return value.
 */
-void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_write, param_t *params);
+void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_write, param_val_t *params);
 
 /*
 Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)

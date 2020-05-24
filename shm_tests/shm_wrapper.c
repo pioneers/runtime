@@ -27,7 +27,7 @@ int sem_post (sem_t *sem);
 typedef struct shm {
 	uint32_t catalog;                               //catalog of valid devices
 	uint32_t pmap[MAX_DEVICES + 1];                 //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
-	param_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device paramtere info, upstream and downstream
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device paramtere info, upstream and downstream
 	dev_id_t dev_ids[MAX_DEVICES];                  //all the device identification info
 } shm_t;
 
@@ -117,7 +117,7 @@ void print_catalog ()
 	print_bitmap(MAX_DEVICES, catalog);
 }
 
-void print_params (uint32_t params_to_print, param_t *params)
+void print_params (uint32_t params_to_print, param_val_t *params)
 {
 	for (int i = 0; i < MAX_PARAMS; i++) {
 		if (params_to_print & (1 << i)) {
@@ -395,11 +395,11 @@ Grabs either one or two semaphores depending on calling process and stream reque
 	- stream: the requested block to read from, one of UPSTREAM, DOWNSTREAM
 	- params_to_read: bitmap representing which params to be read 
 		(nonexistent params should have corresponding bits set to 0)
-	- params: pointer to array of param_t's that is at least as long as highest requested param number
-		device data will be read into the corresponding param_t's
+	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
+		device data will be read into the corresponding param_val_t's
 No return value.
 */
-void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_read, param_t *params)
+void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_read, param_val_t *params)
 {
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
@@ -462,11 +462,11 @@ Grabs either one or two semaphores depending on calling process and stream reque
 	- stream: the requested block to write to, one of UPSTREAM, DOWNSTREAM
 	- params_to_read: bitmap representing which params to be written
 		(nonexistent params should have corresponding bits set to 0)
-	- params: pointer to array of param_t's that is at least as long as highest requested param number
-		device data will be written into the corresponding param_t's
+	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
+		device data will be written into the corresponding param_val_t's
 No return value.
 */
-void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_write, param_t *params)
+void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_write, param_val_t *params)
 {
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
