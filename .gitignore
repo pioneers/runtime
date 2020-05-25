@@ -1,3 +1,18 @@
+# Ignore everything
+*
+
+# Unignore all with extensions
+!*.*
+
+# Unignore all directories
+!*/
+
+# Unignore Makefiles
+!*/Makefile
+!Makefile
+
+### Above combination will ignore all files without extension, except MakeFiles ###
+
 *.pyc
 *.pyo
 __pycache__/
@@ -34,3 +49,6 @@ __pycache__/
 *.exe
 *.out
 *.app
+
+# .DS_Store
+*.DS_Store

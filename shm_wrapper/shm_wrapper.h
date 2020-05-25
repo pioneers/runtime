@@ -13,14 +13,11 @@
 #define MAX_DEVICES 32 //maximum number of connected devices
 #define MAX_PARAMS 32 //maximum number of parameters per connected device (probably should be defined elsewhere)
 
-//names for the two associated blocks per device
-#define UPSTREAM 0
-#define DOWNSTREAM 1
+//enumerated names for the two associated blocks per device
+enum streams { UPSTREAM, DOWNSTREAM };
 
-//names for possible calling processes
-#define DEV_HANDLER 0
-#define EXECUTOR 1
-#define NET_HANDLER 2
+//enumerated names for possible calling processes
+enum processes { DEV_HANDLER, EXECUTOR, NET_HANDLER };
 
 //hold a single param
 typedef struct param {

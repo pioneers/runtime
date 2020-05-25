@@ -17,7 +17,7 @@ int sem_post (sem_t *sem);
 
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
 #define PMAP_MUTEX_NAME "/pmap-mutex"   //name of semaphore used as a mutex on the param bitmap
-#define SHARED_MEM_NAME "/dev-shm"     //name of shared memory block across devices
+#define SHARED_MEM_NAME "/dev-shm"      //name of shared memory block across devices
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
@@ -25,10 +25,10 @@ int sem_post (sem_t *sem);
 
 //shared memory has these parts in it
 typedef struct shm {
-	uint32_t catalog;                               //catalog of valid devices
-	uint32_t pmap[MAX_DEVICES + 1];                 //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
-	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device paramtere info, upstream and downstream
-	dev_id_t dev_ids[MAX_DEVICES];                  //all the device identification info
+	uint32_t catalog;                                   //catalog of valid devices
+	uint32_t pmap[MAX_DEVICES + 1];                     //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, upstream and downstream
+	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
 } shm_t;
 
 //two mutex semaphores for each device
@@ -39,7 +39,7 @@ typedef struct sems {
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
-dual_sem_t sems[MAX_DEVICES];       //array of semaphores, two for each possiblie device (one for upstream and one for downstream)
+dual_sem_t sems[MAX_DEVICES];       //array of semaphores, two for each possible device (one for upstream and one for downstream)
 shm_t *shm_ptr;                     //points to memory-mapped shared memory block
 sem_t *catalog_sem;                 //semaphore used as a mutex on the catalog
 sem_t *pmap_sem;                    //semaphore used as a mutex on the param bitmap
