@@ -171,14 +171,14 @@ void *read_thread_dtrwt (void *arg)
 	
 	//we are reading from the device downstream block
 	//use the device downstream block on device 1 so that tester2 can signal end of test
-	params_test[0].p_b = 0;
-	device_write(1, DEV_HANDLER, DOWNSTREAM, 1, params_test);
+	params_test[0].p_b = 0; 
+	device_write(1, DEV_HANDLER, DOWNSTREAM, 1, params_test); 
 	
-	//use the second device device's p_b on param 0 to indicate when test is done
+	//use the second device device's p_b on param 0 to indicate when test is done 
 	//sit here pulling information from the block as fast as possible, 
-	//and count how many unique values we get until tester2 says we're done
+	//and count how many unique values we get until tester2 says we're done 
 	while (1) {
-		//check if time to stop
+		//check if time to stop 
 		i++;
 		if (i == 1000) {
 			device_read(1, DEV_HANDLER, DOWNSTREAM, 1, params_test);

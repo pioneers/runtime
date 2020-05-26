@@ -11,8 +11,10 @@
 !*/Makefile
 !Makefile
 
-### Above combination will ignore all files without extension, except MakeFiles ###
+# Log files
+*.log
 
+### Above combination will ignore all files without extension, except MakeFiles ###
 *.pyc
 *.pyo
 __pycache__/

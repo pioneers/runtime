@@ -8,12 +8,13 @@ The Runtime Logger is a simple, lightweight interface for the various processes 
 
 `logger_config.h` contains several constants that are important for logger operation. The list of log levels are enumerated here (INFO, DEBUG, WARN, ERROR, FATAL), as well as the possible locations to output the logs (STD_OUT, LOG_FILE, NETWORK). Set the lowest desired log level to be printed, output location, and name/location of log file in `logger_config.h`.
 
-`logger_tester1.c` and `logger_tester2.c` contain simple sanity checks to demonstrate that the logger is functioning. First, configure the logger as desired in `logger_config.h`. Then compile with
-```bash
-gcc logger_tester1.c logger.c -o tester1
-gcc logger_tester2.c logger.c -o tester2
+`logger_test1.c` and `logger_test2.c` contain simple sanity checks to demonstrate that the logger is functioning. First, configure the logger as desired in `logger_config.h`. Then compile with
+
 ```
-Then run by opening two separate terminal windows and running `./tester1` in one window and `./tester2` in the other.
+make test1
+make test2
+```
+Then run by opening two separate terminal windows and running `./test1` in one window and `./test2` in the other.
 
 ## Todos
 
