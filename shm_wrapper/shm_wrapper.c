@@ -102,7 +102,7 @@ void print_dev_ids ()
 	} else {
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			if (catalog & (1 << i)) {
-				printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+				printf("dev_ix = %d: type = %d, year = %d, uid = %lu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 			}
 		}
 		printf("\n");

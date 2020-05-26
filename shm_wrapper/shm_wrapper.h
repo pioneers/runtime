@@ -3,6 +3,7 @@
 
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
+#include <stdint.h>						   //for standard integer types
 #include <sys/types.h>                     //for sem_t and other standard system types
 #include <sys/stat.h>                      //for some of the flags that are used (the mode constants)
 #include <fcntl.h>                         //for flags used for opening and closing files (O_* constants)

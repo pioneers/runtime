@@ -1,6 +1,6 @@
 
-tester1: logger.c logger_tester1.c
-	gcc logger_tester1.c logger.c -o tester1
+test1: logger.c logger_test1.c logger_config.h
+	gcc logger_test1.c logger.c -o test1
 
-tester2: logger.c logger_tester2.c
-	gcc logger_tester2.c logger.c -o tester2
+test2: logger.c logger_test2.c logger_config.h
+	gcc logger_test2.c logger.c -o test2
