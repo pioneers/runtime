@@ -1,7 +1,12 @@
+cc = gcc
+CFLAGS = $(python3.6-config --cflags)
+LDFLAGS = $(python3.6-config --ldflags)
 
 func: run_python.c
-	gcc $(python3.6-config --cflags) run_python.c $(python3.6-config --ldflags) -o func.out
+	cc $(CFLAGS) run_python.c $(LDFLAGS) -o func.out
 
 simple: run_simple_python.c
-	gcc $(python3.6-config --cflags) run_simple_python.c $(python3.6-config --ldflags) -o simple.out
+	cc $(CFLAGS) run_simple_python.c $(LDFLAGS) -o simple.out
 
+studentapi: studentapi.pyx studentapi.pxd
+	python3.6 setup.py build_ext -i
