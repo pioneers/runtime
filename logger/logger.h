@@ -8,6 +8,7 @@
 #include <time.h>
 #include <errno.h>
 #include "logger_config.h"
+#include "../runtime_util/runtime_util.h"   //(TODO: consider removing relative pathname in include)
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
