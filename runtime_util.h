@@ -4,7 +4,7 @@
 // ***************************** DEFINED CONSTANTS ************************** //
 
 //enumerate names of processes
-enum processes { DEV_HANDLER, EXECUTOR, NET_HANDLER };
+typedef enum process { DEV_HANDLER, EXECUTOR, NET_HANDLER } process_t;
 
 #define MAX_DEVICES 32 //maximum number of connected devices
 #define MAX_PARAMS 32 //maximum number of parameters per connected device

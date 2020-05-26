@@ -2,8 +2,8 @@
 Handles lowcar device connects/disconnects and acts as the interface between the devices and shared memory
 */
 
-//#include <libusb-1.0/libusb.h> //For Linux
-#include <libusb.h> // For Mac
+#include <libusb-1.0/libusb.h> //For Linux
+// #include <libusb.h> // For Mac
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

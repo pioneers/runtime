@@ -1,6 +1,8 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+// Compilation: gcc $(python3.6-config --cflags) run_simple_python.c $(python3.6-config --ldflags) -o simple.out
+
 int
 main(int argc, char *argv[])
 {

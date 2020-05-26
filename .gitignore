@@ -16,6 +16,7 @@
 *.pyc
 *.pyo
 __pycache__/
+build/
 
 # Prerequisites
 *.d
@@ -34,6 +35,7 @@ __pycache__/
 *.so
 *.dylib
 *.dll
+*.pyd
 
 # Fortran module files
 *.mod

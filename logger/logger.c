@@ -17,7 +17,7 @@ char *log_level_strs[] = {                 //strings for holding names of log le
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
-void logger_init (uint8_t process)
+void logger_init (process_t process)
 {
 	//get the appropriate file descriptor
 	if (CURR_OUTPUT_LOC == STD_OUT) {
@@ -60,7 +60,7 @@ void logger_stop ()
 //if you want to format messages, you need to sprintf them into a string
 //and then call log with that string. We are not trying to replicate the
 //entire format string syntax of printf / sprintf here
-void log_runtime (uint8_t level, char *msg)
+void log_runtime (log_level level, char *msg)
 {
 	static time_t now;
 	static char *time_str;
