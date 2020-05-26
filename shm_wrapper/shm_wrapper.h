@@ -1,37 +1,18 @@
 #ifndef SHM_WRAPPER_H
 #define SHM_WRAPPER_H
 
-#include <stdio.h>          //for i/o
-#include <stdlib.h>         //for standard utility functions (exit, sleep)
-#include <sys/types.h>      //for sem_t and other standard system types
-#include <sys/stat.h>       //for some of the flags that are used (the mode constants)
-#include <fcntl.h>          //for flags used for opening and closing files (O_* constants)
-#include <unistd.h>         //for standard symbolic constants
-#include <semaphore.h>      //for semaphores
-#include <sys/mman.h>       //for posix shared memory
-
-#define MAX_DEVICES 32 //maximum number of connected devices
-#define MAX_PARAMS 32 //maximum number of parameters per connected device (probably should be defined elsewhere)
+#include <stdio.h>                         //for i/o
+#include <stdlib.h>                        //for standard utility functions (exit, sleep)
+#include <sys/types.h>                     //for sem_t and other standard system types
+#include <sys/stat.h>                      //for some of the flags that are used (the mode constants)
+#include <fcntl.h>                         //for flags used for opening and closing files (O_* constants)
+#include <unistd.h>                        //for standard symbolic constants
+#include <semaphore.h>                     //for semaphores
+#include <sys/mman.h>                      //for posix shared memory
+#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
 //enumerated names for the two associated blocks per device
 enum streams { UPSTREAM, DOWNSTREAM };
-
-//enumerated names for possible calling processes
-enum processes { DEV_HANDLER, EXECUTOR, NET_HANDLER };
-
-//hold a single param
-typedef struct param {
-	int p_i;       //data if int
-	float p_f;     //data if float
-	uint8_t p_b;   //data if bool
-} param_val_t;
-
-//holds the device identification information of a single device
-typedef struct dev_id {
-	uint16_t type;
-	uint8_t year;
-	uint64_t uid;
-} dev_id_t;
 
 // ******************************************* UTILITY FUNCTIONS ****************************************** //
 

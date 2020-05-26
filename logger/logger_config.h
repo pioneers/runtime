@@ -4,10 +4,6 @@
 //enumerate logger levels from least to most critical
 enum log_levels { INFO, DEBUG, WARN, ERROR, FATAL };
 
-//enumerate names of possible using processes
-//TODO: combine with the shared memory wrapper definitions of this!!
-enum processes { DEV_HANDLER, EXECUTOR, NET_HANDLER };
-
 //enumerate names of possible output locations
 enum outputs { STD_OUT, LOG_FILE, NETWORK };
 
