@@ -26,7 +26,7 @@ int munmap (void *addr, size_t length);
 
 #define MAX_BUFFERS 10
 
-#define LOGFILE "/Users/ben/Desktop/example.log"
+#define LOGFILE "/d/Documents/CollegeWork/PiE/c-runtime/example.log"
 
 #define SEM_MUTEX_NAME "/sem-mutex"
 #define SEM_BUFFER_COUNT_NAME "/sem-buffer-count"

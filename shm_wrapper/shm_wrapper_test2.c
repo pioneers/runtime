@@ -111,7 +111,7 @@ void single_thread_load_test ()
 		} else {
 			count += (int)((1.0 - time_taken) * gain);
 		}
-		printf("count = %d completed in %f seconds for %f writes / second\n", count, time_taken, 1.0 / (time_taken / (double) count));
+		printf("count = %d completed in %f seconds for %f writes / second\n", count, time_taken, (double) count / time_taken);
 	}
 	
 	//manually calculate and print the average bc laziness :P
