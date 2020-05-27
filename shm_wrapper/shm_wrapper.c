@@ -27,37 +27,39 @@ int sem_post (sem_t *sem);
 typedef struct shm {
 	uint32_t catalog;                                   //catalog of valid devices
 	uint32_t pmap[MAX_DEVICES + 1];                     //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
-	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, upstream and downstream
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
 	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
 } shm_t;
 
 //two mutex semaphores for each device
 typedef struct sems {
-	sem_t *up_sem;
-	sem_t *down_sem;
+	sem_t *data_sem;
+	sem_t *command_sem;
 } dual_sem_t;
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
-dual_sem_t sems[MAX_DEVICES];       //array of semaphores, two for each possible device (one for upstream and one for downstream)
+dual_sem_t sems[MAX_DEVICES];       //array of semaphores, two for each possible device (one for data and one for commands)
 shm_t *shm_ptr;                     //points to memory-mapped shared memory block
 sem_t *catalog_sem;                 //semaphore used as a mutex on the catalog
 sem_t *pmap_sem;                    //semaphore used as a mutex on the param bitmap
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
+// Replace with logger
 static void error (char *msg)
 {
 	perror(msg);
 	exit(1);
 }
 
-static void generate_sem_name (uint8_t stream, int dev_ix, char *name)
+static void generate_sem_name (stream_t stream, int dev_ix, char *name)
 {
-	if (stream == UPSTREAM) {
-		sprintf(name, "/up_sem_%d", dev_ix);
-	} else {
-		sprintf(name, "/down_sem_%d", dev_ix);
+	if (stream == DATA) {
+		sprintf(name, "/data_sem_%d", dev_ix);
+	} 
+	else if (stream == COMMAND) {
+		sprintf(name, "/command_sem_%d", dev_ix);
 	}
 }
 
@@ -105,7 +107,6 @@ void print_dev_ids ()
 				printf("dev_ix = %d: type = %d, year = %d, uid = %lu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 			}
 		}
-		printf("\n");
 	}
 }
 
@@ -136,7 +137,7 @@ The device handler process is responsible for initializing the catalog and updat
 		called from
 No return value.
 */
-void shm_init (uint8_t process)
+void shm_init (process_t process)
 {
 	int fd_shm; //file descriptor of the memory-mapped shared memory
 	char sname[SNAME_SIZE]; //for holding semaphore names
@@ -173,13 +174,13 @@ void shm_init (uint8_t process)
 		
 		//create all the semaphores with initial value 1
 		for (int i = 0; i < MAX_DEVICES; i++) {
-			generate_sem_name(UPSTREAM, i, sname); //get the upstream name
-			if ((sems[i].up_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
-				error("sem_open: upstream sem@dev_handler");
+			generate_sem_name(DATA, i, sname); //get the data name
+			if ((sems[i].data_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
+				error("sem_open: data sem@dev_handler");
 			}
-			generate_sem_name(DOWNSTREAM, i, sname); //get the downstream name
-			if ((sems[i].down_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
-				error("sem_open: downstream sem@dev_handler");
+			generate_sem_name(COMMAND, i, sname); //get the command name
+			if ((sems[i].command_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
+				error("sem_open: command sem@dev_handler");
 			}
 		}
 		
@@ -212,13 +213,13 @@ void shm_init (uint8_t process)
 		
 		//create all the semaphores with initial value 1
 		for (int i = 0; i < MAX_DEVICES; i++) {
-			generate_sem_name(UPSTREAM, i, sname); //get the upstream name
-			if ((sems[i].up_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
-				error("sem_open: upstream sem@client");
+			generate_sem_name(DATA, i, sname); //get the data name
+			if ((sems[i].data_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
+				error("sem_open: data sem@client");
 			}
-			generate_sem_name(DOWNSTREAM, i, sname); //get the downstream name
-			if ((sems[i].down_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
-				error("sem_open: downstream sem@client");
+			generate_sem_name(COMMAND, i, sname); //get the command name
+			if ((sems[i].command_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
+				error("sem_open: command sem@client");
 			}
 		}
 	}
@@ -232,7 +233,7 @@ Device handler is responsible for marking shared memory block and semaphores for
 		called from
 No return value.
 */
-void shm_stop (uint8_t process)
+void shm_stop (process_t process)
 {
 	char sname[SNAME_SIZE]; //holding semaphore names
 	
@@ -243,11 +244,11 @@ void shm_stop (uint8_t process)
 	
 	//close all the semaphores
 	for (int i = 0; i < MAX_DEVICES; i++) {
-		if (sem_close(sems[i].up_sem) == -1) {
-			(process == DEV_HANDLER) ? error("sem_close: upstream sem@dev_handler") : error("sem_close: upstream sem@client");
+		if (sem_close(sems[i].data_sem) == -1) {
+			(process == DEV_HANDLER) ? error("sem_close: data sem@dev_handler") : error("sem_close: data sem@client");
 		}
-		if (sem_close(sems[i].down_sem) == -1) {
-			(process == DEV_HANDLER) ? error("sem_close: downstream sem@dev_handler") : error("sem_close: downstream sem@dev_handler");
+		if (sem_close(sems[i].command_sem) == -1) {
+			(process == DEV_HANDLER) ? error("sem_close: command sem@dev_handler") : error("sem_close: command sem@dev_handler");
 		}
 	}
 	
@@ -267,13 +268,13 @@ void shm_stop (uint8_t process)
 		
 		//unlink semaphores
 		for (int i = 0; i < MAX_DEVICES; i++) {
-			generate_sem_name(UPSTREAM, i, sname);
+			generate_sem_name(DATA, i, sname);
 			if (sem_unlink((const char *) sname) == -1) {
-				error("sem_unlink: upstream sem");
+				error("sem_unlink: data sem");
 			}
-			generate_sem_name(DOWNSTREAM, i, sname);
+			generate_sem_name(COMMAND, i, sname);
 			if (sem_unlink((const char *) sname) == -1) {
-				error("sem_unlink: downstream sem");
+				error("sem_unlink: command sem");
 			}
 		}
 		
@@ -318,12 +319,12 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	}
 	
 	
-	//wait on associated upstream and downstream sems
-	if (sem_wait(sems[*dev_ix].up_sem) == -1) {
-		error("sem_wait: upstream_sem");
+	//wait on associated data and command sems
+	if (sem_wait(sems[*dev_ix].data_sem) == -1) {
+		error("sem_wait: data sem");
 	}
-	if (sem_wait(sems[*dev_ix].down_sem) == -1) {
-		error("sem_wait: downstream_sem");
+	if (sem_wait(sems[*dev_ix].command_sem) == -1) {
+		error("sem_wait: command sem");
 	}
 	
 	//fill in dev_id for that device with provided values
@@ -333,13 +334,19 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	
 	//update the catalog
 	shm_ptr->catalog |= (1 << *dev_ix);
-	
-	//release associated upstream and downstream sems
-	if (sem_post(sems[*dev_ix].down_sem) == -1) {
-		error("sem_post: downstream_sem");
+
+	//reset param values to 0
+	for (int i = 0; i < MAX_PARAMS; i++) {
+		shm_ptr->params[0][*dev_ix][i] = (const param_val_t) {0};
+		shm_ptr->params[1][*dev_ix][i] = (const param_val_t) {0};
 	}
-	if (sem_post(sems[*dev_ix].up_sem) == -1) {
-		error("sem_post: upstream_sem");
+	
+	//release associated data and command sems
+	if (sem_post(sems[*dev_ix].data_sem) == -1) {
+		error("sem_post: data sem");
+	}
+	if (sem_post(sems[*dev_ix].command_sem) == -1) {
+		error("sem_post: command sem");
 	}
 	
 	//release catalog_sem
@@ -361,24 +368,38 @@ void device_disconnect (int dev_ix)
 		error("sem_wait: catalog_sem");
 	}
 	
-	//wait on associated upstream and downstream sems
-	if (sem_wait(sems[dev_ix].up_sem) == -1) {
-		error("sem_wait: upstream_sem");
+	//wait on associated data and command sems
+	if (sem_wait(sems[dev_ix].data_sem) == -1) {
+		error("sem_wait: data sem");
 	}
-	if (sem_wait(sems[dev_ix].down_sem) == -1) {
-		error("sem_wait: downstream_sem");
+	if (sem_wait(sems[dev_ix].command_sem) == -1) {
+		error("sem_wait: command sem");
 	}
-	
+
+
 	//update the catalog
 	shm_ptr->catalog &= (~(1 << dev_ix));
+
+	if (sem_wait(pmap_sem) == -1) {
+		error("sem_wait: pmap_sem");
+	}
+
+	//reset param map values to 0
+	shm_ptr->pmap[0] &= (~(1 << dev_ix)); //Reset the changed bit flag in pmap[0]
+	shm_ptr->pmap[dev_ix + 1] = 0; //turn off all changed bits for the device
+
+	if (sem_post(pmap_sem) == -1) {
+		error("sem_post: pmap_sem");
+	}
 	
 	//release associated upstream and downstream sems
-	if (sem_post(sems[dev_ix].down_sem) == -1) {
-		error("sem_post: downstream_sem");
+	if (sem_post(sems[dev_ix].data_sem) == -1) {
+		error("sem_post: data sem");
 	}
-	if (sem_post(sems[dev_ix].up_sem) == -1) {
-		error("sem_post: upstream_sem");
+	if (sem_post(sems[dev_ix].command_sem) == -1) {
+		error("sem_post: command sem");
 	}
+
 	
 	//release catalog_sem
 	if (sem_post(catalog_sem) == -1) {
@@ -392,14 +413,14 @@ Takes care of updating the param bitmap for fast transfer of commands from execu
 Grabs either one or two semaphores depending on calling process and stream requested.
 	- dev_ix: device index of the device whose data is being requested
 	- process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
-	- stream: the requested block to read from, one of UPSTREAM, DOWNSTREAM
+	- stream: the requested block to read from, one of DATA, COMMAND
 	- params_to_read: bitmap representing which params to be read 
 		(nonexistent params should have corresponding bits set to 0)
 	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
 		device data will be read into the corresponding param_val_t's
 No return value.
 */
-void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_read, param_val_t *params)
+void device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
@@ -408,13 +429,13 @@ void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_t
 	}
 	
 	//grab semaphore for the appropriate stream and device
-	if (stream == UPSTREAM) {
-		if (sem_wait(sems[dev_ix].up_sem) == -1) {
-			error("sem_wait: upstream_sem@device_read");
+	if (stream == DATA) {
+		if (sem_wait(sems[dev_ix].data_sem) == -1) {
+			error("sem_wait: data sem @device_read");
 		}
 	} else {
-		if (sem_wait(sems[dev_ix].down_sem) == -1) {
-			error("sem_wait: downstream_sem@device_read");
+		if (sem_wait(sems[dev_ix].command_sem) == -1) {
+			error("sem_wait: command sem @device_read");
 		}
 	}
 	
@@ -425,8 +446,9 @@ void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_t
 		}
 	}
 	
+	// if the device handler has processed the command, then turn off the change
 	//if stream = downstream and process = dev_handler then also update params bitmap
-	if (process == DEV_HANDLER && stream == DOWNSTREAM) {
+	if (process == DEV_HANDLER && stream == COMMAND) {
 		//wait on pmap_sem
 		if (sem_wait(pmap_sem) == -1) {
 			error("sem_wait: pmap_sem@device_read");
@@ -442,13 +464,13 @@ void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_t
 	}
 	
 	//release semaphore for appropriate stream and device
-	if (stream == UPSTREAM) {
-		if (sem_post(sems[dev_ix].up_sem) == -1) {
-			error("sem_post: upstream_sem@device_read");
+	if (stream == DATA) {
+		if (sem_post(sems[dev_ix].data_sem) == -1) {
+			error("sem_post: data sem @device_read");
 		}
 	} else {
-		if (sem_post(sems[dev_ix].down_sem) == -1) {
-			error("sem_post: downstream_sem@device_read");
+		if (sem_post(sems[dev_ix].command_sem) == -1) {
+			error("sem_post: command sem @device_read");
 		}
 	}
 }
@@ -459,14 +481,14 @@ Takes care of updating the param bitmap for fast transfer of commands from execu
 Grabs either one or two semaphores depending on calling process and stream requested.
 	- dev_ix: device index of the device whose data is being written
 	- process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
-	- stream: the requested block to write to, one of UPSTREAM, DOWNSTREAM
-	- params_to_read: bitmap representing which params to be written
+	- stream: the requested block to write to, one of DATA, COMMAND
+	- params_to_write: bitmap representing which params to be written
 		(nonexistent params should have corresponding bits set to 0)
 	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
 		device data will be written into the corresponding param_val_t's
 No return value.
 */
-void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_write, param_val_t *params)
+void device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
@@ -475,13 +497,13 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_
 	}
 	
 	//grab semaphore for the appropriate stream and device
-	if (stream == UPSTREAM) {
-		if (sem_wait(sems[dev_ix].up_sem) == -1) {
-			error("sem_wait: upstream_sem@device_write");
+	if (stream == DATA) {
+		if (sem_wait(sems[dev_ix].data_sem) == -1) {
+			error("sem_wait: data sem @device_write");
 		}
 	} else {
-		if (sem_wait(sems[dev_ix].down_sem) == -1) {
-			error("sem_wait: downstream_sem@device_write");
+		if (sem_wait(sems[dev_ix].command_sem) == -1) {
+			error("sem_wait: command sem @device_write");
 		}
 	}
 	
@@ -492,8 +514,9 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_
 		}
 	}
 	
+	//turn on flag if executor is sending a command to the device
 	//if stream = downstream and process = executor then also update params bitmap
-	if (process == EXECUTOR && stream == DOWNSTREAM) {
+	if (process == EXECUTOR && stream == COMMAND) {
 		//wait on pmap_sem
 		if (sem_wait(pmap_sem) == -1) {
 			error("sem_wait: pmap_sem@device_write");
@@ -509,13 +532,13 @@ void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_
 	}
 	
 	//release semaphore for appropriate stream and device
-	if (stream == UPSTREAM) {
-		if (sem_post(sems[dev_ix].up_sem) == -1) {
-			error("sem_post: upstream_sem@device_write");
+	if (stream == DATA) {
+		if (sem_post(sems[dev_ix].data_sem) == -1) {
+			error("sem_post: data sem @device_write");
 		}
 	} else {
-		if (sem_post(sems[dev_ix].down_sem) == -1) {
-			error("sem_post: downstream_sem@device_write");
+		if (sem_post(sems[dev_ix].command_sem) == -1) {
+			error("sem_post: command sem @device_write");
 		}
 	}
 }
