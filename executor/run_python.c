@@ -1,9 +1,8 @@
 #define PY_SSIZE_T_CLEAN
-#include <Python.h>
+#include <python3.5m/Python.h>
 
-// Compilation: gcc $(python3.6-config --cflags) run_python.c $(python3.6-config --ldflags) -o func.out
-
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
     PyObject *pName, *pModule, *pFunc;
     PyObject *pArgs, *pValue;
@@ -17,14 +16,13 @@ int main(int argc, char *argv[])
     Py_Initialize();
     pName = PyUnicode_DecodeFSDefault(argv[1]);
     /* Error checking of pName left out */
-    // printf("%s\n", *pName);
+
     pModule = PyImport_Import(pName);
     Py_DECREF(pName);
 
     if (pModule != NULL) {
         pFunc = PyObject_GetAttrString(pModule, argv[2]);
         /* pFunc is a new reference */
-        // printf("%s\n", *pFunc);
 
         if (pFunc && PyCallable_Check(pFunc)) {
             pArgs = PyTuple_New(argc - 3);
