@@ -11,25 +11,6 @@ Mac:
 */
 #include "message.h"
 
-/*
- * Instantiates the array with all the known devices to lowcar
-*/
-void make_devices(dev_t* devices[]) {
-    devices[0] = &LimitSwitch;
-    devices[1] = &LineFollower;
-    devices[2] = &Potentiometer;
-    devices[3] = &Encoder;
-    devices[4] = &BatteryBuzzer;
-    devices[5] = &TeamFlag;
-    devices[6] = NULL;
-    devices[7] = &ServoControl;
-    devices[8] = NULL;
-    devices[9] = NULL;
-    devices[13] = &KoalaBear;
-    devices[12] = &PolarBear;
-    devices[10] = &YogiBear;
-    devices[11] = &RFID;
-}
 
 /*
  * Gets the device TYPE from the 88-bit identifier
@@ -100,7 +81,7 @@ message_t* make_heartbeat_response(char heartbeat_id) {
  *          --> 48-bit == 6-byte payload
 */
 message_t* make_subscription_request(dev_id_t device_id, char* param_names[], uint8_t len, uint16_t delay) {
-    message_t* sub_request = malloc(sizeof(messsage_t));
+    message_t* sub_request = malloc(sizeof(message_t));
     sub_request->message_id = SubscriptionRequest;
     sub_request->payload = malloc(6);
     sub_request->max_payload_length = 6;
@@ -118,7 +99,7 @@ message_t* make_subscription_request(dev_id_t device_id, char* param_names[], ui
  * Payload: 32-bit params + 16-bit delay + 88-bit dev_id
  *          --> 136-bits == 17 bytes
 */
-message_t* make_subscription_response(dev_id_t device_id, char* param_names[], uint8_t len, uint16_t delay) {
+message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_response = malloc(sizeof(message_t));
     sub_response->message_id = SubscriptionResponse;
     sub_response->payload = malloc(17);
@@ -136,13 +117,13 @@ message_t* make_subscription_response(dev_id_t device_id, char* param_names[], u
  * Requests the device to send data about the PARAMS
  * Payload: 32-bit param mask == 8 bytes
 */
-message_t* make_device_read(dev_id_t device_id, char* param_names[], uint8_t len) {
+message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t len) {
     message_t* dev_read = malloc(sizeof(message_t));
     dev_read->message_id = DeviceRead;
     dev_read->payload = malloc(4);
     dev_read->max_payload_length = 4;
     uint32_t mask = encode_params(device_id->type, param_names, len);
-    int status = 0
+    int status = 0;
     status += append_payload(dev_read, (uint8_t*) &mask, 4);
     return (status == 0) ? dev_read : NULL;
 }
@@ -157,7 +138,7 @@ message_t* make_device_data();
 message_t* make_error();
 
 void destroy_message(message_t* message) {
-    if (message->length > 0) {
+    if (message->payload_length > 0) {
         free(message->payload);
     }
     free(message);
@@ -276,7 +257,7 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
         // Iterate through official list of params to find the param number
         for (int j = 0; j < num_params_in_dev; j++) {
             if (strcmp(DEVICES[device_type]->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
-                param_nums[i] = DEVICES[device_type]->params[j].number;
+                param_nums[i] = j; // DEVICES[device_type]->params[j].number;
                 break;
             }
         }
@@ -323,65 +304,6 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
     return param_names;
 }
 */
-
-uint16_t device_name_to_type(char* dev_name) {
-    for (int i = 0; i < DEVICES_LENGTH; i++) {
-        if (DEVICES[i] != NULL && strcmp(DEVICES[i]->name, dev_name) == 0) {
-            return DEVICES[i]->type;
-        }
-    }
-    return -1;
-}
-
-char* device_type_to_name(uint16_t dev_type) {
-    return DEVICES[dev_type]->name;
-}
-
-/*
- * Given array of strings PARAM_NAMES, write to the array all the param names
- * for DEV_TYPE.
- * Note: DEV_TYPE has a specific number of parameters. param_names should be that length.
-*/
-void all_params_for_device_type(uint16_t dev_type, char* param_names[]) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params, i++) {
-        param_names[i] = DEVICES[dev_type]->params[i];
-    }
-}
-
-int readable(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].read;
-        }
-    }
-    return 0;
-}
-
-int writable(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].write;
-        }
-    }
-    return 0;
-}
-
-/*
- * Returns the static type of PARAM_NAME for DEV_TYPE
- * Ex: "int", "float"
-*/
-char* param_type(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].type;
-        }
-    }
-    return NULL;
-}
 
 
 int main(void) {

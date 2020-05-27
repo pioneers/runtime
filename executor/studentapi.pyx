@@ -1,7 +1,6 @@
 # cython: nonecheck=True
-import cython
 
-# from runtime_api cimport *
+# from pthread cimport *
 
 import enum
 import typing
@@ -9,8 +8,6 @@ import functools
 
 """Student API written in Cython. To compile to C, do `python3.6 setup.py build_ext -i` in this directory. """
 
-cdef log_level test
-test = FATAL
 
 class RuntimeBaseException(Exception):
     """
@@ -59,7 +56,7 @@ def safe(api_method: typing.Callable):
         try:
             return api_method(*args, **kwargs)
         except RuntimeBaseException as exc:
-            log_runtime(ERROR, str(exc))
+            log_runtime(ERROR, str(exc).encode('UTF-8'))
     return api_wrapper
 
 

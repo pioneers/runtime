@@ -8,7 +8,17 @@ void sigintHandler(int sig_num) {
 	//shm_stop(<this process>)
 }
 
+void executor_init() {
+    shm_init(EXECUTOR);
+}
+
+
+
+void start_action() {
+
+}
+
 int main(int argc, char* argv[]) {
-    
+
     return 0;
 }

@@ -1,13 +1,15 @@
+#ifndef MESSAGE_H
+#define MESSAGE_H
+
 #include <stdio.h>
-#include "devices.h"
 #include <stdint.h>
 #include <string.h>
-#include "shm_wrapper.h"
+#include "devices.h"
+#include "../runtime_util.h"
+#include "../shm_wrapper/shm_wrapper.h"
 
 /* The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types. */
 #define MAX_PAYLOAD_SIZE 132
-// An array of pointers to official devices
-dev_t* DEVICES[14];
 
 /* A struct to hold the 88-bit identifier for a device
  * 16 bits: Device Type (ex: LimitSwitch)
@@ -16,15 +18,8 @@ dev_t* DEVICES[14];
  * See page 9 of book.pdf for further details
 */
 
-/************** BTW this is also defined in shm_wrapper so we can delete this later when we include shm_wrapper *********/
-typedef struct dev_id {
-    uint16_t type;
-    uint8_t year;
-    uint64_t uid;
-} dev_id_t;
-
 // The types of message
-enum packet_type: uint8_t {
+typedef enum packet_type {
     Ping =  0x10,
     SubscriptionRequest = 0x11,
     SubscriptionResponse = 0x12,
@@ -36,9 +31,9 @@ enum packet_type: uint8_t {
     HeartBeatResponse = 0x18,
     Print = 0x19, // A packet used for print/debugging purposes
     Error = 0xFF,
-};
+} packet_type;
 
-typedef struct message_t {
+typedef struct message {
     packet_type    message_id;
     uint8_t*       payload;             // Array of 8-bit integers
     uint8_t        payload_length;      // The current number of 8-bit integers in payload
@@ -86,15 +81,5 @@ size_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len);
 size_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len);
 
 /* Utility functions */
-/* Converts a device name to the 16-bit type. */
-uint16_t device_name_to_type(char* dev_name);
-/* Converts a device type to its name */
-char* device_type_to_name(uint16_t dev_type);
-/* Returns an array of param name strings given a device type */
-void all_params_for_device_type(uint16_t dev_type, char* param_names[]);
-/* Check if PARAM of device type is readable */
-int readable(uint16_t dev_type, char* param_name);
-/* Check if PARAM of device type is writable */
-int writable(uint16_t dev_type, char* param_name);
-/* Return the data type of the device type's parameter */
-char* param_type(uint16_t dev_type, char* param_name);
+
+#endif

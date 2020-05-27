@@ -13,7 +13,7 @@ typedef enum log_output { STD_OUT, LOG_FILE, NETWORK } log_output;
 #define CURR_LOG_LEVEL INFO
 
 //currently printing logs to CURR_OUTPUT_LOC (change to route output to a different location)
-#define CURR_OUTPUT_LOC LOG_FILE
+#define CURR_OUTPUT_LOC STD_OUT
 
 //define the name/location of the log file
 #define LOG_FILE_LOC "/d/Documents/CollegeWork/PiE/c-runtime/logs/test.log"
