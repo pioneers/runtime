@@ -13,7 +13,7 @@
 #include "../runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
 //enumerated names for the two associated blocks per device
-enum streams { UPSTREAM, DOWNSTREAM };
+typedef enum stream { DATA, COMMAND } stream_t;
 
 // ******************************************* UTILITY FUNCTIONS ****************************************** //
 
@@ -35,7 +35,7 @@ The device handler process is responsible for initializing the catalog and updat
 		called from
 No return value.
 */
-void shm_init (uint8_t process);
+void shm_init (process_t process);
 
 /*
 Call this function if process no longer wishes to connect to shared memory wrapper
@@ -45,7 +45,7 @@ Device handler is responsible for marking shared memory block and semaphores for
 		called from
 No return value.
 */
-void shm_stop (uint8_t process);
+void shm_stop (process_t process);
 
 /*
 Should only be called from device handler
@@ -73,14 +73,14 @@ Takes care of updating the param bitmap for fast transfer of commands from execu
 Grabs either one or two semaphores depending on calling process and stream requested.
 	- dev_ix: device index of the device whose data is being requested
 	- process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
-	- stream: the requested block to read from, one of UPSTREAM, DOWNSTREAM
+	- stream: the requested block to read from, one of DATA, COMMAND
 	- params_to_read: bitmap representing which params to be read 
 		(nonexistent params should have corresponding bits set to 0)
 	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
 		device data will be read into the corresponding param_val_t's
 No return value.
 */
-void device_read (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_read, param_val_t *params);
+void device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
 
 /*	
 Should be called from every process wanting to write to the device data
@@ -88,14 +88,14 @@ Takes care of updating the param bitmap for fast transfer of commands from execu
 Grabs either one or two semaphores depending on calling process and stream requested.
 	- dev_ix: device index of the device whose data is being written
 	- process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
-	- stream: the requested block to write to, one of UPSTREAM, DOWNSTREAM
+	- stream: the requested block to write to, one of DATA, COMMAND
 	- params_to_read: bitmap representing which params to be written
 		(nonexistent params should have corresponding bits set to 0)
 	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
 		device data will be written into the corresponding param_val_t's
 No return value.
 */
-void device_write (int dev_ix, uint8_t process, uint8_t stream, uint32_t params_to_write, param_val_t *params);
+void device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
 
 /*
 Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
