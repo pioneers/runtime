@@ -1,6 +1,8 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdint.h>
+
 // ***************************** DEFINED CONSTANTS ************************** //
 
 //enumerate names of processes
@@ -24,5 +26,22 @@ typedef struct dev_id {
 	uint8_t year;
 	uint64_t uid;
 } dev_id_t;
+
+
+// A struct defining the params of a device
+typedef struct param_desc {
+  char* name;
+  char* type;
+  int read;
+  int write;
+} param_desc_t;
+
+// A struct defining a dev
+typedef struct device {
+  uint16_t type;
+  char* name;
+  uint8_t num_params;
+  param_desc_t params[MAX_PARAMS]; // There are up to 32 possible parameters for a device
+} device_t;
 
 #endif
