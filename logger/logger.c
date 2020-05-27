@@ -1,5 +1,4 @@
 #include "logger.h"
-#include "logger_config.h"
 
 #define PROCESS_STR_SIZE 32  //size in bytes of the process string
 
