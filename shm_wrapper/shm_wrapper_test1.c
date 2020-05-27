@@ -48,7 +48,7 @@ void sanity_test ()
 		//read the stuff and print it
 		for (int j = 0; j < MAX_DEVICES; j++) {
 			if (pmap[0] & (1 << j)) {
-				device_read(j, DEV_HANDLER, DOWNSTREAM, pmap[j + 1], params_out);
+				device_read(j, DEV_HANDLER, COMMAND, pmap[j + 1], params_out);
 				print_params(pmap[j + 1], params_out);
 			}
 		}
@@ -129,7 +129,7 @@ void single_thread_load_test ()
 	
 	//write params_test[0].p_b = 0 into the shared memory block for second device so we don't exit the test prematurely
 	params_test[0].p_b = 0; 
-	device_write(1, DEV_HANDLER, UPSTREAM, 1, params_test);
+	device_write(1, DEV_HANDLER, DATA, 1, params_test);
 	
 	//use the second device's p_b on param 0 to indicate when test is done
 	//we literally just sit here pulling information from the block as fast as possible 
@@ -138,7 +138,7 @@ void single_thread_load_test ()
 		//check if time to stop
 		i++;
 		if (i == 1000) {
-			device_read(1, DEV_HANDLER, UPSTREAM, 1, params_test); //use the upstream block to not touch the param bitmap
+			device_read(1, DEV_HANDLER, DATA, 1, params_test); //use the upstream block to not touch the param bitmap
 			if (params_test[0].p_b) {
 				break;
 			}
@@ -148,7 +148,7 @@ void single_thread_load_test ()
 		//if something changed, pull it out
 		get_param_bitmap(pmap);
 		if (pmap[0]) {
-			device_read(0, DEV_HANDLER, DOWNSTREAM, pmap[1], params_out);
+			device_read(0, DEV_HANDLER, COMMAND, pmap[1], params_out);
 		}
 	}
 	
@@ -169,10 +169,10 @@ void *read_thread_dtrwt (void *arg)
 	param_val_t params_out[MAX_PARAMS];
 	uint32_t pmap[MAX_DEVICES + 1];
 	
-	//we are reading from the device downstream block
-	//use the device downstream block on device 1 so that tester2 can signal end of test
+	//we are reading from the device command block
+	//use the device command block on device 1 so that tester2 can signal end of test
 	params_test[0].p_b = 0; 
-	device_write(1, DEV_HANDLER, DOWNSTREAM, 1, params_test); 
+	device_write(1, DEV_HANDLER, COMMAND, 1, params_test); 
 	
 	//use the second device device's p_b on param 0 to indicate when test is done 
 	//sit here pulling information from the block as fast as possible, 
@@ -181,7 +181,7 @@ void *read_thread_dtrwt (void *arg)
 		//check if time to stop 
 		i++;
 		if (i == 1000) {
-			device_read(1, DEV_HANDLER, DOWNSTREAM, 1, params_test);
+			device_read(1, DEV_HANDLER, COMMAND, 1, params_test);
 			if (params_test[0].p_b) {
 				break;
 			}
@@ -191,7 +191,7 @@ void *read_thread_dtrwt (void *arg)
 		//if something changed, pull it out and record it
 		get_param_bitmap(pmap);
 		if (pmap[0]) {
-			device_read(0, DEV_HANDLER, DOWNSTREAM, pmap[1], params_out);
+			device_read(0, DEV_HANDLER, COMMAND, pmap[1], params_out);
 			if (prev_val != params_out[0].p_i) {
 				prev_val = params_out[0].p_i;
 				count++;
@@ -211,18 +211,18 @@ void *write_thread_dtrwt (void *arg)
 	param_val_t params_in[MAX_PARAMS];
 	int x;
 	
-	//we are writing to the device upstream block
+	//we are writing to the device data block
 	//write 100,000 times on the device upstream block as fast as possible
 	params_in[0].p_i = 1;
 	for (int i = 0; i < trials; i++) {
 		(params_in[0].p_i)++;
-		device_write(0, DEV_HANDLER, UPSTREAM, 1, params_in);
+		device_write(0, DEV_HANDLER, DATA, 1, params_in);
 	}
 	printf("write_thread from tester1 wrote %d values to upstream block\n", trials);
 	
-	//signal on the device upstream block on device 1 so tester2 can stop reading
+	//signal on the device data block on device 1 so tester2 can stop reading
 	params_test[0].p_b = 1;
-	device_write(1, DEV_HANDLER, UPSTREAM, 1, params_test);
+	device_write(1, DEV_HANDLER, DATA, 1, params_test);
 	
 	return NULL;
 }

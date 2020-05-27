@@ -24,13 +24,13 @@ void sanity_test()
 	
 	print_dev_ids();
 	
-	//write 5 times to the downstream block of the device at varying times
+	//write 5 times to the command block of the device at varying times
 	for (int i = 0; i < 5; i++) {
 		params_in[1].p_i += 10;
 		params_in[1].p_f += 0.1;
 		params_in[1].p_b = 1 - params_in[1].p_b;
 
-		device_write(0, EXECUTOR, DOWNSTREAM, 2, params_in);
+		device_write(0, EXECUTOR, COMMAND, 2, params_in);
 		
 		print_pmap();
 		
@@ -101,7 +101,7 @@ void single_thread_load_test ()
 					break;
 				}
 			}
-			device_write(0, EXECUTOR, DOWNSTREAM, 1, params_in); //write into block
+			device_write(0, EXECUTOR, COMMAND, 1, params_in); //write into block
 		}
 		gettimeofday(&end, NULL);
 		
@@ -119,7 +119,7 @@ void single_thread_load_test ()
 	
 	//tell process1 to stop reading
 	params_in[0].p_b = 1;
-	device_write(1, EXECUTOR, UPSTREAM, 1, params_in);
+	device_write(1, EXECUTOR, DATA, 1, params_in);
 	sleep(1);
 }
 
@@ -131,10 +131,10 @@ void *read_thread_dtrwt (void *arg)
 	param_val_t params_test[MAX_PARAMS];
 	param_val_t params_out[MAX_PARAMS];
 	
-	//we are reading from the device upstream block
-	//use the device upstream block on device 1 so that tester2 can signal end of test
+	//we are reading from the device data block
+	//use the device data block on device 1 so that tester2 can signal end of test
 	params_test[0].p_b = 0;
-	device_write(1, EXECUTOR, UPSTREAM, 1, params_test);
+	device_write(1, EXECUTOR, DATA, 1, params_test);
 	
 	//use the second device device's p_b on param 0 to indicate when test is done
 	//sit here pulling information from the block as fast as possible, 
@@ -143,7 +143,7 @@ void *read_thread_dtrwt (void *arg)
 		//check if time to stop
 		i++;
 		if (i == 1000) {
-			device_read(1, EXECUTOR, UPSTREAM, 1, params_test);
+			device_read(1, EXECUTOR, DATA, 1, params_test);
 			if (params_test[0].p_b) {
 				break;
 			}
@@ -151,7 +151,7 @@ void *read_thread_dtrwt (void *arg)
 		}
 		
 		//pull from that block and record it if changed
-		device_read(0, EXECUTOR, UPSTREAM, 1, params_out);
+		device_read(0, EXECUTOR, DATA, 1, params_out);
 		if (prev_val != params_out[0].p_i) {
 			prev_val = params_out[0].p_i;
 			count++;
@@ -170,8 +170,8 @@ void *write_thread_dtrwt (void *arg)
 	param_val_t params_in[MAX_PARAMS];
 	uint32_t pmap[MAX_DEVICES + 1];
 	
-	//we are writing to the device upstream block
-	//write 100,000 times on the device upstream block as fast as possible
+	//we are writing to the device command block
+	//write 100,000 times on the device command block as fast as possible
 	params_in[0].p_i = 1;
 	for (int i = 0; i < trials; i++) {
 		(params_in[0].p_i)++;
@@ -181,13 +181,13 @@ void *write_thread_dtrwt (void *arg)
 				break;
 			}
 		}
-		device_write(0, EXECUTOR, DOWNSTREAM, 1, params_in); //write into block
+		device_write(0, EXECUTOR, COMMAND, 1, params_in); //write into block
 	}
 	printf("write_thread from tester2 wrote %d values to downstream block\n", trials);
 	
 	//signal on the device downnstream block on device 1 so tester1 can stop reading
 	params_test[0].p_b = 1;
-	device_write(1, EXECUTOR, DOWNSTREAM, 1, params_test);
+	device_write(1, EXECUTOR, COMMAND, 1, params_test);
 	
 	return NULL;
 }
