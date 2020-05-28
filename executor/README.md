@@ -1,6 +1,11 @@
 # Student Code Executor
 
-This folder has the code to understand the student code API, interpret it, and call the corresponding Runtime processes. 
+This folder includes the processes to understand the student code API, interpret it, and execute the corresponding Runtime functions. 
 
 ### Compiling:
-`gcc $(python3.6-config --cflags) run_python.c $(python3.6-config --ldflags) -o call.out`
+`make studentapi`
+`make executor`
+
+### Testing
+`python test_studentapi.py`
+`make test_executor`
