@@ -9,6 +9,47 @@
 
 //test process 2 for shm_wrapper. is a dummy executor
 
+// ************************************* HELPER FUNCTIONS ******************************************** //
+
+void sync()
+{
+	int dev_ix;
+	uint32_t catalog;
+	param_val_t params_in[MAX_PARAMS];
+	param_val_t params_out[MAX_PARAMS];
+
+	//wait until sync in tester1 connects the sync device
+	while (1) {
+		get_catalog(&catalog);
+		if (catalog) {
+			break;
+		}
+		usleep(1000);
+	}
+
+	params_in[0].p_b = 0;
+	device_write(0, EXECUTOR, COMMAND, 1, params_in); //write a 0 to the downstream block
+	params_in[0].p_b = 1;
+	while (1) {
+		device_write(0, EXECUTOR, DATA, 1, params_in); //write 1 to the upstream block
+		device_read(0, EXECUTOR, COMMAND, 1, params_out); //wait on a 1 in the downstream block
+		if (params_out[0].p_b) {
+			break;
+		}
+		usleep(100);
+	}
+	//wait until sync in tester1 disconnects the device
+	while (1) {
+		get_catalog(&catalog);
+		if (!catalog) {
+			break;
+		}
+		usleep(1000);
+	}
+	sleep(1);
+	printf("\tSynced; starting test!\n");
+}
+
 // *************************************************************************************************** //
 //test the param bitmap and sanity check to make sure shm connection is functioning
 void sanity_test()
@@ -21,6 +62,8 @@ void sanity_test()
 	param_val_t params_out[MAX_PARAMS];
 	
 	uint32_t pmap[33];
+	
+	sync();
 	
 	print_dev_ids();
 	
@@ -38,8 +81,6 @@ void sanity_test()
 	}
 	
 	print_pmap();
-	
-	sleep(1);
 }
 
 // *************************************************************************************************** //
@@ -49,6 +90,8 @@ void sanity_test()
 //test disconnecting devices in quick succession
 void dev_conn_test ()
 {
+	sync();
+	
 	//process2's job is simply to monitor what's going on in the catalog
 	//as devices connect and disconnect. all the work is being done from process1
 	for (int i = 0; i < 7; i++) {
@@ -81,6 +124,8 @@ void single_thread_load_test ()
 	params_in[0].p_b = 0;
 	params_in[0].p_i = 1;
 	params_in[0].p_f = 2.0;
+	
+	sync();
 	
 	//wait until the two devices connect
 	while (1) {
@@ -201,6 +246,8 @@ void dual_thread_read_write_test ()
 	int status;
 	pthread_t read_tid, write_tid; //thread_ids for the two threads
 	
+	sync();
+	
 	printf("Beginning dual thread read write test...\n");
 	
 	//create threads
@@ -233,6 +280,7 @@ void ctrl_c_handler (int sig_num)
 int main()
 {	
 	shm_init(EXECUTOR);
+	logger_init(EXECUTOR);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
 	sanity_test();	
@@ -244,6 +292,7 @@ int main()
 	dual_thread_read_write_test();
 	
 	shm_stop(EXECUTOR);
+	logger_stop(EXECUTOR);
 	
 	sleep(2);
 	
