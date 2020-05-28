@@ -50,6 +50,7 @@ sem_t *pmap_sem;                    //semaphore used as a mutex on the param bit
 static void error (char *msg)
 {
 	perror(msg);
+	log_runtime(ERROR, msg); //send the message to the logger
 	exit(1);
 }
 
@@ -104,7 +105,7 @@ void print_dev_ids ()
 	} else {
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			if (catalog & (1 << i)) {
-				printf("dev_ix = %d: type = %d, year = %d, uid = %lu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+				printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 			}
 		}
 	}
@@ -311,7 +312,7 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 		}
 	}
 	if (*dev_ix == MAX_DEVICES) {
-		printf("too many devices, connection unsuccessful\n"); //turn into a logger message later
+		log_runtime(WARN, "too many devices, connection unsuccessful");
 		if (sem_post(catalog_sem) == -1) { //release the catalog semaphore
 			error("sem_post: catalog_sem");
 		}
@@ -337,8 +338,8 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 
 	//reset param values to 0
 	for (int i = 0; i < MAX_PARAMS; i++) {
-		shm_ptr->params[0][*dev_ix][i] = (const param_val_t) {0};
-		shm_ptr->params[1][*dev_ix][i] = (const param_val_t) {0};
+		shm_ptr->params[DATA][*dev_ix][i] = (const param_val_t) {0};
+		shm_ptr->params[COMMAND][*dev_ix][i] = (const param_val_t) {0};
 	}
 	
 	//release associated data and command sems
@@ -375,19 +376,20 @@ void device_disconnect (int dev_ix)
 	if (sem_wait(sems[dev_ix].command_sem) == -1) {
 		error("sem_wait: command sem");
 	}
-
-
-	//update the catalog
-	shm_ptr->catalog &= (~(1 << dev_ix));
-
+	
+	//wait on pmap_sem
 	if (sem_wait(pmap_sem) == -1) {
 		error("sem_wait: pmap_sem");
 	}
 
-	//reset param map values to 0
-	shm_ptr->pmap[0] &= (~(1 << dev_ix)); //Reset the changed bit flag in pmap[0]
-	shm_ptr->pmap[dev_ix + 1] = 0; //turn off all changed bits for the device
+	//update the catalog
+	shm_ptr->catalog &= (~(1 << dev_ix));
 
+	//reset param map values to 0
+	shm_ptr->pmap[0] &= (~(1 << dev_ix)); //reset the changed bit flag in pmap[0]
+	shm_ptr->pmap[dev_ix + 1] = 0; //turn off all changed bits for the device
+	
+	//release pmap_sem
 	if (sem_post(pmap_sem) == -1) {
 		error("sem_post: pmap_sem");
 	}
@@ -422,10 +424,26 @@ No return value.
 */
 void device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
+	char msg[64]; //for holding error message
+	
+	//wait on catalog_sem (TODO: check to see how much this affects performance with many threads)
+	if (sem_wait(catalog_sem) == -1) {
+		error("sem_wait: catalog_sem");
+	}
+	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
-		printf("no device at this index, read failed\n");
+		sprintf(msg, "no device at dev_ix = %d, read failed", dev_ix);
+		log_runtime(DEBUG, msg);
+		if (sem_post(catalog_sem) == -1) { //release the catalog_sem if no device
+				error("sem_post: catalog_sem");
+		}
 		return;
+	}
+	
+	//release catalog_sem
+	if (sem_post(catalog_sem) == -1) {
+		error("sem_post: catalog_sem");
 	}
 	
 	//grab semaphore for the appropriate stream and device
@@ -446,7 +464,7 @@ void device_read (int dev_ix, process_t process, stream_t stream, uint32_t param
 		}
 	}
 	
-	// if the device handler has processed the command, then turn off the change
+	//if the device handler has processed the command, then turn off the change
 	//if stream = downstream and process = dev_handler then also update params bitmap
 	if (process == DEV_HANDLER && stream == COMMAND) {
 		//wait on pmap_sem
@@ -490,10 +508,26 @@ No return value.
 */
 void device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
+	char msg[64]; //for holding error message
+	
+	//wait on catalog_sem (TODO: check to see how much this affects performance with many threads)
+	if (sem_wait(catalog_sem) == -1) {
+		error("sem_wait: catalog_sem");
+	}
+	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
-		printf("no device at this index, write failed\n");
+		sprintf(msg, "no device at dev_ix = %d, write failed", dev_ix);
+		log_runtime(DEBUG, msg);
+		if (sem_post(catalog_sem) == -1) { //release the catalog_sem if no device
+				error("sem_post: catalog_sem");
+		}
 		return;
+	}
+	
+	//release catalog_sem
+	if (sem_post(catalog_sem) == -1) {
+		error("sem_post: catalog_sem");
 	}
 	
 	//grab semaphore for the appropriate stream and device

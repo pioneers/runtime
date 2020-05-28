@@ -12,6 +12,32 @@
 //if for some reason you need to quit before the processes terminate (or they're stuck) 
 //you'll need to remove the shm file or change the name in shm_wrapper.c
 
+// ************************************* HELPER FUNCTIONS ******************************************** //
+
+void sync()
+{
+	int dev_ix;
+	param_val_t params_in[MAX_PARAMS];
+	param_val_t params_out[MAX_PARAMS];
+	
+	device_connect(0, 0, 48482, &dev_ix); //this will connect in dev_ix = 0
+	params_in[0].p_b = 0;
+	device_write(0, DEV_HANDLER, DATA, 1, params_in); //write a 0 to the upstream block
+	params_in[0].p_b = 1;
+	while (1) {
+		device_write(0, DEV_HANDLER, COMMAND, 1, params_in); //write 1 to the downstream block
+		device_read(0, DEV_HANDLER, DATA, 1, params_out); //wait on a 1 in the upstream block
+		if (params_out[0].p_b) {
+			break;
+		}
+		usleep(100);
+	}
+	sleep(1);
+	device_disconnect(0);
+	sleep(1);
+	printf("\tSynced; starting test!\n");
+}
+
 // *************************************************************************************************** //
 //test the param bitmap and sanity check to make sure shm connection is functioning
 void sanity_test ()
@@ -27,13 +53,13 @@ void sanity_test ()
 	
 	int dev_ix = -1;
 	
+	sync();
+	
 	device_connect(0, 3, 382726112, &dev_ix);
 	
 	print_dev_ids();
 	
 	printf("Beginning sanity test...\n");
-	
-	sleep(2); //start up the other process during this time
 	
 	//process2 writes five times to this block; we read it out and print it
 	for (int i = 0; i < 5; i++) {
@@ -58,8 +84,6 @@ void sanity_test ()
 	
 	device_disconnect(0);
 	
-	sleep(2);
-	
 	printf("Done!\n");
 }
 
@@ -71,6 +95,8 @@ void sanity_test ()
 void dev_conn_test ()
 {
 	int dev_ix = -1;
+	
+	sync();
 	
 	printf("Beginning device connection test...\n");
 	
@@ -104,7 +130,7 @@ void dev_conn_test ()
 	}
 	print_dev_ids();
 	
-	printf("Done!\n");
+	printf("Done!\n\n");
 }
 
 // *************************************************************************************************** //
@@ -121,6 +147,8 @@ void single_thread_load_test ()
 	param_val_t params_out[MAX_PARAMS];
 	param_val_t params_test[MAX_PARAMS];
 	uint32_t pmap[MAX_DEVICES + 1];
+	
+	sync();
 	
 	printf("Beginning single threaded load test...\n");
 	
@@ -236,6 +264,8 @@ void dual_thread_read_write_test ()
 	int status;
 	pthread_t read_tid, write_tid; //thread_ids for the two threads
 	
+	sync();
+	
 	printf("Beginning dual thread read write test...\n");
 	
 	device_connect(0, 1, 4894249, &dev_ix);
@@ -268,12 +298,14 @@ void ctrl_c_handler (int sig_num)
 	printf("Aborting and cleaning up\n");
 	fflush(stdout);
 	shm_stop(DEV_HANDLER);
+	logger_stop(DEV_HANDLER);
 	exit(1);
 }
 
 int main()
 {
 	shm_init(DEV_HANDLER);
+	logger_init(DEV_HANDLER);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
 	sanity_test();
@@ -287,6 +319,7 @@ int main()
 	sleep(2);
 	
 	shm_stop(DEV_HANDLER);
+	logger_stop(DEV_HANDLER);
 	
 	return 0;
 }
