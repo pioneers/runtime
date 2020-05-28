@@ -10,6 +10,7 @@
 #include <unistd.h>                        //for standard symbolic constants
 #include <semaphore.h>                     //for semaphores
 #include <sys/mman.h>                      //for posix shared memory
+#include "../logger/logger.h"              //for logger (TODO: consider removing relative pathname in include)
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
 //enumerated names for the two associated blocks per device
