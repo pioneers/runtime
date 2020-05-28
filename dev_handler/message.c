@@ -151,8 +151,42 @@ message_t* make_device_read(dev_id_t device_id, char* param_names[], uint8_t len
  * Constructs a DeviceWrite message, given DEVICE_ID and an array of param_value structs to write to the device
  * Writes to the device the specified param/values pairs
  * Payload: 32-bit param mask + 32-bits for each of the 32-bit possible params = 32 + 32*32 = 1056 bits = 132 bytes
+ * param_values is an array of structs
+    {
+    "switch0" : KEEP THE SAME
+    "switch1" : 30
+    "switch2" : 100
+    }
 */
-message_t* make_device_write();
+message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], int len) {
+    message_t* dev_write = malloc(sizeof(message_t));
+    dev_write->message_id = DeviceWrite;
+    dev_write->payload = malloc(132);
+    dev_write->max_payload_length = 132;
+    // Initialize mask to 1 if the last parameter is on. Otherwise 0
+    uint32_t mask = param_values[len-1] == NULL ? 0 : 1;
+    // Keep building the mask: 1 if present in param_values. Otherwise 0
+    for (int i = len-2; i >= 0; i--) {
+        mask <<= 1;
+        mask |= (param_values[i] == NULL ? 0 : 1); // Append a 1 to the right side of mask if param_values[i] is not null. Otherwise 0
+    }
+    int status = 0;
+    // Append the mask
+    status += append_payload(dev_write, (uint8_t*) &mask, 4);
+    // Build the payload with the values of parameter 0 to parameter len-1
+    for (int i = 0; i < len; i++) {
+        char* param_type = DEVICES[device_id->type]->params[i].type;
+        if (strcmp(param_type, "int") == 0) {
+            status += append_payload(dev_write, (uint8_t*) param_values[i]->p_i, 4);
+        } else if (strcmp(param_type, "float") == 0) {
+            status += append_payload(dev_write, (uint8_t*) param_values[i]->p_f, 4);
+        } else if (strcmp(param_type, "bool") == 0) { // Boolean
+            status += append_payload(dev_write, (uint8_t*) param_values[i]->p_b, 4);
+        }
+    }
+    return (status == 0) ? dev_write : NULL;
+}
+
 message_t* make_device_data();
 message_t* make_error();
 
