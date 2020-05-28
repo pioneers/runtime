@@ -1,4 +1,4 @@
-/* Defines devices.json in C to avoid reading from JSON file everytime
+/* Defines devices.json in C to avoid reading from JSON file everytimeget
 A Device is defined by a 16-bit type, an 8-bit year, and a 64-bit uid*
 (There's a 1-to-1 mapping between types and device names)
 See hibikeDevices.json for the numbers. */
@@ -15,10 +15,8 @@ See hibikeDevices.json for the numbers. */
 */
 #define DEVICES_LENGTH 14
 
-device_t* DEVICES[DEVICES_LENGTH];
-
-/* Puts all devices into one array. */
-void get_devices(device_t* devices[]);
+/* Returns a pointer to the device for DEVICE_TYPE */
+device_t* get_device(uint16_t device_type);
 /* Converts a device name to the 16-bit type. */
 uint16_t device_name_to_type(char* dev_name);
 /* Converts a device type to its name */
@@ -33,6 +31,5 @@ int writeable(uint16_t dev_type, char* param_name);
 char* get_param_type(uint16_t dev_type, char* param_name);
 /* Get the param id in array from param name */
 uint8_t get_param_id(uint16_t dev_type, char* param_name);
-
 
 #endif

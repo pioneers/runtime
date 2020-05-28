@@ -27,20 +27,20 @@ typedef struct dev_id {
 	uint64_t uid;
 } dev_id_t;
 
-
 // A struct defining the params of a device
+// See devices.c for defined values
 typedef struct param_desc {
   char* name;
-  char* type;
-  int read;
-  int write;
+  char* type;		// Either "int", "float", or "bool"
+  uint8_t read;		// 8 bit value respresenting true or false
+  uint8_t write;	// 8 bit value respresenting true or false
 } param_desc_t;
 
-// A struct defining a dev
+// A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
   uint16_t type;
-  char* name;
-  uint8_t num_params;
+  char* name; //Device name
+  uint8_t num_params; //Number of parameters a device holds
   param_desc_t params[MAX_PARAMS]; // There are up to 32 possible parameters for a device
 } device_t;
 
