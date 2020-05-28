@@ -6,7 +6,7 @@ See hibikeDevices.json for the numbers. */
 #define DEVICES_H
 
 #include <string.h>                        //for standard string functions
-#include "../runtime_util.h"
+#include "../runtime_util/runtime_util.h"
 
 /* The number of functional devices */
 #define NUM_DEVICES 11

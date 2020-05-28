@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include "devices.h"
-#include "../runtime_util.h"
+#include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 
 /* The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types. */
