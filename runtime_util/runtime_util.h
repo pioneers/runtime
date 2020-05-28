@@ -76,6 +76,7 @@ typedef struct device {
   param_desc_t params[MAX_PARAMS]; // There are up to 32 possible parameters for a device
 } device_t;
 
+
 // *************************** DEVICE UTILITY FUNCTIONS ************************** //
 
 /* Returns a pointer to the device given its DEVICE_TYPE */
@@ -94,4 +95,5 @@ uint8_t writeable(uint16_t dev_type, char* param_name);
 char* get_param_type(uint16_t dev_type, char* param_name);
 /* Get the param id of PARAM_NAME for the device DEV_TYPE */
 uint8_t get_param_id(uint16_t dev_type, char* param_name);
+
 #endif
