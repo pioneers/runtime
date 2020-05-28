@@ -6,9 +6,9 @@ device_t LimitSwitch = {
   .name = "LimitSwitch",
   .num_params = 3,
   .params = {
-    {.name = "switch0"    , .type = "int"    , .read = 1 , .write = 0 },
-    {.name = "switch1"    , .type = "int"    , .read = 1 , .write = 0 },
-    {.name = "switch2"    , .type = "int"    , .read = 1 , .write = 0 }
+    {.name = "switch0"    , .type = "bool"    , .read = 1 , .write = 0 },
+    {.name = "switch1"    , .type = "bool"    , .read = 1 , .write = 0 },
+    {.name = "switch2"    , .type = "bool"    , .read = 1 , .write = 0 }
   }
 };
 
@@ -39,7 +39,7 @@ device_t Encoder = {
   .name = "Encoder",
   .num_params = 1,
   .params = {
-    {.name = "rotation"   , .type = "int16_t" , .read = 1 , .write = 0 }
+    {.name = "rotation"   , .type = "int" , .read = 1 , .write = 0 }
   }
 };
 
@@ -48,14 +48,14 @@ device_t BatteryBuzzer = {
   .name = "BatteryBuzzer",
   .num_params = 8,
   .params = {
-    {.name = "is_unsafe"  , .type = "int"     , .read = 1 , .write = 0 },
-    {.name = "calibrated" , .type = "int"     , .read = 1 , .write = 0  },
-    {.name = "v_cell1"    , .type = "float"   , .read = 1 , .write = 0 },
-    {.name = "v_cell2"    , .type = "float"   , .read = 1 , .write = 0 },
-    {.name = "v_cell3"    , .type = "float"   , .read = 1 , .write = 0 },
-    {.name = "v_batt"     , .type = "float"   , .read = 1 , .write = 0 },
-    {.name = "dv_cell2"   , .type = "float"   , .read = 1 , .write = 0 },
-    {.name = "dv_cell3"   , .type = "float"   , .read = 1 , .write = 0 }
+    {.name = "is_unsafe"  , .type = "bool"     , .read = 1 , .write = 0 },
+    {.name = "calibrated" , .type = "bool"     , .read = 1 , .write = 0  },
+    {.name = "v_cell1"    , .type = "float"    , .read = 1 , .write = 0 },
+    {.name = "v_cell2"    , .type = "float"    , .read = 1 , .write = 0 },
+    {.name = "v_cell3"    , .type = "float"    , .read = 1 , .write = 0 },
+    {.name = "v_batt"     , .type = "float"    , .read = 1 , .write = 0 },
+    {.name = "dv_cell2"   , .type = "float"    , .read = 1 , .write = 0 },
+    {.name = "dv_cell3"   , .type = "float"    , .read = 1 , .write = 0 }
   }
 };
 
@@ -64,13 +64,13 @@ device_t BatteryBuzzer = {
   .name = "TeamFlag",
   .num_params = 7,
   .params = {
-    {.name = "mode"  , .type = "int"    , .read = 1 , .write = 1},
-    {.name = "blue"  , .type = "int"    , .read = 1 , .write = 1},
-    {.name = "yellow", .type = "int"    , .read = 1 , .write = 1},
-    {.name = "led1"  , .type = "int"    , .read = 1 , .write = 1},
-    {.name = "led2"  , .type = "int"    , .read = 1 , .write = 1},
-    {.name = "led3"  , .type = "int"    , .read = 1 , .write = 1},
-    {.name = "led4"  , .type = "int"    , .read = 1 , .write = 1}
+    {.name = "mode"  , .type = "bool"    , .read = 1 , .write = 1},
+    {.name = "blue"  , .type = "bool"    , .read = 1 , .write = 1},
+    {.name = "yellow", .type = "bool"    , .read = 1 , .write = 1},
+    {.name = "led1"  , .type = "bool"    , .read = 1 , .write = 1},
+    {.name = "led2"  , .type = "bool"    , .read = 1 , .write = 1},
+    {.name = "led3"  , .type = "bool"    , .read = 1 , .write = 1},
+    {.name = "led4"  , .type = "bool"    , .read = 1 , .write = 1}
   }
 };
 
@@ -95,16 +95,16 @@ device_t KoalaBear = {
       {.name = "pid_kd_a"			, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "enc_a"				, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "deadband_a"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_a"		, .type = "int"	, .read = 1 , .write = 1  },
-      {.name = "drive_mode_a"		, .type = "int32_t"		, .read = 1 , .write = 1  },
+      {.name = "motor_enabled_a"	, .type = "bool"    , .read = 1 , .write = 1  },
+      {.name = "drive_mode_a"		, .type = "int"		, .read = 1 , .write = 1  },
       {.name = "pid_kp_a"			, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "pid_kp_b"			, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "pid_ki_b"			, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "pid_kd_b"			, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "enc_b"				, .type = "float"	, .read = 1 , .write = 1  },
       {.name = "deadband_b"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_b"	, .type = "int"	, .read = 1 , .write = 1  },
-      {.name = "drive_mode_b"		, .type = "int32_t"		, .read = 1 , .write = 1  }
+      {.name = "motor_enabled_b"	, .type = "bool"	, .read = 1 , .write = 1  },
+      {.name = "drive_mode_b"		, .type = "int"		, .read = 1 , .write = 1  }
   }
 };
 
@@ -123,10 +123,10 @@ device_t PolarBear = {
     {.name = "pid_vel_ki"          , .type = "float"    , .read = 0 , .write = 1  },
     {.name = "pid_vel_kd"          , .type = "float"    , .read = 0 , .write = 1  },
     {.name = "current_thresh"      , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "enc_pos"            , .type = "float"    , .read = 1 , .write = 1  },
-    {.name = "enc_vel"            , .type = "float"    , .read = 1 , .write = 0  },
-    {.name = "motor_current"      , .type = "float"    , .read = 1 , .write = 0  },
-    {.name = "deadband"           , .type = "float"    , .read = 1 , .write = 1  }
+    {.name = "enc_pos"             , .type = "float"    , .read = 1 , .write = 1  },
+    {.name = "enc_vel"             , .type = "float"    , .read = 1 , .write = 0  },
+    {.name = "motor_current"       , .type = "float"    , .read = 1 , .write = 0  },
+    {.name = "deadband"            , .type = "float"    , .read = 1 , .write = 1  }
   }
 };
 
@@ -146,10 +146,10 @@ device_t YogiBear = {
     {.name = "pid_vel_ki"          , .type = "float"    , .read = 0 , .write = 1  },
     {.name = "pid_vel_kd"          , .type = "float"    , .read = 0 , .write = 1  },
     {.name = "current_thresh"      , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "enc_pos"            , .type = "float"    , .read = 1 , .write = 1  },
-    {.name = "enc_vel"            , .type = "float"    , .read = 1 , .write = 0  },
-    {.name = "motor_current"      , .type = "float"    , .read = 1 , .write = 0  },
-    {.name = "deadband"           , .type = "float"    , .read = 1 , .write = 1  }
+    {.name = "enc_pos"             , .type = "float"    , .read = 1 , .write = 1  },
+    {.name = "enc_vel"             , .type = "float"    , .read = 1 , .write = 0  },
+    {.name = "motor_current"       , .type = "float"    , .read = 1 , .write = 0  },
+    {.name = "deadband"            , .type = "float"    , .read = 1 , .write = 1  }
   }
 };
 
@@ -158,8 +158,8 @@ device_t RFID = {
   .name = "RFID",
   .num_params = 2,
   .params = {
-    {.name = "type"           , .type = "uint32_t"    , .read = 1 , .write = 0  },
-    {.name = "tag_detect"     , .type = "uint8_t"     , .read = 1 , .write = 0  }
+    {.name = "id"           , .type = "int"     , .read = 1 , .write = 0  },
+    {.name = "detect_tag"   , .type = "int"     , .read = 1 , .write = 0  }
   }
 };
 
@@ -168,44 +168,44 @@ device_t ExampleDevice = {
   .name = "ExampleDevice",
   .num_params = 16,
   .params = {
-    {.name = "kumiko"     , .type = "int"    , .read = 1 , .write = 1  },
-    {.name = "hazuki"     , .type = "uint8_t" , .read = 1 , .write = 1  },
-    {.name = "sapphire"   , .type = "int8_t"  , .read = 1 , .write = 1  },
-    {.name = "reina"      , .type = "uint16_t", .read = 1 , .write = 1  },
-    {.name = "asuka"      , .type = "int16_t" , .read = 1 , .write = 1  },
-    {.name = "haruka"     , .type = "uint32_t", .read = 1 , .write = 1  },
-    {.name = "kaori"      , .type = "int32_t" , .read = 1 , .write = 1  },
-    {.name = "natsuki"    , .type = "uint64_t", .read = 1 , .write = 1  },
-    {.name = "yuko"       , .type = "int64_t" , .read = 1 , .write = 1  },
-    {.name = "mizore"     , .type = "float"   , .read = 1 , .write = 1  },
-    {.name = "nozomi"     , .type = "float"  , .read = 1 , .write = 1  },
-    {.name = "shuichi"    , .type = "uint8_t" , .read = 1 , .write = 0 },
-    {.name = "takuya"     , .type = "uint16_t", .read = 0, .write = 1  },
-    {.name = "riko"       , .type = "uint32_t", .read = 1 , .write = 0 },
-    {.name = "aoi"        , .type = "uint64_t", .read = 0, .write = 1  },
-    {.name = "noboru"     , .type = "float"   , .read = 1 , .write = 0 }
+    {.name = "kumiko"     , .type = "bool"  , .read = 1 , .write = 1  },
+    {.name = "hazuki"     , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "sapphire"   , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "reina"      , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "asuka"      , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "haruka"     , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "kaori"      , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "natsuki"    , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "yuko"       , .type = "int"   , .read = 1 , .write = 1  },
+    {.name = "mizore"     , .type = "float" , .read = 1 , .write = 1  },
+    {.name = "nozomi"     , .type = "float" , .read = 1 , .write = 1  },
+    {.name = "shuichi"    , .type = "int"   , .read = 1 , .write = 0 },
+    {.name = "takuya"     , .type = "int"   , .read = 0, .write = 1  },
+    {.name = "riko"       , .type = "int"   , .read = 1 , .write = 0 },
+    {.name = "aoi"        , .type = "int"   , .read = 0, .write = 1  },
+    {.name = "noboru"     , .type = "float" , .read = 1 , .write = 0 }
   }
 };
 
+/* An constant array of all the lowcar devices. */
+device_t* DEVICES[DEVICES_LENGTH];
+DEVICES[0] = &LimitSwitch;
+DEVICES[1] = &LineFollower;
+DEVICES[2] = &Potentiometer;
+DEVICES[3] = &Encoder;
+DEVICES[4] = &BatteryBuzzer;
+DEVICES[5] = &TeamFlag;
+DEVICES[6] = NULL;
+DEVICES[7] = &ServoControl;
+DEVICES[8] = NULL;
+DEVICES[9] = NULL;
+DEVICES[10] = &YogiBear;
+DEVICES[11] = &RFID;
+DEVICES[12] = &PolarBear;
+DEVICES[13] = &KoalaBear;
 
-/*
- * Instantiates the array with all the known devices to lowcar
-*/
-void get_devices(device_t* devices[]) {
-    devices[0] = &LimitSwitch;
-    devices[1] = &LineFollower;
-    devices[2] = &Potentiometer;
-    devices[3] = &Encoder;
-    devices[4] = &BatteryBuzzer;
-    devices[5] = &TeamFlag;
-    devices[6] = NULL;
-    devices[7] = &ServoControl;
-    devices[8] = NULL;
-    devices[9] = NULL;
-    devices[10] = &YogiBear;
-    devices[11] = &RFID;
-    devices[12] = &PolarBear;
-    devices[13] = &KoalaBear;
+device_t* get_device(uint16_t device_type); {
+    return DEVICE[device_type];
 }
 
 uint16_t device_name_to_type(char* dev_name) {
