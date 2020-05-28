@@ -1,5 +1,5 @@
 #define PY_SSIZE_T_CLEAN
-#include <python3.5m/Python.h>
+#include <python3.6/Python.h>
 
 int
 main(int argc, char *argv[])
@@ -13,6 +13,13 @@ main(int argc, char *argv[])
         return 1;
     }
 
+    wchar_t *program = Py_DecodeLocale(argv[0], NULL);
+    if (program == NULL) {
+        fprintf(stderr, "Fatal error: cannot decode argv[0]\n");
+        exit(1);
+    }
+    Py_SetProgramName(program); 
+    printf("%s\n", program);
     Py_Initialize();
     pName = PyUnicode_DecodeFSDefault(argv[1]);
     /* Error checking of pName left out */
@@ -23,7 +30,8 @@ main(int argc, char *argv[])
     if (pModule != NULL) {
         pFunc = PyObject_GetAttrString(pModule, argv[2]);
         /* pFunc is a new reference */
-
+        printf("%s\n\n", argv[2]);
+        printf("%d\n", PyCallable_Check(pFunc));
         if (pFunc && PyCallable_Check(pFunc)) {
             pArgs = PyTuple_New(argc - 3);
             for (i = 0; i < argc - 3; ++i) {
