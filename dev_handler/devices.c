@@ -1,6 +1,8 @@
 #include "devices.h"
 
-// List of all lowcar devices
+/*
+ * Definition of each lowcar device
+*/
 device_t LimitSwitch = {
   .type = 0,
   .name = "LimitSwitch",
@@ -23,7 +25,7 @@ device_t LineFollower = {
   }
 };
 
- device_t Potentiometer = {
+device_t Potentiometer = {
   .type = 2,
   .name = "Potentiometer",
   .num_params = 3,
@@ -59,7 +61,7 @@ device_t BatteryBuzzer = {
   }
 };
 
- device_t TeamFlag = {
+device_t TeamFlag = {
   .type = 5,
   .name = "TeamFlag",
   .num_params = 7,
@@ -130,7 +132,6 @@ device_t PolarBear = {
   }
 };
 
-
 device_t YogiBear = {
   .type = 10,
   .name = "YogiBear",
@@ -187,25 +188,13 @@ device_t ExampleDevice = {
   }
 };
 
-/* An constant array of all the lowcar devices. */
-device_t* DEVICES[DEVICES_LENGTH];
-DEVICES[0] = &LimitSwitch;
-DEVICES[1] = &LineFollower;
-DEVICES[2] = &Potentiometer;
-DEVICES[3] = &Encoder;
-DEVICES[4] = &BatteryBuzzer;
-DEVICES[5] = &TeamFlag;
-DEVICES[6] = NULL;
-DEVICES[7] = &ServoControl;
-DEVICES[8] = NULL;
-DEVICES[9] = NULL;
-DEVICES[10] = &YogiBear;
-DEVICES[11] = &RFID;
-DEVICES[12] = &PolarBear;
-DEVICES[13] = &KoalaBear;
+/* An array that holds pointers to the structs of each lowcar device */
+device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer, &Encoder, &BatteryBuzzer,
+                                     &TeamFlag, NULL, &ServoControl, NULL, NULL,
+                                     &YogiBear, &RFID, &PolarBear, &KoalaBear};
 
-device_t* get_device(uint16_t device_type); {
-    return DEVICE[device_type];
+device_t* get_device(uint16_t device_type) {
+    return DEVICES[device_type];
 }
 
 uint16_t device_name_to_type(char* dev_name) {
@@ -221,11 +210,6 @@ char* device_type_to_name(uint16_t dev_type) {
     return DEVICES[dev_type]->name;
 }
 
-/*
- * Write to the input array PARAM_NAMES all the param names
- * for DEV_TYPE.
- * Note: DEV_TYPE has a specific number of parameters. param_names should be that length.
-*/
 void all_params_for_device_type(uint16_t dev_type, char* param_names[]) {
     int num_params = DEVICES[dev_type]->num_params;
     for (int i = 0; i < num_params; i++) {
@@ -233,7 +217,7 @@ void all_params_for_device_type(uint16_t dev_type, char* param_names[]) {
     }
 }
 
-int readable(uint16_t dev_type, char* param_name) {
+uint8_t readable(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
     for (int i = 0; i < num_params; i++) {
         if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
@@ -243,7 +227,7 @@ int readable(uint16_t dev_type, char* param_name) {
     return -1;
 }
 
-int writeable(uint16_t dev_type, char* param_name) {
+uint8_t writeable(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
     for (int i = 0; i < num_params; i++) {
         if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
@@ -253,10 +237,6 @@ int writeable(uint16_t dev_type, char* param_name) {
     return -1;
 }
 
-/*
- * Returns the static type of PARAM_NAME for DEV_TYPE
- * Ex: "int", "float"
-*/
 char* get_param_type(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
     for (int i = 0; i < num_params; i++) {
@@ -267,9 +247,6 @@ char* get_param_type(uint16_t dev_type, char* param_name) {
     return NULL;
 }
 
-/**
- * Gets the param id in devices' params array from tne param_name
-*/
 uint8_t get_param_id(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
 	for (int i = 0; i < num_params; i++) {
