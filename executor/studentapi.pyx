@@ -99,19 +99,19 @@ cdef class Robot:
         idx = get_device_idx_from_uid(device_uid)
         log_runtime(DEBUG, f"got {idx}".encode('utf-8'))
         cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        param_id = get_param_id(device_type, param)
+        param_idx = get_param_idx(device_type, param)
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t)*MAX_PARAMS)
         if not param_value:
             raise MemoryError()
-        cdef uint32_t param_mask = 1 << param_id
+        cdef uint32_t param_mask = 1 << param_idx
         device_read(idx, EXECUTOR, DATA, param_mask, param_value)
         param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
-            ret = param_value.p_i
+            ret = param_value[param_idx].p_i
         elif param_type == 'float':
-            ret = param_value.p_f
+            ret = param_value[param_idx].p_f
         elif param_type == 'bool':
-            ret = bool(param_value.p_b)
+            ret = bool(param_value[param_idx].p_b)
         PyMem_Free(param_value)
         return ret
 
