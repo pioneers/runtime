@@ -139,7 +139,7 @@ message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], in
  * Payload: 32-bit param mask, 32-bits for parameter 0 data, 32-bits for parameter 1 data, . . ., 32-bits for parameter 31 data
  * Direction: device --> dev_handler
  */
-message_t* make_device_data();
+message_t* make_device_data(dev_id_t device_id, param_val_t* param_values[], int len);
 
 /*
  * A message that a device sends that contains debugging information to be logged.
@@ -147,6 +147,7 @@ message_t* make_device_data();
  *
  * Payload: 1056 bits
  * Direction: device --> dev_handler
+ * return: NULL if data is too large (over 132 bytes)
  */
 message_t* make_log(char* data);
 
@@ -159,7 +160,10 @@ message_t* make_log(char* data);
  */
 message_t* make_error(uint8_t error_code);
 
-/* Frees the memory allocated for the message struct and its payload. */
+/*
+ * Frees the memory allocated for the message struct and its payload.
+ * message: The messsage to have its memory deallocated.
+ */
 void destroy_message(message_t* message);
 
 /******************************************************************************************
@@ -171,6 +175,7 @@ void destroy_message(message_t* message);
  * data: The data to be appended to the payload
  * length: The length of data in bytes
  * returns: 0 if successful. -1 otherwise due to overwriting
+ * side-effect: increments msg->payload_length by length
  */
 int append_payload(message_t *msg, uint8_t *data, uint8_t length);
 
@@ -212,10 +217,9 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 /*
  * Potentially added later:
  * toBytes(message_t), parseMessage(bytes)
- * sendMessage(), read() from serial to get mesage
+ * sendMessage(), read() from serial to get message         [Likely to be put in dev_handler]
  * decode_params
  * parse_subscription_response: Break down sub_response received into its parts
  * parse_device_data: Break down DeviceData packet into param, value pairs
- *
  */
 #endif
