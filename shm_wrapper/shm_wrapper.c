@@ -46,7 +46,6 @@ sem_t *pmap_sem;                    //semaphore used as a mutex on the param bit
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
-// Replace with logger
 static void error (char *msg)
 {
 	perror(msg);
@@ -187,7 +186,7 @@ void shm_init (process_t process)
 		
 		//initialization complete; set catalog_mutex to 1 indicating shm segment available for client(s)
 		if (sem_post(catalog_sem) == -1) {
-			error("sem_post: conn_sem@dev_handler");
+			error("sem_post: catalog_sem@dev_handler");
 		}
 	} else {
 		//mutual exclusion semaphore, catalog_mutex
