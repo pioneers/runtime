@@ -247,7 +247,7 @@ param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     return NULL;
 }
 
-uint8_t get_param_id(uint16_t dev_type, char* param_name) {
+uint8_t get_param_idx(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
 	for (int i = 0; i < num_params; i++) {
         if (strcmp(param_name, DEVICES[dev_type]->params[i].name) == 0) {
