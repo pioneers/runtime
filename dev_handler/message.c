@@ -1,4 +1,4 @@
-/*
+error/*
 Constructs, encodes, and decodes the appropriate messages asked for by dev_handler.c
 Previously hibikeMessage.py
 
@@ -11,12 +11,6 @@ Mac:
 */
 #include "message.h"
 
-
-/*
- * Gets the device TYPE from the 88-bit identifier
- * ID should be a size 88 array of 1's and 0's
- * See page 9 of the BOOK
-*/
 uint16_t get_device_type(dev_id_t id) {
     return id.type;
 }
@@ -84,6 +78,7 @@ message_t* make_subscription_request(dev_id_t device_id, char* param_names[], ui
     message_t* sub_request = malloc(sizeof(message_t));
     sub_request->message_id = SubscriptionRequest;
     sub_request->payload = malloc(6);
+    sub_request->payload_length = 0;
     sub_request->max_payload_length = 6;
     // Fill in 32-bit params mask
     uint32_t mask = encode_params(device_id->type, param_names, len);
@@ -103,6 +98,7 @@ message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], 
     message_t* sub_response = malloc(sizeof(message_t));
     sub_response->message_id = SubscriptionResponse;
     sub_response->payload = malloc(17);
+    sub_response->payload_length = 0;
     sub_response->max_payload_length = 17;
     uint32_t mask = encode_params(device_id->type, param_names, len);
     int status = 0;
@@ -121,6 +117,7 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
     message_t* dev_read = malloc(sizeof(message_t));
     dev_read->message_id = DeviceRead;
     dev_read->payload = malloc(4);
+    dev_read->payload_length = 0;
     dev_read->max_payload_length = 4;
     uint32_t mask = encode_params(device_id->type, param_names, len);
     int status = 0;
@@ -143,20 +140,21 @@ message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], in
     message_t* dev_write = malloc(sizeof(message_t));
     dev_write->message_id = DeviceWrite;
     dev_write->payload = malloc(132);
+    dev_write->payload_length = 0;
     dev_write->max_payload_length = 132;
     // Initialize mask to 1 if the last parameter is on. Otherwise 0
-    uint32_t mask = param_values[len-1] == NULL ? 0 : 1;
+    uint32_t mask = (param_values[len-1] == NULL) ? 0 : 1;
     // Keep building the mask: 1 if present in param_values. Otherwise 0
     for (int i = len-2; i >= 0; i--) {
         mask <<= 1;
-        mask |= (param_values[i] == NULL ? 0 : 1); // Append a 1 to the right side of mask if param_values[i] is not null. Otherwise 0
+        mask |= (param_values[i] == NULL) ? 0 : 1; // Append a 1 to the right side of mask if param_values[i] is not null. Otherwise 0
     }
     int status = 0;
     // Append the mask
     status += append_payload(dev_write, (uint8_t*) &mask, 4);
     // Build the payload with the values of parameter 0 to parameter len-1
     for (int i = 0; i < len; i++) {
-        char* param_type = DEVICES[device_id->type]->params[i].type;
+        char* param_type = getDevice(device_id->type)->params[i].type;
         if (strcmp(param_type, "int") == 0) {
             status += append_payload(dev_write, (uint8_t*) param_values[i]->p_i, 4);
         } else if (strcmp(param_type, "float") == 0) {
@@ -168,8 +166,42 @@ message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], in
     return (status == 0) ? dev_write : NULL;
 }
 
-message_t* make_device_data();
-message_t* make_error();
+/*
+ * Returns a message with a 32-bit param mask and thirty-two 32-bit values
+ * Logic is the same as make_device_write.
+ */
+message_t* make_device_data(dev_id_t device_id, param_val_t* param_values[], int len) {
+    message_t* dev_data = make_device_write(device_id, param_values, len);
+    dev_data->message_id = DeviceData;
+    return dev_data;
+}
+
+/*
+ * Returns a new message with DATA as its payload
+ */
+message_t* make_log(char* data) {
+    if ((strlen(data) + 1) > (132 * sizeof(char))) {
+        return NULL;
+    }
+    message_t* log = malloc(sizeof(message_t));
+    log->message_id = Log;
+    log->payload = malloc(132);
+    log->payload_length = 0;
+    log->max_payload_length = 132;
+    strcpy((char*) log->payload, data);
+    log->payload_length = (uint8_t) strlen(data) + 1;
+    return log;
+}
+
+message_t* make_error(uint8_t error_code) {
+    message_t* error = malloc(sizeof(message_t));
+    error->message_id = Error;
+    error->payload = malloc(1);
+    error->payload[0] = error_code;
+    error->payload_length = 1;
+    error->max_payload_length = 1;
+    return error;
+}
 
 void destroy_message(message_t* message) {
     if (message->payload_length > 0) {
@@ -285,12 +317,12 @@ size_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len)
 */
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     uint8_t param_nums[len]; // [1, 9, 2] -> [0001, 1001, 0010]
-    int num_params_in_dev = DEVICES[device_type]->num_params;
+    int num_params_in_dev = getDevice(device_type)->num_params;
     // Iterate through PARAMS and find its corresponding number in the official list
     for (int i = 0; i < len; i++) {
         // Iterate through official list of params to find the param number
         for (int j = 0; j < num_params_in_dev; j++) {
-            if (strcmp(DEVICES[device_type]->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
+            if (strcmp(getDevice(device_type)->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
                 param_nums[i] = j; // DEVICES[device_type]->params[j].number;
                 break;
             }
@@ -302,13 +334,6 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
         mask = mask | (1 << param_nums[i]);
     }
     return mask;
-    // Convert the bit-mask into an array (Ex: 1011 --> [1, 0, 1, 1])
-    // char mask_arr[32];
-    // for (int i = 31; i >= 0; i--) {
-    //     mask_arr = mask & 1;
-    //     mask >>= 1;
-    // }
-    // return mask_arr;
 }
 
 /*
@@ -341,7 +366,6 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
 
 
 int main(void) {
-    make_devices(DEVICES);
     // 88 bits: 16 bits for type, 8 bits for year, 64 bits for ID
     // Type: 0x1234
     // Year: 0xAB
