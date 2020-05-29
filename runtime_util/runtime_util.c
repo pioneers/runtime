@@ -237,11 +237,11 @@ uint8_t writeable(uint16_t dev_type, char* param_name) {
     return -1;
 }
 
-char* get_param_type(uint16_t dev_type, char* param_name) {
+param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
     for (int i = 0; i < num_params; i++) {
         if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].type;
+            return &DEVICES[dev_type]->params[i];
         }
     }
     return NULL;
