@@ -14,6 +14,9 @@
 #include "../logger/logger.h"              //for logger (TODO: consider removing relative pathname in include)
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
+#define NUM_DESC_FIELDS 6                   //number of fields in the robot description
+#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
+
 //enumerated names for the buttons on the gamepad
 typedef enum gp_buttons {
 	A_BUTTON, B_BUTTON, X_BUTTON, Y_BUTTON, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER,
@@ -27,7 +30,7 @@ typedef enum gp_joysticks {
 
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-	ERROR, NOMINAL,             //values for robot.state
+	ISSUE, NOMINAL,             //values for robot.state
 	IDLE, AUTO, TELEOP,         //values for robot.run_mode
 	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
 	BLUE, GOLD                  //values for robot.team
@@ -94,7 +97,7 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats to which the current joystick states will be read into
 No return value.
 */
-void gamepad_read (uint32_t &pressed_buttons, float *joystick_vals);
+void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick_vals);
 
 /*
 This function writes the given state of the gamepad to shared memory.
@@ -104,6 +107,6 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats that contain the values to write to the joystick
 No return value.
 */
-void gamepad_write (uint32_t pressed_buttons, float *joystick_vals);
+void gamepad_write (process_t process, uint32_t pressed_buttons, float *joystick_vals);
 
 #endif
