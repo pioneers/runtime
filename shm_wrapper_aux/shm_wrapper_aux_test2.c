@@ -9,11 +9,90 @@
 
 //test process 2 for shm_wrapper_aux. is a dummy executor
 
+// *************************************************************************************************** //
+void sync ()
+{
+	uint32_t buttons;
+	float joystick_vals[4];
+	
+	//write a 1 to b_button
+	gamepad_read(EXECUTOR, &buttons, joystick_vals);
+	gamepad_write(EXECUTOR, buttons | 2, joystick_vals);
+	
+	//wait on a 1 to a_button
+	while (1) {
+		gamepad_read(EXECUTOR, &buttons, joystick_vals);
+		if (buttons & 1) {
+			break;
+		}
+		usleep(1000);
+	}
+	sleep(2);
+	printf("\tSynced; starting test!\n");
+}
+
+// *************************************************************************************************** //
 //sanity gamepad test
+void sanity_gamepad_test ()
+{
+	uint32_t buttons;
+	float joystick_vals[4];
+	
+	sync();
+	
+	printf("Begin sanity gamepad test...\n");
+	
+	for (int i = 0; i < 7; i++) {
+		gamepad_read(EXECUTOR, &buttons, joystick_vals);
+		printf("buttons = %d\t joystick_vals = (", buttons);
+		for (int j = 0; j < 4; j++) {
+			printf("%f, ", joystick_vals[j]);
+		}
+		printf(")\n");
+		usleep(500000); //sleep for half a second
+	}
+	printf("Done!\n\n");
+}
 
+// *************************************************************************************************** //
 //sanity robot description test
+void sanity_robot_desc_test ()
+{
+	int count = 0;
+	robot_desc_val_t curr[6] = { NOMINAL, IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
+	robot_desc_val_t prev[6] = { NOMINAL, IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
+	
+	sync();
+	
+	printf("Begin sanity robot desc test...\n");
+	
+	while (count < 13) {
+		for (int i = 0; i < NUM_DESC_FIELDS; i++) {
+			curr[i] = robot_desc_read(EXECUTOR, i);
+			if (curr[i] != prev[i]) {
+				printf("something has changed! new robot description:\n");
+				print_robot_desc();
+				prev[i] = curr[i];
+				count++;
+			}
+		}
+		usleep(100);
+	}
+	printf("Done!\n\n");
+}
 
+// *************************************************************************************************** //
 //robot description write override test
+void robot_desc_override_test ()
+{
+	sync();
+	
+	printf("Begin robot desc override test...\n");
+	
+	sleep(1); //don't read anything out!
+	
+	printf("Done!\n\n");
+}
 
 // *************************************************************************************************** //
 
@@ -32,7 +111,11 @@ int main()
 	logger_init(EXECUTOR);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
-	sanity_test();	
+	sanity_gamepad_test();
+	
+	sanity_robot_desc_test();	
+	
+	robot_desc_override_test();
 	
 	shm_aux_stop(EXECUTOR);
 	logger_stop(EXECUTOR);
