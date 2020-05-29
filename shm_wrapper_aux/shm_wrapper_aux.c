@@ -15,33 +15,37 @@ int sem_wait (sem_t *sem);
 int sem_post (sem_t *sem);
 */
 
-#define GPAD_SHM_NAME "/gp-shm"         //name of shared memory block for gamepad
-#define ROBOT_DESC_SHM_NAME "/rd-shm"   //name of shared memory block for robot description
-#define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
-#define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
+#define GPAD_SHM_NAME "/gp-shm"             //name of shared memory block for gamepad
+#define ROBOT_DESC_SHM_NAME "/rd-shm"       //name of shared memory block for robot description
+#define GP_MUTEX_NAME "/gp-sem"             //name of semaphore used as mutex over gamepad shm
+#define RD_MUTEX_NAME "/rd-sem"             //name of semaphore used as mutex over robot description shm
 
-#define NUM_DESC_FIELDS 6               //number of fields in the robot description
-#define NUM_GAMEPAD_BUTTONS 17          //number of gamepad buttons
+#define NUM_DESC_FIELDS 6                   //number of fields in the robot description
+#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
+
+#define DESC_WR_MAXBLK 0.25                 //maximum secs a process can block while waiting for data to be read out on robot desc
 
 // ***************************************** PRIVATE TYPEDEFS ********************************************* //
 
 //shared memory for gamepad
 typedef struct gp {
-	uint32_t buttons;                   //bitmap for which buttons are pressed
-	float joysticks[4];                 //array to hold joystick positions
+	uint32_t buttons;                       //bitmap for which buttons are pressed
+	float joysticks[4];                     //array to hold joystick positions
 } gamepad_t;
 
 //shared memory for robot description
 typedef struct robot_desc {
-	uint8_t fields[NUM_DESC_FIELDS];    //array to hold the robot state (each is a uint8_t)
+	uint8_t fields[NUM_DESC_FIELDS];        //array to hold the robot state (each is a uint8_t) 
+	uint8_t net_to_exe_pending;             //1 if pending changes for executor to read, 0 otherwise
+	uint8_t exe_to_net_pending;             //1 if pending changes for net_handler to read, 0 otherwise
 } robot_desc_t;
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
-gamepad_t *gp_ptr;                      //points to memory-mapped shared memory block for gamepad
-robot_desc_t *rd_ptr;                   //points to memory-mapped shared memory block for robot description
-sem_t *gp_sem;                          //semaphore used as a mutex on the gamepad
-sem_t *rd_sem;                          //semaphore used as a mutex on the robot description
+gamepad_t *gp_ptr;                         //points to memory-mapped shared memory block for gamepad
+robot_desc_t *rd_ptr;                      //points to memory-mapped shared memory block for robot description
+sem_t *gp_sem;                             //semaphore used as a mutex on the gamepad
+sem_t *rd_sem;                             //semaphore used as a mutex on the robot description
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
@@ -203,7 +207,9 @@ void shm_aux_init (process_t process)
 		rd_ptr->fields[DAWN] = DISCONNECTED;
 		rd_ptr->fields[SHEPHERD] = DISCONNECTED;
 		rd_ptr->fields[GAMEPAD] = DISCONNECTED;
-		rd_ptr->fields[TEAM] = BLUE; //arbitrary
+		rd_ptr->fields[TEAM] = BLUE;                //arbitrary
+		rd_ptr->net_to_exe_pending = 0;             //no writes made yet
+		rd_ptr->exe_to_net_pending = 0;             //no writes made yet
 		
 		//initialization complete; set catalog_mutex to 1 indicating shm segment available for client(s)
 		if (sem_post(gp_sem) == -1) {
@@ -294,35 +300,14 @@ void shm_aux_stop (process_t process)
 }
 
 /*
-This function writes the specified value into the specified field.
-Blocks on the robot description semaphore.
-	- field: one of the robot_desc_val_t's defined above to write val to
-	- val: one of the robot_desc_vals defined above to write to the specified field
-No return value.
-*/
-void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
-{
-	//wait on rd_sem
-	if (sem_wait(rd_sem) == -1) {
-		error("sem_wait: robot_desc_mutex");
-	}
-	
-	//write the val into the field
-	rd_ptr->fields[FIELD] = val;
-	
-	//release rd_sem
-	if (sem_post(rd_sem) == -1) {
-		error("sem_post: robot_desc_mutex");
-	}
-}
-
-/*
 This function reads the specified field.
 Blocks on the robot description semaphore.
+	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
+		being called from
 	- field: one of the robot_desc_val_t's defined above to read from
 Returns one of the robot_desc_val_t's defined above that is the current value of that field.
 */
-robot_desc_val_t robot_desc_read (robot_desc_field_t field)
+robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field)
 {
 	robot_desc_val_t ret;
 	
@@ -331,7 +316,13 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 		error("sem_wait: robot_desc_mutex");
 	}
 	
+	//read the value out, and turn off the appropriate element
 	ret = rd_ptr->fields[FIELD];
+	if (process == EXECUTOR) {
+		rd_ptr->net_to_exe_pending = 0;
+	} else if (process == NET_HANDLER) {
+		rd_ptr->exe_to_net_pending = 0;
+	}
 	
 	//release rd_sem
 	if (sem_post(rd_sem) == -1) {
@@ -341,48 +332,56 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 	return ret;
 }
 
+
 /*
-This function writes the given state of the gamepad to shared memory.
-Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
-	- pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
-		(only the first NUM_GAMEPAD_BUTTONS bits used, since there are NUM_GAMEPAD_BUTTONS buttons)
-	- joystick_vals: array of 4 floats that contain the values to write to the joystick
+This function writes the specified value into the specified field.
+Blocks on the robot description semaphore.
+	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
+		being called from
+	- field: one of the robot_desc_val_t's defined above to write val to
+	- val: one of the robot_desc_vals defined above to write to the specified field
 No return value.
 */
-void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
+void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_val_t val)
 {
+	struct timeval start, curr;
+	double time_taken = 0.0;
+	char msg[64]; //for error message
+	
+	//loop for a maximum of DESC_WR_MAXBLK seconds before logging a warning and writing
+	gettimeofday(&start, NULL);
+	while (time_taken < RD_WR_MAXBLK) {
+		//if previously written data was pulled out
+		if (process == NET_HANDLER && !(rd_ptr->net_to_exe_pending)) {
+			break;
+		} else if (process == EXECUTOR && !(rd_ptr->exe_to_net_pending)) {
+			break;
+		}
+		usleep(1000);
+		gettimeofday(&curr, NULL);
+		time_taken = (double)(end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec) / 1000000.0);
+	}
+	if (time_taken >= DESC_WR_MAXBLK) {
+		sprintf(msg, "%s overwriting field %d to value %d", (process == NET_HANDLER)? "NET_HANDLER" : "EXECUTOR", field, val);
+		log_runtime(WARN, msg);
+	}
+	
 	//wait on rd_sem
 	if (sem_wait(rd_sem) == -1) {
 		error("sem_wait: robot_desc_mutex");
 	}
 	
-	//if no gamepad connected, then release rd_sem and return
-	if (robot_desc_read(GAMEPAD) == DISCONNECTED) {
-		log_runtime(WARN, "tried to write, but no gamepad connected");
-		if (sem_post(rd_sem) == -1) {
-			error("sem_post: robot_desc_mutex");
-		}
-		return;
+	//write the val into the field, and set appropriate pending element to 1
+	rd_ptr->fields[FIELD] = val;
+	if (process == NET_HANDLER) {
+		rd_ptr->net_to_exe_pending = 1;
+	} else if (process == EXECUTOR) {
+		rd_ptr->exe_to_net_pending = 1;
 	}
 	
 	//release rd_sem
 	if (sem_post(rd_sem) == -1) {
 		error("sem_post: robot_desc_mutex");
-	}
-	
-	//wait on gp_sem
-	if (sem_wait(gp_sem) == -1) {
-		error("sem_wait: gamepad_mutex");
-	}
-	
-	gp_ptr->buttons = pressed_buttons;
-	for (int i = 0; i < 4; i++) {
-		gp_ptr->joysticks[i] = joystick_vals[i];
-	}
-	
-	//release gp_sem
-	if (sem_post(gp_sem) == -1) {
-		error("sem_post: gamepad_mutex");
 	}
 }
 
@@ -422,6 +421,51 @@ void gamepad_read (uint32_t &pressed_buttons, float *joystick_vals)
 	*pressed_buttons = gp_ptr->buttons;
 	for (int i = 0; i < 4; i++) {
 		joystick_vals[i] = gp_ptr->joysticks[i];
+	}
+	
+	//release gp_sem
+	if (sem_post(gp_sem) == -1) {
+		error("sem_post: gamepad_mutex");
+	}
+}
+
+/*
+This function writes the given state of the gamepad to shared memory.
+Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+	- pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
+		(only the first NUM_GAMEPAD_BUTTONS bits used, since there are NUM_GAMEPAD_BUTTONS buttons)
+	- joystick_vals: array of 4 floats that contain the values to write to the joystick
+No return value.
+*/
+void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
+{
+	//wait on rd_sem
+	if (sem_wait(rd_sem) == -1) {
+		error("sem_wait: robot_desc_mutex");
+	}
+	
+	//if no gamepad connected, then release rd_sem and return
+	if (robot_desc_read(GAMEPAD) == DISCONNECTED) {
+		log_runtime(WARN, "tried to write, but no gamepad connected");
+		if (sem_post(rd_sem) == -1) {
+			error("sem_post: robot_desc_mutex");
+		}
+		return;
+	}
+	
+	//release rd_sem
+	if (sem_post(rd_sem) == -1) {
+		error("sem_post: robot_desc_mutex");
+	}
+	
+	//wait on gp_sem
+	if (sem_wait(gp_sem) == -1) {
+		error("sem_wait: gamepad_mutex");
+	}
+	
+	gp_ptr->buttons = pressed_buttons;
+	for (int i = 0; i < 4; i++) {
+		gp_ptr->joysticks[i] = joystick_vals[i];
 	}
 	
 	//release gp_sem
