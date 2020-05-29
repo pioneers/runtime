@@ -17,6 +17,7 @@ void sigintHandler(int sig_num);
 
 // Initialization method for executor
 void executor_init();
+void executor_stop();
 void start_mode(mode mode);
 
 

@@ -1,5 +1,6 @@
 # cython: nonecheck=True
 
+from cpython.mem cimport PyMem_Malloc, PyMem_Free
 # from pthread cimport *
 
 import enum
@@ -9,6 +10,8 @@ import importlib
 
 """Student API written in Cython. To compile to C, do `python3.6 setup.py build_ext -i` in this directory. """
 
+logger_init(API)
+log_runtime(DEBUG, "Student API intialized")
 
 class RuntimeBaseException(Exception):
     """
@@ -40,146 +43,17 @@ class RuntimeBaseException(Exception):
 class RuntimeExecutionError(RuntimeBaseException):
     """ An exception that occurred while attempting to execute student code. """
 
-cdef class StudentCode:
 
-    def __init__(self):
-        self.student_code = None
-
-    cdef import_student_code(self, student_module: str):
-        if not self.student_code or not self.last_import_succeeded:
-            self.student_code = importlib.import_module(student_module)
-        else:
-            self.student_code = importlib.reload(self.student_code)
-
-    cdef get_function(self, mode: Mode, type: str):
-        assert type in ['setup', 'main']
-        if mode == Mode.AUTO:
-            name = f'autonomous_{type}'
-        elif mode == Mode.TELEOP:
-            name = f'teleop_{type}'
-        else:
-            raise RuntimeBaseException("Functions can only be called in autonomous or teleop mode.")
-        
-        try:
-            func = getattr(self.student_code, name)
-        except AttributeError:
-            log_runtime(WARN, f'Unable to find function {name}, using stub'.encode('utf-8'))
-            def func(): return None
-        return func
-
-
-
-def safe(api_method: typing.Callable):
-    """
-    A decorator that traps and logs Runtime-specific exceptions.
-
-    This prevents exceptions from propogating up the call stack and
-    interrupting the student code caller. For example, setting a nonexistent
-    parameter should not prevent subsequent statements from executing.
-
-    Because a safe API method returns ``None`` on an exception, student code
-    may still fail to proceed.
-    """
-    @functools.wraps(api_method)
-    def api_wrapper(*args, **kwargs):
-        try:
-            return api_method(*args, **kwargs)
-        except RuntimeBaseException as exc:
-            log_runtime(ERROR, str(exc).encode('UTF-8'))
-    return api_wrapper
-
-
-class Mode(enum.Enum):
-    """
-    The mode represents the execution state of the robot.
-
-    Attributes:
-        IDLE: Student code is not executing.
-        AUTO: Autonomous mode. Gamepad usage is disallowed.
-        TELEOP: Tele-operation mode. Gamepad usage is allowed.
-        ESTOP: Emergency stop. Immediately triggers a Runtime exit.
-    """
-    IDLE = 'IDLE'
-    AUTO = 'AUTO'
-    TELEOP = 'TELEOP'
-    ESTOP = 'ESTOP'
-
-
-class Alliance(enum.Enum):
-    """
-    The alliance are the teams playing the game.
-
-    Attributes:
-        BLUE: The blue team.
-        GOLD: The gold team.
-    """
-    BLUE = 'BLUE'
-    GOLD = 'GOLD'
-
-
-cdef class Actions:
-    """ Miscellaneous asynchronous callables. """
-    @staticmethod
-    @safe
-    def sleep(int seconds):
-        """ Suspend execution of this action. """
-        return
-
-
-cdef class Match:
-    """ The current match state. """
-    alliance = None
-    mode = Mode.IDLE
-
-    cdef dict as_dict(self):
-        """ Export this match as a serializable dictionary. """
-        return {'alliance': self.alliance, 'mode': self.mode}
-
-
-cdef class DeviceAPI:
-    """
-    An API that exposes access to a collection of devices (gamepads or sensors).
-
-    Attributes:
-        device_buffers: A mapping of unique identifiers (not necessarily UIDs)
-            to device buffers.
-    """
-     # Include device handler here
-
-    def _get_device_buffer(self, char* device_uid):
-        """ Retrieve a device buffer, or raise an exception if not found. """
-        try:
-            # return self.device_buffers[device_uid]
-            pass
-        except KeyError as exc:
-            raise RuntimeExecutionError('Unrecognized device', device_uid=device_uid) from exc
-
-    def _get_value(self, char* device_uid, char* param) -> typing.Any:
-        """ Read a device parameter. """
-        device = self._get_device_buffer(device_uid)
-        try:
-            # return device.struct.get_current(param)
-            pass
-        except AttributeError as exc:
-            raise RuntimeExecutionError(
-                'Unrecognized or unreadable parameter',
-                device_uid=device_uid,
-                device_type=type(device),
-                param=param,
-            ) from exc
-
-
-cdef class Gamepad(DeviceAPI):
+cdef class Gamepad:
     """
     The API for accessing gamepads.
 
     Attributes:
         mode: The execution state of the robot.
     """
-    mode = Mode.IDLE
+    mode = IDLE
 
-    @safe
-    def get_value(self, param: str, gamepad_id: int = 0):
+    cpdef get_value(self, param: str, gamepad_id: int = 0):
         """
         Get a gamepad parameter if the robot is in teleop.
 
@@ -187,14 +61,14 @@ cdef class Gamepad(DeviceAPI):
             param: The name of the parameter to read.
             gamepad_id: The gamepad index (defaults to the first gamepad).
         """
-        if self.mode is not Mode.TELEOP:
+        if self.mode is not TELEOP:
             raise RuntimeExecutionError(f'Cannot use Gamepad during {self.mode}',
                                         mode=self.mode, gamepad_id=gamepad_id,
                                         param=param)
         return super()._get_value(f'gamepad-{gamepad_id}', param)
 
 
-cdef class Robot(DeviceAPI):
+cdef class Robot:
     """
     The API for accessing the robot and its sensors.
 
@@ -203,17 +77,12 @@ cdef class Robot(DeviceAPI):
         aliases: A device alias manager.
     """
     # Include device handler and executor API
-    pass
 
-    # @safe
-    # def run(self, action: Action, *args, timeout: Real = 300):
-    #     """ Schedule an action (coroutine function) for execution in a separate thread. """
-    #     self.action_executor.register_action_threadsafe(action, *args, timeout=timeout)
+    cpdef run(self, action, args, int timeout=300):
+        """ Schedule an action (coroutine function) for execution in a separate thread. """
+        # self.action_executor.register_action_threadsafe(action, *args, timeout=timeout)
+        pass
 
-    # @safe
-    # def is_running(self, action: Action) -> bool:
-    #     """ Check whether an action is currently executing. """
-    #     self.action_executor.is_running(action)
 
     # def _normalize_device_uid(self, device_uid: typing.Union[str, int]) -> str:
     #     """ Translate device aliases into UIDs and return a device mapping key. """
@@ -222,25 +91,45 @@ cdef class Robot(DeviceAPI):
     #         device_uid = self.aliases[device_uid]
     #     return f'smart-sensor-{device_uid}'
 
-    # @safe
-    # def get_value(self, device_uid: typing.Union[str, int], param: str) -> ParameterValue:
-    #     """ Get a smart sensor parameter. """
-    #     return super()._get_value(self._normalize_device_uid(device_uid), param)
+    cpdef get_value(self, str device_id, str param_name):
+        """ Get a smart sensor parameter. """
+        cdef bytes param = param_name.encode('utf-8')
+        device_type, device_uid = int(str(device_id)[:20]), int(str(device_id)[20:])
+        log_runtime(DEBUG, f"device_type {device_type} device_uid {device_uid}".encode('utf-8'))
+        idx = get_device_idx_from_uid(device_uid)
+        log_runtime(DEBUG, f"got {idx}".encode('utf-8'))
+        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
+        param_id = get_param_id(device_type, param)
+        cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t)*MAX_PARAMS)
+        if not param_value:
+            raise MemoryError()
+        cdef uint32_t param_mask = 1 << param_id
+        device_read(idx, EXECUTOR, DATA, param_mask, param_value)
+        param_type = param_desc.type.decode('utf-8')
+        if param_type == 'int':
+            ret = param_value.p_i
+        elif param_type == 'float':
+            ret = param_value.p_f
+        elif param_type == 'bool':
+            ret = bool(param_value.p_b)
+        PyMem_Free(param_value)
+        return ret
 
-    # @safe
-    # def set_value(self, device_uid: typing.Union[str, int], param: str, value: ParameterValue):
-    #     """ Set a smart sensor parameter. """
-    #     device = self._get_device_buffer(self._normalize_device_uid(device_uid))
-    #     try:
-    #         device.struct.set_desired(param, value)
-    #     except AttributeError as exc:
-    #         raise RuntimeExecutionError(
-    #             'Unrecognized or read-only parameter',
-    #             device_uid=device_uid,
-    #             device_type=type(device.struct).__name__,
-    #             param=param,
-    #         ) from exc
+    cpdef set_value(self, device_id, param, value):
+        """ Set a smart sensor parameter. """
+        pass
+        # try:
+        #     device.struct.set_desired(param, value)
+        # except AttributeError as exc:
+        #     raise RuntimeExecutionError(
+        #         'Unrecognized or read-only parameter',
+        #         device_uid=device_uid,
+        #         device_type=type(device.struct).__name__,
+        #         param=param,
+        #     ) from exc
 
+    def get_alliance(self):
+        pass
 
-logger_init(EXECUTOR)
-log_runtime(DEBUG, "Test Student API")
+    def get_mode(self):
+        pass
