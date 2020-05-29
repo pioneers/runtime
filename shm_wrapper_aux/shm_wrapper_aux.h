@@ -4,6 +4,7 @@
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
 #include <stdint.h>						   //for standard integer types
+#include <sys/time.h>                      //for measuring time
 #include <sys/types.h>                     //for sem_t and other standard system types
 #include <sys/stat.h>                      //for some of the flags that are used (the mode constants)
 #include <fcntl.h>                         //for flags used for opening and closing files (O_* constants)
@@ -66,21 +67,34 @@ No return value.
 void shm_aux_stop (process_t process);
 
 /*
+This function reads the specified field.
+Blocks on the robot description semaphore.
+	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
+		being called from
+	- field: one of the robot_desc_val_t's defined above to read from
+Returns one of the robot_desc_val_t's defined above that is the current value of that field.
+*/
+robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field);
+
+/*
 This function writes the specified value into the specified field.
 Blocks on the robot description semaphore.
+	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
+		being called from
 	- field: one of the robot_desc_val_t's defined above to write val to
 	- val: one of the robot_desc_vals defined above to write to the specified field
 No return value.
 */
-void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
+void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_val_t val);
 
 /*
-This function reads the specified field.
-Blocks on the robot description semaphore.
-	- field: one of the robot_desc_val_t's defined above to read from
-Returns one of the robot_desc_val_t's defined above that is the current value of that field.
+This function reads the current state of the gamepad to the provided pointers.
+Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+	- pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
+	- joystick_vals: array of 4 floats to which the current joystick states will be read into
+No return value.
 */
-robot_desc_val_t robot_desc_read (robot_desc_field_t field);
+void gamepad_read (uint32_t &pressed_buttons, float *joystick_vals);
 
 /*
 This function writes the given state of the gamepad to shared memory.
@@ -91,14 +105,5 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 No return value.
 */
 void gamepad_write (uint32_t pressed_buttons, float *joystick_vals);
-
-/*
-This function reads the current state of the gamepad to the provided pointers.
-Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
-	- pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
-	- joystick_vals: array of 4 floats to which the current joystick states will be read into
-No return value.
-*/
-void gamepad_read (uint32_t &pressed_buttons, float *joystick_vals);
 
 #endif

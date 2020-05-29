@@ -364,6 +364,7 @@ void ctrl_c_handler (int sig_num)
 	printf("Aborting and cleaning up\n");
 	fflush(stdout);
 	shm_stop(EXECUTOR);
+	logger_stop(EXECUTOR);
 	exit(1);
 }
 
