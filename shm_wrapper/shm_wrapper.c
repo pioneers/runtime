@@ -71,6 +71,104 @@ static void print_bitmap (int num_bits, uint32_t bitmap)
 	printf("\n");
 }
 
+static void device_read_helper (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
+{
+	//grab semaphore for the appropriate stream and device
+	if (stream == DATA) {
+		if (sem_wait(sems[dev_ix].data_sem) == -1) {
+			error("sem_wait: data sem @device_read");
+		}
+	} else {
+		if (sem_wait(sems[dev_ix].command_sem) == -1) {
+			error("sem_wait: command sem @device_read");
+		}
+	}
+
+	//read all requested params
+	for (int i = 0; i < MAX_PARAMS; i++) {
+		if (params_to_read & (1 << i)) {
+			params[i] = shm_ptr->params[stream][dev_ix][i];
+		}
+	}
+
+	//if the device handler has processed the command, then turn off the change
+	//if stream = downstream and process = dev_handler then also update params bitmap
+	if (process == DEV_HANDLER && stream == COMMAND) {
+		//wait on pmap_sem
+		if (sem_wait(pmap_sem) == -1) {
+			error("sem_wait: pmap_sem@device_read");
+		}
+	
+		shm_ptr->pmap[0] &= (~(1 << dev_ix)); //turn off changed device bit in pmap[0]
+		shm_ptr->pmap[dev_ix + 1] &= (~params_to_read); //turn off bits for params that were changed and then read in pmap[dev_ix + 1]
+	
+		//release pmap_sem
+		if (sem_post(pmap_sem) == -1) {
+			error("sem_post: pmap_sem@device_read");
+		}
+	}
+
+	//release semaphore for appropriate stream and device
+	if (stream == DATA) {
+		if (sem_post(sems[dev_ix].data_sem) == -1) {
+			error("sem_post: data sem @device_read");
+		}
+	} else {
+		if (sem_post(sems[dev_ix].command_sem) == -1) {
+			error("sem_post: command sem @device_read");
+		}
+	}
+}
+
+static void device_write_helper (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
+{
+	//grab semaphore for the appropriate stream and device
+	if (stream == DATA) {
+		if (sem_wait(sems[dev_ix].data_sem) == -1) {
+			error("sem_wait: data sem @device_write");
+		}
+	} else {
+		if (sem_wait(sems[dev_ix].command_sem) == -1) {
+			error("sem_wait: command sem @device_write");
+		}
+	}
+	
+	//write all requested params
+	for (int i = 0; i < MAX_PARAMS; i++) {
+		if (params_to_write & (1 << i)) {
+			shm_ptr->params[stream][dev_ix][i] = params[i];
+		}
+	}
+	
+	//turn on flag if executor is sending a command to the device
+	//if stream = downstream and process = executor then also update params bitmap
+	if (process == EXECUTOR && stream == COMMAND) {
+		//wait on pmap_sem
+		if (sem_wait(pmap_sem) == -1) {
+			error("sem_wait: pmap_sem@device_write");
+		}
+		
+		shm_ptr->pmap[0] |= (1 << dev_ix); //turn on changed device bit in pmap[0]
+		shm_ptr->pmap[dev_ix + 1] |= params_to_write; //turn on bits for params that were written in pmap[dev_ix + 1]
+		
+		//release pmap_sem
+		if (sem_post(pmap_sem) == -1) {
+			error("sem_post: pmap_sem@device_write");
+		}
+	}
+	
+	//release semaphore for appropriate stream and device
+	if (stream == DATA) {
+		if (sem_post(sems[dev_ix].data_sem) == -1) {
+			error("sem_post: data sem @device_write");
+		}
+	} else {
+		if (sem_post(sems[dev_ix].command_sem) == -1) {
+			error("sem_post: command sem @device_write");
+		}
+	}
+}
+
 // ************************************ PUBLIC UTILITY FUNCTIONS ****************************************** //
 
 void print_pmap ()
@@ -425,71 +523,43 @@ void device_read (int dev_ix, process_t process, stream_t stream, uint32_t param
 {
 	char msg[64]; //for holding error message
 	
-	//wait on catalog_sem (TODO: check to see how much this affects performance with many threads)
-	if (sem_wait(catalog_sem) == -1) {
-		error("sem_wait: catalog_sem");
-	}
-	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
 		sprintf(msg, "no device at dev_ix = %d, read failed", dev_ix);
 		log_runtime(DEBUG, msg);
-		if (sem_post(catalog_sem) == -1) { //release the catalog_sem if no device
-				error("sem_post: catalog_sem");
-		}
 		return;
 	}
 	
-	//release catalog_sem
-	if (sem_post(catalog_sem) == -1) {
-		error("sem_post: catalog_sem");
-	}
+	//call the helper to do the actual reading
+	device_read_helper(dev_ix, process, stream, params_to_read, params);
+}
+
+/*
+This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
+the device that should be read, rather than the device index.
+*/
+void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
+{
+	char msg[64]; //for holding error message
+	int dev_ix = -1;
 	
-	//grab semaphore for the appropriate stream and device
-	if (stream == DATA) {
-		if (sem_wait(sems[dev_ix].data_sem) == -1) {
-			error("sem_wait: data sem @device_read");
-		}
-	} else {
-		if (sem_wait(sems[dev_ix].command_sem) == -1) {
-			error("sem_wait: command sem @device_read");
-		}
-	}
-	
-	//read all requested params
-	for (int i = 0; i < MAX_PARAMS; i++) {
-		if (params_to_read & (1 << i)) {
-			params[i] = shm_ptr->params[stream][dev_ix][i];
+	//check catalog and shm_ptr->dev_ids to determine if device exists
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		if ((shm_ptr->catalog & (1 << i)) && (shm_ptr->dev_ids[i].uid == dev_uid)) {
+			dev_ix = i;
+			break;
 		}
 	}
 	
-	//if the device handler has processed the command, then turn off the change
-	//if stream = downstream and process = dev_handler then also update params bitmap
-	if (process == DEV_HANDLER && stream == COMMAND) {
-		//wait on pmap_sem
-		if (sem_wait(pmap_sem) == -1) {
-			error("sem_wait: pmap_sem@device_read");
-		}
-		
-		shm_ptr->pmap[0] &= (~(1 << dev_ix)); //turn off changed device bit in pmap[0]
-		shm_ptr->pmap[dev_ix + 1] &= (~params_to_read); //turn off bits for params that were changed and then read in pmap[dev_ix + 1]
-		
-		//release pmap_sem
-		if (sem_post(pmap_sem) == -1) {
-			error("sem_post: pmap_sem@device_read");
-		}
+	//if device doesn't exist, return immediately
+	if (dev_ix == -1) {
+		sprintf(msg, "no device at dev_uid = %llu, read failed", dev_uid);
+		log_runtime(DEBUG, msg);
+		return;
 	}
 	
-	//release semaphore for appropriate stream and device
-	if (stream == DATA) {
-		if (sem_post(sems[dev_ix].data_sem) == -1) {
-			error("sem_post: data sem @device_read");
-		}
-	} else {
-		if (sem_post(sems[dev_ix].command_sem) == -1) {
-			error("sem_post: command sem @device_read");
-		}
-	}
+	//call the helper to do the actual reading
+	device_read_helper(dev_ix, process, stream, params_to_read, params);
 }
 
 /*	
@@ -509,71 +579,43 @@ void device_write (int dev_ix, process_t process, stream_t stream, uint32_t para
 {
 	char msg[64]; //for holding error message
 	
-	//wait on catalog_sem (TODO: check to see how much this affects performance with many threads)
-	if (sem_wait(catalog_sem) == -1) {
-		error("sem_wait: catalog_sem");
-	}
-	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
 		sprintf(msg, "no device at dev_ix = %d, write failed", dev_ix);
 		log_runtime(DEBUG, msg);
-		if (sem_post(catalog_sem) == -1) { //release the catalog_sem if no device
-				error("sem_post: catalog_sem");
-		}
 		return;
 	}
 	
-	//release catalog_sem
-	if (sem_post(catalog_sem) == -1) {
-		error("sem_post: catalog_sem");
-	}
+	//call the helper to do the actual reading
+	device_write_helper(dev_ix, process, stream, params_to_write, params);
+}
+
+/*
+This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
+the device that should be written, rather than the device index.
+*/
+void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
+{
+	char msg[64]; //for holding error message
+	int dev_ix = -1;
 	
-	//grab semaphore for the appropriate stream and device
-	if (stream == DATA) {
-		if (sem_wait(sems[dev_ix].data_sem) == -1) {
-			error("sem_wait: data sem @device_write");
-		}
-	} else {
-		if (sem_wait(sems[dev_ix].command_sem) == -1) {
-			error("sem_wait: command sem @device_write");
-		}
-	}
-	
-	//write all requested params
-	for (int i = 0; i < MAX_PARAMS; i++) {
-		if (params_to_write & (1 << i)) {
-			shm_ptr->params[stream][dev_ix][i] = params[i];
+	//check catalog and shm_ptr->dev_ids to determine if device exists
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		if ((shm_ptr->catalog & (1 << i)) && (shm_ptr->dev_ids[i].uid == dev_uid)) {
+			dev_ix = i;
+			break;
 		}
 	}
 	
-	//turn on flag if executor is sending a command to the device
-	//if stream = downstream and process = executor then also update params bitmap
-	if (process == EXECUTOR && stream == COMMAND) {
-		//wait on pmap_sem
-		if (sem_wait(pmap_sem) == -1) {
-			error("sem_wait: pmap_sem@device_write");
-		}
-		
-		shm_ptr->pmap[0] |= (1 << dev_ix); //turn on changed device bit in pmap[0]
-		shm_ptr->pmap[dev_ix + 1] |= params_to_write; //turn on bits for params that were written in pmap[dev_ix + 1]
-		
-		//release pmap_sem
-		if (sem_post(pmap_sem) == -1) {
-			error("sem_post: pmap_sem@device_write");
-		}
+	//if device doesn't exist, return immediately
+	if (dev_ix == -1) {
+		sprintf(msg, "no device at dev_uid = %llu, write failed", dev_uid);
+		log_runtime(DEBUG, msg);
+		return;
 	}
 	
-	//release semaphore for appropriate stream and device
-	if (stream == DATA) {
-		if (sem_post(sems[dev_ix].data_sem) == -1) {
-			error("sem_post: data sem @device_write");
-		}
-	} else {
-		if (sem_post(sems[dev_ix].command_sem) == -1) {
-			error("sem_post: command sem @device_write");
-		}
-	}
+	//call the helper to do the actual reading
+	device_write_helper(dev_ix, process, stream, params_to_write, params);
 }
 
 /*

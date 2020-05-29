@@ -293,6 +293,64 @@ void dual_thread_read_write_test ()
 }
 
 // *************************************************************************************************** //
+//test to find approximately how many read/write operations
+//can be done in a second on a device downstream block between
+//exeuctor and device handler USING DEV_UID READ/WRITE FUNCTIONS
+void single_thread_load_test_uid ()
+{
+	//writing will be done from process2
+	//process1 just needs to read from the block as fast as possible
+	int dev_ix = -1;
+	int dev_uid = 0;
+	int i = 0;
+	
+	param_val_t params_out[MAX_PARAMS];
+	param_val_t params_test[MAX_PARAMS];
+	uint32_t pmap[MAX_DEVICES + 1];
+	
+	sync();
+	
+	printf("Beginning single threaded load test using UID functions...\n");
+	
+	dev_uid = 4894249;
+	
+	device_connect(0, 1, dev_uid, &dev_ix); //this is going to connect at dev_ix = 0
+	device_connect(1, 2, 9848990, &dev_ix); //this is going to connect at dev_ix = 1
+	
+	//write params_test[0].p_b = 0 into the shared memory block for second device so we don't exit the test prematurely
+	params_test[0].p_b = 0; 
+	device_write(1, DEV_HANDLER, DATA, 1, params_test);
+	
+	//use the second device's p_b on param 0 to indicate when test is done
+	//we literally just sit here pulling information from the block as fast as possible 
+	//until process2 says we're good
+	while (1) {
+		//check if time to stop
+		i++;
+		if (i == 1000) {
+			device_read(1, DEV_HANDLER, DATA, 1, params_test); //use the upstream block to not touch the param bitmap
+			if (params_test[0].p_b) {
+				break;
+			}
+			i = 0;
+		}
+		
+		//if something changed, pull it out
+		get_param_bitmap(pmap);
+		if (pmap[0]) {
+			device_read_uid(dev_uid, DEV_HANDLER, COMMAND, pmap[1], params_out);
+		}
+	}
+	
+	device_disconnect(1);
+	device_disconnect(0);
+	
+	sleep(1);
+	
+	printf("Done!\n");
+}
+
+// *************************************************************************************************** //
 void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
@@ -315,6 +373,8 @@ int main()
 	single_thread_load_test();
 	
 	dual_thread_read_write_test();
+	
+	single_thread_load_test_uid();
 	
 	sleep(2);
 	
