@@ -1,4 +1,4 @@
-#include "shm_wrapper.h"
+#include "shm_wrapper_aux.h"
 
 /*
 Useful function definitions:
@@ -19,9 +19,6 @@ int sem_post (sem_t *sem);
 #define ROBOT_DESC_SHM_NAME "/rd-shm"       //name of shared memory block for robot description
 #define GP_MUTEX_NAME "/gp-sem"             //name of semaphore used as mutex over gamepad shm
 #define RD_MUTEX_NAME "/rd-sem"             //name of semaphore used as mutex over robot description shm
-
-#define NUM_DESC_FIELDS 6                   //number of fields in the robot description
-#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
 #define DESC_WR_MAXBLK 0.25                 //maximum secs a process can block while waiting for data to be read out on robot desc
 
@@ -72,7 +69,7 @@ void print_robot_desc ()
 	for (int i = 0; i < NUM_DESC_FIELDS; i++) {
 		switch (i) {
 			case STATE:
-				printf("\tSTATE = %s\n", (rd_ptr->fields[STATE] == ERROR) ? "ERROR" : "NOMINAL");
+				printf("\tSTATE = %s\n", (rd_ptr->fields[STATE] == ISSUE) ? "ISSUE" : "NOMINAL");
 				break;
 			case RUN_MODE:
 				printf("\tRUN_MODE = %s\n", (rd_ptr->fields[RUN_MODE] == IDLE) ? "IDLE" : ((rd_ptr->fields[RUN_MODE] == AUTO) ? "AUTO" : "TELEOP"));
@@ -122,16 +119,16 @@ void print_gamepad_state ()
 	}
 	
 	//only print pushed buttons (so we don't print out 22 lines of output each time we all this function)
-	printf("Current Gamepad State:\n");
+	printf("Current Gamepad State:\n\tPushed Buttons:\n");
 	for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-		if (gp->buttons & (1 << i)) {
-			printf("\t%s  ", button_names[i]);
+		if (gp_ptr->buttons & (1 << i)) {
+			printf("\t\t%s\n", button_names[i]);
 		}
-		printf("\n");
 	}
+	printf("\tJoystick Positions:\n");
 	//print joystick positions
 	for (int i = 0; i < 4; i++) {
-		printf("\t %s = %f\n", joystick_names[i], gp->joysticks[i]);
+		printf("\t\t %s = %f\n", joystick_names[i], gp_ptr->joysticks[i]);
 	}
 	printf("\n");
 	fflush(stdout);
@@ -155,7 +152,6 @@ No return value.
 void shm_aux_init (process_t process)
 {
 	int fd_shm; //file descriptor of the memory-mapped shared memory
-	char sname[SNAME_SIZE]; //for holding semaphore names
 	
 	if (process == NET_HANDLER) {
 		
@@ -211,7 +207,7 @@ void shm_aux_init (process_t process)
 		rd_ptr->net_to_exe_pending = 0;             //no writes made yet
 		rd_ptr->exe_to_net_pending = 0;             //no writes made yet
 		
-		//initialization complete; set catalog_mutex to 1 indicating shm segment available for client(s)
+		//initialization complete; set gp_mutex to 1 indicating shm segment available for client(s)
 		if (sem_post(gp_sem) == -1) {
 			error("sem_post: gamepad_mutex@net_handler");
 		}
@@ -260,9 +256,7 @@ Newtork handler is responsible for marking shared memory blocks and semaphores f
 No return value.
 */
 void shm_aux_stop (process_t process)
-{
-	char sname[SNAME_SIZE]; //holding semaphore names
-	
+{	
 	//unmap the gamepad and robot desc shm blocks
 	if (munmap(gp_ptr, sizeof(gamepad_t)) == -1) {
 		(process == NET_HANDLER) ? error("munmap: @net_handler") : error("munmap: @client");
@@ -317,7 +311,7 @@ robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field)
 	}
 	
 	//read the value out, and turn off the appropriate element
-	ret = rd_ptr->fields[FIELD];
+	ret = rd_ptr->fields[field];
 	if (process == EXECUTOR) {
 		rd_ptr->net_to_exe_pending = 0;
 	} else if (process == NET_HANDLER) {
@@ -350,7 +344,7 @@ void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_v
 	
 	//loop for a maximum of DESC_WR_MAXBLK seconds before logging a warning and writing
 	gettimeofday(&start, NULL);
-	while (time_taken < RD_WR_MAXBLK) {
+	while (time_taken < DESC_WR_MAXBLK) {
 		//if previously written data was pulled out
 		if (process == NET_HANDLER && !(rd_ptr->net_to_exe_pending)) {
 			break;
@@ -359,7 +353,7 @@ void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_v
 		}
 		usleep(1000);
 		gettimeofday(&curr, NULL);
-		time_taken = (double)(end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec) / 1000000.0);
+		time_taken = (double)(curr.tv_sec - start.tv_sec) + ((double)(curr.tv_usec - start.tv_usec) / 1000000.0);
 	}
 	if (time_taken >= DESC_WR_MAXBLK) {
 		sprintf(msg, "%s overwriting field %d to value %d", (process == NET_HANDLER)? "NET_HANDLER" : "EXECUTOR", field, val);
@@ -372,7 +366,7 @@ void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_v
 	}
 	
 	//write the val into the field, and set appropriate pending element to 1
-	rd_ptr->fields[FIELD] = val;
+	rd_ptr->fields[field] = val;
 	if (process == NET_HANDLER) {
 		rd_ptr->net_to_exe_pending = 1;
 	} else if (process == EXECUTOR) {
@@ -392,7 +386,7 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats to which the current joystick states will be read into
 No return value.
 */
-void gamepad_read (uint32_t &pressed_buttons, float *joystick_vals)
+void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick_vals)
 {
 	//wait on rd_sem
 	if (sem_wait(rd_sem) == -1) {
@@ -400,7 +394,7 @@ void gamepad_read (uint32_t &pressed_buttons, float *joystick_vals)
 	}
 	
 	//if no gamepad connected, then release rd_sem and return
-	if (robot_desc_read(GAMEPAD) == DISCONNECTED) {
+	if (rd_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_runtime(WARN, "tried to read, but no gamepad connected");
 		if (sem_post(rd_sem) == -1) {
 			error("sem_post: robot_desc_mutex");
@@ -437,7 +431,7 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats that contain the values to write to the joystick
 No return value.
 */
-void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
+void gamepad_write (process_t process, uint32_t pressed_buttons, float *joystick_vals)
 {
 	//wait on rd_sem
 	if (sem_wait(rd_sem) == -1) {
@@ -445,7 +439,7 @@ void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 	}
 	
 	//if no gamepad connected, then release rd_sem and return
-	if (robot_desc_read(GAMEPAD) == DISCONNECTED) {
+	if (rd_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_runtime(WARN, "tried to write, but no gamepad connected");
 		if (sem_post(rd_sem) == -1) {
 			error("sem_post: robot_desc_mutex");
