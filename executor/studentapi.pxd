@@ -38,6 +38,6 @@ cdef extern from "../dev_handler/devices.h":
     char* device_type_to_name(uint16_t dev_type)
     void all_params_for_device_type(uint16_t dev_type, char* param_names[])
     param_desc_t* get_param_desc(uint16_t dev_type, char* param_name)
-    uint8_t get_param_id(uint16_t dev_type, char* param_name)
+    uint8_t get_param_idx(uint16_t dev_type, char* param_name)
 
 
