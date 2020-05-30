@@ -48,12 +48,25 @@ uint16_t get_device_type(dev_id_t id);
 uint8_t get_year(dev_id_t id);
 uint64_t get_uid(dev_id_t id);
 
-
+/*
+ * Utility function to calculate the size of the payload needed
+ * for a DeviceWrite/DeviceData message.
+ * device_type: The type of device (Ex: 2 for Potentiometer)
+ */
 ssize_t device_data_payload_size(uint16_t device_type);
 
 /******************************************************************************************
- *                              MESSAGE CONSTRUCTORS
+ *                              MESSAGE CONSTRUCTORS                                      *
+ *   The message returned from these MUST be deallocated memory using destroy_message()   *
  ******************************************************************************************/
+
+/*
+ * Utility function to allocate memory for an empty message
+ * To be used with parse_message()
+ * payload_size: The size of memory of allocate for the payload
+ */
+message_t* make_empty(ssize_t payload_size);
+
 /*
  * A message that pings a device
  * Payload: empty
@@ -218,20 +231,56 @@ ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
- * Converts the contents of msg and writes it to a buffer
+ * Serializes the contents of msg into a byte array
+ * The structure of the byte array:
+ *      8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
+ * msg: The msg to be serialized to a byte array
+ * data: An empty byte array to be filled with
+ * len: The Length of the byte array
+ * NOTE: len MUST be at least 3 + msg->payload_length
+ * return: 0 if len is suitable and successful serialization. 1 if len is too small.
  */
-void message_to_bytes(message_t* msg, char data[], int len);
+int message_to_bytes(message_t* msg, char data[], int len);
 
 /*
  * Converts a byte array into a message_t*, filling up the fields of msg_to_fill
+ * The structure of the byte array:
+ *      8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
+ * data: A byte array containing a message
+ * empty_msg: A message to be populated. Payload must be properly allocated memory. Use make_empty()
+ * return: 0 if successful parsing (correct checksum). 1 Otherwise
  */
-int parse_message(char data[], message_t* msg_to_fill);
+int parse_message(char data[], message_t* empty_msg);
+
+/*
+ * Reads the parameter values from a DeviceData/DeviceWrite message
+ * dev_type: The device type that the message is sent from/to
+ * dev_data: The DeviceData/DeviceWrite message
+ * vals: An array of param_val_t structs to be populated with the values from the message. Use make_empty_param_values;
+ * NOTE: The length of vals MUST be equal to the number of parameters for the specified device
+ */
+int parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]);
+
+/*
+ * Utility function to allocate enough memory for a buffer to be used in parse_device_data
+ * Use destroy_param_values to free vals
+ * dev_type: The type of device
+ * vals: An empty array to be populated with pointers to param_val_t structs.
+ *      The length of vals MUST be equal to the number of parameters for the specified device
+ * return: 0 on success
+ */
+int make_empty_param_values(uint16_t dev_type, param_val_t* vals[]);
+
+/*
+ * Utility function to free the param_val_t structs in an array.
+ * To be used as a complement to make_empty_param_values
+ */
+int destroy_param_values(uint16_t dev_type, param_val_t* vals[]);
 
 /*
  * Potentially added later:
  * sendMessage(), read() from serial to get message         [Likely to be put in dev_handler]
  * decode_params
  * parse_subscription_response: Break down sub_response received into its parts
- * parse_device_data: Break down DeviceData packet into param, value pairs
  */
 #endif
