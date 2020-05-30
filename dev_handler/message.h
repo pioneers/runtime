@@ -48,6 +48,9 @@ uint16_t get_device_type(dev_id_t id);
 uint8_t get_year(dev_id_t id);
 uint64_t get_uid(dev_id_t id);
 
+
+ssize_t device_data_payload_size(uint16_t device_type);
+
 /******************************************************************************************
  *                              MESSAGE CONSTRUCTORS
  ******************************************************************************************/
@@ -95,7 +98,7 @@ message_t* make_heartbeat_response(char heartbeat_id);
  * Payload: 32-bit param bit-mask, 16-bit delay
  * Direction: dev_handler --> device
  */
-message_t* make_subscription_request(dev_id_t device_id, char* param_names[], uint8_t len, uint16_t delay);
+message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
 
 /*
  * A message in response to a SubscriptionRequest.
@@ -131,7 +134,7 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
  * Payload: 32-bit param mask, 32-bits for parameter 0 data, 32-bits for parameter 1 data, . . ., 32-bits for parameter 31 data
  * Direction: dev_handler --> device
  */
-message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], int len);
+message_t* make_device_write(dev_id_t* device_id, param_val_t* param_values[], int len);
 
 /*
  * A message that a device responds with to DeviceRead, DeviceWrite, or SubscriptionRequest
@@ -139,7 +142,7 @@ message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], in
  * Payload: 32-bit param mask, 32-bits for parameter 0 data, 32-bits for parameter 1 data, . . ., 32-bits for parameter 31 data
  * Direction: device --> dev_handler
  */
-message_t* make_device_data(dev_id_t device_id, param_val_t* param_values[], int len);
+message_t* make_device_data(dev_id_t* device_id, param_val_t* param_values[], int len);
 
 /*
  * A message that a device sends that contains debugging information to be logged.
@@ -194,7 +197,7 @@ char checksum(char* data, int len);
  * src_len: The size of the source data
  * return: The size of the encoded data
  */
-size_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len);
+ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
 
 /*
  * Cobs decodes data into a buffer
@@ -203,7 +206,7 @@ size_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len);
  * src_len: The size of the source data
  * return: The size of the decoded data
  */
-size_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len);
+ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
 
 /*
  * Converts an array of parameter names to a 32-bit mask.
@@ -215,8 +218,17 @@ size_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len);
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
+ * Converts the contents of msg and writes it to a buffer
+ */
+void message_to_bytes(message_t* msg, char data[], int len);
+
+/*
+ * Converts a byte array into a message_t*, filling up the fields of msg_to_fill
+ */
+int parse_message(char data[], message_t* msg_to_fill);
+
+/*
  * Potentially added later:
- * toBytes(message_t), parseMessage(bytes)
  * sendMessage(), read() from serial to get message         [Likely to be put in dev_handler]
  * decode_params
  * parse_subscription_response: Break down sub_response received into its parts

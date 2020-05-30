@@ -1,4 +1,4 @@
-error/*
+/*
 Constructs, encodes, and decodes the appropriate messages asked for by dev_handler.c
 Previously hibikeMessage.py
 
@@ -20,6 +20,22 @@ uint8_t get_year(dev_id_t id) {
 }
 uint64_t get_uid(dev_id_t id) {
     return id.uid;
+}
+
+ssize_t device_data_payload_size(uint16_t device_type) {
+    ssize_t result = 4; // Initialize at 1 for the 32-bit param mask
+    device_t* dev = get_device(device_type);
+    for (int i = 0; i < dev->num_params; i++) {
+        char* type = dev->params[i].type;
+        if (strcmp(type, "int") == 0) {
+            result += sizeof(int);
+        } else if (strcmp(type, "float") == 0) {
+            result += sizeof(float);
+        } else {
+            result += sizeof(uint8_t);
+        }
+    }
+    return result;
 }
 
 /***************************************************
@@ -74,7 +90,7 @@ message_t* make_heartbeat_response(char heartbeat_id) {
  * Note: Payload a 32-bit bit mask followed by the 16-bit delay
  *          --> 48-bit == 6-byte payload
 */
-message_t* make_subscription_request(dev_id_t device_id, char* param_names[], uint8_t len, uint16_t delay) {
+message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_request = malloc(sizeof(message_t));
     sub_request->message_id = SubscriptionRequest;
     sub_request->payload = malloc(6);
@@ -136,10 +152,10 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
     "switch2" : 100
     }
 */
-message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], int len) {
+message_t* make_device_write(dev_id_t* device_id, param_val_t* param_values[], int len) {
     message_t* dev_write = malloc(sizeof(message_t));
     dev_write->message_id = DeviceWrite;
-    dev_write->payload = malloc(132);
+    dev_write->payload = malloc(device_data_payload_size(device_id->type));
     dev_write->payload_length = 0;
     dev_write->max_payload_length = 132;
     // Initialize mask to 1 if the last parameter is on. Otherwise 0
@@ -154,13 +170,17 @@ message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], in
     status += append_payload(dev_write, (uint8_t*) &mask, 4);
     // Build the payload with the values of parameter 0 to parameter len-1
     for (int i = 0; i < len; i++) {
-        char* param_type = getDevice(device_id->type)->params[i].type;
+        if (param_values[i] == NULL) {
+            continue;
+        }
+        device_t* dev = get_device(device_id->type);
+        char* param_type = dev->params[i].type;
         if (strcmp(param_type, "int") == 0) {
-            status += append_payload(dev_write, (uint8_t*) param_values[i]->p_i, 4);
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i]->p_i), sizeof(int));
         } else if (strcmp(param_type, "float") == 0) {
-            status += append_payload(dev_write, (uint8_t*) param_values[i]->p_f, 4);
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i]->p_f), sizeof(float));
         } else if (strcmp(param_type, "bool") == 0) { // Boolean
-            status += append_payload(dev_write, (uint8_t*) param_values[i]->p_b, 4);
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i]->p_b), sizeof(uint8_t));
         }
     }
     return (status == 0) ? dev_write : NULL;
@@ -170,7 +190,7 @@ message_t* make_device_write(dev_id_t device_id, param_val_t* param_values[], in
  * Returns a message with a 32-bit param mask and thirty-two 32-bit values
  * Logic is the same as make_device_write.
  */
-message_t* make_device_data(dev_id_t device_id, param_val_t* param_values[], int len) {
+message_t* make_device_data(dev_id_t* device_id, param_val_t* param_values[], int len) {
     message_t* dev_data = make_device_write(device_id, param_values, len);
     dev_data->message_id = DeviceData;
     return dev_data;
@@ -181,6 +201,7 @@ message_t* make_device_data(dev_id_t device_id, param_val_t* param_values[], int
  */
 message_t* make_log(char* data) {
     if ((strlen(data) + 1) > (132 * sizeof(char))) {
+        printf("Error in making message: DATA IS TOO LONG.\n");
         return NULL;
     }
     message_t* log = malloc(sizeof(message_t));
@@ -256,12 +277,12 @@ Encodes src into dst and returns the size of dst. src nust not overlap dst.
 Replace all zero bytes with nonzero bytes describing the location of the next zero
 For detailed example, view https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
 */
-size_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len)
+ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len)
 {
 	const uint8_t *end = src + src_len;
 	uint8_t *block_len_loc = dst++;
 	uint8_t block_len = 0x01;
-	size_t out_len = 0;
+	ssize_t out_len = 0;
 
 	while (src < end) {
 		if (*src == 0) {
@@ -286,10 +307,10 @@ size_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len)
  Revert back into original non-cobs_encoded data
  For example, view https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
 */
-size_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len)
+ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len)
 {
 	const uint8_t *end = src + src_len;
-	size_t out_len = 0;
+	ssize_t out_len = 0;
 
 	while (src < end) {
 		uint8_t code = *src++;
@@ -317,12 +338,13 @@ size_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len)
 */
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     uint8_t param_nums[len]; // [1, 9, 2] -> [0001, 1001, 0010]
-    int num_params_in_dev = getDevice(device_type)->num_params;
+    device_t* dev = get_device(device_type);
+    int num_params_in_dev = dev->num_params;
     // Iterate through PARAMS and find its corresponding number in the official list
     for (int i = 0; i < len; i++) {
         // Iterate through official list of params to find the param number
         for (int j = 0; j < num_params_in_dev; j++) {
-            if (strcmp(getDevice(device_type)->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
+            if (strcmp(dev->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
                 param_nums[i] = j; // DEVICES[device_type]->params[j].number;
                 break;
             }
@@ -364,26 +386,29 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
 }
 */
 
+void message_to_bytes(message_t* msg, char data[], int len) {
+    // Initialize the byte array. See page 8 of book.pdf
+    // 1 byte for messageID, 1 byte for payload length, the payload itself, and 1 byte for the checksum
+    if (len < 3 + msg->payload_length) {
+        printf("Error converting to bytes. LEN is too small\n");
+        return;
+    }
+    data[0] = msg->message_id;
+    data[1] = msg->payload_length;
+    for (int i = 0; i < msg->payload_length; i++) {
+        data[i+2] = msg->payload[i];
+    }
+    data[2 + msg->payload_length] = checksum(data, 2 + msg->payload_length);
+}
 
-int main(void) {
-    // 88 bits: 16 bits for type, 8 bits for year, 64 bits for ID
-    // Type: 0x1234
-    // Year: 0xAB
-    // ID: 0xFEDC BA09 8765 4321
-    dev_id_t id = {
-        .type = 0x1234,
-        .year = 0xAB,
-        .uid = 0xFEDCBA0987654321
-    };
-    /*
-    uint16_t type = get_device_type(id);
-    printf("Device Type: %d\n", type);
-    uint8_t year = get_year(id);
-    printf("Device Year: %d\n", year);
-    uint64_t uid = get_uid(id);
-    printf("Device UID: %lu\n", uid);
-    */
-    char* params[2] = {"switch2", "switch1"};
-    uint32_t encoded_params = encode_params(LimitSwitch.type, params, 2);
-    printf("Encoded params in decimal: %d\n", encoded_params);
+int parse_message(char data[], message_t* msg_to_fill) {
+    msg_to_fill->message_id = data[0];
+    msg_to_fill->payload_length = data[1];
+    msg_to_fill->max_payload_length = data[1];
+    for (int i = 0; i < msg_to_fill->payload_length; i++) {
+        msg_to_fill->payload[i] = data[i + 2];
+    }
+    char expected_checksum = data[2 + msg_to_fill->payload_length];
+    char received_checksum = checksum(data, 2 + msg_to_fill->payload_length);
+    return (expected_checksum != received_checksum) ? 1 : 0;
 }
