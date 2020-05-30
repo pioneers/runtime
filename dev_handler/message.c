@@ -42,6 +42,14 @@ ssize_t device_data_payload_size(uint16_t device_type) {
 *               MESSAGE CONSTRUCTORS               *
 * Constructs message_t to be encoded and sent      *
 ***************************************************/
+message_t* make_empty(ssize_t payload_size) {
+    message_t* msg = malloc(sizeof(message_t));
+    msg->payload = malloc(payload_size);
+    msg->payload_length = 0;
+    msg->max_payload_length = payload_size;
+    return msg;
+}
+
 message_t* make_ping() {
     message_t* ping = malloc(sizeof(message_t));
     ping->message_id = Ping;
@@ -225,9 +233,7 @@ message_t* make_error(uint8_t error_code) {
 }
 
 void destroy_message(message_t* message) {
-    if (message->payload_length > 0) {
-        free(message->payload);
-    }
+    free(message->payload);
     free(message);
 }
 
@@ -386,12 +392,11 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
 }
 */
 
-void message_to_bytes(message_t* msg, char data[], int len) {
+int message_to_bytes(message_t* msg, char data[], int len) {
     // Initialize the byte array. See page 8 of book.pdf
     // 1 byte for messageID, 1 byte for payload length, the payload itself, and 1 byte for the checksum
     if (len < 3 + msg->payload_length) {
-        printf("Error converting to bytes. LEN is too small\n");
-        return;
+        return 1;
     }
     data[0] = msg->message_id;
     data[1] = msg->payload_length;
@@ -399,6 +404,7 @@ void message_to_bytes(message_t* msg, char data[], int len) {
         data[i+2] = msg->payload[i];
     }
     data[2 + msg->payload_length] = checksum(data, 2 + msg->payload_length);
+    return 0;
 }
 
 int parse_message(char data[], message_t* msg_to_fill) {
@@ -411,4 +417,38 @@ int parse_message(char data[], message_t* msg_to_fill) {
     char expected_checksum = data[2 + msg_to_fill->payload_length];
     char received_checksum = checksum(data, 2 + msg_to_fill->payload_length);
     return (expected_checksum != received_checksum) ? 1 : 0;
+}
+
+int parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]) {
+    device_t* dev = get_device(dev_type);
+    uint8_t* payload_ptr = &(dev_data->payload[4]);
+    for (int i = 0; i < dev->num_params; i++) {
+        if (strcmp(dev->params[i].type, "int") == 0) {
+            vals[i]->p_i = ((int*) payload_ptr)[0];
+            payload_ptr += sizeof(int) / sizeof(uint8_t);
+        } else if (strcmp(dev->params[i].type, "float") == 0) {
+            vals[i]->p_f = ((float*) payload_ptr)[0];
+            payload_ptr += sizeof(float) / sizeof(uint8_t);
+        } else if (strcmp(dev->params[i].type, "bool") == 0) {
+            vals[i]->p_b = payload_ptr[0];
+            payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
+        }
+    }
+    return 0;
+}
+
+int make_empty_param_values(uint16_t dev_type, param_val_t* vals[]) {
+    device_t* device = get_device(dev_type);
+    for (int i = 0; i < device->num_params; i++) {
+        vals[i] = malloc(sizeof(param_val_t));
+    }
+    return 0;
+}
+
+int destroy_param_values(uint16_t dev_type, param_val_t* vals[]) {
+    device_t* device = get_device(dev_type);
+    for (int i = 0; i < device->num_params; i++) {
+        free(vals[i]);
+    }
+    return 0;
 }
