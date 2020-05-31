@@ -5,11 +5,40 @@
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
-//enumerate names of processes
-typedef enum process { DEV_HANDLER, EXECUTOR, NET_HANDLER } process_t;
-
 #define MAX_DEVICES 32 //maximum number of connected devices
 #define MAX_PARAMS 32 //maximum number of parameters per connected device
+
+#define NUM_DESC_FIELDS 6                   //number of fields in the robot description
+#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
+
+//enumerate names of processes
+typedef enum process { 
+	DEV_HANDLER, EXECUTOR, NET_HANDLER 
+} process_t;
+
+//enumerated names for the buttons on the gamepad
+typedef enum gp_buttons {
+	A_BUTTON, B_BUTTON, X_BUTTON, Y_BUTTON, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER,
+	BACK_BUTTON, START_BUTTON, L_STICK, R_STICK, UP_DPAD, DOWN_DPAD, LEFT_DPAD, RIGHT_DPAD, XBOX_BUTTON
+} gp_button_t;
+
+//enumerated names for the joystick params of the gamepad
+typedef enum gp_joysticks {
+	X_LEFT_JOYSTICK, Y_LEFT_JOYSTICK, X_RIGHT_JOYSTICK, Y_RIGHT_JOYSTICK
+} gp_joystick_t;
+
+//enumerated names for the different values the robot description fields can take on
+typedef enum robot_desc_vals {
+	ISSUE, NOMINAL,             //values for robot.state
+	IDLE, AUTO, TELEOP,         //values for robot.run_mode
+	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
+	BLUE, GOLD                  //values for robot.team
+} robot_desc_val_t;
+
+//enumerated names for the fields in the robot description
+typedef enum robot_descs {
+	STATE, RUN_MODE, DAWN, SHEPHERD, GAMEPAD, TEAM
+} robot_desc_field_t;
 
 // ******************************* CUSTOM STRUCTS ************************** //
 
