@@ -59,16 +59,16 @@ void sanity_gamepad_test ()
 void sanity_robot_desc_test ()
 {
 	int count = 0;
-	robot_desc_val_t curr[6] = { NOMINAL, IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
-	robot_desc_val_t prev[6] = { NOMINAL, IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
+	robot_desc_val_t curr[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
+	robot_desc_val_t prev[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
 	
 	sync();
 	
 	printf("Begin sanity robot desc test...\n");
 	
-	while (count < 13) {
+	while (count < 11) {
 		for (int i = 0; i < NUM_DESC_FIELDS; i++) {
-			curr[i] = robot_desc_read(EXECUTOR, i);
+			curr[i] = robot_desc_read(i);
 			if (curr[i] != prev[i]) {
 				printf("something has changed! new robot description:\n");
 				print_robot_desc();
@@ -78,19 +78,6 @@ void sanity_robot_desc_test ()
 		}
 		usleep(100);
 	}
-	printf("Done!\n\n");
-}
-
-// *************************************************************************************************** //
-//robot description write override test
-void robot_desc_override_test ()
-{
-	sync();
-	
-	printf("Begin robot desc override test...\n");
-	
-	sleep(1); //don't read anything out!
-	
 	printf("Done!\n\n");
 }
 
@@ -113,9 +100,7 @@ int main()
 	
 	sanity_gamepad_test();
 	
-	sanity_robot_desc_test();	
-	
-	robot_desc_override_test();
+	sanity_robot_desc_test();
 	
 	shm_aux_stop(EXECUTOR);
 	logger_stop(EXECUTOR);

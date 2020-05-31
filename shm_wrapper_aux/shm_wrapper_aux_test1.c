@@ -86,69 +86,44 @@ void sanity_robot_desc_test ()
 	
 	printf("Begin sanity robot desc test...\n");
 	
-	for (int i = 0; i < 13; i++) {
+	for (int i = 0; i < 11; i++) {
 		switch (i) {
 			case 0:
-				robot_desc_write(NET_HANDLER, STATE, ISSUE);
+				robot_desc_write(RUN_MODE, AUTO);
 				break;
 			case 1:
-				robot_desc_write(NET_HANDLER, RUN_MODE, AUTO);
+				robot_desc_write(RUN_MODE, TELEOP);
 				break;
 			case 2:
-				robot_desc_write(NET_HANDLER, RUN_MODE, TELEOP);
+				robot_desc_write(DAWN, CONNECTED);
 				break;
 			case 3:
-				robot_desc_write(NET_HANDLER, DAWN, CONNECTED);
+				robot_desc_write(DAWN, DISCONNECTED);
 				break;
 			case 4:
-				robot_desc_write(NET_HANDLER, DAWN, DISCONNECTED);
+				robot_desc_write(SHEPHERD, CONNECTED);
 				break;
 			case 5:
-				robot_desc_write(NET_HANDLER, SHEPHERD, CONNECTED);
+				robot_desc_write(SHEPHERD, DISCONNECTED);
 				break;
 			case 6:
-				robot_desc_write(NET_HANDLER, SHEPHERD, DISCONNECTED);
+				robot_desc_write(GAMEPAD, DISCONNECTED);
 				break;
 			case 7:
-				robot_desc_write(NET_HANDLER, GAMEPAD, DISCONNECTED);
+				robot_desc_write(GAMEPAD, CONNECTED);
 				break;
 			case 8:
-				robot_desc_write(NET_HANDLER, GAMEPAD, CONNECTED);
+				robot_desc_write(TEAM, GOLD);
 				break;
 			case 9:
-				robot_desc_write(NET_HANDLER, TEAM, GOLD);
+				robot_desc_write(TEAM, BLUE);
 				break;
 			case 10:
-				robot_desc_write(NET_HANDLER, TEAM, BLUE);
-				break;
-			case 11:
-				robot_desc_write(NET_HANDLER, STATE, NOMINAL);
-				break;
-			case 12:
-				robot_desc_write(NET_HANDLER, RUN_MODE, IDLE);
+				robot_desc_write(RUN_MODE, IDLE);
 				break;
 		}
 		usleep(200000); //sleep for 0.2 sec
 	}
-	printf("Done!\n\n");
-}
-
-// *************************************************************************************************** //
-//robot description write override test
-void robot_desc_override_test ()
-{
-	sync();
-	
-	printf("Begin robot desc override test...\n");
-	
-	//this should take about 1 sec because it blocks every time
-	//should also output a logger message
-	robot_desc_write(NET_HANDLER, RUN_MODE, AUTO);
-	robot_desc_write(NET_HANDLER, RUN_MODE, TELEOP);
-	robot_desc_write(NET_HANDLER, TEAM, GOLD);
-	robot_desc_write(NET_HANDLER, TEAM, BLUE);
-	robot_desc_write(NET_HANDLER, RUN_MODE, IDLE);
-	
 	printf("Done!\n\n");
 }
 
@@ -168,14 +143,12 @@ int main()
 	shm_aux_init(NET_HANDLER);
 	logger_init(NET_HANDLER);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
-	robot_desc_write(NET_HANDLER, GAMEPAD, CONNECTED);
+	robot_desc_write(GAMEPAD, CONNECTED);
 	print_robot_desc();
 	
 	sanity_gamepad_test();
 	
 	sanity_robot_desc_test();
-	
-	robot_desc_override_test();
 	
 	sleep(2);
 	

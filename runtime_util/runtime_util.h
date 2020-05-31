@@ -8,7 +8,7 @@
 #define MAX_DEVICES 32 //maximum number of connected devices
 #define MAX_PARAMS 32 //maximum number of parameters per connected device
 
-#define NUM_DESC_FIELDS 6                   //number of fields in the robot description
+#define NUM_DESC_FIELDS 5                   //number of fields in the robot description
 #define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
 //enumerate names of processes
@@ -29,7 +29,6 @@ typedef enum gp_joysticks {
 
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-	ISSUE, NOMINAL,             //values for robot.state
 	IDLE, AUTO, TELEOP,         //values for robot.run_mode
 	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
 	BLUE, GOLD                  //values for robot.team
@@ -37,7 +36,7 @@ typedef enum robot_desc_vals {
 
 //enumerated names for the fields in the robot description
 typedef enum robot_descs {
-	STATE, RUN_MODE, DAWN, SHEPHERD, GAMEPAD, TEAM
+	RUN_MODE, DAWN, SHEPHERD, GAMEPAD, TEAM
 } robot_desc_field_t;
 
 // ******************************* CUSTOM STRUCTS ************************** //

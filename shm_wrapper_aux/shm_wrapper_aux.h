@@ -45,23 +45,19 @@ void shm_aux_stop (process_t process);
 /*
 This function reads the specified field.
 Blocks on the robot description semaphore.
-	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
-		being called from
 	- field: one of the robot_desc_val_t's defined above to read from
 Returns one of the robot_desc_val_t's defined above that is the current value of that field.
 */
-robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field);
+robot_desc_val_t robot_desc_read (robot_desc_field_t field);
 
 /*
 This function writes the specified value into the specified field.
 Blocks on the robot description semaphore.
-	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
-		being called from
 	- field: one of the robot_desc_val_t's defined above to write val to
 	- val: one of the robot_desc_vals defined above to write to the specified field
 No return value.
 */
-void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_val_t val);
+void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
 
 /*
 This function reads the current state of the gamepad to the provided pointers.
