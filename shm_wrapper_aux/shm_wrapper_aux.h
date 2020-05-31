@@ -14,33 +14,6 @@
 #include "../logger/logger.h"              //for logger (TODO: consider removing relative pathname in include)
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
-#define NUM_DESC_FIELDS 6                   //number of fields in the robot description
-#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
-
-//enumerated names for the buttons on the gamepad
-typedef enum gp_buttons {
-	A_BUTTON, B_BUTTON, X_BUTTON, Y_BUTTON, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER,
-	BACK_BUTTON, START_BUTTON, L_STICK, R_STICK, UP_DPAD, DOWN_DPAD, LEFT_DPAD, RIGHT_DPAD, XBOX_BUTTON
-} gp_button_t;
-
-//enumerated names for the joystick params of the gamepad
-typedef enum gp_joysticks {
-	X_LEFT_JOYSTICK, Y_LEFT_JOYSTICK, X_RIGHT_JOYSTICK, Y_RIGHT_JOYSTICK
-} gp_joystick_t;
-
-//enumerated names for the different values the robot description fields can take on
-typedef enum robot_desc_vals {
-	ISSUE, NOMINAL,             //values for robot.state
-	IDLE, AUTO, TELEOP,         //values for robot.run_mode
-	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
-	BLUE, GOLD                  //values for robot.team
-} robot_desc_val_t;
-
-//enumerated names for the fields in the robot description
-typedef enum robot_descs {
-	STATE, RUN_MODE, DAWN, SHEPHERD, GAMEPAD, TEAM
-} robot_desc_field_t;
-
 // ******************************************* UTILITY FUNCTIONS ****************************************** //
 
 void print_robot_desc ();
