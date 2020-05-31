@@ -20,8 +20,6 @@ int sem_post (sem_t *sem);
 #define GP_MUTEX_NAME "/gp-sem"             //name of semaphore used as mutex over gamepad shm
 #define RD_MUTEX_NAME "/rd-sem"             //name of semaphore used as mutex over robot description shm
 
-#define DESC_WR_MAXBLK 0.25                 //maximum secs a process can block while waiting for data to be read out on robot desc
-
 // ***************************************** PRIVATE TYPEDEFS ********************************************* //
 
 //shared memory for gamepad
@@ -33,8 +31,6 @@ typedef struct gp {
 //shared memory for robot description
 typedef struct robot_desc {
 	uint8_t fields[NUM_DESC_FIELDS];        //array to hold the robot state (each is a uint8_t) 
-	uint8_t net_to_exe_pending;             //1 if pending changes for executor to read, 0 otherwise
-	uint8_t exe_to_net_pending;             //1 if pending changes for net_handler to read, 0 otherwise
 } robot_desc_t;
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
@@ -68,9 +64,6 @@ void print_robot_desc ()
 	printf("Current Robot Description:\n");
 	for (int i = 0; i < NUM_DESC_FIELDS; i++) {
 		switch (i) {
-			case STATE:
-				printf("\tSTATE = %s\n", (rd_ptr->fields[STATE] == ISSUE) ? "ISSUE" : "NOMINAL");
-				break;
 			case RUN_MODE:
 				printf("\tRUN_MODE = %s\n", (rd_ptr->fields[RUN_MODE] == IDLE) ? "IDLE" : ((rd_ptr->fields[RUN_MODE] == AUTO) ? "AUTO" : "TELEOP"));
 				break;
@@ -198,14 +191,11 @@ void shm_aux_init (process_t process)
 		for (int i = 0; i < 4; i++) {
 			gp_ptr->joysticks[i] = 0.0;
 		}
-		rd_ptr->fields[STATE] = NOMINAL;
 		rd_ptr->fields[RUN_MODE] = IDLE;
 		rd_ptr->fields[DAWN] = DISCONNECTED;
 		rd_ptr->fields[SHEPHERD] = DISCONNECTED;
 		rd_ptr->fields[GAMEPAD] = DISCONNECTED;
 		rd_ptr->fields[TEAM] = BLUE;                //arbitrary
-		rd_ptr->net_to_exe_pending = 0;             //no writes made yet
-		rd_ptr->exe_to_net_pending = 0;             //no writes made yet
 		
 		//initialization complete; set gp_mutex to 1 indicating shm segment available for client(s)
 		if (sem_post(gp_sem) == -1) {
@@ -296,12 +286,10 @@ void shm_aux_stop (process_t process)
 /*
 This function reads the specified field.
 Blocks on the robot description semaphore.
-	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
-		being called from
 	- field: one of the robot_desc_val_t's defined above to read from
 Returns one of the robot_desc_val_t's defined above that is the current value of that field.
 */
-robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field)
+robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 {
 	robot_desc_val_t ret;
 	
@@ -312,11 +300,6 @@ robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field)
 	
 	//read the value out, and turn off the appropriate element
 	ret = rd_ptr->fields[field];
-	if (process == EXECUTOR) {
-		rd_ptr->net_to_exe_pending = 0;
-	} else if (process == NET_HANDLER) {
-		rd_ptr->exe_to_net_pending = 0;
-	}
 	
 	//release rd_sem
 	if (sem_post(rd_sem) == -1) {
@@ -330,36 +313,12 @@ robot_desc_val_t robot_desc_read (process_t process, robot_desc_field_t field)
 /*
 This function writes the specified value into the specified field.
 Blocks on the robot description semaphore.
-	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is
-		being called from
 	- field: one of the robot_desc_val_t's defined above to write val to
 	- val: one of the robot_desc_vals defined above to write to the specified field
 No return value.
 */
-void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_val_t val)
-{
-	struct timeval start, curr;
-	double time_taken = 0.0;
-	char msg[64]; //for error message
-	
-	//loop for a maximum of DESC_WR_MAXBLK seconds before logging a warning and writing
-	gettimeofday(&start, NULL);
-	while (time_taken < DESC_WR_MAXBLK) {
-		//if previously written data was pulled out
-		if (process == NET_HANDLER && !(rd_ptr->net_to_exe_pending)) {
-			break;
-		} else if (process == EXECUTOR && !(rd_ptr->exe_to_net_pending)) {
-			break;
-		}
-		usleep(1000);
-		gettimeofday(&curr, NULL);
-		time_taken = (double)(curr.tv_sec - start.tv_sec) + ((double)(curr.tv_usec - start.tv_usec) / 1000000.0);
-	}
-	if (time_taken >= DESC_WR_MAXBLK) {
-		sprintf(msg, "%s overwriting field %d to value %d", (process == NET_HANDLER)? "NET_HANDLER" : "EXECUTOR", field, val);
-		log_runtime(WARN, msg);
-	}
-	
+void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val)
+{	
 	//wait on rd_sem
 	if (sem_wait(rd_sem) == -1) {
 		error("sem_wait: robot_desc_mutex");
@@ -367,11 +326,6 @@ void robot_desc_write (process_t process, robot_desc_field_t field, robot_desc_v
 	
 	//write the val into the field, and set appropriate pending element to 1
 	rd_ptr->fields[field] = val;
-	if (process == NET_HANDLER) {
-		rd_ptr->net_to_exe_pending = 1;
-	} else if (process == EXECUTOR) {
-		rd_ptr->exe_to_net_pending = 1;
-	}
 	
 	//release rd_sem
 	if (sem_post(rd_sem) == -1) {
