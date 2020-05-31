@@ -297,6 +297,10 @@ void shm_init (process_t process)
 			error("sem_open: pmap_mutex@client");
 		}
 		
+		//wait on catalog_sem to ensure shm has been created before opening
+		if (sem_wait(catalog_sem) == -1) {
+			error("sem_wait: catalog_mutex@client");
+		}
 		
 		//open shared memory block and map to client process virtual memory
 		if ((fd_shm = shm_open(SHARED_MEM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
@@ -319,6 +323,11 @@ void shm_init (process_t process)
 			if ((sems[i].command_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
 				error("sem_open: command sem@client");
 			}
+		}
+		
+		//release catalog_sem
+		if (sem_post(catalog_sem) == -1) {
+			error("sem_post: catalog_mutex@client");
 		}
 	}
 }
