@@ -212,6 +212,10 @@ void shm_aux_init (process_t process)
 			error("sem_open: robot_desc_mutex@client");
 		}
 		
+		//wait on gp_sem to ensure shm has been created before opening
+		if (sem_wait(gp_sem) == -1) {
+			error("sem_wait: gamepad_mutex@client");
+		}
 		
 		//open gamepad shm block and map to client process virtual memory
 		if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
@@ -233,6 +237,11 @@ void shm_aux_init (process_t process)
 		}
 		if (close(fd_shm) == -1) {
 			error("close: @client");
+		}
+		
+		//release gp_sem
+		if (sem_post(gp_sem) == -1) {
+			error("sem_post: gamepad_mutex@client");
 		}
 	}
 }
