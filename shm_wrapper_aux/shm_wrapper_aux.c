@@ -395,7 +395,7 @@ void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick
 	
 	//if no gamepad connected, then release rd_sem and return
 	if (rd_ptr->fields[GAMEPAD] == DISCONNECTED) {
-		log_runtime(WARN, "tried to read, but no gamepad connected");
+		log_runtime(ERROR, "tried to read, but no gamepad connected");
 		if (sem_post(rd_sem) == -1) {
 			error("sem_post: robot_desc_mutex");
 		}
@@ -440,7 +440,7 @@ void gamepad_write (process_t process, uint32_t pressed_buttons, float *joystick
 	
 	//if no gamepad connected, then release rd_sem and return
 	if (rd_ptr->fields[GAMEPAD] == DISCONNECTED) {
-		log_runtime(WARN, "tried to write, but no gamepad connected");
+		log_runtime(ERROR, "tried to write, but no gamepad connected");
 		if (sem_post(rd_sem) == -1) {
 			error("sem_post: robot_desc_mutex");
 		}
