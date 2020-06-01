@@ -13,8 +13,6 @@ cdef extern from "../runtime_util/runtime_util.h":
         int p_i
         float p_f
         uint8_t p_b
-    ctypedef enum mode:
-        IDLE, AUTO, TELEOP, ESTOP
     ctypedef struct param_desc_t:
         char* name
         char* type
@@ -27,9 +25,13 @@ cdef extern from "../logger/logger.h":
 cdef extern from "../shm_wrapper/shm_wrapper.h":
     ctypedef enum stream_t:
         DATA, COMMAND
+    void shm_init(process_t process)
+    void shm_stop(process_t process)
     void device_read (int dev_idx, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
     void device_write (int dev_idx, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
     int get_device_idx_from_uid(uint64_t dev_uid)
+    void print_dev_ids()
+    void print_params (uint32_t params_to_print, param_val_t* params)
 
 cdef extern from "../dev_handler/devices.h":
     int MAX_PARAMS
