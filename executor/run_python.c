@@ -19,26 +19,26 @@ main(int argc, char *argv[])
         exit(1);
     }
     Py_SetProgramName(program); 
-    printf("%s\n", program);
     Py_Initialize();
     pName = PyUnicode_DecodeFSDefault(argv[1]);
     /* Error checking of pName left out */
 
-    pModule = PyImport_Import(pName);
+    pModule = PyImport_ImportModule(argv[1]);
     Py_DECREF(pName);
 
     if (pModule != NULL) {
         pFunc = PyObject_GetAttrString(pModule, argv[2]);
+        Py_DECREF(pModule);
         /* pFunc is a new reference */
         printf("%s\n\n", argv[2]);
         printf("%d\n", PyCallable_Check(pFunc));
         if (pFunc && PyCallable_Check(pFunc)) {
             pArgs = PyTuple_New(argc - 3);
             for (i = 0; i < argc - 3; ++i) {
+                printf("Args %d %s \n", i, argv[i+3]);
                 pValue = PyLong_FromLong(atoi(argv[i + 3]));
                 if (!pValue) {
                     Py_DECREF(pArgs);
-                    Py_DECREF(pModule);
                     fprintf(stderr, "Cannot convert argument\n");
                     return 1;
                 }
@@ -48,12 +48,12 @@ main(int argc, char *argv[])
             pValue = PyObject_CallObject(pFunc, pArgs);
             Py_DECREF(pArgs);
             if (pValue != NULL) {
-                printf("Result of call: %ld\n", PyLong_AsLong(pValue));
+                printf("Result of call: %s\n", pValue);
+                printf("Is none %u\n", pValue == Py_None);
                 Py_DECREF(pValue);
             }
             else {
                 Py_DECREF(pFunc);
-                Py_DECREF(pModule);
                 PyErr_Print();
                 fprintf(stderr,"Call failed\n");
                 return 1;
@@ -65,7 +65,6 @@ main(int argc, char *argv[])
             fprintf(stderr, "Cannot find function \"%s\"\n", argv[2]);
         }
         Py_XDECREF(pFunc);
-        Py_DECREF(pModule);
     }
     else {
         PyErr_Print();
