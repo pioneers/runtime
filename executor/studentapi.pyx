@@ -7,8 +7,9 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Free
 import enum
 # import numpy as np
 
-"""Student API written in Cython. To compile to C, do `python3.6 setup.py build_ext -i` in this directory. """
+"""Student API written in Cython. """
 
+# Initializing logger to be used throughout API
 logger_init(API)
 log_runtime(DEBUG, "Student API intialized")
 
@@ -17,11 +18,9 @@ class CodeExecutionError(Exception):
     """
     An exception that occurred while attempting to execute student code
 
-    ``CodeExecutionError`` accepts arbitrary data that can be examined in
-    post-mortems or written into structured logs.
+    `CodeExecutionError` accepts arbitrary data that can be examined or written into logs.
 
     Example:
-
         >>> err = CodeExecutionError('Error', dev_ids=[2, 3])
         >>> err
         CodeExecutionError('Error', dev_ids=[2, 3])
@@ -39,7 +38,24 @@ class CodeExecutionError(Exception):
         return f'{cls_name}({repr(msg)} {kwargs})'
 
 
+def _shm_init():
+    """ONLY USED FOR TESTING CODE LOADER. NOT USED IN PRODUCTION"""
+    shm_init(EXECUTOR)
+    shm_aux_init(EXECUTOR)
+
+def _shm_stop():
+    """ONLY USED FOR TESTING CODE LOADER. NOT USED IN PRODUCTION"""
+    shm_stop(EXECUTOR)
+    shm_aux_stop(EXECUTOR)
+
+
 def _print(*values, sep=' '):
+    """Helper print function that redirects message for stdout instead into the Runtime logger. Will print at the INFO level.
+
+    Args:
+        values: iterable of values to print
+        sep: string used as the seperator between each value. Default is ' '
+    """
     string = sep.join(map(str, values))
     log_runtime(INFO, string.encode('utf-8'))
 
@@ -51,41 +67,54 @@ cdef class Gamepad:
     Attributes:
         mode: The execution state of the robot.
     """
-    cdef str mode
+    cdef public str mode
 
     def __cinit__(self, mode):
+        """Initializes the mode of the robot. Also initializes the auxiliary SHM. """
         self.mode = mode
+        shm_aux_init(EXECUTOR)
+        log_runtime(DEBUG, "Aux SHM initialized")
 
     def __dealloc__(self):
-        pass
+        """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
+        shm_aux_stop(EXECUTOR)
+        log_runtime(DEBUG, "Aux SHM stopped")
 
     cpdef get_value(self, str param_name):
         """
         Get a gamepad parameter if the robot is in teleop.
 
-        Attributes:
-            param: The name of the parameter to read.
-            gamepad_id: The gamepad index (defaults to the first gamepad).
+        Args:
+            param: The name of the parameter to read. Possible values are at https://pioneers.berkeley.edu/software/robot_api.html 
         """
         if self.mode != 'teleop':
             raise CodeExecutionError(f'Cannot use Gamepad during {self.mode}')
         cdef bytes param = param_name.encode('utf-8')
+        cdef uint32_t buttons
+        cdef float joysticks[4]
+        gamepad_read(EXECUTOR, &buttons, joysticks)
+        cdef char** button_names = get_button_names()
+        cdef char** joystick_names = get_joystick_names()
+        for i in range(NUM_GAMEPAD_BUTTONS):
+            if param == button_names[i]:
+                return bool(buttons & (1 << i))
+        for i in range(4):
+            if param == joystick_names[i]:
+                return joysticks[i]
 
 cdef class Robot:
     """
-    The API for accessing the robot and its sensors.
-
-    Attributes:
-        action_executor: An action executor.
-        aliases: A device alias manager.
+    The API for accessing the robot and its devices.
     """
     # Include device handler and executor API
 
     def __cinit__(self):
-        shm_init(EXECUTOR) # Remove once integrated into 
+        """Initializes the shared memory (SHM) wrapper. """
+        shm_init(EXECUTOR) # Remove once integrated into executor?
         log_runtime(DEBUG, "SHM intialized")
 
     def __dealloc__(self):
+        """Once process is done and object is deallocated, close the mapping to SHM."""
         shm_stop(EXECUTOR)
         log_runtime(DEBUG, "SHM stopped")
 
@@ -96,24 +125,28 @@ cdef class Robot:
 
 
     cpdef bint is_running(self, action):
+        """Returns whether the given function `action` is running in a different thread."""
         pass
 
 
     cpdef get_value(self, str device_id, str param_name):
-        """ Get a smart sensor parameter. """
+        """ 
+        Get a device value. 
+        
+        Args:
+            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
+            param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
+        """
         cdef bytes param = param_name.encode('utf-8')
         splits = device_id.split('_')
         device_type, device_uid = int(splits[0]), int(splits[1])
-        idx = get_device_idx_from_uid(device_uid)
         cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        param_idx = get_param_idx(device_type, param)
-        # print(param_desc.type)
-        # print(param_idx)
+        cdef int param_idx = get_param_idx(device_type, param)
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
         if not param_value:
-            raise MemoryError()
-        cdef uint32_t param_mask = UINT32_MAX
-        device_read(idx, EXECUTOR, DATA, param_mask, param_value)
+            raise MemoryError("Could not allocate memory to get device value.")
+        cdef uint32_t param_mask = 1 << param_idx # UINT32_MAX
+        device_read_uid(device_uid, EXECUTOR, DATA, param_mask, param_value)
         # print_params(param_mask, param_value)
         param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
@@ -125,14 +158,21 @@ cdef class Robot:
         PyMem_Free(param_value)
         return ret
 
+
     cpdef void set_value(self, str device_id, str param_name, value):
-        """ Set a smart sensor parameter. """
+        """ 
+        Set a device parameter.
+        
+        Args:
+            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
+            param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
+            value: Value to set for the param. The type of the value can be seen at https://pioneers.berkeley.edu/software/robot_api.html
+        """
         cdef bytes param = param_name.encode('utf-8')
         splits = device_id.split('_')
         device_type, device_uid = int(splits[0]), int(splits[1])
-        idx = get_device_idx_from_uid(device_uid) 
         cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        param_idx = get_param_idx(device_type, param)
+        cdef int param_idx = get_param_idx(device_type, param)
         # Question: Use numpy arrays or cython arrays?
         # cdef param_val_t[:] param_value = np.empty(MAX_PARAMS, dtype=np.dtype([('p_i', 'i4'), ('p_f', 'f4'), ('p_b', 'u1'), ('pad', 'V3')]))
         cdef param_val_t[:] param_value = view.array(shape=(MAX_PARAMS,), itemsize=sizeof(param_val_t), format='ifB')
@@ -143,8 +183,6 @@ cdef class Robot:
             param_value[param_idx].p_f = value
         elif param_type == 'bool':
             param_value[param_idx].p_b = int(value)
-        # print(param_desc.type)
-        # print(param_idx)
         cdef uint32_t param_mask = 1 << param_idx
-        device_write(idx, EXECUTOR, COMMAND, param_mask, &param_value[0])
+        device_write_uid(device_uid, EXECUTOR, COMMAND, param_mask, &param_value[0])
 

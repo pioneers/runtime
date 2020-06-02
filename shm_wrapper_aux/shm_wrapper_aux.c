@@ -121,17 +121,11 @@ void print_gamepad_state ()
 	//since there's no get_gamepad function (we don't need it, and hides the implementation from users)
 	//we need to acquire the semaphore for the print
 	
-	//oof string arrays for printing
-	char *button_names[NUM_GAMEPAD_BUTTONS] = {
-		"A_BUTTON", "B_BUTTON", "X_BUTTON", "Y_BUTTON", "L_BUMPER", "R_BUMPER", "L_TRIGGER", "R_TRIGGER",
-		"BACK_BUTTON", "START_BUTTON", "L_STICK", "R_STICK", "UP_DPAD", "DOWN_DPAD", "LEFT_DPAD", "RIGHT_DPAD", "XBOX_BUTTON"
-	};
-	char *joystick_names[4] = {
-		"X_LEFT_JOYSTICK", "Y_LEFT_JOYSTICK", "X_RIGHT_JOYSTICK", "Y_RIGHT_JOYSTICK"
-	};
-	
 	//wait on gp_sem
 	my_sem_wait(gp_sem, "gamepad_mutex (in print)");
+	
+	char** button_names = get_button_names();
+	char** joystick_names = get_joystick_names();
 	
 	//only print pushed buttons (so we don't print out 22 lines of output each time we all this function)
 	printf("Current Gamepad State:\n\tPushed Buttons:\n");

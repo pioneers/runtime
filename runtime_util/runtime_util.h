@@ -9,11 +9,12 @@
 #define MAX_DEVICES 32 //maximum number of connected devices
 #define MAX_PARAMS 32 //maximum number of parameters per connected device
 
-#define NUM_DESC_FIELDS 5                   //number of fields in the robot description
-#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
-
 #define NUM_DEVICES 11 		// The number of functional devices
 #define DEVICES_LENGTH 14 	// The largest device type number + 1. Note: DEVICES_LENGTH != NUM_DEVICES because some are NULL (Ex: type 6, 8, 9)
+
+#define NUM_DESC_FIELDS 5                   //number of fields in the robot description
+
+#define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
 //enumerate names of processes
 typedef enum process {
@@ -31,9 +32,10 @@ typedef enum gp_joysticks {
 	X_LEFT_JOYSTICK, Y_LEFT_JOYSTICK, X_RIGHT_JOYSTICK, Y_RIGHT_JOYSTICK
 } gp_joystick_t;
 
+
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-	IDLE, AUTO, TELEOP,         //values for robot.run_mode
+	IDLE, AUTO, TELEOP, ESTOP,       //values for robot.run_mode
 	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
 	BLUE, GOLD                  //values for robot.team
 } robot_desc_val_t;
@@ -87,13 +89,12 @@ uint16_t device_name_to_type(char* dev_name);
 char* device_type_to_name(uint16_t dev_type);
 /* Fills PARAM_NAMES with all the names of the parameters for the given device type */
 void all_params_for_device_type(uint16_t dev_type, char* param_names[]);
-/* Returns 1 if PARAM of device type is readable. Otherwise, 0. */
-uint8_t readable(uint16_t dev_type, char* param_name);
-/* Returns 1 if PARAM of device type is writable. Otherwise, 0. */
-uint8_t writeable(uint16_t dev_type, char* param_name);
-/* Return the data type of the device type's parameter ("int", "float", or "bool"). */
-char* get_param_type(uint16_t dev_type, char* param_name);
+/* Return the description of the device type's parameter. */
+param_desc_t* get_param_desc(uint16_t dev_type, char* param_name);
 /* Get the param id of PARAM_NAME for the device DEV_TYPE */
 uint8_t get_param_id(uint16_t dev_type, char* param_name);
+
+char** get_button_names();
+char** get_joystick_names();
 
 #endif

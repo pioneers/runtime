@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <signal.h>
 #include "shm_wrapper.h"
 
@@ -8,7 +7,7 @@ void ctrl_c_handler (int sig_num)
 	fflush(stdout);
 	shm_stop(DEV_HANDLER);
 	logger_stop(DEV_HANDLER);
-	exit(1);
+	exit(0);
 }
 
 int main()
@@ -29,12 +28,13 @@ int main()
 			params_in[j].p_f = (float)(j * i * MAX_DEVICES * 3.14159);
 			params_in[j].p_b = (i % 2 == 0) ? 0 : 1;
 		}
-		device_write(i, DEV_HANDLER, UPSTREAM, 4294967295, params_in)
+		device_write(i, DEV_HANDLER, DATA, 4294967295, params_in);
 	}
 	print_dev_ids();
 	
 	while (1) {
-		usleep(1000);
+		
+		sleep(1000);
 	}
 	
 	return 0;
