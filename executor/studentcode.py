@@ -32,9 +32,9 @@ def autonomous_setup():
 i = 0
 
 def autonomous_main():
-    # print(Robot.get_value(MOTOR, 'duty_cycle'))
+    print(Robot.get_value(MOTOR, 'duty_cycle'))
     global i
-    if i % 10 == 0:
+    if i % 100 == 0:
         print(time.time() - start)
     i += 1
     # print('Running autonomous main ...')

@@ -217,26 +217,6 @@ void all_params_for_device_type(uint16_t dev_type, char* param_names[]) {
     }
 }
 
-uint8_t readable(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].read;
-        }
-    }
-    return -1;
-}
-
-uint8_t writeable(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].write;
-        }
-    }
-    return -1;
-}
-
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
     for (int i = 0; i < num_params; i++) {
@@ -249,10 +229,27 @@ param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
 
 uint8_t get_param_idx(uint16_t dev_type, char* param_name) {
     int num_params = DEVICES[dev_type]->num_params;
-	for (int i = 0; i < num_params; i++) {
+	  for (int i = 0; i < num_params; i++) {
         if (strcmp(param_name, DEVICES[dev_type]->params[i].name) == 0) {
             return i;
         }
     }
     return -1;
+}
+
+
+char* BUTTON_NAMES[] = {
+    "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
+    "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"
+};
+char* JOYSTICK_NAMES[] = {
+    "joystick_left_x", "joystick_left_y", "joystick_right_x", "joystick_right_y"
+};
+
+char** get_button_names() {
+    return BUTTON_NAMES;
+}
+
+char** get_joystick_names() {
+    return JOYSTICK_NAMES;
 }

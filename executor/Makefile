@@ -10,8 +10,8 @@ func: run_python.c
 simple: run_simple_python.c
 	cc run_simple_python.c -o simple $(PYTHON)
 
-executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c
-	cc executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c -o executor $(PYTHON) $(LIBS)
+executor: executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
+	cc executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o executor $(PYTHON) $(LIBS)
 
 studentapi: studentapi.pyx studentapi.pxd
 	python3.6 setup.py build_ext -i

@@ -10,8 +10,10 @@
 #include <unistd.h>                        //for sleep
 #include <pthread.h>                       //for POSIX threads
 #include <signal.h>                        // Used to handle SIGTERM, SIGINT, SIGKILL
+#include <time.h>                          // for getting time
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
+#include "../shm_wrapper_aux/shm_wrapper_aux.h" // Shared memory wrapper for robot state
 #include "../logger/logger.h"              // for runtime logger
 
 #define MAX_THREADS 32
@@ -22,7 +24,7 @@ void sigintHandler(int sig_num);
 // Initialization method for executor
 void executor_init();
 void executor_stop();
-void start_mode(mode mode);
+void start_mode(robot_desc_val_t mode);
 
 
 #endif
