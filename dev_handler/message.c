@@ -256,8 +256,8 @@ int append_payload(message_t *msg, uint8_t *data, uint8_t length)
 /*
  * Compute the checksum of byte-array DATA of length LEN
 */
-char checksum(char* data, int len) {
-    char chk = data[0];
+uint8_t checksum(uint8_t* data, int len) {
+    uint8_t chk = data[0];
     for (int i = 0; i < len; i++) {
         chk ^= data[i];
     }
@@ -392,30 +392,50 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
 }
 */
 
-int message_to_bytes(message_t* msg, char data[], int len) {
+int calc_max_cobs_msg_length(message_t* msg){
+  int required_packet_length = 3 + msg->payload_length;
+  int cobs_length = required_packet_length + ceil(required_packet_length / 254);
+  return cobs_length;
+}
+
+
+int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     // Initialize the byte array. See page 8 of book.pdf
     // 1 byte for messageID, 1 byte for payload length, the payload itself, and 1 byte for the checksum
-    if (len < 3 + msg->payload_length) {
+    // + cobe encoding overhead; Source: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
+    int required_length = calc_max_cobs_msg_length(msg);
+    if (len < required_length) {
         return 1;
     }
+    uint8_t data[3 + msg->payload_length];
     data[0] = msg->message_id;
     data[1] = msg->payload_length;
     for (int i = 0; i < msg->payload_length; i++) {
         data[i+2] = msg->payload[i];
     }
     data[2 + msg->payload_length] = checksum(data, 2 + msg->payload_length);
+
+    cobs_encoded[0] = 0x00;
+    int cobs_len = cobs_encode(&cobs_encoded[2], data, 3 + msg->payload_length);
+    cobs_encoded[1] = cobs_len;
     return 0;
 }
 
-int parse_message(char data[], message_t* msg_to_fill) {
-    msg_to_fill->message_id = data[0];
-    msg_to_fill->payload_length = data[1];
-    msg_to_fill->max_payload_length = data[1];
+int parse_message(uint8_t data[], message_t* msg_to_fill) {
+    uint8_t* decoded = malloc((3 + msg_to_fill->payload_length) * sizeof(uint8_t));
+    cobs_decode(decoded, &data[2], data[1]);
+    printf("Finish decoding message\n");
+    msg_to_fill->message_id = decoded[0];
+    msg_to_fill->payload_length = decoded[1];
+    msg_to_fill->max_payload_length = decoded[1];
+    printf("Start for loop\n");
     for (int i = 0; i < msg_to_fill->payload_length; i++) {
-        msg_to_fill->payload[i] = data[i + 2];
+        printf("On element %d\n", i+2);
+        msg_to_fill->payload[i] = decoded[i + 2];
     }
-    char expected_checksum = data[2 + msg_to_fill->payload_length];
-    char received_checksum = checksum(data, 2 + msg_to_fill->payload_length);
+    char expected_checksum = decoded[2 + msg_to_fill->payload_length];
+    char received_checksum = checksum(decoded, 2 + msg_to_fill->payload_length);
+    free(decoded);
     return (expected_checksum != received_checksum) ? 1 : 0;
 }
 

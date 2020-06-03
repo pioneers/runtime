@@ -3,7 +3,8 @@
 
 #include <stdio.h>
 #include <stdint.h>
-#include <string.h>                         // strcmp
+#include <string.h> // strcmp
+#include <math.h> //ceil
 #include "devices.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
@@ -197,11 +198,11 @@ int append_payload(message_t *msg, uint8_t *data, uint8_t length);
 
 /*
  * Computes the checksum of data
- * data: A character array
+ * data: An array
  * len: the length of data
  * returns: The checksum
  */
-char checksum(char* data, int len);
+uint8_t checksum(uint8_t* data, int len);
 
 /*
  * Cobs encodes data into a buffer
@@ -231,16 +232,19 @@ ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
- * Serializes the contents of msg into a byte array
- * The structure of the byte array:
- *      8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
+ * Calculates the largest length possible of a cobs-encoded msg
  * msg: The msg to be serialized to a byte array
- * data: An empty byte array to be filled with
- * len: The Length of the byte array
- * NOTE: len MUST be at least 3 + msg->payload_length
- * return: 0 if len is suitable and successful serialization. 1 if len is too small.
+ * return: the maximum length
  */
-int message_to_bytes(message_t* msg, char data[], int len);
+int calc_cobs_msg_length(message_t* msg);
+
+/*
+ * Serializes msg into a byte array
+ * msg: the message to serialize
+ * data: empty buffer to be filled
+ * len: the length of DATA. Should be at least calc_cobs_msg_length(msg)
+ */
+int message_to_bytes(message_t* msg, uint8_t data[], int len);
 
 /*
  * Converts a byte array into a message_t*, filling up the fields of msg_to_fill
@@ -250,7 +254,7 @@ int message_to_bytes(message_t* msg, char data[], int len);
  * empty_msg: A message to be populated. Payload must be properly allocated memory. Use make_empty()
  * return: 0 if successful parsing (correct checksum). 1 Otherwise
  */
-int parse_message(char data[], message_t* empty_msg);
+int parse_message(uint8_t data[], message_t* empty_msg);
 
 /*
  * Reads the parameter values from a DeviceData/DeviceWrite message
