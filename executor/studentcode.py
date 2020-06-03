@@ -16,9 +16,10 @@ def autonomous_actions(n=1000):
 
 
 def set_motor():
-    Robot.set_value(MOTOR, 'duty_cycle', 0.2)
+    Robot.set_value(MOTOR, 'duty_cycle', 0.5)
     time.sleep(2)
     Robot.set_value(MOTOR, 'duty_cycle', 0)
+    time.sleep(1)
 
 
 def autonomous_setup():
@@ -28,14 +29,15 @@ def autonomous_setup():
     Robot.set_value(MOTOR, 'duty_cycle', 0.2)
     global start
     start = time.time()
+    # time.sleep(1)
 
 i = 0
 
 def autonomous_main():
-    print(Robot.get_value(MOTOR, 'duty_cycle'))
+    # print(Robot.get_value(MOTOR, 'duty_cycle'))
     global i
     if i % 100 == 0:
-        print(time.time() - start)
+        print("Iteration:", i, time.time() - start)
     i += 1
     # print('Running autonomous main ...')
     # start = time.time()
