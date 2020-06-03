@@ -16,19 +16,19 @@ void sync ()
 	float joystick_vals[4];
 
 	//write a 1 to a_button
-	gamepad_read(NET_HANDLER, &buttons, joystick_vals);
-	gamepad_write(NET_HANDLER, buttons | 1, joystick_vals);
+	gamepad_read(&buttons, joystick_vals);
+	gamepad_write(buttons | 1, joystick_vals);
 	
 	//wait for a 1 on b_button
 	while (1) {
-		gamepad_read(NET_HANDLER, &buttons, joystick_vals);
+		gamepad_read(&buttons, joystick_vals);
 		if (buttons & 2) {
 			break;
 		}
 		usleep(1000);
 	}
 	sleep(1);
-	gamepad_write(NET_HANDLER, 0, joystick_vals);
+	gamepad_write(0, joystick_vals);
 	sleep(1);
 	printf("\tSynced; starting test!\n");
 }
@@ -50,12 +50,12 @@ void sanity_gamepad_test ()
 	joystick_vals[X_RIGHT_JOYSTICK] = 0.9898;
 	joystick_vals[Y_RIGHT_JOYSTICK] = -0.776;
 	
-	gamepad_write(NET_HANDLER, buttons, joystick_vals);
+	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
 	sleep(1);
 	
 	buttons = 0; //no buttons pushed
-	gamepad_write(NET_HANDLER, buttons, joystick_vals);
+	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
 	sleep(1);
 	
@@ -65,7 +65,7 @@ void sanity_gamepad_test ()
 	joystick_vals[X_RIGHT_JOYSTICK] = 1.0;
 	joystick_vals[Y_RIGHT_JOYSTICK] = -1.0;
 	
-	gamepad_write(NET_HANDLER, buttons, joystick_vals);
+	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
 	sleep(1);
 	
@@ -73,7 +73,7 @@ void sanity_gamepad_test ()
 	for (int i = 0; i < 4; i++) {
 		joystick_vals[i] = 0.0;
 	}
-	gamepad_write(NET_HANDLER, buttons, joystick_vals);
+	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
 	printf("Done!\n\n");
 }
