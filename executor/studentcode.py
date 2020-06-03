@@ -36,7 +36,7 @@ i = 0
 def autonomous_main():
     # print(Robot.get_value(MOTOR, 'duty_cycle'))
     global i
-    if i % 100 == 0:
+    if i % 1000000 == 0:
         print("Iteration:", i, time.time() - start)
     i += 1
     # print('Running autonomous main ...')
