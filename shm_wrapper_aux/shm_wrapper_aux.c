@@ -49,6 +49,34 @@ static void error (char *msg)
 	exit(1);
 }
 
+//a few very useful semaphore operation wrapper utilities
+static void my_sem_wait (sem_t *sem, char *sem_desc)
+{
+	char msg[64];
+	if (sem_wait(sem) == -1) {
+		sprintf(msg, "sem_wait: %s", sem_desc);
+		error(msg);
+	}
+}
+
+static void my_sem_post (sem_t *sem, char *sem_desc)
+{
+	char msg[64];
+	if (sem_post(sem) == -1) {
+		sprintf(msg, "sem_post: %s", sem_desc);
+		error(msg);
+	}
+}
+
+static void my_sem_close (sem_t *sem, char *sem_desc)
+{
+	char msg[64];
+	if (sem_close(sem) == -1) {
+		sprintf(msg, "sem_close: %s", sem_desc);
+		error(msg);
+	}
+}
+
 // ************************************ PUBLIC UTILITY FUNCTIONS ****************************************** //
 
 void print_robot_desc ()
@@ -57,9 +85,7 @@ void print_robot_desc ()
 	//we need to acquire the semaphore for the print
 	
 	//wait on rd_sem
-	if (sem_wait(rd_sem) == -1) {
-		error("sem_wait: robot_desc_mutex (in print)");
-	}
+	my_sem_wait(rd_sem, "robot_desc_mutex (in print)");
 	
 	printf("Current Robot Description:\n");
 	for (int i = 0; i < NUM_DESC_FIELDS; i++) {
@@ -87,9 +113,7 @@ void print_robot_desc ()
 	fflush(stdout);
 	
 	//release rd_sem
-	if (sem_post(rd_sem) == -1) {
-		error("sem_post: robot_desc_mutex (in print)");
-	}
+	my_sem_post(rd_sem, "robot_desc_mutex (in print)");
 }
 
 void print_gamepad_state ()
@@ -107,9 +131,7 @@ void print_gamepad_state ()
 	};
 	
 	//wait on gp_sem
-	if (sem_wait(gp_sem) == -1) {
-		error("sem_wait: gamepad_mutex (in print)");
-	}
+	my_sem_wait(gp_sem, "gamepad_mutex (in print)");
 	
 	//only print pushed buttons (so we don't print out 22 lines of output each time we all this function)
 	printf("Current Gamepad State:\n\tPushed Buttons:\n");
@@ -127,9 +149,7 @@ void print_gamepad_state ()
 	fflush(stdout);
 	
 	//release rd_sem
-	if (sem_post(gp_sem) == -1) {
-		error("sem_post: gamepad_mutex (in print)");
-	}
+	my_sem_post(gp_sem, "gamepad_mutex (in print)");
 }
 
 // ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
@@ -198,9 +218,7 @@ void shm_aux_init (process_t process)
 		rd_ptr->fields[TEAM] = BLUE;                //arbitrary
 		
 		//initialization complete; set gp_mutex to 1 indicating shm segment available for client(s)
-		if (sem_post(gp_sem) == -1) {
-			error("sem_post: gamepad_mutex@net_handler");
-		}
+		my_sem_post(gp_sem, "gamepad_mutex@net_handler");
 	} else {
 		//mutual exclusion semaphore, gamepad_sem
 		if ((gp_sem = sem_open(GP_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
@@ -213,9 +231,7 @@ void shm_aux_init (process_t process)
 		}
 		
 		//wait on gp_sem to ensure shm has been created before opening
-		if (sem_wait(gp_sem) == -1) {
-			error("sem_wait: gamepad_mutex@client");
-		}
+		my_sem_wait(gp_sem, "gamepad_mutex@client");
 		
 		//open gamepad shm block and map to client process virtual memory
 		if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
@@ -240,9 +256,7 @@ void shm_aux_init (process_t process)
 		}
 		
 		//release gp_sem
-		if (sem_post(gp_sem) == -1) {
-			error("sem_post: gamepad_mutex@client");
-		}
+		my_sem_post(gp_sem, "gamepad_mutex@client");
 	}
 }
 
@@ -265,11 +279,12 @@ void shm_aux_stop (process_t process)
 	}
 	
 	//close both semaphores
-	if (sem_close(gp_sem) == -1) {
-		(process == NET_HANDLER) ? error("sem_close: gamepad_mutex@net_handler") : error("sem_close: gamepad_mutex@client");
-	}
-	if (sem_close(rd_sem) == -1) {
-		(process == NET_HANDLER) ? error("sem_close: robot_desc_mutex@net_handler") : error("sem_close: robot_desc_mutex@client");
+	if (process == NET_HANDLER) {
+		my_sem_close(gp_sem, "gamepad_mutex@net_handler");
+		my_sem_close(rd_sem, "robot_desc_mutex@net_handler");
+	} else {
+		my_sem_close(gp_sem, "gamepad_mutex@client");
+		my_sem_close(rd_sem, "robot_desc_mutex@client");
 	}
 	
 	//the network handler is also responsible for unlinking everything
@@ -303,17 +318,13 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 	robot_desc_val_t ret;
 	
 	//wait on rd_sem
-	if (sem_wait(rd_sem) == -1) {
-		error("sem_wait: robot_desc_mutex");
-	}
+	my_sem_wait(rd_sem, "robot_desc_mutex");
 	
 	//read the value out, and turn off the appropriate element
 	ret = rd_ptr->fields[field];
 	
 	//release rd_sem
-	if (sem_post(rd_sem) == -1) {
-		error("sem_post: robot_desc_mutex");
-	}
+	my_sem_post(rd_sem, "robot_desc_mutex");
 	
 	return ret;
 }
@@ -329,17 +340,13 @@ No return value.
 void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val)
 {	
 	//wait on rd_sem
-	if (sem_wait(rd_sem) == -1) {
-		error("sem_wait: robot_desc_mutex");
-	}
+	my_sem_wait(rd_sem, "robot_desc_mutex");
 	
 	//write the val into the field, and set appropriate pending element to 1
 	rd_ptr->fields[field] = val;
 	
 	//release rd_sem
-	if (sem_post(rd_sem) == -1) {
-		error("sem_post: robot_desc_mutex");
-	}
+	my_sem_post(rd_sem, "robot_desc_mutex");
 }
 
 /*
@@ -349,31 +356,23 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats to which the current joystick states will be read into
 No return value.
 */
-void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick_vals)
+void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
 {
 	//wait on rd_sem
-	if (sem_wait(rd_sem) == -1) {
-		error("sem_wait: robot_desc_mutex");
-	}
+	my_sem_wait(rd_sem, "robot_desc_mutex");
 	
 	//if no gamepad connected, then release rd_sem and return
 	if (rd_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_runtime(ERROR, "tried to read, but no gamepad connected");
-		if (sem_post(rd_sem) == -1) {
-			error("sem_post: robot_desc_mutex");
-		}
+		my_sem_post(rd_sem, "robot_desc_mutex");
 		return;
 	}
 	
 	//release rd_sem
-	if (sem_post(rd_sem) == -1) {
-		error("sem_post: robot_desc_mutex");
-	}
+	my_sem_post(rd_sem, "robot_desc_mutex");
 	
 	//wait on gp_sem
-	if (sem_wait(gp_sem) == -1) {
-		error("sem_wait: gamepad_mutex");
-	}
+	my_sem_wait(gp_sem, "gamepad_mutex");
 	
 	*pressed_buttons = gp_ptr->buttons;
 	for (int i = 0; i < 4; i++) {
@@ -381,9 +380,7 @@ void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick
 	}
 	
 	//release gp_sem
-	if (sem_post(gp_sem) == -1) {
-		error("sem_post: gamepad_mutex");
-	}
+	my_sem_post(gp_sem, "gamepad_mutex");
 }
 
 /*
@@ -394,31 +391,23 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats that contain the values to write to the joystick
 No return value.
 */
-void gamepad_write (process_t process, uint32_t pressed_buttons, float *joystick_vals)
+void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 {
 	//wait on rd_sem
-	if (sem_wait(rd_sem) == -1) {
-		error("sem_wait: robot_desc_mutex");
-	}
+	my_sem_wait(rd_sem, "robot_desc_mutex");
 	
 	//if no gamepad connected, then release rd_sem and return
 	if (rd_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_runtime(ERROR, "tried to write, but no gamepad connected");
-		if (sem_post(rd_sem) == -1) {
-			error("sem_post: robot_desc_mutex");
-		}
+		my_sem_post(rd_sem, "robot_desc_mutex");
 		return;
 	}
 	
 	//release rd_sem
-	if (sem_post(rd_sem) == -1) {
-		error("sem_post: robot_desc_mutex");
-	}
+	my_sem_post(rd_sem, "robot_desc_mutex");
 	
 	//wait on gp_sem
-	if (sem_wait(gp_sem) == -1) {
-		error("sem_wait: gamepad_mutex");
-	}
+	my_sem_wait(gp_sem, "gamepad_mutex");
 	
 	gp_ptr->buttons = pressed_buttons;
 	for (int i = 0; i < 4; i++) {
@@ -426,7 +415,5 @@ void gamepad_write (process_t process, uint32_t pressed_buttons, float *joystick
 	}
 	
 	//release gp_sem
-	if (sem_post(gp_sem) == -1) {
-		error("sem_post: gamepad_mutex");
-	}
+	my_sem_post(gp_sem, "gamepad_mutex");
 }

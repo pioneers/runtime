@@ -16,12 +16,12 @@ void sync ()
 	float joystick_vals[4];
 	
 	//write a 1 to b_button
-	gamepad_read(EXECUTOR, &buttons, joystick_vals);
-	gamepad_write(EXECUTOR, buttons | 2, joystick_vals);
+	gamepad_read(&buttons, joystick_vals);
+	gamepad_write(buttons | 2, joystick_vals);
 	
 	//wait on a 1 to a_button
 	while (1) {
-		gamepad_read(EXECUTOR, &buttons, joystick_vals);
+		gamepad_read(&buttons, joystick_vals);
 		if (buttons & 1) {
 			break;
 		}
@@ -43,7 +43,7 @@ void sanity_gamepad_test ()
 	printf("Begin sanity gamepad test...\n");
 	
 	for (int i = 0; i < 7; i++) {
-		gamepad_read(EXECUTOR, &buttons, joystick_vals);
+		gamepad_read(&buttons, joystick_vals);
 		printf("buttons = %d\t joystick_vals = (", buttons);
 		for (int j = 0; j < 4; j++) {
 			printf("%f, ", joystick_vals[j]);

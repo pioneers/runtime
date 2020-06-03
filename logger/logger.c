@@ -38,7 +38,6 @@ void logger_init (process_t process)
 	} else if (process == NET_HANDLER) {
 		sprintf(process_str, "NET_HANDLER");
 	}
-	
 }
 
 void logger_stop ()
