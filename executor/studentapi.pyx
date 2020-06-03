@@ -1,10 +1,11 @@
 # cython: nonecheck=True
 
-from cython cimport view
+from cython cimport view, final
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 # from pthread cimport *
 
 import enum
+import threading
 # import numpy as np
 
 """Student API written in Cython. """
@@ -102,16 +103,19 @@ cdef class Gamepad:
             if param == joystick_names[i]:
                 return joysticks[i]
 
+@final
 cdef class Robot:
     """
     The API for accessing the robot and its devices.
     """
     # Include device handler and executor API
+    cdef list running_actions
 
     def __cinit__(self):
         """Initializes the shared memory (SHM) wrapper. """
         shm_init(EXECUTOR) # Remove once integrated into executor?
         log_runtime(DEBUG, "SHM intialized")
+        self.running_actions = []
 
     def __dealloc__(self):
         """Once process is done and object is deallocated, close the mapping to SHM."""
@@ -121,7 +125,7 @@ cdef class Robot:
 
     cpdef void run(self, action, args, int timeout=300):
         """ Schedule an action for execution in a separate thread. """
-        pass
+        self.running_actions.append(action)
 
 
     cpdef bint is_running(self, action):
@@ -137,17 +141,20 @@ cdef class Robot:
             device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
             param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
         """
-        cdef bytes param = param_name.encode('utf-8')
+        param_bytes = param_name.encode('utf-8')
+        cdef char* param = param_bytes
         splits = device_id.split('_')
-        device_type, device_uid = int(splits[0]), int(splits[1])
-        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        cdef int param_idx = get_param_idx(device_type, param)
+        cdef int device_type = int(splits[0])
+        cdef uint64_t device_uid = int(splits[1])
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
         if not param_value:
             raise MemoryError("Could not allocate memory to get device value.")
-        cdef uint32_t param_mask = 1 << param_idx # UINT32_MAX
-        device_read_uid(device_uid, EXECUTOR, DATA, param_mask, param_value)
-        # print_params(param_mask, param_value)
+        cdef param_desc_t* param_desc
+        cdef uint8_t param_idx
+        with nogil:
+            param_desc = get_param_desc(device_type, param)
+            param_idx = get_param_idx(device_type, param)
+            device_read_uid(device_uid, EXECUTOR, DATA, 1 << param_idx, param_value)
         param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
             ret = param_value[param_idx].p_i
@@ -168,11 +175,16 @@ cdef class Robot:
             param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
             value: Value to set for the param. The type of the value can be seen at https://pioneers.berkeley.edu/software/robot_api.html
         """
-        cdef bytes param = param_name.encode('utf-8')
+        param_bytes = param_name.encode('utf-8')
+        cdef char* param = param_bytes
         splits = device_id.split('_')
-        device_type, device_uid = int(splits[0]), int(splits[1])
-        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        cdef int param_idx = get_param_idx(device_type, param)
+        cdef int device_type = int(splits[0])
+        cdef uint64_t device_uid = int(splits[1])
+        cdef param_desc_t* param_desc
+        cdef uint8_t param_idx
+        with nogil:
+            param_desc = get_param_desc(device_type, param)
+            param_idx = get_param_idx(device_type, param)
         # Question: Use numpy arrays or cython arrays?
         # cdef param_val_t[:] param_value = np.empty(MAX_PARAMS, dtype=np.dtype([('p_i', 'i4'), ('p_f', 'f4'), ('p_b', 'u1'), ('pad', 'V3')]))
         cdef param_val_t[:] param_value = view.array(shape=(MAX_PARAMS,), itemsize=sizeof(param_val_t), format='ifB')
@@ -183,6 +195,6 @@ cdef class Robot:
             param_value[param_idx].p_f = value
         elif param_type == 'bool':
             param_value[param_idx].p_b = int(value)
-        cdef uint32_t param_mask = 1 << param_idx
-        device_write_uid(device_uid, EXECUTOR, COMMAND, param_mask, &param_value[0])
+        with nogil:
+            device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
 

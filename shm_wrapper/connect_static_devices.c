@@ -20,7 +20,7 @@ int main()
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 
 	//connect as many devices as possible
-	for (int i = 0; i < MAX_DEVICES; i++) {
+	for (int i = 0; i < 20; i++) {
 		//randomly chosen quadratic function that is positive and integral in range [0, 32] for the lols
 		device_connect(i, i % 3, (-10000 * i * i) + (297493 * i) + 474732, &dev_ix);
 		for (int j = 0; j < MAX_PARAMS; j++) {
@@ -33,7 +33,7 @@ int main()
 	print_dev_ids();
 	
 	while (1) {
-		
+
 		sleep(1000);
 	}
 	
