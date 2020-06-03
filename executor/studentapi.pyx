@@ -123,10 +123,10 @@ cdef class Robot:
         log_runtime(DEBUG, "SHM stopped")
 
 
-    cpdef void run(self, action, args, int timeout=300):
+    def run(self, action, *args, timeout: int =300):
         """ Schedule an action for execution in a separate thread. """
         self.running_actions.append(action)
-
+        
 
     cpdef bint is_running(self, action):
         """Returns whether the given function `action` is running in a different thread."""
