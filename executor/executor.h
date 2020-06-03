@@ -25,6 +25,8 @@ void sigintHandler(int sig_num);
 void executor_init();
 void executor_stop();
 void start_mode(robot_desc_val_t mode);
+void py_function_cleanup(void*);
+void* run_function_timeout(void*);
 
 
 #endif

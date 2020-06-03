@@ -50,7 +50,3 @@ cdef extern from "../dev_handler/devices.h" nogil:
     param_desc_t* get_param_desc(uint16_t dev_type, char* param_name)
     uint8_t get_param_idx(uint16_t dev_type, char* param_name)
 
-
-cdef extern from "executor.h":
-    void run_robot_function(char* func_name)
-    int is_function_running(char* func_name)
