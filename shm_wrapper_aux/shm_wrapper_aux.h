@@ -66,7 +66,7 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats to which the current joystick states will be read into
 No return value.
 */
-void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick_vals);
+void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
 
 /*
 This function writes the given state of the gamepad to shared memory.
@@ -76,6 +76,6 @@ Blocks on both the gamepad semaphore and device description semaphore (to check 
 	- joystick_vals: array of 4 floats that contain the values to write to the joystick
 No return value.
 */
-void gamepad_write (process_t process, uint32_t pressed_buttons, float *joystick_vals);
+void gamepad_write (uint32_t pressed_buttons, float *joystick_vals);
 
 #endif

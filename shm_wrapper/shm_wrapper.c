@@ -71,17 +71,41 @@ static void print_bitmap (int num_bits, uint32_t bitmap)
 	printf("\n");
 }
 
+//a few very useful semaphore operation wrapper utilities
+static void my_sem_wait (sem_t *sem, char *sem_desc)
+{
+	char msg[64];
+	if (sem_wait(sem) == -1) {
+		sprintf(msg, "sem_wait: %s", sem_desc);
+		error(msg);
+	}
+}
+
+static void my_sem_post (sem_t *sem, char *sem_desc)
+{
+	char msg[64];
+	if (sem_post(sem) == -1) {
+		sprintf(msg, "sem_post: %s", sem_desc);
+		error(msg);
+	}
+}
+
+static void my_sem_close (sem_t *sem, char *sem_desc)
+{
+	char msg[64];
+	if (sem_close(sem) == -1) {
+		sprintf(msg, "sem_close: %s", sem_desc);
+		error(msg);
+	}
+}
+
 static void device_read_helper (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
 	//grab semaphore for the appropriate stream and device
 	if (stream == DATA) {
-		if (sem_wait(sems[dev_ix].data_sem) == -1) {
-			error("sem_wait: data sem @device_read");
-		}
+		my_sem_wait(sems[dev_ix].data_sem, "data sem @device_read");
 	} else {
-		if (sem_wait(sems[dev_ix].command_sem) == -1) {
-			error("sem_wait: command sem @device_read");
-		}
+		my_sem_wait(sems[dev_ix].command_sem, "command sem @device_read");
 	}
 
 	//read all requested params
@@ -95,28 +119,20 @@ static void device_read_helper (int dev_ix, process_t process, stream_t stream, 
 	//if stream = downstream and process = dev_handler then also update params bitmap
 	if (process == DEV_HANDLER && stream == COMMAND) {
 		//wait on pmap_sem
-		if (sem_wait(pmap_sem) == -1) {
-			error("sem_wait: pmap_sem@device_read");
-		}
+		my_sem_wait(pmap_sem, "pmap_sem@device_read");
 	
 		shm_ptr->pmap[0] &= (~(1 << dev_ix)); //turn off changed device bit in pmap[0]
 		shm_ptr->pmap[dev_ix + 1] &= (~params_to_read); //turn off bits for params that were changed and then read in pmap[dev_ix + 1]
 	
 		//release pmap_sem
-		if (sem_post(pmap_sem) == -1) {
-			error("sem_post: pmap_sem@device_read");
-		}
+		my_sem_post(pmap_sem, "pmap_sem@device_read");
 	}
 
 	//release semaphore for appropriate stream and device
 	if (stream == DATA) {
-		if (sem_post(sems[dev_ix].data_sem) == -1) {
-			error("sem_post: data sem @device_read");
-		}
+		my_sem_post(sems[dev_ix].data_sem, "data sem @device_read");
 	} else {
-		if (sem_post(sems[dev_ix].command_sem) == -1) {
-			error("sem_post: command sem @device_read");
-		}
+		my_sem_post(sems[dev_ix].command_sem, "command sem @device_read");
 	}
 }
 
@@ -124,13 +140,9 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 {
 	//grab semaphore for the appropriate stream and device
 	if (stream == DATA) {
-		if (sem_wait(sems[dev_ix].data_sem) == -1) {
-			error("sem_wait: data sem @device_write");
-		}
+		my_sem_wait(sems[dev_ix].data_sem, "data sem @device_write");
 	} else {
-		if (sem_wait(sems[dev_ix].command_sem) == -1) {
-			error("sem_wait: command sem @device_write");
-		}
+		my_sem_wait(sems[dev_ix].command_sem, "command sem @device_write");
 	}
 	
 	//write all requested params
@@ -144,28 +156,20 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 	//if stream = downstream and process = executor then also update params bitmap
 	if (process == EXECUTOR && stream == COMMAND) {
 		//wait on pmap_sem
-		if (sem_wait(pmap_sem) == -1) {
-			error("sem_wait: pmap_sem@device_write");
-		}
+		my_sem_wait(pmap_sem, "pmap_sem@device_write");
 		
 		shm_ptr->pmap[0] |= (1 << dev_ix); //turn on changed device bit in pmap[0]
 		shm_ptr->pmap[dev_ix + 1] |= params_to_write; //turn on bits for params that were written in pmap[dev_ix + 1]
 		
 		//release pmap_sem
-		if (sem_post(pmap_sem) == -1) {
-			error("sem_post: pmap_sem@device_write");
-		}
+		my_sem_post(pmap_sem, "pmap_sem@device_write");
 	}
 	
 	//release semaphore for appropriate stream and device
 	if (stream == DATA) {
-		if (sem_post(sems[dev_ix].data_sem) == -1) {
-			error("sem_post: data sem @device_write");
-		}
+		my_sem_post(sems[dev_ix].data_sem, "data sem @device_write");
 	} else {
-		if (sem_post(sems[dev_ix].command_sem) == -1) {
-			error("sem_post: command sem @device_write");
-		}
+		my_sem_post(sems[dev_ix].command_sem, "command sem @device_write");
 	}
 }
 
@@ -283,9 +287,7 @@ void shm_init (process_t process)
 		}
 		
 		//initialization complete; set catalog_mutex to 1 indicating shm segment available for client(s)
-		if (sem_post(catalog_sem) == -1) {
-			error("sem_post: catalog_sem@dev_handler");
-		}
+		my_sem_post(catalog_sem, "catalog_sem@dev_handler");
 	} else {
 		//mutual exclusion semaphore, catalog_mutex
 		if ((catalog_sem = sem_open(CATALOG_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
@@ -298,9 +300,7 @@ void shm_init (process_t process)
 		}
 		
 		//wait on catalog_sem to ensure shm has been created before opening
-		if (sem_wait(catalog_sem) == -1) {
-			error("sem_wait: catalog_mutex@client");
-		}
+		my_sem_wait(catalog_sem, "catalog_mutex@client");
 		
 		//open shared memory block and map to client process virtual memory
 		if ((fd_shm = shm_open(SHARED_MEM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
@@ -326,9 +326,7 @@ void shm_init (process_t process)
 		}
 		
 		//release catalog_sem
-		if (sem_post(catalog_sem) == -1) {
-			error("sem_post: catalog_mutex@client");
-		}
+		my_sem_post(catalog_sem, "catalog_mutex@client");
 	}
 }
 
@@ -343,6 +341,7 @@ No return value.
 void shm_stop (process_t process)
 {
 	char sname[SNAME_SIZE]; //holding semaphore names
+	int semval; //for checking semaphore values before closing
 	
 	//unmap the shared memory block
 	if (munmap(shm_ptr, sizeof(shm_t)) == -1) {
@@ -351,19 +350,20 @@ void shm_stop (process_t process)
 	
 	//close all the semaphores
 	for (int i = 0; i < MAX_DEVICES; i++) {
-		if (sem_close(sems[i].data_sem) == -1) {
-			(process == DEV_HANDLER) ? error("sem_close: data sem@dev_handler") : error("sem_close: data sem@client");
-		}
-		if (sem_close(sems[i].command_sem) == -1) {
-			(process == DEV_HANDLER) ? error("sem_close: command sem@dev_handler") : error("sem_close: command sem@dev_handler");
+		if (process == DEV_HANDLER) {
+			my_sem_close(sems[i].data_sem, "data sem@dev_handler");
+			my_sem_close(sems[i].command_sem, "command sem@dev_handler");
+		} else {
+			my_sem_close(sems[i].data_sem, "data sem@client");
+			my_sem_close(sems[i].command_sem, "command sem@client");
 		}
 	}
-	
-	if (sem_close(catalog_sem) == -1) {
-		(process == DEV_HANDLER) ? error("sem_close: catalog_sem@dev_handler") : error("sem_close: catalog_sem@client");
-	}
-	if (sem_close(pmap_sem) == -1) {
-		(process == DEV_HANDLER) ? error("sem_close: pmap_sem@dev_handler") : error("sem_close: pmap_sem@client");
+	if (process == DEV_HANDLER) {
+		my_sem_close(catalog_sem, "catalog sem@dev_handler");
+		my_sem_close(pmap_sem, "pmap sem@dev_handler");
+	} else {
+		my_sem_close(catalog_sem, "catalog sem@client");
+		my_sem_close(pmap_sem, "pmap sem@client");
 	}
 	
 	//the device handler is also responsible for unlinking everything
@@ -407,9 +407,7 @@ No return value.
 void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *dev_ix)
 {	
 	//wait on catalog_sem
-	if (sem_wait(catalog_sem) == -1) {
-		error("sem_wait: catalog_sem");
-	}
+	my_sem_wait(catalog_sem, "catalog_sem");
 	
 	//find a valid dev_ix
 	for (*dev_ix = 0; *dev_ix < MAX_DEVICES; (*dev_ix)++) {
@@ -419,20 +417,13 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	}
 	if (*dev_ix == MAX_DEVICES) {
 		log_runtime(ERROR, "too many devices, connection unsuccessful");
-		if (sem_post(catalog_sem) == -1) { //release the catalog semaphore
-			error("sem_post: catalog_sem");
-		}
+		my_sem_post(catalog_sem, "catalog_sem"); //release the catalog semaphore
 		return;
 	}
 	
-	
 	//wait on associated data and command sems
-	if (sem_wait(sems[*dev_ix].data_sem) == -1) {
-		error("sem_wait: data sem");
-	}
-	if (sem_wait(sems[*dev_ix].command_sem) == -1) {
-		error("sem_wait: command sem");
-	}
+	my_sem_wait(sems[*dev_ix].data_sem, "data_sem");
+	my_sem_wait(sems[*dev_ix].command_sem, "command_sem");
 	
 	//fill in dev_id for that device with provided values
 	shm_ptr->dev_ids[*dev_ix].type = dev_type;
@@ -449,17 +440,11 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	}
 	
 	//release associated data and command sems
-	if (sem_post(sems[*dev_ix].data_sem) == -1) {
-		error("sem_post: data sem");
-	}
-	if (sem_post(sems[*dev_ix].command_sem) == -1) {
-		error("sem_post: command sem");
-	}
+	my_sem_post(sems[*dev_ix].data_sem, "data_sem");
+	my_sem_post(sems[*dev_ix].command_sem, "command_sem");
 	
 	//release catalog_sem
-	if (sem_post(catalog_sem) == -1) {
-		error("sem_post: catalog_sem");
-	}
+	my_sem_post(catalog_sem, "catalog_sem");
 }
 
 /*
@@ -471,48 +456,31 @@ No return value.
 void device_disconnect (int dev_ix)
 {	
 	//wait on catalog_sem
-	if (sem_wait(catalog_sem) == -1) {
-		error("sem_wait: catalog_sem");
-	}
+	my_sem_wait(catalog_sem, "catalog_sem");
 	
 	//wait on associated data and command sems
-	if (sem_wait(sems[dev_ix].data_sem) == -1) {
-		error("sem_wait: data sem");
-	}
-	if (sem_wait(sems[dev_ix].command_sem) == -1) {
-		error("sem_wait: command sem");
-	}
+	my_sem_wait(sems[dev_ix].data_sem, "data_sem");
+	my_sem_wait(sems[dev_ix].command_sem, "command_sem");
 	
 	//wait on pmap_sem
-	if (sem_wait(pmap_sem) == -1) {
-		error("sem_wait: pmap_sem");
-	}
+	my_sem_wait(pmap_sem, "pmap_sem");
 
 	//update the catalog
 	shm_ptr->catalog &= (~(1 << dev_ix));
 
 	//reset param map values to 0
-	shm_ptr->pmap[0] &= (~(1 << dev_ix)); //reset the changed bit flag in pmap[0]
-	shm_ptr->pmap[dev_ix + 1] = 0; //turn off all changed bits for the device
+	shm_ptr->pmap[0] &= (~(1 << dev_ix));   //reset the changed bit flag in pmap[0]
+	shm_ptr->pmap[dev_ix + 1] = 0;          //turn off all changed bits for the device
 	
 	//release pmap_sem
-	if (sem_post(pmap_sem) == -1) {
-		error("sem_post: pmap_sem");
-	}
+	my_sem_post(pmap_sem, "pmap_sem");
 	
 	//release associated upstream and downstream sems
-	if (sem_post(sems[dev_ix].data_sem) == -1) {
-		error("sem_post: data sem");
-	}
-	if (sem_post(sems[dev_ix].command_sem) == -1) {
-		error("sem_post: command sem");
-	}
-
+	my_sem_post(sems[dev_ix].data_sem, "data_sem");
+	my_sem_post(sems[dev_ix].command_sem, "command_sem");
 	
 	//release catalog_sem
-	if (sem_post(catalog_sem) == -1) {
-		error("sem_post: catalog_sem");
-	}
+	my_sem_post(catalog_sem, "catalog_sem");
 }
 
 /*	
@@ -636,18 +604,14 @@ No return value.
 void get_param_bitmap (uint32_t *bitmap)
 {
 	//wait on pmap_sem
-	if (sem_wait(pmap_sem) == -1) {
-		error("sem_wait: pmap_sem");
-	}
+	my_sem_wait(pmap_sem, "pmap_sem");
 	
 	for (int i = 0; i < MAX_DEVICES + 1; i++) {
 		bitmap[i] = shm_ptr->pmap[i];
 	}
 	
 	//release pmap_sem
-	if (sem_post(pmap_sem) == -1) {
-		error("sem_post: pmap_sem");
-	}
+	my_sem_post(pmap_sem, "pmap_sem");
 }
 
 /*
@@ -659,18 +623,14 @@ No return value.
 void get_device_identifiers (dev_id_t *dev_ids)
 {
 	//wait on catalog_sem
-	if (sem_wait(catalog_sem) == -1) {
-		error("sem_wait: catalog_sem");
-	}
+	my_sem_wait(catalog_sem, "catalog_sem");
 	
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		dev_ids[i] = shm_ptr->dev_ids[i];
 	}
 	
 	//release catalog_sem
-	if (sem_post(catalog_sem) == -1) {
-		error("sem_post: catalog_sem");
-	}
+	my_sem_post(catalog_sem, "catalog_sem");
 }
 
 /*
@@ -682,14 +642,10 @@ No return value.
 void get_catalog (uint32_t *catalog)
 {
 	//wait on catalog_sem
-	if (sem_wait(catalog_sem) == -1) {
-		error("sem_wait: catalog_sem");
-	}
+	my_sem_wait(catalog_sem, "catalog_sem");
 	
 	*catalog = shm_ptr->catalog;
 	
 	//release catalog_sem
-	if (sem_post(catalog_sem) == -1) {
-		error("sem_post: catalog_sem");
-	}
+	my_sem_post(catalog_sem, "catalog_sem");
 }
