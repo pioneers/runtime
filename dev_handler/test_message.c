@@ -7,7 +7,7 @@ void test_log(char* payload) {
     message_t* device_message = make_log(payload);
     // Deconstruct it into bytes
     int len = 3 + strlen(payload) + 1;
-    char bytes[len];
+    uint8_t bytes[len];
     message_to_bytes(device_message, bytes, len);
     // Print out the bytes
     printf("Message Type: %X\n", bytes[0]);
@@ -25,7 +25,7 @@ void test_log(char* payload) {
     message_t* received_message = make_empty(bytes[1]);
     parse_message(bytes, received_message);
     printf("Parsed message: %s\n", received_message->payload);
-    if (strcmp(payload, received_message->payload) == 0) {
+    if (strcmp(payload, (char*) received_message->payload) == 0) {
         printf("***SUCCESS***\n");
     }
 
@@ -76,7 +76,7 @@ void test_device_data() {
     printf("********\n");
     printf("Converting device data message into bytes: ");
     int len = 1 + 1 + dev_data->payload_length + 1;
-    char bytes[len];
+    uint8_t bytes[len];
     message_to_bytes(dev_data, bytes, len);
     for (int i = 0; i < len; i++) {
         printf("%X", bytes[i]);
