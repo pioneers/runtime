@@ -7,8 +7,8 @@
 FILE *fd = NULL;                           //file descriptor to refer to output location
 char process_str[PROCESS_STR_SIZE];        //string for holding the process name, used in printing
 char *log_level_strs[] = {                 //strings for holding names of log levels, used in printing
-	"INFO",
 	"DEBUG",
+	"INFO",
 	"WARN",
 	"ERROR",
 	"FATAL"
