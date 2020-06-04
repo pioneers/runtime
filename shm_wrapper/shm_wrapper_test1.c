@@ -289,6 +289,8 @@ void dual_thread_read_write_test ()
 	device_disconnect(0);
 	device_disconnect(1);
 	
+	sleep(1);
+	
 	printf("Done!\n");
 }
 
