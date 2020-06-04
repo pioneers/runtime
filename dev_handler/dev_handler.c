@@ -3,16 +3,10 @@
  * Requires third-party library libusb
  * Linux: sudo apt-get install libusb-1.0-0-dev
  *		  gcc -I/usr/include/libusb-1.0 dev_handler.c -o dev_handler -lusb-1.0
+ *		  Don't forget to use sudo when running the executable
 */
 
-#include <libusb.h> // Should work for both Mac and Linux
-#include "string.h" // strcmp
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-// #include <unistd.h> // Used to sleep()
-#include <signal.h> // Used to handle SIGTERM, SIGINT, SIGKILL
-#include <time.h>   // For timestamps on device connects/disconnects
+#include "dev_handler.h"
 
 // Initialize data structures / connections
 void init() {
@@ -26,8 +20,7 @@ void init() {
 }
 
 // Free memory and safely stop connections
-void clean_up ()
-{
+void stop() {
 	libusb_exit(NULL);
 }
 
@@ -35,9 +28,11 @@ void clean_up ()
 void sigintHandler(int sig_num) {
 	printf("\nINFO: Ctrl+C pressed. Safely terminating program\n");
     fflush(stdout);
-	exit(0);
 
-	//shm_stop(<this process>)
+	// TODO: For each tracked lowcar device, disconnect from shared memory
+
+	stop();
+	exit(0);
 }
 
 /*
@@ -109,6 +104,21 @@ int device_diff(libusb_device** lst_a, ssize_t len_a, libusb_device** lst_b, ssi
 	return -2;
 }
 
+/*
+ * Returns the index of the device that was disconnected
+ * Assumes that only one device was disconnected
+ */
+int get_idx_disconnected(libusb_device** lst, ssize_t len) {
+	libusb_device_handle* handle = NULL;
+	for (int i = 0; i < len; i++) {
+		// LIBUSB_ERROR_NO_DEVICE means the device was disconnected
+		if (libusb_open(lst[i], &handle) == LIBUSB_ERROR_NO_DEVICE) {
+			return i;
+		}
+		libusb_close(handle);
+	}
+}
+
 void poll_connected_devices() {
 	// Initialize variables
 	int ret; // Variable to hold return values for success/failure
@@ -132,7 +142,7 @@ void poll_connected_devices() {
 		num_connected = libusb_get_device_list(NULL, &connected);
 		if (num_connected > num_tracked) {
 			current_time = time(NULL);
-			printf("INFO: %s. Timestamp: %s\n", "NEW DEVICE CONNECTED", ctime(&current_time));
+			printf("INFO: %s. Timestamp: %s", "NEW DEVICE CONNECTED", ctime(&current_time));
 			// Find out which connected device isn't tracked.
 			ret = device_diff(connected, num_connected, tracked, num_tracked);
 			// Open device
@@ -144,9 +154,9 @@ void poll_connected_devices() {
 			num_tracked = num_connected;
 		} else if (num_connected < num_tracked) {
 			current_time = time(NULL);
-			printf("INFO: %s. Timestamp: %s\n", "A DEVICE HAS DISCONNECTED", ctime(&current_time));
+			printf("INFO: %s. Timestamp: %s", "DEVICE  DISCONNECTED", ctime(&current_time));
 			// Find out which tracked device was disconnected
-			ret = device_diff(tracked, num_tracked, connected, num_connected);
+			ret = get_idx_disconnected(tracked, num_tracked);
 			// TODO: Close thread
 			// TODO: Close device
 			// Update tracked devices
@@ -158,22 +168,6 @@ void poll_connected_devices() {
 	}
 }
 
-// Running while loop: Check whenever a device is connected
-// If a device is connected,
-//   From libusb, we know it's vendorid, productid, serialnumber, etc
-//   Ask for its type and UID (hibike_process.py, subscription request))
-//   Add to as hashmap: libusbID --> type, uid
-//      Ex: (123) --> (KOALA_BEAR, 0x13)
-//      Now we know libusb associates vendorID 123 with a KoalaBear
-//   shared memory device_connect(type, UID)
-//
-
-// Maps a libusb vendorID to a device
-// typedef struct pair {
-//     int libusb_id;
-//     dev_id_t dev_id;
-// } map;
-
 int main() {
 	// If SIGINT (Ctrl+C) is received, call sigintHandler to clean up
 	signal(SIGINT, sigintHandler);
@@ -181,15 +175,16 @@ int main() {
 	/* 1) Continuously poll for newly connected devices (Use libusb)
 	 * 2) Add it to a running list of connected devices
 	 * 3) Make a thread for it
-	 *		shm_init()
-	 *		*** If Ctrl+C is hit, call shm_stop() before quitting program
-	 		shm_stop(DEV_HANDLER);
-	 		shm_stop(EXECUTOR);
-	*/
+	 *		send a Ping packet and wait for a SubscriptionResponse to verify that it's a lowcar device
+	 *		If it's a lowcar device, connect it to shared memory and set up data structures to poll for incoming/outgoing messages
+     *	If Ctrl+C is hit, call shm_stop() before quitting program
+ 		shm_stop(DEV_HANDLER);
+ 		shm_stop(EXECUTOR);
+	 */
 	init();
 
 	poll_connected_devices();
 
-	clean_up(); //deinitialize the libusb context
+	stop();
 	return 0;
 }
