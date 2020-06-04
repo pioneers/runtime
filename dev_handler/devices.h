@@ -15,7 +15,7 @@ See hibikeDevices.json for the numbers. */
  * The largest device type number + 1
  * DEVICES_LENGTH != NUM_DEVICES because some are NULL (Ex: type 6, 8, 9)
 */
-#define DEVICES_LENGTH 15
+#define DEVICES_LENGTH 14
 
 /* Returns a pointer to the device given its DEVICE_TYPE */
 device_t* get_device(uint16_t device_type);

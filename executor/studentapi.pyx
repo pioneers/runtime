@@ -11,7 +11,7 @@ import threading
 """Student API written in Cython. """
 
 # Initializing logger to be used throughout API
-logger_init(API)
+logger_init(STUDENTAPI)
 log_runtime(DEBUG, "Student API intialized")
 
 
@@ -41,13 +41,13 @@ class CodeExecutionError(Exception):
 
 def _shm_init():
     """ONLY USED FOR TESTING CODE LOADER. NOT USED IN PRODUCTION"""
-    shm_init(EXECUTOR)
-    shm_aux_init(EXECUTOR)
+    shm_init(STUDENTAPI)
+    shm_aux_init(STUDENTAPI)
 
 def _shm_stop():
     """ONLY USED FOR TESTING CODE LOADER. NOT USED IN PRODUCTION"""
-    shm_stop(EXECUTOR)
-    shm_aux_stop(EXECUTOR)
+    shm_stop(STUDENTAPI)
+    shm_aux_stop(STUDENTAPI)
 
 
 def _print(*values, sep=' '):
@@ -73,12 +73,12 @@ cdef class Gamepad:
     def __cinit__(self, mode):
         """Initializes the mode of the robot. Also initializes the auxiliary SHM. """
         self.mode = mode
-        shm_aux_init(API)
+        shm_aux_init(STUDENTAPI)
         log_runtime(DEBUG, "Aux SHM initialized")
 
     def __dealloc__(self):
         """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
-        shm_aux_stop(API)
+        shm_aux_stop(STUDENTAPI)
         log_runtime(DEBUG, "Aux SHM stopped")
 
     cpdef get_value(self, str param_name):
@@ -96,7 +96,7 @@ cdef class Gamepad:
         cdef char** button_names 
         cdef char** joystick_names 
         with nogil:
-            gamepad_read(EXECUTOR, &buttons, joysticks)
+            gamepad_read(&buttons, joysticks)
             button_names = get_button_names()
             joystick_names = get_joystick_names()
         for i in range(NUM_GAMEPAD_BUTTONS):
@@ -116,13 +116,13 @@ cdef class Robot:
 
     def __cinit__(self):
         """Initializes the shared memory (SHM) wrapper. """
-        shm_init(API) # Remove once integrated into executor?
+        shm_init(STUDENTAPI) # Remove once integrated into executor?
         log_runtime(DEBUG, "SHM intialized")
         self.running_actions = []
 
     def __dealloc__(self):
         """Once process is done and object is deallocated, close the mapping to SHM."""
-        shm_stop(API)
+        shm_stop(STUDENTAPI)
         log_runtime(DEBUG, "SHM stopped")
 
 
