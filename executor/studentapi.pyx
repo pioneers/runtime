@@ -73,12 +73,12 @@ cdef class Gamepad:
     def __cinit__(self, mode):
         """Initializes the mode of the robot. Also initializes the auxiliary SHM. """
         self.mode = mode
-        shm_aux_init(EXECUTOR)
+        shm_aux_init(API)
         log_runtime(DEBUG, "Aux SHM initialized")
 
     def __dealloc__(self):
         """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
-        shm_aux_stop(EXECUTOR)
+        shm_aux_stop(API)
         log_runtime(DEBUG, "Aux SHM stopped")
 
     cpdef get_value(self, str param_name):
@@ -93,9 +93,12 @@ cdef class Gamepad:
         cdef bytes param = param_name.encode('utf-8')
         cdef uint32_t buttons
         cdef float joysticks[4]
-        gamepad_read(EXECUTOR, &buttons, joysticks)
-        cdef char** button_names = get_button_names()
-        cdef char** joystick_names = get_joystick_names()
+        cdef char** button_names 
+        cdef char** joystick_names 
+        with nogil:
+            gamepad_read(EXECUTOR, &buttons, joysticks)
+            button_names = get_button_names()
+            joystick_names = get_joystick_names()
         for i in range(NUM_GAMEPAD_BUTTONS):
             if param == button_names[i]:
                 return bool(buttons & (1 << i))
@@ -103,7 +106,7 @@ cdef class Gamepad:
             if param == joystick_names[i]:
                 return joysticks[i]
 
-@final
+
 cdef class Robot:
     """
     The API for accessing the robot and its devices.
@@ -113,17 +116,17 @@ cdef class Robot:
 
     def __cinit__(self):
         """Initializes the shared memory (SHM) wrapper. """
-        shm_init(EXECUTOR) # Remove once integrated into executor?
+        shm_init(API) # Remove once integrated into executor?
         log_runtime(DEBUG, "SHM intialized")
         self.running_actions = []
 
     def __dealloc__(self):
         """Once process is done and object is deallocated, close the mapping to SHM."""
-        shm_stop(EXECUTOR)
+        shm_stop(API)
         log_runtime(DEBUG, "SHM stopped")
 
 
-    def run(self, action, *args, timeout: int =300):
+    def run(self, action, timeout: int =300, *args, **kwargs):
         """ Schedule an action for execution in a separate thread. """
         self.running_actions.append(action)
         

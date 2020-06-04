@@ -5,8 +5,7 @@ const char* loader_file = "code_loader.py";
 const char* api_module = "studentapi";
 char* student_module;
 PyObject *pModule, *pAPI, *pPrint, *pRobot, *pGamepad;
-pthread_mutex_t module_mutex = PTHREAD_MUTEX_INITIALIZER; // Not sure if needed
-//pthread_t mode_thread;
+pthread_t mode_thread;
 
 // Timings for all modes
 const struct timespec setup_time = {3, 0};    // Max time allowed for setup functions
@@ -25,11 +24,11 @@ typedef struct thread_args {
     struct timespec* timeout;
 } thread_args_t;
 
+
 /**
- *  Reads the mode from shared memory and returns the appropriate string representation.
+ *  Returns the appropriate string representation from the given mode.
  */
-const char* get_mode_str() {
-    robot_desc_val_t mode = robot_desc_read(RUN_MODE);
+const char* get_mode_str(robot_desc_val_t mode) {
     if (mode == AUTO) {
         return "autonomous";
     }
@@ -88,7 +87,7 @@ void executor_init(char* student_code) {
         log_runtime(ERROR, "Could not find Gamepad class");
         executor_stop();
     }
-    pGamepad = PyObject_CallFunction(gamepad_class, "s", get_mode_str());
+    pGamepad = PyObject_CallFunction(gamepad_class, "s", get_mode_str(robot_desc_read(RUN_MODE)));
     if (pGamepad == NULL) {
         PyErr_Print();
         log_runtime(ERROR, "Could not instantiate Gamepad");
@@ -120,6 +119,7 @@ void executor_init(char* student_code) {
  */
 void executor_stop() {
 	printf("\nShutting down executor...\n");
+    pthread_cancel(mode_thread);
     fflush(stdout);
     Py_XDECREF(pModule);
     Py_XDECREF(pAPI);
@@ -234,9 +234,7 @@ void* run_function_timeout(void* thread_args) {
     time.tv_sec += args->timeout->tv_sec;
     time.tv_nsec += args->timeout->tv_nsec;
     pthread_create(&tid, NULL, run_py_function, (void*) args);
-    printf("created thread %s \n", args->func_name);
     int err = pthread_cond_timedwait(&cond, &mutex, &time);
-    printf("timeout thread %s \n", args->func_name);
     int* ret = malloc(sizeof(int));
     *ret = 0;
     if (err == ETIMEDOUT) {
@@ -258,7 +256,7 @@ void* run_function_timeout(void* thread_args) {
  *  Runs the given Python function in a while loop. Meant to be used for the main functions.
  * 
  *  Behavior: This is a blocking function and will block the calling thread forever.
- *  This should only be inside a separate thread.
+ *  This should only be run inside a separate thread.
  * 
  *  Inputs: Uses thread_args_t as input struct. Fields necessary are:
  *      func_name: string of function name to run in the student code
@@ -327,6 +325,12 @@ void* run_function_loop(void* thread_args) {
 }
 
 
+/**
+ *  Cleanup function for threads that cleans up Python objects. 
+ * 
+ *  Inputs:
+ *      args: a PyObject* that needs their reference decremented
+ */
 void py_function_cleanup(void* args) {
     PyObject* pFunc = (PyObject*) args;
     Py_DECREF(pFunc);
@@ -334,16 +338,15 @@ void py_function_cleanup(void* args) {
 
 
 /**
- *  Runs the entire game mode. Ensures correct timing by repeatedly calling `run_function_timeout`.
+ *  Begins the given game mode and calls setup and main appropriately. Will run main forever.
  * 
  *  Behavior: This is a blocking function and will block the calling thread forever.
- *  This function should never be called standalone and always ran as a separate thread.
+ *  This should only be run as a separate thread.
  * 
  *  Inputs:
  *      args: string of the mode to start running
  */
 void* run_mode_functions(void* args) {
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     char* mode = (char*) args;
     char setup_str[20];
     char main_str[20];
@@ -363,40 +366,25 @@ void* run_mode_functions(void* args) {
 
 
 /**
- *  Bootloader that calls `run_mode_functions` with the correct mode and timeout.
+ *  Bootloader that calls `run_mode_functions` with the correct mode.
  * 
- *  Behavior: This is a blocking function and will block the calling thread for as long as the mode
- *  takes. This can be run as a separate thread or standalone.
+ *  Behavior: This is a nonblocking function and will begin running a mode forever.
  * 
  *  Inputs:
- *      args: a robot_desc_val_t representing the current mode
+ *      mode: a robot_desc_val_t representing the current mode
+ *      tid: a pointer that will be set to the thread ID for the thread thaat runs the mode
  */
-void* start_mode_thread(void* args) {
-    robot_desc_val_t mode = (robot_desc_val_t) args;
-    char* mode_str;
-    struct timespec timeout;
-    if (mode == AUTO) {
-        mode_str = "autonomous";
-        timeout = auton_time;
+void start_mode_thread(robot_desc_val_t mode, pthread_t* tid) {
+    if (mode == IDLE) {
+        if (tid != NULL) {
+            pthread_cancel(*tid);
+        }
     }
-    else if (mode == TELEOP) {
-        mode_str = "teleop";
-        timeout = teleop_time;
+    else {
+        pthread_create(tid, NULL, run_mode_functions, (void*) get_mode_str(mode));
+        pthread_detach(*tid);
     }
-    pthread_t tid;
-    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
-    pthread_mutex_lock(&mutex);
-    struct timespec time;
-    clock_gettime(CLOCK_REALTIME, &time);
-    time.tv_sec += timeout.tv_sec;
-    time.tv_nsec += timeout.tv_nsec;
-    pthread_create(&tid, NULL, run_mode_functions, (void*) mode_str);
-    int err = pthread_cond_timedwait(&cond, &mutex, &time);
-    pthread_mutex_unlock(&mutex);
-    pthread_cancel(tid);
 }
-
 
 
 /**
@@ -524,16 +512,21 @@ int main(int argc, char* argv[]) {
     // pthread_create(&id, NULL, run_function_timeout, (void*) &args1);
     
     // printf("Interval (ms): %f\n", main_interval.tv_nsec/1e6);
-    start_mode_thread((void*) AUTO);
 
 
     // sleep(1);
     // student_module = "test_studentapi";
     // run_py_function("test_api");
 
-
+    // start_mode_thread(AUTO, &mode_thread);
+    robot_desc_val_t mode = IDLE;
+    robot_desc_val_t new_mode;
     while(1) {
-
+        new_mode = robot_desc_read(RUN_MODE);
+        if (new_mode != mode) {
+            mode = new_mode;
+            start_mode_thread(mode, &mode_thread);
+        }
     }
     return 0;
 }
