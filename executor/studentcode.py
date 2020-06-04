@@ -18,8 +18,10 @@ def autonomous_actions(n=1000):
 def set_motor():
     Robot.set_value(MOTOR, 'duty_cycle', 0.5)
     time.sleep(2)
+    print("after first sleep")
     Robot.set_value(MOTOR, 'duty_cycle', 0)
-    time.sleep(1)
+    time.sleep(2)
+    print("after second sleep")
 
 
 def autonomous_setup():
@@ -29,6 +31,7 @@ def autonomous_setup():
     Robot.set_value(MOTOR, 'duty_cycle', 0.2)
     global start
     start = time.time()
+    Robot.run(set_motor)
     # time.sleep(1)
 
 i = 0
@@ -38,6 +41,7 @@ def autonomous_main():
     global i
     if i % 1000000 == 0:
         print("Iteration:", i, time.time() - start)
+        Robot.run(teleop_setup)
     i += 1
     # print('Running autonomous main ...')
     # start = time.time()

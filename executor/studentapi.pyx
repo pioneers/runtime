@@ -112,13 +112,13 @@ cdef class Robot:
     The API for accessing the robot and its devices.
     """
     # Include device handler and executor API
-    cdef list running_actions
+    cdef dict running_actions
 
     def __cinit__(self):
         """Initializes the shared memory (SHM) wrapper. """
         shm_init(STUDENTAPI) # Remove once integrated into executor?
         log_runtime(DEBUG, "SHM intialized")
-        self.running_actions = []
+        self.running_actions = {}
 
     def __dealloc__(self):
         """Once process is done and object is deallocated, close the mapping to SHM."""
@@ -128,12 +128,18 @@ cdef class Robot:
 
     def run(self, action, timeout: int =300, *args, **kwargs):
         """ Schedule an action for execution in a separate thread. """
-        self.running_actions.append(action)
+        thread = threading.Thread(target=action, args=args, kwargs=kwargs)
+        thread.daemon = True
+        self.running_actions[action.__name__] = thread
+        thread.start()
         
 
     cpdef bint is_running(self, action):
         """Returns whether the given function `action` is running in a different thread."""
-        pass
+        thread = self.running_actions.get(action.__name__, None)
+        if thread:
+            return thread.is_alive()
+        return False
 
 
     cpdef get_value(self, str device_id, str param_name):
