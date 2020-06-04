@@ -53,6 +53,8 @@ def autonomous_main():
 
 def teleop_setup():
     print('Teleop setup has begun!')
+    global start
+    start = time.time()
 
 
 def teleop_main():
@@ -68,8 +70,14 @@ def teleop_main():
     # print('joystick_right_y -> ', Gamepad.get_value('joystick_right_y'))
 
     # print('=>', Robot.get_value('my_rfid', 'id'), Robot.get_value('my_rfid2', 'tag_detect'))
+    
+
     if Gamepad.get_value('button_a'):
-        print('Running motor ...')
+        global i
+        if i % 1000000 == 0:
+            print("Iteration:", i, time.time() - start)
+        i += 1
+        # print('Running motor ...')
         Robot.set_value(MOTOR, 'duty_cycle', 1)
 
 # Times out
