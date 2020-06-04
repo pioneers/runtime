@@ -18,8 +18,8 @@ cdef extern from "../runtime_util/runtime_util.h":
     ctypedef struct param_desc_t:
         char* name
         char* type
-    char** get_button_names()
-    char** get_joystick_names()
+    char** get_button_names() nogil
+    char** get_joystick_names() nogil
 
 
 cdef extern from "../logger/logger.h" nogil:
