@@ -273,6 +273,8 @@ void dual_thread_read_write_test ()
 	pthread_join(read_tid, NULL);
 	pthread_join(write_tid, NULL);
 	
+	sleep(1);
+	
 	printf("Done!\n");
 }
 

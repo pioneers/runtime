@@ -341,7 +341,6 @@ No return value.
 void shm_stop (process_t process)
 {
 	char sname[SNAME_SIZE]; //holding semaphore names
-	int semval; //for checking semaphore values before closing
 	
 	//unmap the shared memory block
 	if (munmap(shm_ptr, sizeof(shm_t)) == -1) {
