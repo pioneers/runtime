@@ -189,21 +189,10 @@ device_t ExampleDevice = {
 };
 
 
-device_t Robot = {
-    .type=14,
-    .name="Robot",
-    .num_params=1,
-    .params = {
-        {.name = "mode_start_sec", .type="int", .read=1, .write=1},
-        {.name = "mode_start_nsec", .type="int", .read=1, .write=1},
-    }
-};
-
-
 /* An array that holds pointers to the structs of each lowcar device */
 device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer, &Encoder, &BatteryBuzzer,
                                      &TeamFlag, NULL, &ServoControl, NULL, NULL,
-                                     &YogiBear, &RFID, &PolarBear, &KoalaBear, &Robot};
+                                     &YogiBear, &RFID, &PolarBear, &KoalaBear};
 
 device_t* get_device(uint16_t device_type) {
     return DEVICES[device_type];

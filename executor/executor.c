@@ -87,7 +87,8 @@ void executor_init(char* student_code) {
         log_runtime(ERROR, "Could not find Gamepad class");
         executor_stop();
     }
-    pGamepad = PyObject_CallFunction(gamepad_class, "s", get_mode_str(robot_desc_read(RUN_MODE)));
+    char* mode_str = get_mode_str(robot_desc_read(RUN_MODE));
+    pGamepad = PyObject_CallFunction(gamepad_class, "s", mode_str);
     if (pGamepad == NULL) {
         PyErr_Print();
         log_runtime(ERROR, "Could not instantiate Gamepad");

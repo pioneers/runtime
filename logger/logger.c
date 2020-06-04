@@ -10,7 +10,8 @@ char *log_level_strs[] = {                 //strings for holding names of log le
 	"DEBUG",
 	"INFO",
 	"WARN",
-	"ERROR"
+	"ERROR",
+	"FATAL"
 };
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //

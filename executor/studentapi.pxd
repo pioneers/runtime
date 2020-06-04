@@ -2,13 +2,13 @@ from libc.stdint cimport *
 
 cdef extern from "../logger/logger_config.h":
     enum log_level:
-        INFO, DEBUG, WARN, ERROR, FATAL
+        DEBUG, INFO, WARN, ERROR,
 
 
 cdef extern from "../runtime_util/runtime_util.h":
     int NUM_GAMEPAD_BUTTONS
     ctypedef enum process_t:
-        EXECUTOR, API
+        EXECUTOR, STUDENTAPI
     ctypedef struct device_t:
         pass
     ctypedef struct param_val_t:
@@ -42,7 +42,7 @@ cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
 cdef extern from "../shm_wrapper_aux/shm_wrapper_aux.h" nogil:
     void shm_aux_init (process_t process)
     void shm_aux_stop (process_t process)
-    void gamepad_read (process_t process, uint32_t *pressed_buttons, float *joystick_vals);
+    void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
 
 
 cdef extern from "../dev_handler/devices.h" nogil:
