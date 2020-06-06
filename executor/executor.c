@@ -36,6 +36,7 @@ const char* get_mode_str(robot_desc_val_t mode) {
     else if (mode == IDLE) {
         return "idle";
     }
+    return NULL;
 }
 
 
@@ -93,7 +94,7 @@ void executor_init(char* student_code) {
         executor_stop();
     }
     Py_DECREF(gamepad_class);
-    
+
     pModule = PyImport_ImportModule(student_module);
     if (pModule == NULL) {
         PyErr_Print();
@@ -354,7 +355,6 @@ void* run_mode_functions(void* args) {
     char main_str[20];
     sprintf(setup_str, "%s_setup", mode);
     sprintf(main_str, "%s_main", mode);
-    pthread_t tid;
     thread_args_t setup_args = {setup_str, NULL, mode, &setup_time};
     int *ret = run_function_timeout(&setup_args);
     if (*ret == 1) {
@@ -364,6 +364,7 @@ void* run_mode_functions(void* args) {
     }
     thread_args_t main_args = {main_str, NULL, mode, NULL};
     run_function_loop((void*) &main_args);
+    return NULL;
 }
 
 
@@ -413,6 +414,7 @@ void* run_student_file(void* args) {
     };
     PySys_SetArgvEx(3, py_args, 0);
     PyRun_SimpleFile(file, loader_file);
+    return NULL;
 }
 
 
@@ -442,6 +444,7 @@ void* run_file_subprocess(void* args) {
         log_runtime(ERROR, "Error occurred while calling process");
         log_runtime(ERROR, command);
     }
+    return NULL;
 }
 
 
