@@ -276,6 +276,7 @@ void shm_aux_stop (process_t process)
 	if (process == NET_HANDLER) {
 		my_sem_close(gp_sem, "gamepad_mutex@net_handler");
 		my_sem_close(rd_sem, "robot_desc_mutex@net_handler");
+		log_runtime(DEBUG, "killed it");
 	} else {
 		my_sem_close(gp_sem, "gamepad_mutex@client");
 		my_sem_close(rd_sem, "robot_desc_mutex@client");
