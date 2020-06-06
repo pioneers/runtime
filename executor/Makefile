@@ -1,27 +1,37 @@
 cc=gcc
-CFLAGS=$(python3.6-config --cflags)
-LDFLAGS=$(python3.6-config --ldflags)
-PYTHON=-lpython3.6m
+# Change this to point to your specific Python version. Need >= 3.6
+py=python3.6
+
+CFLAGS=$($(py)-config --cflags)
+LDFLAGS=$($(py)-config --ldflags)
+PY_LIB=-l$(py)m
+
+UNAME := $(shell uname)
+ifeq ($(UNAME), Linux)
 LIBS=-pthread -lrt
+endif
+ifeq ($(UNAME), Darwin)
+LIBS=
+endif
 
 func: run_python.c
-	cc run_python.c -o func $(PYTHON)
+	$(cc) run_python.c -o func $(PY_LIB)
 
 simple: run_simple_python.c
-	cc run_simple_python.c -o simple $(PYTHON)
+	$(cc) run_simple_python.c -o simple $(PY_LIB)
 
 executor: executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
-	cc executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o executor $(PYTHON) $(LIBS)
+	$(cc) executor.c $(CFLAGS) $(LDFLAGS) ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o executor $(PY_LIB) $(LIBS)
 
 studentapi: studentapi.pyx studentapi.pxd
-	python3.6 setup.py build_ext -i
+	$(py) setup.py build_ext -i
 
 test_api: studentapi
-	python3.6 test_studentapi.py
+	$(py) test_studentapi.py
 
 clean:
 	rm studentapi.c
-	rm studentapi.cpython-36m-x86_64-linux-gnu.so
 	rm simple
 	rm func
 	rm executor
+	# rm studentapi.cpython-36m-x86_64-linux-gnu.so

@@ -15,7 +15,7 @@ int main() {
 	logger_init(NET_HANDLER);
 	signal(SIGINT, ctrl_c_handler);
     robot_desc_write(GAMEPAD, CONNECTED);
-    robot_desc_write(RUN_MODE, AUTO);
+    robot_desc_write(RUN_MODE, TELEOP);
 	print_robot_desc();
 
     uint32_t buttons;
@@ -27,7 +27,7 @@ int main() {
 	joystick_vals[X_RIGHT_JOYSTICK] = 0.9898;
 	joystick_vals[Y_RIGHT_JOYSTICK] = -0.776;
 	
-	gamepad_write(NET_HANDLER, buttons, joystick_vals);
+	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
 
     while(1) {

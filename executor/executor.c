@@ -9,8 +9,6 @@ pthread_t mode_thread;
 
 // Timings for all modes
 const struct timespec setup_time = {3, 0};    // Max time allowed for setup functions
-const struct timespec auton_time = {5, 0};
-const struct timespec teleop_time = {120, 0};
 #define freq 10 // How many times per second the main loop will run
 const struct timespec main_interval = {0, (long) (1.0/freq * 1e9)};
 
@@ -95,6 +93,7 @@ void executor_init(char* student_code) {
         executor_stop();
     }
     Py_DECREF(gamepad_class);
+    
     pModule = PyImport_ImportModule(student_module);
     if (pModule == NULL) {
         PyErr_Print();
@@ -121,6 +120,7 @@ void executor_init(char* student_code) {
 void executor_stop() {
 	printf("\nShutting down executor...\n");
     pthread_cancel(mode_thread);
+    log_runtime(DEBUG, "killed mode thread");
     fflush(stdout);
     Py_XDECREF(pModule);
     Py_XDECREF(pAPI);
@@ -128,6 +128,7 @@ void executor_stop() {
     Py_XDECREF(pRobot);
     Py_XDECREF(pGamepad);
     Py_FinalizeEx();
+    log_runtime(DEBUG, "killing aux shm");
     shm_aux_stop(EXECUTOR);
     logger_stop();
 	exit(1);
@@ -388,6 +389,9 @@ void start_mode_thread(robot_desc_val_t mode, pthread_t* tid) {
 }
 
 
+///////////////// OLD AND UNUSED CODE
+
+
 /**
  *  Runs any student's Python file using the `code_loader` for a specific mode.
  * 
@@ -409,28 +413,6 @@ void* run_student_file(void* args) {
     };
     PySys_SetArgvEx(3, py_args, 0);
     PyRun_SimpleFile(file, loader_file);
-}
-
-
-/**
- *  Bootloader that runs `run_student_file` in a separate thread.
- * 
- *  Behavior: This is a nonblocking function.
- * 
- *  Inputs:
- *      mode: enum representing the mode to run
- */
-void start_loader_thread(robot_desc_val_t mode) {
-    pthread_t tid;
-    char* mode_str;
-    if (mode == AUTO) {
-        mode_str = "autonomous";
-    }
-    else if (mode == TELEOP) {
-        mode_str = "teleop";
-    }
-    pthread_create(&tid, NULL, run_student_file, (void*) mode_str);
-    pthread_detach(tid);
 }
 
 
@@ -484,6 +466,7 @@ void start_loader_subprocess(robot_desc_val_t mode) {
     pthread_detach(tid);
 }
 
+///////////////////////////////
 
 int main(int argc, char* argv[]) {
     signal(SIGINT, sigintHandler);
@@ -501,7 +484,6 @@ int main(int argc, char* argv[]) {
     // printf("Elapsed milliseconds for subprocess: %lu \n", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000);    
 
     //start_loader_thread(AUTO);
-
     //start_loader_subprocess(AUTO);
 
     // struct timespec diff = {2, 0};
@@ -511,9 +493,6 @@ int main(int argc, char* argv[]) {
     // // pthread_join(id, NULL);
     // thread_args_t args1 = {"set_motor", NULL, "autonomous", &diff};
     // pthread_create(&id, NULL, run_function_timeout, (void*) &args1);
-    
-    // printf("Interval (ms): %f\n", main_interval.tv_nsec/1e6);
-
 
     // sleep(1);
     // student_module = "test_studentapi";
