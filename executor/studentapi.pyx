@@ -126,16 +126,26 @@ cdef class Robot:
         log_runtime(DEBUG, "SHM stopped")
 
 
-    def run(self, action, timeout: int =300, *args, **kwargs):
-        """ Schedule an action for execution in a separate thread. """
+    def run(self, action, *args, **kwargs) -> None:
+        """ Schedule an action for execution in a separate thread. Uses Python threading module.
+        
+        Args:
+            action: Python function to run
+            args: arguments for the Python function
+            kwargs: keyword arguments for the Python function
+        """
         thread = threading.Thread(target=action, args=args, kwargs=kwargs)
         thread.daemon = True
         self.running_actions[action.__name__] = thread
         thread.start()
         
 
-    cpdef bint is_running(self, action):
-        """Returns whether the given function `action` is running in a different thread."""
+    def is_running(self, action) -> bool:
+        """Returns whether the given function `action` is running in a different thread.
+        
+        Args:
+            action: Python function to check
+        """
         thread = self.running_actions.get(action.__name__, None)
         if thread:
             return thread.is_alive()
