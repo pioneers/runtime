@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <stdint.h>
+#include <string.h>  // strcmp
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
@@ -11,9 +12,12 @@
 #define NUM_DESC_FIELDS 5                   //number of fields in the robot description
 #define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
+#define NUM_DEVICES 11 		// The number of functional devices
+#define DEVICES_LENGTH 14 	// The largest device type number + 1. Note: DEVICES_LENGTH != NUM_DEVICES because some are NULL (Ex: type 6, 8, 9)
+
 //enumerate names of processes
-typedef enum process { 
-	DEV_HANDLER, EXECUTOR, NET_HANDLER, STUDENTAPI 
+typedef enum process {
+	DEV_HANDLER, EXECUTOR, NET_HANDLER, STUDENTAPI
 } process_t;
 
 //enumerated names for the buttons on the gamepad
@@ -72,4 +76,22 @@ typedef struct device {
   param_desc_t params[MAX_PARAMS]; // There are up to 32 possible parameters for a device
 } device_t;
 
+// *************************** DEVICE UTILITY FUNCTIONS ************************** //
+
+/* Returns a pointer to the device given its DEVICE_TYPE */
+device_t* get_device(uint16_t device_type);
+/* Returns the device type given its device name DEV_NAME */
+uint16_t device_name_to_type(char* dev_name);
+/* Returns the name of a device given the DEV_TYPE. */
+char* device_type_to_name(uint16_t dev_type);
+/* Fills PARAM_NAMES with all the names of the parameters for the given device type */
+void all_params_for_device_type(uint16_t dev_type, char* param_names[]);
+/* Returns 1 if PARAM of device type is readable. Otherwise, 0. */
+uint8_t readable(uint16_t dev_type, char* param_name);
+/* Returns 1 if PARAM of device type is writable. Otherwise, 0. */
+uint8_t writeable(uint16_t dev_type, char* param_name);
+/* Return the data type of the device type's parameter ("int", "float", or "bool"). */
+char* get_param_type(uint16_t dev_type, char* param_name);
+/* Get the param id of PARAM_NAME for the device DEV_TYPE */
+uint8_t get_param_id(uint16_t dev_type, char* param_name);
 #endif
