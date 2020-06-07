@@ -10,8 +10,10 @@
 
 // Initialize data structures / connections
 void init() {
-	int ret;
+	// Init shared memory
+	// shm_init(DEV_HANDLER);
 	// Init libusb
+	int ret;
 	if ((ret = libusb_init(NULL)) != 0) {
 		printf("libusb_init failed on exit code %d\n", ret);
 		libusb_exit(NULL);
@@ -22,6 +24,7 @@ void init() {
 // Free memory and safely stop connections
 void stop() {
 	libusb_exit(NULL);
+	// shm_stop(DEV_HANDLER);
 }
 
 // Called when attempting to terminate program with ctrl+C
@@ -36,155 +39,130 @@ void sigintHandler(int sig_num) {
 }
 
 /*
- * Return the index of the device in lst_a that is NOT in lst_b
- * Return -1 if len_a is not exactly one more than len_b
+ * Initialize a "global" array of zeros.
+ * Acts like a cache to help identify which devices from libusb_get_device_list() are new
+ * TRACKED_PORTS[i] is 1 if the device at port i is tracked.
+ * Otherwise, it is 0
  */
-int device_diff(libusb_device** lst_a, ssize_t len_a, libusb_device** lst_b, ssize_t len_b) {
-	// Return -1 if len_a is not exactly one more than len_b
-	if (len_a != len_b + 1) {
-		return -1;
-	}
+uint8_t TRACKED_PORTS[MAX_PORTS] = {0};
 
-	// Initialize variables
-    int ret;
-	uint8_t is_diff = 1;
-	libusb_device_handle* handle = NULL;
-	struct libusb_device_descriptor* desc = malloc (sizeof(struct libusb_device_descriptor));
-	unsigned char* serial_number_a = malloc(256 * sizeof(unsigned char));
-	unsigned char* serial_number_b = malloc(256 * sizeof(unsigned char));
-	// Loop
-	for (int i = 0; i < len_a; i++) {
-		// Open a handle on the device
-		if ((ret = libusb_open(lst_a[i], &handle)) != 0) {
-			printf("ERROR: libusb_open failed on exit code %s\n", libusb_error_name(ret));
-			continue;
-		}
-		// Get device descriptor
-		if ((ret = libusb_get_device_descriptor(lst_a[i], desc)) != 0) {
-			printf("ERROR: libusb_get_device_descriptor failed on exit code %s\n", libusb_error_name(ret));
-			continue;
-		}
-		// Get serial number of dev_a
-		libusb_get_string_descriptor_ascii(handle, desc->iSerialNumber, serial_number_a, 256);
-		libusb_close(handle);
-		// Check if it's in lst_b
-		is_diff = 1;
-		for (int j = 0; j < len_b; j++) {
-			// Open a handle on the device
-			if ((ret = libusb_open(lst_a[i], &handle)) != 0) {
-				printf("ERROR: libusb_open failed on exit code %s\n", libusb_error_name(ret));
-				continue;
-			}
-			// Get device descriptor
-			if ((ret = libusb_get_device_descriptor(lst_a[i], desc)) != 0) {
-				printf("ERROR: libusb_get_device_descriptor failed on exit code %s\n", libusb_error_name(ret));
-				continue;
-			}
-			// Get serial number of dev b
-			libusb_get_string_descriptor_ascii(handle, desc->iSerialNumber, serial_number_b, 256);
-			libusb_close(handle);
-			// Compare
-			if (strcmp(serial_number_a, serial_number_b) == 0) {
-				// dev_a is in lst_b. Move onto the next device in lst_a
-				is_diff = 0;
-				break;
-			}
-		}
-		if (is_diff) {
-			free(desc);
-			free(serial_number_a);
-			free(serial_number_b);
-			return i;
+/*
+ * Initialize an array of usb_dev's.
+ * Array is added to as lowcar devices are connected
+ */
+// usb_dev_t CONNECTED_LOWCARS[MAX_DEVICES];
+
+/* Returns whether or not a device is being tracked */
+uint8_t get_tracked_state(libusb_device* dev) {
+	int port = libusb_get_port_number(dev);
+	return TRACKED_PORTS[port];
+}
+
+void set_tracked_state(libusb_device* dev, uint8_t val) {
+	int port = libusb_get_port_number(dev);
+	TRACKED_PORTS[port] = val;
+}
+
+/* Returns the device that is untracked in LST */
+libusb_device* get_untracked_dev(libusb_device** lst, ssize_t len) {
+	for (int i = 0; i < len; i++) {
+		if (get_tracked_state(lst[i]) == 0) {
+			return lst[i];
 		}
 	}
-	// Could not identify the extra device for some reason
-	free(desc);
-	free(serial_number_a);
-	free(serial_number_b);
-	return -2;
+	return NULL;
 }
 
 /*
- * Returns the index of the device that was disconnected
+ * Returns the device that was disconnected
  * Assumes that only one device was disconnected
+ * Try to open every device in LST until LIBUSB_ERROR_NO_DEVICE,
+ * which means the device is no longer connected
  */
-int get_idx_disconnected(libusb_device** lst, ssize_t len) {
+libusb_device* get_disconnected_dev(libusb_device** lst, ssize_t len) {
 	libusb_device_handle* handle = NULL;
 	for (int i = 0; i < len; i++) {
 		// LIBUSB_ERROR_NO_DEVICE means the device was disconnected
 		if (libusb_open(lst[i], &handle) == LIBUSB_ERROR_NO_DEVICE) {
-			return i;
+			return lst[i];
 		}
 		libusb_close(handle);
 	}
+	return NULL;
+}
+
+void print_used_ports() {
+	printf("INFO: USED PORTS: ");
+	for (int i = 0; i < MAX_PORTS; i++) {
+		if (TRACKED_PORTS[i] == 1) {
+			printf("%d ", i);
+		}
+	}
+	printf("\n");
 }
 
 void poll_connected_devices() {
 	// Initialize variables
-	int ret; // Variable to hold return values for success/failure
-	libusb_device_handle* handle_tracked = NULL;
-	libusb_device_handle* handle_connected = NULL;
-
-	// Initialize list of connected devices
-	libusb_device** tracked;
-	libusb_device** connected;
+	libusb_device* dev = NULL;
+	libusb_device** tracked;	 // List of connected devices from the previous iteration
+	libusb_device** connected;	 // List of connected device in this iteration
 	printf("INFO: Getting initial device list\n");
 	int num_tracked = libusb_get_device_list(NULL, &tracked);
 	int num_connected;
 
 	// Initialize timer
-	time_t current_time;
+	// time_t current_time;
 
 	// Poll
 	printf("INFO: Variables initialized. Polling now.\n");
 	while (1) {
 		// Check how many are connected
 		num_connected = libusb_get_device_list(NULL, &connected);
-		if (num_connected > num_tracked) {
-			current_time = time(NULL);
-			printf("INFO: %s. Timestamp: %s", "NEW DEVICE CONNECTED", ctime(&current_time));
-			// Find out which connected device isn't tracked.
-			ret = device_diff(connected, num_connected, tracked, num_tracked);
-			// Open device
-			// libusb_open(connected[ret], &handle);
-			// TODO: Open new thread
-			// Update tracked devices
-			libusb_free_device_list(tracked, 1);
-			libusb_get_device_list(NULL, &tracked);
-			num_tracked = num_connected;
-		} else if (num_connected < num_tracked) {
-			current_time = time(NULL);
-			printf("INFO: %s. Timestamp: %s", "DEVICE  DISCONNECTED", ctime(&current_time));
-			// Find out which tracked device was disconnected
-			ret = get_idx_disconnected(tracked, num_tracked);
-			// TODO: Close thread
-			// TODO: Close device
+		// current_time = time(NULL);
+		if (num_connected == num_tracked) {
+			libusb_free_device_list(connected, 1);
+			continue;
+		} else {
+			if (num_connected > num_tracked) {
+				// Mark the new device as tracked and open a thread to for communication
+				printf("INFO: NEW DEVICE CONNECTED\n");
+				dev = get_untracked_dev(connected, num_connected);
+				set_tracked_state(dev, 1);
+				/* TODO: Open thread. Thread will send ping packet
+				 * If not lowcar device, thread closes.
+				 * If lowcar device, connect to shared memory.
+				 * Read from and write to device as necessary.
+				 * Encountering LIBUSB_ERROR_NO_DEVICE will disconnect from shared memory and close the thread */
+			} else if (num_connected < num_tracked) {
+				// Mark the disconnected device as untracked
+				printf("INFO: DEVICE  DISCONNECTED\n");
+				dev = get_disconnected_dev(tracked, num_tracked);
+				set_tracked_state(dev, 0);
+			}
+			print_used_ports();
+			libusb_free_device_list(connected, 1);
 			// Update tracked devices
 			libusb_free_device_list(tracked, 1);
 			libusb_get_device_list(NULL, &tracked);
 			num_tracked = num_connected;
 		}
-		libusb_free_device_list(connected, 1);
 	}
 }
 
+/* 1) Continuously poll for newly connected devices (Use libusb)
+ * 2) Add it to a running list of connected devices
+ * 3) Make a thread for it
+ *		send a Ping packet and wait for a SubscriptionResponse to verify that it's a lowcar device
+ *		If it's a lowcar device, connect it to shared memory and set up data structures to poll for incoming/outgoing messages
+ *	If Ctrl+C is hit, call shm_stop() before quitting program
+	shm_stop(DEV_HANDLER);
+	shm_stop(EXECUTOR);
+ */
 int main() {
 	// If SIGINT (Ctrl+C) is received, call sigintHandler to clean up
 	signal(SIGINT, sigintHandler);
-
-	/* 1) Continuously poll for newly connected devices (Use libusb)
-	 * 2) Add it to a running list of connected devices
-	 * 3) Make a thread for it
-	 *		send a Ping packet and wait for a SubscriptionResponse to verify that it's a lowcar device
-	 *		If it's a lowcar device, connect it to shared memory and set up data structures to poll for incoming/outgoing messages
-     *	If Ctrl+C is hit, call shm_stop() before quitting program
- 		shm_stop(DEV_HANDLER);
- 		shm_stop(EXECUTOR);
-	 */
 	init();
 
 	poll_connected_devices();
-
-	stop();
 	return 0;
 }
