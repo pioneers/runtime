@@ -78,7 +78,7 @@ def teleop_main():
 
     if Gamepad.get_value('button_a'):
         global i
-        if i % 1000000 == 0:
+        if i % 100000 == 0:
             print("Iteration:", i, time.time() - start)
         i += 1
         # print('Running motor ...')

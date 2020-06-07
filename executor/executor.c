@@ -48,6 +48,7 @@ const char* get_mode_str(robot_desc_val_t mode) {
 void executor_init(char* student_code) {
     logger_init(EXECUTOR);
     shm_aux_init(EXECUTOR);
+    log_runtime(DEBUG, "Aux SHM initialized");
     student_module = student_code;
     Py_Initialize();
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
@@ -86,7 +87,9 @@ void executor_init(char* student_code) {
         log_runtime(ERROR, "Could not find Gamepad class");
         executor_stop();
     }
+    log_runtime(DEBUG, "Reading mode"); 
     char* mode_str = get_mode_str(robot_desc_read(RUN_MODE));
+    log_runtime(DEBUG, "Got mode from robot desc");
     pGamepad = PyObject_CallFunction(gamepad_class, "s", mode_str);
     if (pGamepad == NULL) {
         PyErr_Print();
@@ -116,21 +119,21 @@ void executor_init(char* student_code) {
 
 
 /**
- *  Closes all executor processes and exits clealy.
+ *  Closes all executor processes and exits cleanly.
  */
 void executor_stop() {
 	printf("\nShutting down executor...\n");
     pthread_cancel(mode_thread);
-    log_runtime(DEBUG, "killed mode thread");
-    fflush(stdout);
-    Py_XDECREF(pModule);
+    log_runtime(DEBUG, "joining to make sure thread is cancelled");
+    pthread_join(mode_thread, NULL);
     Py_XDECREF(pAPI);
     Py_XDECREF(pPrint);
     Py_XDECREF(pRobot);
     Py_XDECREF(pGamepad);
-    Py_FinalizeEx();
-    log_runtime(DEBUG, "killing aux shm");
+    Py_XDECREF(pModule);
+    // Py_FinalizeEx();
     shm_aux_stop(EXECUTOR);
+    log_runtime(DEBUG, "Aux SHM stopped");
     logger_stop();
 	exit(1);
 }
@@ -263,7 +266,8 @@ void* run_function_timeout(void* thread_args) {
  * 
  *  Inputs: Uses thread_args_t as input struct. Fields necessary are:
  *      func_name: string of function name to run in the student code
- *      mode: string of the current mode
+ *      mode: string of the current 
+ *      timeout: maximum time for one loop to send a warning
  */
 void* run_function_loop(void* thread_args) {
     thread_args_t* args = (thread_args_t*) thread_args;
@@ -300,9 +304,9 @@ void* run_function_loop(void* thread_args) {
             pValue = PyObject_CallObject(pFunc, NULL);
             clock_gettime(CLOCK_MONOTONIC, &end);
             time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-            if (time > main_interval.tv_nsec) {
+            if (time > args->timeout->tv_nsec) {
                 char buffer[128];
-                sprintf(buffer, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", args->func_name, (long) (main_interval.tv_nsec / 1e6));
+                sprintf(buffer, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", args->func_name, (long) (args->timeout->tv_nsec / 1e6));
                 log_runtime(WARN, buffer);
             }
             if (pValue == NULL) {
@@ -362,14 +366,15 @@ void* run_mode_functions(void* args) {
         sprintf(buffer, "Setup function for %s is taking longer than %lu seconds and was timed out.", mode, setup_time.tv_sec);
         log_runtime(WARN, buffer);
     }
-    thread_args_t main_args = {main_str, NULL, mode, NULL};
+    thread_args_t main_args = {main_str, NULL, mode, &main_interval};
     run_function_loop((void*) &main_args);
     return NULL;
 }
 
 
 /**
- *  Bootloader that calls `run_mode_functions` with the correct mode.
+ *  Bootloader that calls `run_mode_functions` with the correct mode. Ensures any previously running
+ *  thread is terminated first.
  * 
  *  Behavior: This is a nonblocking function and will begin running a mode forever.
  * 
@@ -378,19 +383,16 @@ void* run_mode_functions(void* args) {
  *      tid: a pointer that will be set to the thread ID for the thread thaat runs the mode
  */
 void start_mode_thread(robot_desc_val_t mode, pthread_t* tid) {
-    if (mode == IDLE) {
-        if (tid != NULL) {
-            pthread_cancel(*tid);
-        }
-    }
-    else {
+    pthread_cancel(*tid);
+    pthread_join(*tid, NULL);
+    if (mode != IDLE) {
         pthread_create(tid, NULL, run_mode_functions, (void*) get_mode_str(mode));
         pthread_detach(*tid);
     }
 }
 
 
-///////////////// OLD AND UNUSED CODE
+///////////////////////////////////// OLD AND UNUSED CODE
 
 
 /**
@@ -469,7 +471,7 @@ void start_loader_subprocess(robot_desc_val_t mode) {
     pthread_detach(tid);
 }
 
-///////////////////////////////
+/////////////////////////////////////////////////
 
 int main(int argc, char* argv[]) {
     signal(SIGINT, sigintHandler);
