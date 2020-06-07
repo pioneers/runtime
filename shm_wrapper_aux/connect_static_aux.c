@@ -15,7 +15,7 @@ int main() {
 	logger_init(NET_HANDLER);
 	signal(SIGINT, ctrl_c_handler);
     robot_desc_write(GAMEPAD, CONNECTED);
-    robot_desc_write(RUN_MODE, TELEOP);
+    robot_desc_write(RUN_MODE, AUTO);
 	print_robot_desc();
 
     uint32_t buttons;
