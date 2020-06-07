@@ -1,21 +1,35 @@
 /*
  * Handles lowcar device connects/disconnects and acts as the interface between the devices and shared memory
- * Requires third-party library libusb
+ * Requires third-party library libusb:
+ *  API: http://libusb.sourceforge.net/api-1.0/libusb_api.html
  * Linux: sudo apt-get install libusb-1.0-0-dev
  *		  gcc -I/usr/include/libusb-1.0 dev_handler.c -o dev_handler -lusb-1.0
  *		  Don't forget to use sudo when running the executable
+ * Mac: gcc -I /usr/local/include/libusb-1.0 -L/usr/local/lib/ -lusb-1.0 dev_handler.c -o dev_handler
 */
 
 #ifndef DEV_HANDLER_H
 #define DEV_HANDLER_H
 
-#include <libusb.h> // Should work for both Mac and Linux
-#include "string.h" // strcmp
+#include <libusb.h>
+// #include <pthread.h>
+#include "../runtime_util/runtime_util.h"
+// #include "../shm_wrapper/shm_wrapper.h"
+// #include "string.h" // strcmp
 #include <stdio.h> // Print
 #include <stdlib.h>
 #include <stdint.h>
 #include <signal.h> // Used to handle SIGTERM, SIGINT, SIGKILL
-#include <time.h>   // For timestamps on device connects/disconnects
+// #include <time.h>   // For timestamps on device connects/disconnects
+
+#define MAX_PORTS 256
+
+/* A struct defining a lowcar device and the port it is connected to */
+// typedef struct usb_dev {
+//     libusb_device* dev;
+//     dev_id_t* dev_id;
+//     // pthread_t* thread;
+// } usb_dev_t;
 
 /******************************************
  * STARTING/STOPPING LIBUSB/SHARED MEMORY *
@@ -37,26 +51,40 @@ void stop();
 void sigintHandler(int sig_num);
 
 /*******************************************
- *   HELPER FUNCTIONS FOR DEVICE POLLING   *
+ *   FUNCTIONS TO TRACK AND UNTRACK DEVS   *
  *******************************************/
+/*
+ * Returns whether a device is tracked or not
+ * dev: the device to check
+ * return: 1 if tracked. 0 otherwise
+ */
+uint8_t get_tracked_state(libusb_device* dev);
+
+/* Marks a device's tracked value */
+void set_tracked_state(libusb_device* dev, uint8_t val);
 
 /*
- * Returns the index of the libusb device in lst_a not in lst_b
- * lst_a: The list containing an extra libusb device
- * len_a: The length of lst_a. Should be exactly one more than len_b
- * lst_b: The list that should be a subset of lst_a that differs by only one element.
- * lst_b: The length of lst_a. Should be exactly one less than len_b
- * return: The index of the device lst_a that is not in lst_b
+ * Returns the device that is untracked
+ * Assumes that only one device is untracked in LST
+ * lst: A list of devices. One of which is untracked
+ * len: The length of lst
+ * return: The device that is untracked
  */
-int device_diff(libusb_device** lst_a, ssize_t len_a, libusb_device** lst_b, ssize_t len_b);
+libusb_device* get_untracked_dev(libusb_device** lst, ssize_t len);
 
-/*
- * Returns the index of the libusb device in lst that is no longer connected
- * lst: The list of libusb devices to search
- * len: THe length of lst. Len is expected to be exactly one more than the number of devices actually connected
- * return: The index of the device in lst that is not connected
+/* Returns the device that is no longer connected in the given list
+ * Assumes only one device is disconnected from the list
+ * lst: List of devices in which one of them is disconnected
+ * len: Length of LST
  */
-int get_idx_disconnected(libusb_device** lst, ssize_t len);
+libusb_device* get_disconnected_dev(libusb_device** lst, ssize_t len);
+
+/* Print the port numbers that are used by tracked devices */
+void print_used_ports();
+
+/*******************************************
+ *             DEVICE POLLING              *
+ *******************************************/
 
 /*
  * Detects when devices are connected and disconnected.
