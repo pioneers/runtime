@@ -53,12 +53,15 @@ uint64_t get_uid(dev_id_t id);
  * Utility function to calculate the size of the payload needed
  * for a DeviceWrite/DeviceData message.
  * device_type: The type of device (Ex: 2 for Potentiometer)
+ * param_bitmap: 32-bit param bit map. The i-th bit indicates whether param i will be transmitted in the message
+ * return: The size of the payload
  */
-ssize_t device_data_payload_size(uint16_t device_type);
+ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap);
 
 /******************************************************************************************
  *                              MESSAGE CONSTRUCTORS                                      *
  *   The message returned from these MUST be deallocated memory using destroy_message()   *
+ *   Message constructors for only device --> dev_handler included for completion's sake  *
  ******************************************************************************************/
 
 /*
@@ -139,16 +142,17 @@ message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], 
 message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t len);
 
 /*
- * A message to write data to the specified parameters of a device
+ * A message to write data to the specified writable parameters of a device
  * The device is expected to respond with a DeviceData message confirming the new data of the writable parameters.
- * device_id: The device to request data from
- * param_names: An array of the parameter names to request data about
- * len: The length of param_names
+ * device_id: The id of the device to write data to
+ * param_bitmap: The 32-bit param bitmap indicating which parameters will be written to
+ * param_values: An array of the parameter values indicated by param_bitmap IN NUMERICAL ORDER
+ *      The length of param_values must be exactly equal to the number of bits that are on in PARAM_BITMAP
  *
- * Payload: 32-bit param mask, 32-bits for parameter 0 data, 32-bits for parameter 1 data, . . ., 32-bits for parameter 31 data
+ * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
  * Direction: dev_handler --> device
  */
-message_t* make_device_write(dev_id_t* device_id, param_val_t* param_values[], int len);
+message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]);
 
 /*
  * A message that a device responds with to DeviceRead, DeviceWrite, or SubscriptionRequest
@@ -156,7 +160,7 @@ message_t* make_device_write(dev_id_t* device_id, param_val_t* param_values[], i
  * Payload: 32-bit param mask, 32-bits for parameter 0 data, 32-bits for parameter 1 data, . . ., 32-bits for parameter 31 data
  * Direction: device --> dev_handler
  */
-message_t* make_device_data(dev_id_t* device_id, param_val_t* param_values[], int len);
+message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]);
 
 /*
  * A message that a device sends that contains debugging information to be logged.
@@ -257,29 +261,29 @@ int message_to_bytes(message_t* msg, uint8_t data[], int len);
 int parse_message(uint8_t data[], message_t* empty_msg);
 
 /*
- * Reads the parameter values from a DeviceData/DeviceWrite message
+ * Reads the parameter values from a DeviceData/DeviceWrite message into vals
  * dev_type: The device type that the message is sent from/to
  * dev_data: The DeviceData/DeviceWrite message
  * vals: An array of param_val_t structs to be populated with the values from the message. Use make_empty_param_values;
- * NOTE: The length of vals MUST be equal to the number of parameters for the specified device
+ *  NOTE: The length of vals MUST be equal to the number of received values (make_empty_param_values should handle this)
  */
-int parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]);
+void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]);
 
 /*
  * Utility function to allocate enough memory for a buffer to be used in parse_device_data
  * Use destroy_param_values to free vals
- * dev_type: The type of device
- * vals: An empty array to be populated with pointers to param_val_t structs.
- *      The length of vals MUST be equal to the number of parameters for the specified device
- * return: 0 on success
+ * param_bitmap: The 32-bit param_bitmap for which each i-th bit requires a param_val_struct to be allocated
+ * return: An array of pointers to param_val_t structs. The length is equal to the number of on bits in param_bitmap
  */
-int make_empty_param_values(uint16_t dev_type, param_val_t* vals[]);
+param_val_t** make_empty_param_values(uint32_t param_bitmap);
 
 /*
  * Utility function to free the param_val_t structs in an array.
  * To be used as a complement to make_empty_param_values
+ * param_bitmap: 32-bit param_bitmap indicating which parameters are in VALS
+ * vals: Array of param_val_t* to be freed. The length is equal to the number of on bits in param_bitmap
  */
-int destroy_param_values(uint16_t dev_type, param_val_t* vals[]);
+void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]);
 
 /*
  * Potentially added later:

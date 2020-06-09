@@ -22,10 +22,15 @@ uint64_t get_uid(dev_id_t id) {
     return id.uid;
 }
 
-ssize_t device_data_payload_size(uint16_t device_type) {
-    ssize_t result = 4; // Initialize at 1 for the 32-bit param mask
+ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap) {
+    ssize_t result = 4; // Initialize at 4 for the 32-bit param mask
     device_t* dev = get_device(device_type);
+    // Loop through each of the device's parameters and add the size of the parameter
     for (int i = 0; i < dev->num_params; i++) {
+        // Ignore parameter i if the i-th bit is off
+        if (((1 << i) & param_bitmap) == 0) {
+            continue;
+        }
         char* type = dev->params[i].type;
         if (strcmp(type, "int") == 0) {
             result += sizeof(int);
@@ -160,36 +165,32 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
     "switch2" : 100
     }
 */
-message_t* make_device_write(dev_id_t* device_id, param_val_t* param_values[], int len) {
+message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]) {
     message_t* dev_write = malloc(sizeof(message_t));
     dev_write->message_id = DeviceWrite;
-    dev_write->payload = malloc(device_data_payload_size(device_id->type));
     dev_write->payload_length = 0;
-    dev_write->max_payload_length = 132;
-    // Initialize mask to 1 if the last parameter is on. Otherwise 0
-    uint32_t mask = (param_values[len-1] == NULL) ? 0 : 1;
-    // Keep building the mask: 1 if present in param_values. Otherwise 0
-    for (int i = len-2; i >= 0; i--) {
-        mask <<= 1;
-        mask |= (param_values[i] == NULL) ? 0 : 1; // Append a 1 to the right side of mask if param_values[i] is not null. Otherwise 0
-    }
+    dev_write->max_payload_length = device_data_payload_size(device_id->type, param_bitmap);
+    dev_write->payload = malloc(dev_write->max_payload_length);
     int status = 0;
     // Append the mask
-    status += append_payload(dev_write, (uint8_t*) &mask, 4);
-    // Build the payload with the values of parameter 0 to parameter len-1
-    for (int i = 0; i < len; i++) {
-        if (param_values[i] == NULL) {
+    status += append_payload(dev_write, (uint8_t*) &param_bitmap, 4);
+    // Build the payload with the values
+    device_t* dev = get_device(device_id->type);
+    int param_values_idx = 0;
+    for (int i = 0; i < dev->num_params; i++) {
+        // If the parameter is off in the bitmap, skip it
+        if (((1 << i) & param_bitmap) == 0) {
             continue;
         }
-        device_t* dev = get_device(device_id->type);
         char* param_type = dev->params[i].type;
         if (strcmp(param_type, "int") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i]->p_i), sizeof(int));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[param_values_idx]->p_i), sizeof(int));
         } else if (strcmp(param_type, "float") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i]->p_f), sizeof(float));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[param_values_idx]->p_f), sizeof(float));
         } else if (strcmp(param_type, "bool") == 0) { // Boolean
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i]->p_b), sizeof(uint8_t));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[param_values_idx]->p_b), sizeof(uint8_t));
         }
+        param_values_idx++;
     }
     return (status == 0) ? dev_write : NULL;
 }
@@ -198,8 +199,8 @@ message_t* make_device_write(dev_id_t* device_id, param_val_t* param_values[], i
  * Returns a message with a 32-bit param mask and thirty-two 32-bit values
  * Logic is the same as make_device_write.
  */
-message_t* make_device_data(dev_id_t* device_id, param_val_t* param_values[], int len) {
-    message_t* dev_data = make_device_write(device_id, param_values, len);
+message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]) {
+    message_t* dev_data = make_device_write(device_id, param_bitmap, param_values);
     dev_data->message_id = DeviceData;
     return dev_data;
 }
@@ -424,13 +425,10 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
 int parse_message(uint8_t data[], message_t* msg_to_fill) {
     uint8_t* decoded = malloc((3 + msg_to_fill->payload_length) * sizeof(uint8_t));
     cobs_decode(decoded, &data[2], data[1]);
-    printf("Finish decoding message\n");
     msg_to_fill->message_id = decoded[0];
     msg_to_fill->payload_length = decoded[1];
     msg_to_fill->max_payload_length = decoded[1];
-    printf("Start for loop\n");
     for (int i = 0; i < msg_to_fill->payload_length; i++) {
-        printf("On element %d\n", i+2);
         msg_to_fill->payload[i] = decoded[i + 2];
     }
     char expected_checksum = decoded[2 + msg_to_fill->payload_length];
@@ -439,36 +437,59 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
     return (expected_checksum != received_checksum) ? 1 : 0;
 }
 
-int parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]) {
+void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]) {
     device_t* dev = get_device(dev_type);
-    uint8_t* payload_ptr = &(dev_data->payload[4]);
+    // Bitmap is stored in the first 32 bits of the payload
+    uint32_t bitmap = ((uint32_t*) dev_data->payload)[0];
+    /* Iterate through device's parameters. If bit is off, continue
+     * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
+    uint8_t* payload_ptr = &(dev_data->payload[4]); // Start the pointer at the beginning of the values (skip the bitmap)
+    int vals_idx = 0;
     for (int i = 0; i < dev->num_params; i++) {
+        // If bit is off, parameter is not included in the payload
+        if (((1 << i) & bitmap) == 0) {
+            continue;
+        }
         if (strcmp(dev->params[i].type, "int") == 0) {
-            vals[i]->p_i = ((int*) payload_ptr)[0];
+            vals[vals_idx]->p_i = ((int*) payload_ptr)[0];
             payload_ptr += sizeof(int) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
-            vals[i]->p_f = ((float*) payload_ptr)[0];
+            vals[vals_idx]->p_f = ((float*) payload_ptr)[0];
             payload_ptr += sizeof(float) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "bool") == 0) {
-            vals[i]->p_b = payload_ptr[0];
+            vals[vals_idx]->p_b = payload_ptr[0];
             payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
         }
+        vals_idx++;
     }
-    return 0;
 }
 
-int make_empty_param_values(uint16_t dev_type, param_val_t* vals[]) {
-    device_t* device = get_device(dev_type);
-    for (int i = 0; i < device->num_params; i++) {
-        vals[i] = malloc(sizeof(param_val_t));
+param_val_t** make_empty_param_values(uint32_t param_bitmap) {
+    // Calculate the length of the array to return
+    int len = 0;
+    while (param_bitmap != 0) {
+        len += (param_bitmap & 1);
+        param_bitmap >>= 1;
     }
-    return 0;
+    param_val_t** result = malloc(len * sizeof(param_val_t*));
+    // Allocate memory for each index
+    for (int i = 0; i < len; i++) {
+        result[i] = malloc(sizeof(param_val_t));
+    }
+    return result;
 }
 
-int destroy_param_values(uint16_t dev_type, param_val_t* vals[]) {
-    device_t* device = get_device(dev_type);
-    for (int i = 0; i < device->num_params; i++) {
+void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]) {
+    // Calculate the length of the VALS
+    int len = 0;
+    while (param_bitmap != 0) {
+        len += (param_bitmap & 1);
+        param_bitmap >>= 1;
+    }
+    // Free each index
+    for (int i = 0; i < len; i++) {
         free(vals[i]);
     }
-    return 0;
+    // Free the array itself
+    free(vals);
 }
