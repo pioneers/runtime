@@ -236,13 +236,13 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
  * msg: The msg to be serialized to a byte array
  * return: the maximum length
  */
-int calc_cobs_msg_length(message_t* msg);
+int calc_max_cobs_msg_length(message_t* msg);
 
 /*
  * Serializes msg into a byte array
  * msg: the message to serialize
  * data: empty buffer to be filled
- * len: the length of DATA. Should be at least calc_cobs_msg_length(msg)
+ * len: the length of DATA. Should be at least calc_max_cobs_msg_length(msg)
  */
 int message_to_bytes(message_t* msg, uint8_t data[], int len);
 
