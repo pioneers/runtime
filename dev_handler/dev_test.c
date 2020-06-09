@@ -13,9 +13,9 @@
 // #include <time.h>   // For timestamps on device connects/disconnects
 
 void print_used_ports(libusb_device** lst, int len) {
-    printf("INFO: Used ports:\n");
     int ret;
     struct libusb_device_descriptor *desc = (struct libusb_device_descriptor *) malloc (sizeof(struct libusb_device_descriptor) * 1);
+    printf("Device#   Port  Vendor:Product\n");
     for (int i = 0; i < len; i++) {
         libusb_device* dev = lst[i];
         // Get device descriptor
@@ -23,11 +23,7 @@ void print_used_ports(libusb_device** lst, int len) {
             printf("libusb_get_device_descriptor failed on exit code %d\n", ret);
         }
         // Print device info
-        printf("Device #%d\n", i);
-        printf("    vendor ID = %d\n", desc->idVendor);
-        printf("    Product ID = %d\n", desc->idProduct);
-        // Print port number
-        printf("    Port = %d\n\n", libusb_get_port_number(dev));
+        printf("   %d       %d       %d:%d\n", i, libusb_get_port_number(dev), desc->idVendor, desc->idProduct);
     }
     free(desc);
 }
@@ -38,11 +34,11 @@ void poll() {
     int len;
     int i = 0;
     while (1) {
-        printf("======ITERATION %d======\n", i);
+        printf("\n=========ITERATION %d=========\n", i);
         len = libusb_get_device_list(NULL, &lst);
         print_used_ports(lst, len);
-        sleep(3);
         i++;
+        sleep(3);
     }
 }
 
