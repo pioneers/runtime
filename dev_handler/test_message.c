@@ -35,26 +35,15 @@ void test_log(char* payload) {
 
 // Runs a test on DeviceData message
 void test_device_data() {
-    // LimitSwitch
+    // Koala Bear
     device_t* device = get_device(13);
-    param_val_t* param_values[device->num_params];
-    make_empty_param_values(device->type, param_values);
-    param_values[0]->p_f = 0.2345;
-    param_values[1]->p_f = 13245.2;
-    param_values[2]->p_f = 76523.456;
-    param_values[3]->p_f = 321.123;
-    param_values[4]->p_f = 1337.000;
-    param_values[5]->p_f = 123.45;
-    param_values[6]->p_b = 1;
-    param_values[7]->p_i = 777;
-    param_values[8]->p_f = 7654.2435;
-    param_values[9]->p_f = 875.4356;
-    param_values[10]->p_f = 52345.4532;
-    param_values[11]->p_f = 1212.34;
-    param_values[12]->p_f = 82094.34;
-    param_values[13]->p_f = 69919.22;
-    param_values[14]->p_b = 1;
-    param_values[15]->p_i = 33;
+    uint32_t param_bitmap = 0x1C3; // Params 0 (float), 1 (float), 6 (bool), 7 (int), 8 (float) == 0b  0001 1100 0011 == 0x1C3
+    param_val_t** vals = make_empty_param_values(param_bitmap);
+    vals[0]->p_f = 0.2345;      // Param 0: duty_cycle_a
+    vals[1]->p_f = 13245.2;     // Param 1: duty_cycle_b
+    vals[2]->p_b = 1;           // Param 6: motor_enabled_a
+    vals[3]->p_i = 777;         // Param 7: drive_mode_a
+    vals[4]->p_f = 7654.2435;   // Param 8: pid_kp_a
     dev_id_t device_id = {
         .type = 13,
         .year = 20,
@@ -63,7 +52,7 @@ void test_device_data() {
 
     // Build the message from test case inputs
     printf("***Forming DeviceData message***\n");
-    message_t* dev_data = make_device_data(&device_id, param_values, device->num_params);
+    message_t* dev_data = make_device_data(&device_id, param_bitmap, vals);
     printf("dev_data message_id (should be 0x15): %X\n", dev_data->message_id);
     printf("dev_data payload_length: %X\n", dev_data->payload_length);
     printf("dev_data payload: ");
@@ -97,30 +86,30 @@ void test_device_data() {
 
     // Read out the encoded values
     printf("********\n");
-    param_val_t* vals[device->num_params];
-    make_empty_param_values(device->type, vals);
-    parse_device_data(device->type, received_message, vals);
-    int bit_mask = ((int*) received_message->payload)[0];
-    printf("Param bit mask: %X\n", bit_mask);
+    uint32_t received_param_bitmap = ((uint32_t*) received_message->payload)[0];
+    printf("Param bit mask: %X\n", received_param_bitmap);
+    param_val_t** received_vals = make_empty_param_values(received_param_bitmap); // Gets the 0-th index of the payload, which is the pmap
+    parse_device_data(device->type, received_message, received_vals);
+    int vals_idx = 0;
     for (int i = 0; i < device->num_params; i++) {
-        // If i-th bit from the right is off, don't print out the value
-        // if (((1 << i) & bit_mask) == 0) {
-        //     printf("%s is not to be read from\n", device->params[i].name);
-        // }
-        if (strcmp(device->params[i].type, "int") == 0) {
-            printf("%s: %d\n", device->params[i].name, vals[i]->p_i);
-        } else if (strcmp(device->params[i].type, "float") == 0) {
-            printf("%s: %f\n", device->params[i].name, vals[i]->p_f);
-        } else if (strcmp(device->params[i].type, "bool") == 0) {
-            printf("%s: %x\n", device->params[i].name, vals[i]->p_b);
+        if (((1 << i) & received_param_bitmap) == 0) {
+            continue;
         }
+        if (strcmp(device->params[i].type, "int") == 0) {
+            printf("%s: %d\n", device->params[i].name, vals[vals_idx]->p_i);
+        } else if (strcmp(device->params[i].type, "float") == 0) {
+            printf("%s: %f\n", device->params[i].name, vals[vals_idx]->p_f);
+        } else if (strcmp(device->params[i].type, "bool") == 0) {
+            printf("%s: %x\n", device->params[i].name, vals[vals_idx]->p_b);
+        }
+        vals_idx++;
     }
 
     // Free stuff
-    destroy_param_values(device->type, param_values);
+    destroy_param_values(device->type, vals);
     destroy_message(dev_data);
     destroy_message(received_message);
-    destroy_param_values(device->type, vals);
+    destroy_param_values(device->type, received_vals);
 }
 
 int main() {
