@@ -149,6 +149,49 @@ void poll_connected_devices() {
 	}
 }
 
+/*
+ * Send a PING message to the device and wait for a SubscriptionResponse
+ */
+void ping(libusb_device* dev) {
+	// Make a PING message to be sent over serial
+	message_t* ping = make_ping();
+	int len = calc_max_cobs_msg_length(ping);
+	uint8_t* data = malloc(len * sizeof(uint8_t));
+	int ret = message_to_bytes(ping, data, len);
+	destroy_message(ping);
+	if (ret != 0) {
+		printf("ERROR: Couldn't serialize ping message in investigate_port()\n");
+		return;
+	}
+	// Open the device
+	libusb_device_handle* handle;
+	libusb_open(dev, &handle);
+
+	// Allocate a libusb_transfer: http://libusb.sourceforge.net/api-1.0/group__libusb__asyncio.html#ga13cc69ea40c702181c430c950121c000
+	// libusb_transfer: http://libusb.sourceforge.net/api-1.0/structlibusb__transfer.html
+	struct libusb_transfer* ping_transfer = libusb_alloc_transfer(0); // API says use 0 for libusb_bulk_transfer
+	libusb_fill_bulk_transfer(ping_transfer, handle, /* TODO: ENDPOINT */ 0, \
+							data, len, /*CALLBACK*/ (libusb_transfer_cb_fn) ping_callback, /*USER_DATA*/ NULL, /*TIMEOUT (ms)*/ 5000);
+
+	// Send it over
+	libusb_submit_transfer(ping_transfer);
+
+	libusb_close(handle);
+	free(data);
+	libusb_free_transfer(ping_transfer);
+}
+
+/* Callback function after sending a PING message to a device */
+void ping_callback(struct libusb_transfer* transfer) {
+	if (transfer->status != LIBUSB_TRANSFER_COMPLETED) {
+		printf("FATAL: PING message transfer occurred an error with code %d\n", transfer->status);
+		return;
+	} else if (transfer->actual_length != transfer->length) {
+		printf("FATAL: PING message transfer wasn't sent completely\n");
+		return;
+	}
+	printf("INFO: Successfuly sent PING message to device\n");
+}
 /* 1) Continuously poll for newly connected devices (Use libusb)
  * 2) Add it to a running list of connected devices
  * 3) Make a thread for it

@@ -93,4 +93,18 @@ void print_used_ports();
  */
 void poll_connected_devices();
 
+/*******************************************
+ *             DEVICE POLLING              *
+ *******************************************/
+/*
+ * Asynchronously sends a PING message to a device to check if it's a lowcar device
+ * dev: The device to send a PING to
+ */
+void ping(libusb_device* dev);
+
+/*
+ * The callback function for sending a PING message to a device
+ * Prints info about the status of the PING transfer
+ */
+void ping_callback(struct libusb_transfer* transfer);
 #endif
