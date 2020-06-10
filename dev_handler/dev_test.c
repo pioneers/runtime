@@ -15,7 +15,7 @@
 void print_used_ports(libusb_device** lst, int len) {
     int ret;
     struct libusb_device_descriptor *desc = (struct libusb_device_descriptor *) malloc (sizeof(struct libusb_device_descriptor) * 1);
-    printf("Device#   Port  Vendor:Product\n");
+    printf("Device#   Port  Vendor:Product    DevAddr\n");
     for (int i = 0; i < len; i++) {
         libusb_device* dev = lst[i];
         // Get device descriptor
@@ -23,7 +23,7 @@ void print_used_ports(libusb_device** lst, int len) {
             printf("libusb_get_device_descriptor failed on exit code %d\n", ret);
         }
         // Print device info
-        printf("   %d       %d       %d:%d\n", i, libusb_get_port_number(dev), desc->idVendor, desc->idProduct);
+        printf("   %u       %u       %u:%u         %u\n", i, libusb_get_port_number(dev), desc->idVendor, desc->idProduct, libusb_get_device_address(dev));
     }
     free(desc);
 }
