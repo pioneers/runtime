@@ -16,6 +16,7 @@
 #include "../runtime_util/runtime_util.h"
 // #include "../shm_wrapper/shm_wrapper.h"
 // #include "string.h" // strcmp
+#include "message.h"
 #include <stdio.h> // Print
 #include <stdlib.h>
 #include <stdint.h>
@@ -24,12 +25,15 @@
 
 #define MAX_PORTS 256
 
-/* A struct defining a lowcar device and the port it is connected to */
-// typedef struct usb_dev {
-//     libusb_device* dev;
-//     dev_id_t* dev_id;
-//     // pthread_t* thread;
-// } usb_dev_t;
+/*
+ * A struct defining a device's information for the lifetime of its connection
+ * Fields can be easily retrieved without requiring libusb_open()
+ */
+typedef struct usb_id {
+    uint16_t vendor_id;    // Obtained from struct libusb_device_descriptor field from libusb_get_device_descriptor()
+    uint16_t product_id;   // Same as above
+    uint8_t dev_addr;      // Obtained from libusb_get_device_address(libusb_device*)
+} usb_id_t;
 
 /******************************************
  * STARTING/STOPPING LIBUSB/SHARED MEMORY *
@@ -54,33 +58,27 @@ void sigintHandler(int sig_num);
  *   FUNCTIONS TO TRACK AND UNTRACK DEVS   *
  *******************************************/
 /*
- * Returns whether a device is tracked or not
- * dev: the device to check
- * return: 1 if tracked. 0 otherwise
+ * Allocates memory for an array of usb_id_t and populates it with data from the provided list
+ * lst: Array of libusb_devices to have their vendor_id, product_id, and device address to be put in the result
+ * len: The length of LST
+ * return: Array of usb_id_t pointers of length LEN. Must be freed with free_tracked_devices()
  */
-uint8_t get_tracked_state(libusb_device* dev);
-
-/* Marks a device's tracked value */
-void set_tracked_state(libusb_device* dev, uint8_t val);
+usb_id_t** alloc_tracked_devices(libusb_device** lst, int len);
 
 /*
- * Returns the device that is untracked
- * Assumes that only one device is untracked in LST
- * lst: A list of devices. One of which is untracked
- * len: The length of lst
- * return: The device that is untracked
+ * Frees the given list of usb_id_t pointers
  */
-libusb_device* get_untracked_dev(libusb_device** lst, ssize_t len);
+void free_tracked_devices(usb_id_t** lst, int len);
 
-/* Returns the device that is no longer connected in the given list
- * Assumes only one device is disconnected from the list
- * lst: List of devices in which one of them is disconnected
- * len: Length of LST
+/*
+ * Returns a pointer to the libusb_device in CONNECTED but not in TRACKED
+ * connected: List of libusb_device*
+ * num_connected: Length of CONNECTED
+ * tracked: List of usb_id_t* that holds info about every device in CONNECTED except for one
+ * num_tracked: Length of TRACKED. Expected to be exactly one less than connected
+ * return: Pointer to libusb_device
  */
-libusb_device* get_disconnected_dev(libusb_device** lst, ssize_t len);
-
-/* Print the port numbers that are used by tracked devices */
-void print_used_ports();
+libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_id_t** tracked, int num_tracked);
 
 /*******************************************
  *             DEVICE POLLING              *
