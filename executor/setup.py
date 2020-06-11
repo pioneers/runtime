@@ -4,7 +4,6 @@ import sys
 
 sourcefiles = [
     "../logger/logger.c",
-    "../dev_handler/devices.c",
     "../shm_wrapper/shm_wrapper.c",
     "../shm_wrapper_aux/shm_wrapper_aux.c",
     "../runtime_util/runtime_util.c",

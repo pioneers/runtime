@@ -11,7 +11,7 @@ import threading
 """Student API written in Cython. """
 
 # Initializing logger to be used throughout API
-# logger_init(STUDENTAPI)
+logger_init(STUDENTAPI)
 log_runtime(DEBUG, "Student API intialized")
 
 
@@ -73,14 +73,13 @@ cdef class Gamepad:
     def __cinit__(self, mode):
         """Initializes the mode of the robot. Also initializes the auxiliary SHM. """
         self.mode = mode
-    #     # shm_aux_init(STUDENTAPI)
-    #     log_runtime(DEBUG, "Aux SHM initialized")
+        shm_aux_init(STUDENTAPI)
+        log_runtime(DEBUG, "Aux SHM initialized")
 
-    # def __dealloc__(self):
-    #     """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
-    #     log_runtime(DEBUG, "trying to stop aux shm")
-    #     # shm_aux_stop(STUDENTAPI)
-    #     log_runtime(DEBUG, "Aux SHM stopped")
+    def __dealloc__(self):
+        """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
+        shm_aux_stop(STUDENTAPI)
+        log_runtime(DEBUG, "Aux SHM stopped")
 
     cpdef get_value(self, str param_name):
         """
