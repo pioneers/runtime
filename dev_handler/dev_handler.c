@@ -38,77 +38,66 @@ void sigintHandler(int sig_num) {
 	exit(0);
 }
 
-/*
- * Initialize a "global" array of zeros.
- * Acts like a cache to help identify which devices from libusb_get_device_list() are new
- * TRACKED_PORTS[i] is 1 if the device at port i is tracked.
- * Otherwise, it is 0
- */
-uint8_t TRACKED_PORTS[MAX_PORTS] = {0};
-
-/*
- * Initialize an array of usb_dev's.
- * Array is added to as lowcar devices are connected
- */
-// usb_dev_t CONNECTED_LOWCARS[MAX_DEVICES];
-
-/* Returns whether or not a device is being tracked */
-uint8_t get_tracked_state(libusb_device* dev) {
-	int port = libusb_get_port_number(dev);
-	return TRACKED_PORTS[port];
-}
-
-void set_tracked_state(libusb_device* dev, uint8_t val) {
-	int port = libusb_get_port_number(dev);
-	TRACKED_PORTS[port] = val;
-}
-
-/* Returns the device that is untracked in LST */
-libusb_device* get_untracked_dev(libusb_device** lst, ssize_t len) {
+usb_id_t** alloc_tracked_devices(libusb_device** lst, int len) {
+	struct libusb_device_descriptor desc;
+	usb_id_t** result = malloc(len * sizeof(usb_id_t*));
+	printf("INFO: There are now %d tracked devices.\n", len);
 	for (int i = 0; i < len; i++) {
-		if (get_tracked_state(lst[i]) == 0) {
-			return lst[i];
+		result[i] = malloc(sizeof(usb_id_t));
+		libusb_device* dev = lst[i];
+		libusb_get_device_descriptor(dev, &desc);
+		result[i]->vendor_id = desc.idVendor;
+		result[i]->product_id = desc.idProduct;
+		result[i]->dev_addr = libusb_get_device_address(dev);
+	}
+	return result;
+}
+
+void free_tracked_devices(usb_id_t** lst, int len) {
+	for (int i = 0; i < len; i++) {
+		free(lst[i]);
+	}
+	free(lst);
+}
+
+libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_id_t** tracked, int num_tracked) {
+	libusb_device* dev;
+	struct libusb_device_descriptor desc;
+	// Loop through each connected device
+	for (int i = 0; i < num_connected; i++) {
+		dev = connected[i];
+		libusb_get_device_descriptor(dev, &desc);
+		uint16_t vendor_id = desc.idVendor;
+		uint16_t product_id = desc.idProduct;
+		uint8_t dev_addr = libusb_get_device_address(dev);
+		// If it's not in tracked, it's a new device
+		uint8_t in_tracked = 0;
+		for (int j = 0; j < num_tracked; j++) {
+			if (vendor_id == tracked[i]->vendor_id &&
+				product_id == tracked[i]->product_id &&
+				dev_addr == tracked[i]->dev_addr) {
+					in_tracked = 1;
+					break;
+				}
+		}
+		if (in_tracked == 0) {
+			libusb_get_device_descriptor(dev, &desc);
+			printf("INFO:    Vendor:Product: %u:%u\n", desc.idVendor, desc.idProduct);
+			return connected[i];
 		}
 	}
 	return NULL;
-}
-
-/*
- * Returns the device that was disconnected
- * Assumes that only one device was disconnected
- * Try to open every device in LST until LIBUSB_ERROR_NO_DEVICE,
- * which means the device is no longer connected
- */
-libusb_device* get_disconnected_dev(libusb_device** lst, ssize_t len) {
-	libusb_device_handle* handle = NULL;
-	for (int i = 0; i < len; i++) {
-		// LIBUSB_ERROR_NO_DEVICE means the device was disconnected
-		if (libusb_open(lst[i], &handle) == LIBUSB_ERROR_NO_DEVICE) {
-			return lst[i];
-		}
-		libusb_close(handle);
-	}
-	return NULL;
-}
-
-void print_used_ports() {
-	printf("INFO: USED PORTS: ");
-	for (int i = 0; i < MAX_PORTS; i++) {
-		if (TRACKED_PORTS[i] == 1) {
-			printf("%d ", i);
-		}
-	}
-	printf("\n");
 }
 
 void poll_connected_devices() {
 	// Initialize variables
 	libusb_device* dev = NULL;
-	libusb_device** tracked;	 // List of connected devices from the previous iteration
-	libusb_device** connected;	 // List of connected device in this iteration
+	libusb_device** connected;	 										// List of connected device in this iteration
 	printf("INFO: Getting initial device list\n");
-	int num_tracked = libusb_get_device_list(NULL, &tracked);
-	int num_connected;
+	int num_tracked = libusb_get_device_list(NULL, &connected);			// Number of connected devices in previous iteration
+	usb_id_t** tracked = alloc_tracked_devices(connected, num_tracked);	// List of connected deevices in previous iteration
+	libusb_free_device_list(connected, 1);
+	int num_connected;													// Number of connected devices in this iteration
 
 	// Initialize timer
 	// time_t current_time;
@@ -118,7 +107,6 @@ void poll_connected_devices() {
 	while (1) {
 		// Check how many are connected
 		num_connected = libusb_get_device_list(NULL, &connected);
-		// current_time = time(NULL);
 		if (num_connected == num_tracked) {
 			libusb_free_device_list(connected, 1);
 			continue;
@@ -126,24 +114,21 @@ void poll_connected_devices() {
 			if (num_connected > num_tracked) {
 				// Mark the new device as tracked and open a thread to for communication
 				printf("INFO: NEW DEVICE CONNECTED\n");
-				dev = get_untracked_dev(connected, num_connected);
-				set_tracked_state(dev, 1);
+				dev = get_new_device(connected, num_connected, tracked, num_tracked);
 				/* TODO: Open thread. Thread will send ping packet
 				 * If not lowcar device, thread closes.
 				 * If lowcar device, connect to shared memory.
 				 * Read from and write to device as necessary.
 				 * Encountering LIBUSB_ERROR_NO_DEVICE will disconnect from shared memory and close the thread */
 			} else if (num_connected < num_tracked) {
-				// Mark the disconnected device as untracked
 				printf("INFO: DEVICE  DISCONNECTED\n");
-				dev = get_disconnected_dev(tracked, num_tracked);
-				set_tracked_state(dev, 0);
+				// TODO: ?
 			}
-			print_used_ports();
+			// Free connected list
 			libusb_free_device_list(connected, 1);
 			// Update tracked devices
-			libusb_free_device_list(tracked, 1);
-			libusb_get_device_list(NULL, &tracked);
+			free_tracked_devices(tracked, num_tracked);
+			tracked = alloc_tracked_devices(connected, num_connected);
 			num_tracked = num_connected;
 		}
 	}
