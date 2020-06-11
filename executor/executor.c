@@ -1,4 +1,18 @@
-#include "executor.h"
+#define PY_SSIZE_T_CLEAN
+#include <python3.6/Python.h>              // For Python's C API
+#include <stdio.h>                         //for i/o
+#include <stdlib.h>                        //for standard utility functions (exit, sleep)
+#include <sys/types.h>                     //for sem_t and other standard system types
+#include <stdint.h>                        //for standard int types
+#include <unistd.h>                        //for sleep
+#include <pthread.h>                       //for POSIX threads
+#include <signal.h>                        // Used to handle SIGTERM, SIGINT, SIGKILL
+#include <time.h>                          // for getting time
+#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
+#include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
+#include "../shm_wrapper_aux/shm_wrapper_aux.h" // Shared memory wrapper for robot state
+#include "../logger/logger.h"              // for runtime logger
+
 
 // Global variables to all functions and threads
 const char* loader_file = "code_loader.py";
@@ -6,6 +20,7 @@ const char* api_module = "studentapi";
 char* student_module;
 PyObject *pModule, *pAPI, *pPrint, *pRobot, *pGamepad;
 pthread_t mode_thread;
+pthread_t handler_thread;
 
 // Timings for all modes
 const struct timespec setup_time = {3, 0};    // Max time allowed for setup functions
@@ -37,6 +52,53 @@ const char* get_mode_str(robot_desc_val_t mode) {
         return "idle";
     }
     return NULL;
+}
+
+
+/**
+ *  Cleanup function for threads that cleans up Python objects. 
+ * 
+ *  Inputs:
+ *      args: a PyObject* that needs their reference decremented
+ */
+void py_function_cleanup(void* args) {
+    PyObject** objects = (PyObject**) args;
+    Py_DECREF(objects[0]);
+    Py_XDECREF(objects[1]);
+}
+
+
+/**
+ *  Closes all executor processes and exits cleanly.
+ */
+void executor_stop() {
+	printf("\nShutting down executor...\n");
+    pthread_cancel(handler_thread);
+    log_runtime(DEBUG, "Commencing handler cancel");
+    pthread_join(handler_thread, NULL);
+    log_runtime(DEBUG, "Cancelled handler thread");
+    pthread_cancel(mode_thread);
+    pthread_join(mode_thread, NULL);
+    log_runtime(DEBUG, "joining to make sure thread is cancelled");
+    Py_XDECREF(pAPI);
+    Py_XDECREF(pPrint);
+    Py_XDECREF(pRobot);
+    Py_XDECREF(pGamepad);
+    Py_XDECREF(pModule);
+    // Py_FinalizeEx();
+    log_runtime(DEBUG, "Stopping aux shm");
+    shm_aux_stop(EXECUTOR);
+    log_runtime(DEBUG, "Aux SHM stopped");
+    logger_stop();
+	exit(1);
+}
+
+
+/**
+ *  Handler for keyboard interrupts SIGINT (Ctrl + C)
+ */
+void sigintHandler(int signum) {
+    executor_stop();
 }
 
 
@@ -119,35 +181,6 @@ void executor_init(char* student_code) {
 
 
 /**
- *  Closes all executor processes and exits cleanly.
- */
-void executor_stop() {
-	printf("\nShutting down executor...\n");
-    pthread_cancel(mode_thread);
-    log_runtime(DEBUG, "joining to make sure thread is cancelled");
-    pthread_join(mode_thread, NULL);
-    Py_XDECREF(pAPI);
-    Py_XDECREF(pPrint);
-    Py_XDECREF(pRobot);
-    Py_XDECREF(pGamepad);
-    Py_XDECREF(pModule);
-    // Py_FinalizeEx();
-    shm_aux_stop(EXECUTOR);
-    log_runtime(DEBUG, "Aux SHM stopped");
-    logger_stop();
-	exit(1);
-}
-
-
-/**
- *  Handler for keyboard interrupts SIGINT (Ctrl + C)
- */
-void sigintHandler(int signum) {
-    executor_stop();
-}
-
-
-/**
  *  Runs the Python function specified in the arguments.
  * 
  *  Behavior: This is a blocking function  and will block the calling thread for the length of
@@ -162,17 +195,9 @@ void sigintHandler(int signum) {
  */
 void* run_py_function(void* thread_args) {
     thread_args_t* args = (thread_args_t*) thread_args;
-    /* allow the thread to be killed at any time */
-    int err = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-    if (err != 0) {
-        char msg[100];
-        sprintf(msg, "Cannot set CANCEL_ASYNC for run_py_function thread for %s", args->func_name);
-        log_runtime(WARN, msg);
-    }
 
-    // Ensure only 1 thread can access the module at a time. Not really sure if needed
     PyObject* pMode = PyUnicode_FromString(args->mode);
-    err = PyObject_SetAttrString(pGamepad, "mode", pMode);
+    int err = PyObject_SetAttrString(pGamepad, "mode", pMode);
     if (err != 0) {
         char msg[100];
         sprintf(msg, "Couldn't assign mode for Gamepad while trying to run %s", args->func_name);
@@ -186,10 +211,10 @@ void* run_py_function(void* thread_args) {
     PyObject* pValue;
 
     if (pFunc && PyCallable_Check(pFunc)) {
-        pthread_cleanup_push(py_function_cleanup, (void*) pFunc);
+        PyObject* objects[2] = {pFunc, NULL};
+        pthread_cleanup_push(py_function_cleanup, (void*) objects);
         pValue = PyObject_CallObject(pFunc, NULL);
         pthread_cleanup_pop(1);
-
         if (pValue == NULL) {
             PyErr_Print();
             char msg[64];
@@ -228,8 +253,8 @@ void* run_py_function(void* thread_args) {
  *      mode: string of the current mode
  *      timeout: timespec of the max timeout the function should run
  */
-void* run_function_timeout(void* thread_args) {
-    thread_args_t* args = (thread_args_t*) thread_args;
+void run_function_timeout(thread_args_t* args) {
+    // thread_args_t* args = (thread_args_t*) thread_args;
     pthread_t tid;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
@@ -241,20 +266,21 @@ void* run_function_timeout(void* thread_args) {
     time.tv_nsec += args->timeout->tv_nsec;
     pthread_create(&tid, NULL, run_py_function, (void*) args);
     int err = pthread_cond_timedwait(&cond, &mutex, &time);
-    int* ret = malloc(sizeof(int));
-    *ret = 0;
     if (err == ETIMEDOUT) {
-        *ret = 1;
+        char buffer[128];
+        sprintf(buffer, "Function %s is taking longer than %lu seconds and was timed out.", args->func_name, args->timeout->tv_sec);
+        log_runtime(WARN, buffer);
     }
     else if (err != 0) {
         char msg[100];
-        sprintf(msg, "run_py_function thread failed for %s with error code %d", args->func_name, err);
+        sprintf(msg, "Function %s failed with error code %d", args->func_name, err);
         log_runtime(ERROR, msg);
-        *ret = 2;
     }
     pthread_mutex_unlock(&mutex);
+    pthread_mutex_destroy(&mutex);
+    pthread_cond_destroy(&cond);
     pthread_cancel(tid);
-    return ret;
+    pthread_join(tid, NULL);
 }
 
 
@@ -269,34 +295,31 @@ void* run_function_timeout(void* thread_args) {
  *      mode: string of the current 
  *      timeout: maximum time for one loop to send a warning
  */
-void* run_function_loop(void* thread_args) {
-    thread_args_t* args = (thread_args_t*) thread_args;
-    /* allow the thread to be killed at any time */
-    int err = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-    if (err != 0) {
-        char msg[100];
-        sprintf(msg, "Cannot set CANCEL_ASYNC for run_py_function thread for %s", args->func_name);
-        log_runtime(WARN, msg);
-    }
+void run_function_loop(thread_args_t* args) {
+    // thread_args_t* args = (thread_args_t*) thread_args;
+    // int err = pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    // if (err != 0) {
+    //     char msg[100];
+    //     sprintf(msg, "Cannot set CANCEL_ASYNC for run_py_function thread for %s", args->func_name);
+    //     log_runtime(WARN, msg);
+    // }
 
-    // Ensure only 1 thread can access the module at a time. Not really sure if needed
     PyObject* pMode = PyUnicode_FromString(args->mode);
-    err = PyObject_SetAttrString(pGamepad, "mode", pMode);
+    int err = PyObject_SetAttrString(pGamepad, "mode", pMode);
     if (err != 0) {
         char msg[100];
         sprintf(msg, "Couldn't assign mode for Gamepad while trying to run %s", args->func_name);
         log_runtime(ERROR, msg);
         pthread_cond_signal(args->cond);
-        return NULL;
     }
     Py_DECREF(pMode);
 
     PyObject* pFunc = PyObject_GetAttrString(pModule, args->func_name);
-    PyObject* pValue;
-    // pthread_mutex_unlock(&module_mutex);
+    PyObject* pValue = NULL;
+
     if (pFunc && PyCallable_Check(pFunc)) {
-        // PyObject* pArgs = PyTuple_New(2);
-        pthread_cleanup_push(py_function_cleanup, (void*) pFunc);
+        PyObject* objects[2] = {pFunc, pValue};
+        pthread_cleanup_push(py_function_cleanup, (void*) objects);
         struct timespec start, end;
         long time;
         while (1) {
@@ -328,19 +351,6 @@ void* run_function_loop(void* thread_args) {
         sprintf(msg, "Cannot find function in student code: %s\n", args->func_name);
         log_runtime(ERROR, msg);
     }
-    return NULL;
-}
-
-
-/**
- *  Cleanup function for threads that cleans up Python objects. 
- * 
- *  Inputs:
- *      args: a PyObject* that needs their reference decremented
- */
-void py_function_cleanup(void* args) {
-    PyObject* pFunc = (PyObject*) args;
-    Py_DECREF(pFunc);
 }
 
 
@@ -360,14 +370,10 @@ void* run_mode_functions(void* args) {
     sprintf(setup_str, "%s_setup", mode);
     sprintf(main_str, "%s_main", mode);
     thread_args_t setup_args = {setup_str, NULL, mode, &setup_time};
-    int *ret = run_function_timeout(&setup_args);
-    if (*ret == 1) {
-        char buffer[128];
-        sprintf(buffer, "Setup function for %s is taking longer than %lu seconds and was timed out.", mode, setup_time.tv_sec);
-        log_runtime(WARN, buffer);
-    }
+    run_function_timeout(&setup_args);
+    log_runtime(DEBUG, "Finished setup");
     thread_args_t main_args = {main_str, NULL, mode, &main_interval};
-    run_function_loop((void*) &main_args);
+    run_function_loop(&main_args);
     return NULL;
 }
 
@@ -376,19 +382,25 @@ void* run_mode_functions(void* args) {
  *  Bootloader that calls `run_mode_functions` with the correct mode. Ensures any previously running
  *  thread is terminated first.
  * 
- *  Behavior: This is a nonblocking function and will begin running a mode forever.
- * 
- *  Inputs:
- *      mode: a robot_desc_val_t representing the current mode
- *      tid: a pointer that will be set to the thread ID for the thread thaat runs the mode
+ *  Behavior: This is a nonblocking function and will begin running the current mode forever.
  */
-void start_mode_thread(robot_desc_val_t mode, pthread_t* tid) {
-    pthread_cancel(*tid);
-    pthread_join(*tid, NULL);
-    if (mode != IDLE) {
-        pthread_create(tid, NULL, run_mode_functions, (void*) get_mode_str(mode));
-        pthread_detach(*tid);
-    }
+void* handle_mode_changes(void* args) {
+    robot_desc_val_t mode = IDLE;
+    robot_desc_val_t new_mode;
+
+    FILE* garbage = fopen("/dev/null", "w");
+    do {
+        new_mode = robot_desc_read(RUN_MODE);
+        fprintf(garbage, "test"); // Really weird way to create a cancellation point
+        if (new_mode != mode) {
+            mode = new_mode;
+            pthread_cancel(mode_thread);
+            pthread_join(mode_thread, NULL);
+            if (mode != IDLE) {
+                pthread_create(&mode_thread, NULL, run_mode_functions, (void*) get_mode_str(mode));
+            }
+        }
+    } while (1);
 }
 
 
@@ -504,14 +516,15 @@ int main(int argc, char* argv[]) {
     // run_py_function("test_api");
 
     // start_mode_thread(AUTO, &mode_thread);
-    robot_desc_val_t mode = IDLE;
-    robot_desc_val_t new_mode;
+
+    pthread_create(&handler_thread, NULL, handle_mode_changes, NULL);
+    // pthread_join(handler_thread, NULL);
+    long long i = 0;
     while(1) {
-        new_mode = robot_desc_read(RUN_MODE);
-        if (new_mode != mode) {
-            mode = new_mode;
-            start_mode_thread(mode, &mode_thread);
+        if ((i % 100000000) == 0) {
+            // log_runtime(DEBUG, "Main function iteration");
         }
+        i++;
     }
     return 0;
 }

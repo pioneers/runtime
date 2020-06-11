@@ -4,6 +4,7 @@ import studentapi
 POLARBEAR = '12_2604648'
 
 def test_api():
+    # studentapi._shm_init()
     robot = studentapi.Robot()
     val = robot.get_value(POLARBEAR, 'enc_pos')
     print(f"Read value: {val}")
@@ -21,6 +22,7 @@ def test_api():
     print("R bumper:", gamepad.get_value('r_bumper'))
     print("R X joystick:", gamepad.get_value('joystick_right_x'))
     gamepad.mode = 'auto'
+    # studentapi._shm_stop()
     # print("Auto gamepad:", gamepad.get_value('button_xbox'))
 
 if __name__ == '__main__':

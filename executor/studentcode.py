@@ -39,10 +39,11 @@ i = 0
 def autonomous_main():
     Robot.get_value(MOTOR, 'duty_cycle')
     global i
-    if i % 1000000 == 0:
+    if i % 500000 == 0:
         print("Iteration:", i, time.time() - start)
         Robot.run(teleop_setup)
     i += 1
+    # print("testing whether thread dies", time.time())
     # print('Running autonomous main ...')
     # start = time.time()
     # print('I wrote an infinite loop')
