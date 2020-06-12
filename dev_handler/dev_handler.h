@@ -92,6 +92,51 @@ libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_
 void poll_connected_devices();
 
 /*******************************************
+ *           READ/WRITE THREADS            *
+ *******************************************/
+/* Struct shared between the three threads so they can communicate with each other
+ * relayer thread acts as the "control center" and connects/disconnects to shared memory
+ *  relayer thread also frees memory when device is disconnected
+ */
+typedef struct msg_relay {
+    libusb_device* dev;
+    libusb_device_handle* handle;
+    pthread_t* sender;
+    pthread_t* receiver;
+    dev_id_t* dev_id;       // set by relayer once SubscriptionResponse is received
+    uint8_t start;		    // set by relayer; a flag to tell reader and receiver to start work
+    uint8_t sent_hb_req;	// set by write: relay should expect a hb response
+    uint8_t got_hb_req;	    // set by read: write should send a hb response
+} msg_relay_t;
+
+/* The max number of seconds to wait for a SubscriptionResponse or HeartBeatRequest
+ * Waiting for this long will exit all threads (doing cleanup as necessary) */
+#define DEVICE_TIMEOUT 5;
+
+/*
+ * Sends a Ping to the device and waits for a SubscriptionResponse
+ * If the SubscriptionResponse takes too long, close the device and exit all threads
+ * Connects the device to shared memory and signals the sender and receiver to start
+ * Continuously checks if the device disconnected or HeartBeatRequest was sent without a response
+ *      If so, it disconnects the device from shared memory, closes the device, and frees memory
+ */
+void relayer(msg_relay_t* relay);
+
+/*
+ * Continuously reads from shared memory to serialize the necessary information
+ * to send to the device.
+ * Sets relay->sent_hb_req when a HeartBeatRequest is sent
+ * Sends a HeartBeatResponse when relay->got_hb_req is set
+ */
+void sender(msg_relay_t* relay);
+
+/*
+ * Continuously attempts to parse incoming data over serial and send to shared memory
+ * Sets relay->got_hb_req upon receiving a HeartBeatRequest
+ */
+void receiver(msg_relay_t* relay);
+
+/*******************************************
  *             DEVICE POLLING              *
  *******************************************/
 /*
