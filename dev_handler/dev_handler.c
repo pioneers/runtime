@@ -134,6 +134,79 @@ void poll_connected_devices() {
 	}
 }
 
+/*******************************************
+ *           READ/WRITE THREADS            *
+ *******************************************/
+
+/*
+* Sends a Ping to the device and waits for a SubscriptionResponse
+* If the SubscriptionResponse takes too long, close the device and exit all threads
+* Connects the device to shared memory and signals the sender and receiver to start
+* Continuously checks if the device disconnected or HeartBeatRequest was sent without a response
+*      If so, it disconnects the device from shared memory, closes the device, and frees memory
+*/
+void relayer(msg_relay_t* relay) {
+	/*
+	 * Send Ping
+	 * Wait for SubscriptionResponse
+	 * If timeout // At the same time, sender and receiver should pthread exit as well
+	 *		libusb_close(relay->dev);
+	 *		free relay
+	 *		pthread exit
+	 * relay->dev_id = ...
+	 * shm_connect()
+	 * relay->start = 1
+	 * while(1)
+	 *		if (device disconnected || relay->sent_hb_req >= DEVICE_TIMEOUT)
+	 			Sender and receiver threads should end
+				free(relay)
+				shm_disconnect
+				pthread exit
+			if (relay->sent_hb_req != 0) relay->sent_hb_req++
+	*/
+
+}
+
+/*
+* Continuously reads from shared memory to serialize the necessary information
+* to send to the device.
+* Sets relay->sent_hb_req when a HeartBeatRequest is sent
+* Sends a HeartBeatResponse when relay->got_hb_req is set
+*/
+void sender(msg_relay_t* relay) {
+	/*
+	 * while(1)
+	 *		if (relay->start == 1) break
+	 *		usleep
+	 * while(1)
+	 * 		Check if current pmap from shm changed from previous iteration
+	 *		if changed
+	 *			send data to device
+	 *		if relay->got_hb_req
+	 *			send HeartBeatResponse
+	 *			relay->got_hb_req = 0
+	 *		usleep
+	 */
+}
+
+/*
+* Continuously attempts to parse incoming data over serial and send to shared memory
+* Sets relay->got_hb_req upon receiving a HeartBeatRequest
+*/
+void receiver(msg_relay_t* relay) {
+	/*
+	 * while(1)
+	 *		if (relay->start == 1) break
+	 *		usleep
+	 * while(1)
+	 * 		read data from device
+	 *		if data can be parsed into a message
+	 *			parse data and send to shm
+	 *			if HeartBeatRequest, relay->got_hb_req = 1
+	 *			if HeartBeatResponse, relay->sent_hb_req = 0;
+	 */
+}
+
 /*
  * Send a PING message to the device and wait for a SubscriptionResponse
  */
