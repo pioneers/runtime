@@ -16,6 +16,6 @@ typedef enum log_output { STD_OUT, LOG_FILE, NETWORK } log_output;
 #define CURR_OUTPUT_LOC STD_OUT
 
 //define the name/location of the log file
-#define LOG_FILE_LOC "/Users/ben/Desktop/runtime_log.log"
+#define LOG_FILE_LOC "/d/Documents/CollegeWork/PiE/c-runtime/logs/concurrent.log"
 
 #endif
