@@ -406,7 +406,7 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     // + cobe encoding overhead; Source: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
     int required_length = calc_max_cobs_msg_length(msg);
     if (len < required_length) {
-        return 1;
+        return -1;
     }
     uint8_t data[3 + msg->payload_length];
     data[0] = msg->message_id;
@@ -419,7 +419,7 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     cobs_encoded[0] = 0x00;
     int cobs_len = cobs_encode(&cobs_encoded[2], data, 3 + msg->payload_length);
     cobs_encoded[1] = cobs_len;
-    return 0;
+    return 2 + cobs_len;
 }
 
 int parse_message(uint8_t data[], message_t* msg_to_fill) {

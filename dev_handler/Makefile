@@ -1,5 +1,5 @@
 CC=gcc
-LIBFLAGS=-lusb-1.0
+LIBFLAGS=-lusb-1.0 -lpthread
 UNAME_S := $(shell uname -s) # Get Unix name
 
 # Mac

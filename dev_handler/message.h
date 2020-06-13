@@ -247,6 +247,7 @@ int calc_max_cobs_msg_length(message_t* msg);
  * msg: the message to serialize
  * data: empty buffer to be filled
  * len: the length of DATA. Should be at least calc_max_cobs_msg_length(msg)
+ * return: The length of the serialized message. -1 if len is too small (less than calc_max_cobs_msg_length)
  */
 int message_to_bytes(message_t* msg, uint8_t data[], int len);
 
