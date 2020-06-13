@@ -279,7 +279,6 @@ void shm_aux_stop (process_t process)
 	} else {
 		my_sem_close(gp_sem, "gamepad_mutex@client");
 		my_sem_close(rd_sem, "robot_desc_mutex@client");
-		log_runtime(DEBUG, "killed it");
 	}
 	
 	//the network handler is also responsible for unlinking everything
