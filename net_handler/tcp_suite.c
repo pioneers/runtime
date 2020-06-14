@@ -7,8 +7,8 @@ td_arg_t global_td_args[2];
 //structure of argument into a pair of tcp threads
 typedef struct tcp_arg = {
 	uint8_t challenge_wip;
-	uint16_t send_port;
-	uint16_t recv_port;
+	uint16_t send_port; //TODO: replace with the actual port data type
+	uint16_t recv_port; //TODO: replace with the actual port data type
 	uint8_t stop;
 } tcp_arg_t;
 
@@ -97,45 +97,55 @@ void *tcp_recv_thread (void *args)
 }
 
 //start the threads managing a TCP connection
-void start_tcp_suite (endpoint_t endpoint)
+void start_tcp_suite (target_t target)
 {
 	tcp_arg_t td_args = (tcp_arg_t *) malloc(sizeof(tcp_arg_t));
 	td_args->challenge_wip = 0;
-	td_args->send_port = ports[endpoint][0];
-	td_args->recv_port = ports[endpoint][1];
+	td_args->send_port = ports[target][0];
+	td_args->recv_port = ports[target][1];
 	td_args->stop = 0;
 	char msg[64];     //for error messages
 	
 	//create send thread
-	if (pthread_create(&td_ids[endpoint][0], NULL, tcp_send_thread, td_args) != 0) {
-		sprintf(msg, "failed to create TCP send thread with endpoint %d", endpoint);
+	if (pthread_create(&td_ids[target][0], NULL, tcp_send_thread, td_args) != 0) {
+		sprintf(msg, "failed to create TCP send thread with target %d", target);
 		error(msg);
 	}
 	
 	//create recv thread
-	if (pthread_create(&td_ids[endpoint][1], NULL, tcp_recv_thread, td_args) != 0) {
-		sprintf(msg, "failed to create TCP recv thread with endpoint %d", endpoint);
+	if (pthread_create(&td_ids[target][1], NULL, tcp_recv_thread, td_args) != 0) {
+		sprintf(msg, "failed to create TCP recv thread with target %d", target);
 		error(msg);
 	}
 	
-	//save this for later telling the threads to stop
-	global_td_args[endpoint] = td_args; 
+	global_td_args[target] = td_args; //save this for later telling the threads to stop
+	if (target == SHEPHERD_TARGET) {
+		robot_desc_write(SHEPHERD_TARGET, CONNECTED);
+	} else {
+		robot_desc_write(DAWN_TARGET, CONNECTED);
+	}
 }
 
 //stop the threads managing the TCP connection
-void stop_tcp_suite (endpoint_t endpoint)
+void stop_tcp_suite (target_t target)
 {
-	global_td_args[endpoint].stop = 1;
+	global_td_args[target].stop = 1;
 	
 	//join with send thread
-	if (pthread_join(td_ids[endpoint][0], NULL) != 0) {
-		sprintf(msg, "failed to join TCP send thread with endpoint %d", endpoint);
+	if (pthread_join(td_ids[target][0], NULL) != 0) {
+		sprintf(msg, "failed to join TCP send thread with target %d", target);
 		error(msg);
 	}
 	
 	//join with recv thread
-	if (pthread_join(td_ids[endpoint][1], NULL) != 0) {
-		sprintf(msg, "failed to join TCP recv thread with endpoint %d", endpoint);
+	if (pthread_join(td_ids[target][1], NULL) != 0) {
+		sprintf(msg, "failed to join TCP recv thread with target %d", target);
 		error(msg);
+	}
+	
+	if (target == SHEPHERD_TARGET) {
+		robot_desc_write(SHEPHERD_TARGET, DISCONNECTED);
+	} else {
+		robot_desc_write(DAWN_TARGET, DISCONNECTED);
 	}
 }

@@ -21,9 +21,9 @@ typedef enum net_msg {
 } net_msg_t;
 
 //the two possible endpoints
-typedef enum endpoint = {
-	SHEPHERD, DAWN
-} endpoint_t;
+typedef enum target = {
+	SHEPHERD_TARGET, DAWN_TARGET
+} target_t;
 
 //Intermediate data structures between the raw bytearray (string) sent over the network
 //and the values actually written into the system:
