@@ -7,14 +7,17 @@
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 #include "../shm_wrapper_aux/shm_wrapper_aux.h"
+#include "tcp_suite.h"
+#include "udp_suite.h"
 
 #define LOG_MSG_MAXLEN 512 //max length of a log message, in chars
 #define MAX_NUM_LOGS 16    //maximum number of logs that can be sent in one msg
 
 //All the different possible messages the network handler works with
 typedef enum net_msg {
-	GAMEPAD_STATE, DEVICE_DATA,    //UDP
-	RUN_MODE, LOG                  //log
+	GAMEPAD_STATE, DEVICE_DATA,       //UDP
+	RUN_MODE, CHALLENGE_DATA, LOG,    //TCP
+	NOP                               //Misc
 } net_msg_t;
 
 //the two possible endpoints
