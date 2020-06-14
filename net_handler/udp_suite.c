@@ -6,8 +6,8 @@ td_arg_t global_td_args;
 
 //structure of argument into a pair of udp threads
 typedef struct udp_arg = {
-	uint16_t send_port;
-	uint16_t recv_port;
+	uint16_t send_port; //TODO: replace with the actual port data type
+	uint16_t recv_port; //TODO: replace with the actual port data type
 	uint8_t stop;
 } udp_arg_t;
 
@@ -82,7 +82,13 @@ void *udp_recv_thread (void *args)
 	udp_arg_t *udp_args = (udp_arg_t *)args; //use this to communicate between the send and recv threads
 	
 	gp_state_t gp_state;
-	gp_state = NOP;
+	gp_state.msg = NOP;
+	gp_state.buttons = 0;
+	for (int i = 0; i < 4; i++) {
+		gp_state.joystick_vals[i] = 0.0;
+	}
+	gamepad_write(gp_state.buttons, gp_state.joystick_values);
+	robot_desc_write(GAMEPAD, CONNECTED);
 	
 	while (!(udp_args->stop)) {
 		// TODO: receive a message from the port and load into gp_state (do NOT block here!)
@@ -96,6 +102,13 @@ void *udp_recv_thread (void *args)
 		gp_state.msg = NOP;
 		usleep(1000); //sleep a bit so we're not looping as fast as possible
 	}
+	
+	gp_state.buttons = 0;
+	for (int i = 0; i < 4; i++) {
+		gp_state.joystick_vals[i] = 0.0;
+	}
+	gamepad_write(gp_state.buttons, gp_state.joystick_values);
+	robot_desc_write(GAMEPAD, DISCONNECTED);
 	free(udp_args); //recv thread is responsible for freeing the argument
 	return NULL;
 }
@@ -111,13 +124,13 @@ void start_udp_suite ()
 	
 	//create send thread
 	if (pthread_create(&td_ids[0], NULL, udp_send_thread, td_args) != 0) {
-		sprintf(msg, "failed to create UDP send thread with Dawn");
+		sprintf(msg, "failed to create UDP send thread with DAWN_TARGET");
 		error(msg);
 	}
 	
 	//create recv thread
 	if (pthread_create(&td_ids[1], NULL, udp_recv_thread, td_args) != 0) {
-		sprintf(msg, "failed to create UDP recv thread with Dawn");
+		sprintf(msg, "failed to create UDP recv thread with DAWN_TARGET");
 		error(msg);
 	}
 	
@@ -132,13 +145,13 @@ void stop_udp_suite ()
 	
 	//join with send thread
 	if (pthread_join(td_ids[0], NULL) != 0) {
-		sprintf(msg, "failed to join UDP send thread with Dawn");
+		sprintf(msg, "failed to join UDP send thread with DAWN_TARGET");
 		error(msg);
 	}
 	
 	//join with recv thread
-	if (pthread_join(td_ids[endpoint][1], NULL) != 0) {
-		sprintf(msg, "failed to join UDP recv thread with Dawn");
+	if (pthread_join(td_ids[1], NULL) != 0) {
+		sprintf(msg, "failed to join UDP recv thread with DAWN_TARGET");
 		error(msg);
 	}
 }
