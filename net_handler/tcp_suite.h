@@ -4,9 +4,9 @@
 #include "../runtime_util/runtime_util.h"
 
 //start the threads managing a TCP connection
-void start_tcp_suite (endpoint_t endpoint);
+void start_tcp_suite (target_t target);
 
 //stop the threads managing the TCP connection
-void stop_tcp_suite (endpoint_t endpoint);
+void stop_tcp_suite (target_t target);
 
 #endif
