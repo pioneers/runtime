@@ -7,8 +7,8 @@
 FILE *fd = NULL;                           //file descriptor to refer to output location
 char process_str[PROCESS_STR_SIZE];        //string for holding the process name, used in printing
 char *log_level_strs[] = {                 //strings for holding names of log levels, used in printing
-	"INFO",
 	"DEBUG",
+	"INFO",
 	"WARN",
 	"ERROR",
 	"FATAL"
@@ -37,8 +37,9 @@ void logger_init (process_t process)
 		sprintf(process_str, "EXECUTOR");
 	} else if (process == NET_HANDLER) {
 		sprintf(process_str, "NET_HANDLER");
+	} else if (process == STUDENTAPI) {
+		sprintf(process_str, "STUDENTAPI");
 	}
-	
 }
 
 void logger_stop ()

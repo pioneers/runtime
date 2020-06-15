@@ -9,6 +9,47 @@
 
 //test process 2 for shm_wrapper. is a dummy executor
 
+// ************************************* HELPER FUNCTIONS ******************************************** //
+
+void sync()
+{
+	int dev_ix;
+	uint32_t catalog;
+	param_val_t params_in[MAX_PARAMS];
+	param_val_t params_out[MAX_PARAMS];
+
+	//wait until sync in tester1 connects the sync device
+	while (1) {
+		get_catalog(&catalog);
+		if (catalog) {
+			break;
+		}
+		usleep(1000);
+	}
+
+	params_in[0].p_b = 0;
+	device_write(0, EXECUTOR, COMMAND, 1, params_in); //write a 0 to the downstream block
+	params_in[0].p_b = 1;
+	while (1) {
+		device_write(0, EXECUTOR, DATA, 1, params_in); //write 1 to the upstream block
+		device_read(0, EXECUTOR, COMMAND, 1, params_out); //wait on a 1 in the downstream block
+		if (params_out[0].p_b) {
+			break;
+		}
+		usleep(100);
+	}
+	//wait until sync in tester1 disconnects the device
+	while (1) {
+		get_catalog(&catalog);
+		if (!catalog) {
+			break;
+		}
+		usleep(1000);
+	}
+	sleep(1);
+	printf("\tSynced; starting test!\n");
+}
+
 // *************************************************************************************************** //
 //test the param bitmap and sanity check to make sure shm connection is functioning
 void sanity_test()
@@ -21,6 +62,8 @@ void sanity_test()
 	param_val_t params_out[MAX_PARAMS];
 	
 	uint32_t pmap[33];
+	
+	sync();
 	
 	print_dev_ids();
 	
@@ -38,8 +81,6 @@ void sanity_test()
 	}
 	
 	print_pmap();
-	
-	sleep(1);
 }
 
 // *************************************************************************************************** //
@@ -49,6 +90,8 @@ void sanity_test()
 //test disconnecting devices in quick succession
 void dev_conn_test ()
 {
+	sync();
+	
 	//process2's job is simply to monitor what's going on in the catalog
 	//as devices connect and disconnect. all the work is being done from process1
 	for (int i = 0; i < 7; i++) {
@@ -81,6 +124,8 @@ void single_thread_load_test ()
 	params_in[0].p_b = 0;
 	params_in[0].p_i = 1;
 	params_in[0].p_f = 2.0;
+	
+	sync();
 	
 	//wait until the two devices connect
 	while (1) {
@@ -120,7 +165,15 @@ void single_thread_load_test ()
 	//tell process1 to stop reading
 	params_in[0].p_b = 1;
 	device_write(1, EXECUTOR, DATA, 1, params_in);
-	sleep(1);
+	
+	//wait for devices to disconnect
+	while (1) {
+		get_catalog(&catalog);
+		if (!catalog) {
+			break;
+		}
+		usleep(1000);
+	}
 }
 
 // *************************************************************************************************** //
@@ -201,6 +254,8 @@ void dual_thread_read_write_test ()
 	int status;
 	pthread_t read_tid, write_tid; //thread_ids for the two threads
 	
+	sync();
+	
 	printf("Beginning dual thread read write test...\n");
 	
 	//create threads
@@ -218,7 +273,91 @@ void dual_thread_read_write_test ()
 	pthread_join(read_tid, NULL);
 	pthread_join(write_tid, NULL);
 	
+	sleep(1);
+	
 	printf("Done!\n");
+}
+
+// *************************************************************************************************** //
+
+//test to find approximately how many read/write operations
+//can be done in a second on a device downstream block between
+//exeuctor and device handler, USING DEV_UID READ/WRITE FUNCTIONS
+void single_thread_load_test_uid ()
+{
+	int dev_ix = -1;
+	uint64_t dev_uid = 0;
+	dev_id_t dev_ids[MAX_DEVICES];
+	
+	int count = 100; //starting number of writes to complete
+	double gain = 40000;
+	
+	double range = 0.01; //tolerance range of time taken around 1 second for test to complete
+	int counts[5]; //to hold the counts that resulted in those times
+	int good_trials = 0;
+	
+	struct timeval start, end;
+	double time_taken;
+	
+	uint32_t catalog = 0;
+	uint32_t pmap[MAX_DEVICES + 1];
+	param_val_t params_in[MAX_PARAMS];
+	params_in[0].p_b = 0;
+	params_in[0].p_i = 1;
+	params_in[0].p_f = 2.0;
+	
+	sync();
+	
+	//wait until the two devices connect
+	while (1) {
+		get_catalog(&catalog);
+		if ((catalog & 1) && (catalog & 2)) {
+			break;
+		}
+	}
+	
+	get_device_identifiers(dev_ids);
+	dev_uid = dev_ids[0].uid;
+	
+	//adjust the count until 5 trials lie within 0.01 second of 1 second
+	while (good_trials < 5) {
+		gettimeofday(&start, NULL);
+		for (int i = 0; i < count; i++) {
+			//wait until previous write has been pulled out by process1
+			while (1) {
+				get_param_bitmap(pmap);
+				if (!pmap[0]) {
+					break;
+				}
+			}
+			device_write_uid(dev_uid, EXECUTOR, COMMAND, 1, params_in); //write into block
+		}
+		gettimeofday(&end, NULL);
+		
+		time_taken = (double)(end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec) / 1000000.0);
+		if (time_taken > (1.0 - range) && time_taken < (1.0 + range)) {
+			counts[good_trials++] = count;
+		} else {
+			count += (int)((1.0 - time_taken) * gain);
+		}
+		printf("count = %d completed in %f seconds for %f writes / second using UID functions\n", count, time_taken, (double) count / time_taken);
+	}
+	
+	//manually calculate and print the average bc laziness :P
+	printf("\naverage: %f writes / second using UID functions\n", (double)(counts[0] + counts[1] + counts[2] + counts[3] + counts[4]) / 5.0);
+	
+	//tell process1 to stop reading
+	params_in[0].p_b = 1;
+	device_write(1, EXECUTOR, DATA, 1, params_in);
+	
+	//wait for devices to disconnect
+	while (1) {
+		get_catalog(&catalog);
+		if (!catalog) {
+			break;
+		}
+		usleep(1000);
+	}
 }
 
 // *************************************************************************************************** //
@@ -227,12 +366,14 @@ void ctrl_c_handler (int sig_num)
 	printf("Aborting and cleaning up\n");
 	fflush(stdout);
 	shm_stop(EXECUTOR);
+	logger_stop(EXECUTOR);
 	exit(1);
 }
 
 int main()
 {	
 	shm_init(EXECUTOR);
+	logger_init(EXECUTOR);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
 	sanity_test();	
@@ -243,7 +384,10 @@ int main()
 	
 	dual_thread_read_write_test();
 	
+	single_thread_load_test_uid();
+	
 	shm_stop(EXECUTOR);
+	logger_stop(EXECUTOR);
 	
 	sleep(2);
 	
