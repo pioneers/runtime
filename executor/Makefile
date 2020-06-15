@@ -8,7 +8,7 @@ PY_LIB=-l$(py)m
 
 UNAME=$(shell uname)
 ifeq ($(UNAME), Linux)
-LIBS=-pthread -lrt
+LIBS=-pthread -lrt -rdynamic
 #-rdynamic or -export-dynamic to make it dynamically linked
 endif
 ifeq ($(UNAME), Darwin)

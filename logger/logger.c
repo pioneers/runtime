@@ -43,7 +43,8 @@ void logger_init (process_t process)
 }
 
 void logger_stop ()
-{
+{	
+	fprintf(fd, "\n");
 	//close the file at fd
 	if (CURR_OUTPUT_LOC == STD_OUT) { //don't do anything if logging to stdout
 		return;
@@ -80,7 +81,10 @@ void log_runtime (log_level level, char *msg)
 	}
 	
 	len = strlen(msg);
-	if (*(msg + len - 1) == '\n') {
+	if (level == PYTHON) {
+		fprintf(fd, "%s", msg);
+	}
+	else if (*(msg + len - 1) == '\n') {
 		fprintf(fd, "%s @ %s\t(%s) %s", log_level_strs[level], process_str, time_str, msg);
 	} else {
 		fprintf(fd, "%s @ %s\t(%s) %s\n", log_level_strs[level], process_str, time_str, msg);
