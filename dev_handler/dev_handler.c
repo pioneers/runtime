@@ -183,8 +183,10 @@ void* relayer(void* relay_cast) {
 	}
 	printf("INFO: Successfully claimed 0th interface!\n");
 	const struct libusb_interface interface = config->interface[0];
+
+	// Get the 0th setting of the claimed interface. TODO: Getting the first one. Change later?
 	printf("INFO: 0th interface has %d settings\n", interface.num_altsetting);
-	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0]; // TODO: Getting the first one. Change later?
+	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0];
 
 	// Get the endpoints for sending and receiving
 	printf("INFO: 0th setting of 0th interface has %d endpoints\n", interface_desc.bNumEndpoints);
@@ -206,7 +208,9 @@ void* relayer(void* relay_cast) {
 			// LIBUSB_ENDPOINT_OUT: Transfer from dev_handler to device
 			relay->send_endpoint = endpoint.bEndpointAddress;
 			found_bulk_out = 1;
-		} else if (found_bulk_in && found_bulk_out) {
+		}
+		// If we found both endpoints, break
+		if (found_bulk_in && found_bulk_out) {
 			break;
 		}
 	}
@@ -349,8 +353,8 @@ int ping(msg_relay_t* relay) {
 
 	// Bulk transfer the Ping message to the device
 	printf("INFO: Ping message serialized and ready to transfer\n");
-	int* transferred; // The number of bytes actually sent
-	ret = libusb_bulk_transfer(relay->handle, relay->send_endpoint, data, ret, transferred, DEVICE_TIMEOUT);
+	int transferred = 0; // The number of bytes actually sent
+	ret = libusb_bulk_transfer(relay->handle, relay->send_endpoint, data, ret, &transferred, DEVICE_TIMEOUT);
 	if (ret != 0) {
 		printf("ERROR: Couldn't bulk transfer Ping with error code %s\n", libusb_error_name(ret));
 		free(data);
@@ -358,19 +362,19 @@ int ping(msg_relay_t* relay) {
 	}
 	free(data);
 	data = NULL;
-	printf("INFO: Ping message successfully sent!\n");
+	printf("INFO: Ping message successfully sent with %d bytes!\n", transferred);
 
 	// Try to read a SubscriptionResponse, which we expect from a lowcar device that receives a Ping
 	data = malloc(32); // It shouldn't be more than 32 bytes. ~20 + cobs
 	printf("INFO: Listening for SubscriptionResponse\n");
-	ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, 32, transferred, DEVICE_TIMEOUT);
+	ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, 32, &transferred, DEVICE_TIMEOUT);
 	if (ret != 0) {
 		printf("ERROR: Couldn't bulk transfer SubscriptionResponse with error code %s\n", libusb_error_name(ret));
 		free(data);
 		return 2;
 	}
 	// Parse the received message to verify it's a SubscriptionResponse
-	printf("INFO: Data received and will be parsed!\n");
+	printf("INFO: %d bytes of data received and will be parsed!\n", transferred);
 	message_t* sub_response = malloc(sizeof(message_t));
 	ret = parse_message(data, sub_response);
 	free(data); // We don't need the encoded message anymore
