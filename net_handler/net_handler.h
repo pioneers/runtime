@@ -17,7 +17,7 @@
 typedef enum net_msg {
 	GAMEPAD_STATE, DEVICE_DATA,       //UDP
 	RUN_MODE, CHALLENGE_DATA, LOG,    //TCP
-	NOP                               //Misc
+	NOP, ACK                          //Misc
 } net_msg_t;
 
 //the two possible endpoints
