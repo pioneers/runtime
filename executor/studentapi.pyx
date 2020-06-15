@@ -4,8 +4,9 @@ from cython cimport view, final
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 # from pthread cimport *
 
-import enum
 import threading
+import sys
+import builtins
 # import numpy as np
 
 """Student API written in Cython. """
@@ -14,6 +15,44 @@ import threading
 logger_init(STUDENTAPI)
 log_runtime(DEBUG, "Student API intialized")
 
+MAX_THREADS = 8
+
+## Tools used for logging
+
+def _print(*values, sep=' '):
+    """Helper print function that redirects message for stdout instead into the Runtime logger. Will print at the INFO level.
+
+    Args:
+        values: iterable of values to print
+        sep: string used as the seperator between each value. Default is ' '
+    """
+    string = sep.join(map(str, values))
+    log_runtime(INFO, string.encode('utf-8'))
+
+class OutputRedirect:
+    def __init__(self, level):
+        self.level = level
+    def write(self, text):
+        log_runtime(self.level, text.encode('utf-8'))
+
+builtins.print = _print
+sys.stderr = OutputRedirect(PYTHON)
+
+
+## Test functions for SHM
+
+def _shm_init():
+    """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
+    shm_init(STUDENTAPI)
+    shm_aux_init(STUDENTAPI)
+
+def _shm_stop():
+    """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
+    shm_stop(STUDENTAPI)
+    shm_aux_stop(STUDENTAPI)
+
+
+## API Objects
 
 class CodeExecutionError(Exception):
     """
@@ -31,34 +70,12 @@ class CodeExecutionError(Exception):
     def __init__(self, message='', **context):
         super().__init__(message)
         self.context = context
-        log_runtime(ERROR, str(self).encode('utf-8'))
+        # log_runtime(ERROR, str(self).encode('utf-8'))
 
     def __repr__(self):
         cls_name, (msg, *_) = self.__class__.__name__, self.args
         kwargs = ', '.join(f'{name}={repr(value)}' for name, value in self.context.items())
         return f'{cls_name}({repr(msg)} {kwargs})'
-
-
-def _shm_init():
-    """ONLY USED FOR TESTING CODE LOADER. NOT USED IN PRODUCTION"""
-    shm_init(STUDENTAPI)
-    shm_aux_init(STUDENTAPI)
-
-def _shm_stop():
-    """ONLY USED FOR TESTING CODE LOADER. NOT USED IN PRODUCTION"""
-    shm_stop(STUDENTAPI)
-    shm_aux_stop(STUDENTAPI)
-
-
-def _print(*values, sep=' '):
-    """Helper print function that redirects message for stdout instead into the Runtime logger. Will print at the INFO level.
-
-    Args:
-        values: iterable of values to print
-        sep: string used as the seperator between each value. Default is ' '
-    """
-    string = sep.join(map(str, values))
-    log_runtime(INFO, string.encode('utf-8'))
 
 
 cdef class Gamepad:
@@ -73,13 +90,13 @@ cdef class Gamepad:
     def __cinit__(self, mode):
         """Initializes the mode of the robot. Also initializes the auxiliary SHM. """
         self.mode = mode
-        shm_aux_init(STUDENTAPI)
-        log_runtime(DEBUG, "Aux SHM initialized")
+        # shm_aux_init(STUDENTAPI)
+        # log_runtime(DEBUG, "Aux SHM initialized")
 
     def __dealloc__(self):
         """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
-        shm_aux_stop(STUDENTAPI)
-        log_runtime(DEBUG, "Aux SHM stopped")
+        # shm_aux_stop(STUDENTAPI)
+        # log_runtime(DEBUG, "Aux SHM stopped")
 
     cpdef get_value(self, str param_name):
         """
@@ -124,7 +141,6 @@ cdef class Robot:
         """Once process is done and object is deallocated, close the mapping to SHM."""
         shm_stop(STUDENTAPI)
         log_runtime(DEBUG, "SHM stopped")
-        print("Robot deallocated")
 
 
     def run(self, action, *args, **kwargs) -> None:
@@ -139,6 +155,8 @@ cdef class Robot:
         thread.daemon = True
         self.running_actions[action.__name__] = thread
         thread.start()
+        if threading.active_count() > MAX_THREADS:
+            raise CodeExecutionError(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS}. Make sure your run actions are returning properly.")
         
 
     def is_running(self, action) -> bool:

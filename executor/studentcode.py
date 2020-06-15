@@ -3,10 +3,6 @@ import time
 RFID = '51975776734790250051004'
 MOTOR = '12_2604648'
 
-# while True:
-#     print('You cannot import me')
-#     time.sleep(1)
-
 
 def autonomous_actions(n=1000):
     print('Running autonomous action ...')
@@ -17,7 +13,7 @@ def autonomous_actions(n=1000):
 
 def set_motor():
     Robot.set_value(MOTOR, 'duty_cycle', 0.5)
-    time.sleep(2)
+    time.sleep(1)
     print("after first sleep")
     Robot.set_value(MOTOR, 'duty_cycle', 0)
     time.sleep(2)
@@ -32,7 +28,7 @@ def autonomous_setup():
     global start
     start = time.time()
     Robot.run(set_motor)
-    # time.sleep(1)
+
 
 i = 0
 
@@ -42,6 +38,8 @@ def autonomous_main():
     if i % 500000 == 0:
         print("Iteration:", i, time.time() - start)
         Robot.run(teleop_setup)
+        Robot.run(double, 5.0)
+        # Robot.run(wait)
     i += 1
     # print("testing whether thread dies", time.time())
     # print('Running autonomous main ...')
@@ -93,3 +91,8 @@ def teleop_main():
 
 def double(x):
     return 2 * x
+
+
+def wait():
+    while True:
+        pass
