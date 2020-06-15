@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> // strcmp
-#include <math.h> //ceil
-#include "devices.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 

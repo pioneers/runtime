@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <signal.h> // Used to handle SIGTERM, SIGINT, SIGKILL
 #include <time.h>   // For timestamps on HeartBeatRequests
+#include <unistd.h> // sleep(int seconds)
 
 /*
  * A struct defining a device's information for the lifetime of its connection
@@ -99,10 +100,10 @@ typedef struct msg_relay {
     pthread_t relayer;
     uint8_t send_endpoint;
     uint8_t receive_endpoint;
-    uint8_t start;		    // set by relayer; a flag to tell reader and receiver to start work
+    uint8_t start;		    // set by relayer: A flag to tell reader and receiver to start work when set to 1
     dev_id_t dev_id;        // set by relayer once SubscriptionResponse is received
-    uint8_t sent_hb_req;	// set by write: relay should expect a hb response
-    uint8_t got_hb_req;	    // set by read: write should send a hb response
+    uint64_t sent_hb_req;	// set by sender: The TIME that a HeartBeatRequest was sent. Relay should expect a hb response
+    uint8_t got_hb_req;	// set by receiver: A flag to tell sender to send a HeartBeatResponse
 } msg_relay_t;
 
 /* The maximum number of milliseconds to wait for a SubscriptionResponse or HeartBeatResponse
@@ -153,7 +154,7 @@ void* sender(void* relay);
 void* receiver(void* relay);
 
 /*******************************************
- *             DEVICE POLLING              *
+ *            DEVICE MESSAGES              *
  *******************************************/
 /*
  * Synchronously sends a PING message to a device to check if it's a lowcar device
@@ -166,4 +167,9 @@ void* receiver(void* relay);
  */
 int ping(msg_relay_t* relay);
 
+/*******************************************
+ *                 UTILITY                 *
+ *******************************************/
+/* Returns the number of milliseconds since the Unix Epoch */
+int64_t millis();
 #endif
