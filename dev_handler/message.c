@@ -395,8 +395,12 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
 
 int calc_max_cobs_msg_length(message_t* msg){
   int required_packet_length = 3 + msg->payload_length;
-  int cobs_length = required_packet_length + ceil(required_packet_length / 254);
-  return cobs_length;
+  // Cobs encoding a length N message adds overhead of at most ceil(N/254)
+  int cobs_length = required_packet_length + (required_packet_length / 254) + 1;
+  /* Add 2 additional bytes to the buffer for use in message_to_bytes()
+   * 0th byte will be 0x0 indicating the start of a packet.
+   * 1st byte will hold the actual length from cobs encoding */
+  return cobs_length + 2;
 }
 
 

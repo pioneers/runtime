@@ -15,12 +15,12 @@ endif
 
 # Run dev_handler main
 dev: dev_handler.c message.c
-	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c devices.c -o dev_handler $(LIBFLAGS)
+	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c -o dev_handler $(LIBFLAGS)
 	sudo ./dev_handler
 
 # Run dev_handler main with valgrind
 val: dev_handler.c
-	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c devices.c -o dev_handler $(LIBFLAGS)
+	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c -o dev_handler $(LIBFLAGS)
 	sudo valgrind ./dev_handler
 
 # Run test for dev_handler

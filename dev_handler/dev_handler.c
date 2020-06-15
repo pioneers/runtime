@@ -244,7 +244,7 @@ void* relayer(void* relay_cast) {
 	while (1) {
 		// Getting the device descriptor if the device is disconnected should give an error
 		ret = libusb_get_device_descriptor(relay->dev, &desc);
-		if ((ret != 0) || (relay->sent_hb_req >= DEVICE_TIMEOUT)) {
+		if ((ret != 0) || ((millis() - relay->sent_hb_req) >= DEVICE_TIMEOUT)) {
 			// TODO: Disconnect from shared memory
 			printf("INFO: Device disconnected or timed out!\n");
 			relay_clean_up(relay);
@@ -254,10 +254,12 @@ void* relayer(void* relay_cast) {
 }
 
 void relay_clean_up(msg_relay_t* relay) {
+	printf("INFO: Cleaning up threads\n");
 	libusb_release_interface(relay->handle, 0);
 	libusb_close(relay->handle);
 	pthread_cancel(relay->sender);
 	pthread_cancel(relay->receiver);
+	sleep(1);
 	free(relay);
 	pthread_cancel(pthread_self());
 }
@@ -364,6 +366,7 @@ int ping(msg_relay_t* relay) {
 	ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, 32, transferred, DEVICE_TIMEOUT);
 	if (ret != 0) {
 		printf("ERROR: Couldn't bulk transfer SubscriptionResponse with error code %s\n", libusb_error_name(ret));
+		free(data);
 		return 2;
 	}
 	// Parse the received message to verify it's a SubscriptionResponse
@@ -386,6 +389,18 @@ int ping(msg_relay_t* relay) {
 	relay->dev_id.year = sub_response->payload[8];						// device year is the 8th byte
 	relay->dev_id.uid  = ((uint64_t*)(&sub_response->payload[9]))[0];	// device uid is the 64-bits starting at the 9th byte
 	return 0;
+}
+
+/*******************************************
+ *                 UTILITY                 *
+ *******************************************/
+/* Returns the number of milliseconds since the Unix Epoch */
+int64_t millis() {
+	struct timeval time; // Holds the current time in seconds + microsecondsx
+	gettimeofday(&time, NULL);
+	int64_t s1 = (int64_t)(time.tv_sec) * 1000; // Convert seconds to milliseconds
+	int64_t s2 = (time.tv_usec / 1000);			// Convert microseconds to milliseconds
+	return s1 + s2;
 }
 
 int main() {
