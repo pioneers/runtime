@@ -1,22 +1,54 @@
 #include "udp_suite.h"
 
-uint16_t ports[2] = { 8200, 8201 }; //hard-coded port numbers
+#define UDP_BUF_SIZE 2000   //largest size, in bytes, of a message (dev_ids could be pretty big)
+#define UDP_PORT 8192       //arbitrarily chosen port number (2^13 bc this was written year 13)
+
 pthread_t td_ids[2];
 td_arg_t global_td_args;
 
 //structure of argument into a pair of udp threads
 typedef struct udp_arg = {
-	uint16_t send_port; //TODO: replace with the actual port data type
-	uint16_t recv_port; //TODO: replace with the actual port data type
+	int sock;                       //socket descriptor (returned by socket())
+	struct sockaddr_in dawn_addr;   //description of dawn endpoint
 	uint8_t stop;
 } udp_arg_t;
+
+// ****************************************** HELPER FUNCTIONS ********************************** //
 
 static void error (char *msg)
 {
 	perror(msg);
 	log_runtime(ERROR, msg); //send the message to the logger
-	exit(1);
 }
+
+//send given dev_data message on given socket
+static void send_dev_data (udp_arg_t *udp_args, dev_data_t *dev_data)
+{
+	char buf[UDP_BUF_SIZE];
+	
+	//flatten the dev_data struct and paste it piece by piece into buf
+	//find the length of the final string
+	//send it with sendto()
+}
+
+//wait for a message from Dawn, and paste contents into provided struct
+static void recv_gp_stae (udp_arg_t *udp_args, gp_state_t *gp_state)
+{
+	char buf[UDP_BUF_SIZE];
+	ssize_t bytes_read;
+	
+	if ((bytes_read = recvfrom(udp_args->socket, buf, UDP_BUF_SIZE, 0, NULL, sizeof(struct sockaddr_in))) <= 0) {
+		error("recvfrom failed in main loop");
+	}
+	
+	if (bytes_read <= sizeof(gp_state_t)) {
+		memcpy(gp_state, (const void *) buf, (size_t) bytes_read); //paste all the bytes read from buf to gp_state
+	} else {
+		memcpy(gp_state, (const void *) buf, sizeof(gp_state_t)); //otherwise paste sizeof(gp_state_t) bytes so gp_state_t doesn't overflow
+	}
+}
+
+// ******************************************* CORE FUNCTIONS *********************************** //
 
 //send DEVICE_DATA messages to Dawn
 void *udp_send_thread (void *args)
@@ -63,7 +95,8 @@ void *udp_send_thread (void *args)
 			device_read(valid_dev_ixs[i], NET_HANDLER, DATA, params_to_read, &(dev_data.device_params[i])); //pull info
 		}
 		
-		//TODO: package data and send over UDP socket
+		//package data and send over socket
+		send_dev_data(udp_args, &dev_data);
 		
 		//free everything
 		for (int i = 0; i < dev_data.num_devices; i++) {
@@ -91,7 +124,7 @@ void *udp_recv_thread (void *args)
 	robot_desc_write(GAMEPAD, CONNECTED);
 	
 	while (!(udp_args->stop)) {
-		// TODO: receive a message from the port and load into gp_state (do NOT block here!)
+		recv_gp_state(udp_args, &gp_state);
 		
 		//handle the received packet
 		if (gp_state.msg == GAMEPAD_STATE) {
@@ -117,10 +150,44 @@ void *udp_recv_thread (void *args)
 void start_udp_suite ()
 {
 	udp_arg_t td_args = (udp_arg_t *) malloc(sizeof(udp_arg_t));
-	td_args->send_port = ports[0];
-	td_args->recv_port = ports[1];
+	struct sockaddr_in my_addr, dawn_addr;    //for holding IP addresses (IPv4)
 	td_args->stop = 0;
-	char msg[64];     //for error messages
+	char msg[64];        //for error messages
+	char buf[256];       //buffer for receiving messages
+	int ready = 0;
+	
+	//create the socket
+	if ((td_args->sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		error("could not create udp socket");
+		return;
+	}
+	
+	//bind the socket to any valid IP address on the raspi and specified port
+	memset((char *)&my_addr, 0, sizeof(struct sockaddr_in));
+	my_addr.sin_family = AF_INET;
+	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	my_addr.sin_port = htons(PORT);
+	if (bind(td_args->sock, (struct sockaddr *)&my_addr, sizeof(struct sockaddr))) < 0) {
+		error("udp socket bind failed");
+		free(td_args);
+		fclose(&(td_args->socket));
+		return;
+	}
+	
+	//get the address of Dawn instance asking for connection
+	while (!ready) {
+		if (recvfrom(td_args->socket, buf, 256, 0, (struct sockaddr *)&dawn_addr, sizeof(struct sockaddr_in)) <= 0) {
+			error("failed to receive coherent message from Dawn");
+		}
+		if ((net_msg_t) buf[0] == ACK) {
+			td_args->dawn_addr = dawn_addr;
+			//TODO: what happens if this fails
+			if (sendto(td_args->socket, buf, 1, 0, (struct sockaddr *)&dawn_addr, sizeof(struct sockaddr_in)) <= 0) {
+				error("failed to send acknowledgement to Dawn");
+			}
+			ready = 1;
+		}
+	}
 	
 	//create send thread
 	if (pthread_create(&td_ids[0], NULL, udp_send_thread, td_args) != 0) {
@@ -154,4 +221,8 @@ void stop_udp_suite ()
 		sprintf(msg, "failed to join UDP recv thread with DAWN_TARGET");
 		error(msg);
 	}
+	
+	//close the sockets
+	fclose(&(global_td_args.send_fd));
+	fclose(&(global_td_args.recv_fd));
 }
