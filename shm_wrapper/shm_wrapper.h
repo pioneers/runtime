@@ -10,6 +10,7 @@
 #include <unistd.h>                        //for standard symbolic constants
 #include <semaphore.h>                     //for semaphores
 #include <sys/mman.h>                      //for posix shared memory
+#include "../logger/logger.h"              //for logger (TODO: consider removing relative pathname in include)
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
 //enumerated names for the two associated blocks per device
@@ -82,6 +83,12 @@ No return value.
 */
 void device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
 
+/*
+This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
+the device that should be read, rather than the device index.
+*/
+void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
+
 /*	
 Should be called from every process wanting to write to the device data
 Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
@@ -96,6 +103,12 @@ Grabs either one or two semaphores depending on calling process and stream reque
 No return value.
 */
 void device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
+
+/*
+This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
+the device that should be written, rather than the device index.
+*/
+void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
 
 /*
 Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
