@@ -39,6 +39,8 @@ gamepad_t *gp_ptr;                         //points to memory-mapped shared memo
 robot_desc_t *rd_ptr;                      //points to memory-mapped shared memory block for robot description
 sem_t *gp_sem;                             //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                             //semaphore used as a mutex on the robot description
+int gp_val;
+int rd_val;
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
@@ -57,6 +59,7 @@ static void my_sem_wait (sem_t *sem, char *sem_desc)
 		sprintf(msg, "sem_wait: %s", sem_desc);
 		error(msg);
 	}
+	(sem == gp_sem) ? gp_val-- : rd_val--;
 }
 
 static void my_sem_post (sem_t *sem, char *sem_desc)
@@ -66,11 +69,18 @@ static void my_sem_post (sem_t *sem, char *sem_desc)
 		sprintf(msg, "sem_post: %s", sem_desc);
 		error(msg);
 	}
+	(sem == gp_sem) ? gp_val++ : rd_val++;
 }
 
 static void my_sem_close (sem_t *sem, char *sem_desc)
 {
 	char msg[64];
+	if (sem == gp_sem && gp_val == 0) {
+		my_sem_post(gp_sem, "before close");
+	} else if (sem == rd_sem && rd_val == 0) {
+		my_sem_post(rd_sem, "before close");
+	}
+	
 	if (sem_close(sem) == -1) {
 		sprintf(msg, "sem_close: %s", sem_desc);
 		error(msg);
@@ -121,11 +131,17 @@ void print_gamepad_state ()
 	//since there's no get_gamepad function (we don't need it, and hides the implementation from users)
 	//we need to acquire the semaphore for the print
 	
+	//oof string arrays for printing
+	char *button_names[NUM_GAMEPAD_BUTTONS] = {
+		"A_BUTTON", "B_BUTTON", "X_BUTTON", "Y_BUTTON", "L_BUMPER", "R_BUMPER", "L_TRIGGER", "R_TRIGGER",
+		"BACK_BUTTON", "START_BUTTON", "L_STICK", "R_STICK", "UP_DPAD", "DOWN_DPAD", "LEFT_DPAD", "RIGHT_DPAD", "XBOX_BUTTON"
+	};
+	char *joystick_names[4] = {
+		"X_LEFT_JOYSTICK", "Y_LEFT_JOYSTICK", "X_RIGHT_JOYSTICK", "Y_RIGHT_JOYSTICK"
+	};
+	
 	//wait on gp_sem
 	my_sem_wait(gp_sem, "gamepad_mutex (in print)");
-	
-	char** button_names = get_button_names();
-	char** joystick_names = get_joystick_names();
 	
 	//only print pushed buttons (so we don't print out 22 lines of output each time we all this function)
 	printf("Current Gamepad State:\n\tPushed Buttons:\n");
@@ -166,11 +182,13 @@ void shm_aux_init (process_t process)
 		if ((gp_sem = sem_open(GP_MUTEX_NAME, O_CREAT, 0660, 0)) == SEM_FAILED) {
 			error("sem_open: gamepad_mutex@net_handler");
 		}
+		gp_val = 0;
 		
 		//mutual exclusion semaphore, rd_sem with initial value = 1
 		if ((rd_sem = sem_open(RD_MUTEX_NAME, O_CREAT, 0660, 1)) == SEM_FAILED) {
 			error("sem_open: robot_desc_mutex@net_handler");
 		}
+		rd_val = 1;
 		
 		//create gamepad shm block
 		if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {

@@ -2,7 +2,7 @@ from libc.stdint cimport *
 
 cdef extern from "../logger/logger_config.h":
     enum log_level:
-        DEBUG, INFO, WARN, ERROR,
+        DEBUG, INFO, WARN, ERROR, PYTHON
 
 
 cdef extern from "../runtime_util/runtime_util.h":
