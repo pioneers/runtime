@@ -333,7 +333,6 @@ ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
  *  Switch2 is param 2, switch1 is param 1
  *  Return 110  (switch2 on, switch1 on, switch0 off)
 */
-/*
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     uint8_t param_nums[len]; // [1, 9, 2] -> [0001, 1001, 0010]
     device_t* dev = get_device(device_type);
@@ -355,7 +354,6 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     }
     return mask;
 }
-*/
 
 /*
  * Given a device_type and a mask, return an array of param names

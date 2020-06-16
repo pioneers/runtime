@@ -223,7 +223,7 @@ ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
  * len: The length of params
  * return: 32-bit mask. bit i is on if the device's parameter i is in PARAMS. Otherwise bit i is off.
  */
-// uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
+uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
  * Calculates the largest length possible of a cobs-encoded msg
