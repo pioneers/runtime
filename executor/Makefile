@@ -1,6 +1,6 @@
 cc=gcc
 # Change this to point to your specific Python version. Need >= 3.6
-py=python3.6
+py=python3.7
 
 CFLAGS=$(shell $(py)-config --cflags)
 LDFLAGS=$(shell $(py)-config --ldflags)
@@ -14,6 +14,9 @@ endif
 ifeq ($(UNAME), Darwin)
 LIBS=
 endif
+
+
+all: executor studentapi
 
 func: run_python.c
 	$(cc) run_python.c -o func $(PY_LIB)
@@ -32,7 +35,7 @@ test_api: studentapi
 
 clean:
 	rm studentapi.c
+	rm executor
 	rm simple
 	rm func
-	rm executor
 	# rm studentapi.cpython-36m-x86_64-linux-gnu.so
