@@ -26,11 +26,11 @@ typedef enum packet_type {
 } packet_type;
 
 /* The types of error codes a device can send */
-typedef enum error_code {
-    UnexpectedDelimiter = 0xFD,
-    CheckumError = 0xFE,
-    GenericError = 0xFF
-} error_code_t;
+// typedef enum error_code {
+//     UnexpectedDelimiter = 0xFD,
+//     CheckumError = 0xFE,
+//     GenericError = 0xFF
+// } error_code_t;
 
 /* A struct defining a message to be sent over serial */
 typedef struct message {
@@ -41,20 +41,13 @@ typedef struct message {
 } message_t;
 
 /*
- * Utility functions for breaking apart the 88-bit device info (dev_id_t)
- */
-uint16_t get_device_type(dev_id_t id);
-uint8_t get_year(dev_id_t id);
-uint64_t get_uid(dev_id_t id);
-
-/*
- * Utility function to calculate the size of the payload needed
+ * Private utility function to calculate the size of the payload needed
  * for a DeviceWrite/DeviceData message.
  * device_type: The type of device (Ex: 2 for Potentiometer)
  * param_bitmap: 32-bit param bit map. The i-th bit indicates whether param i will be transmitted in the message
  * return: The size of the payload
  */
-ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap);
+// ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap);
 
 /******************************************************************************************
  *                              MESSAGE CONSTRUCTORS                                      *
@@ -125,7 +118,7 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
  * Payload: 32-bit param bit-mask, 16-bit delay, 88-bit device identifier
  * Direction: device --> dev_handler
  */
-message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
+// message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
 
 /*
  * A message to request parameter data from a device (a single request, unlike a subscription)
@@ -144,21 +137,20 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
  * The device is expected to respond with a DeviceData message confirming the new data of the writable parameters.
  * device_id: The id of the device to write data to
  * param_bitmap: The 32-bit param bitmap indicating which parameters will be written to
- * param_values: An array of the parameter values indicated by param_bitmap IN NUMERICAL ORDER
- *      The length of param_values must be exactly equal to the number of bits that are on in PARAM_BITMAP
+ * param_values: An array of the parameter values. If i-th bit in the bitmap is on, its value is in the i-th index.
  *
  * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
  * Direction: dev_handler --> device
  */
-message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]);
+message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]);
 
 /*
  * A message that a device responds with to DeviceRead, DeviceWrite, or SubscriptionRequest
  *
- * Payload: 32-bit param mask, 32-bits for parameter 0 data, 32-bits for parameter 1 data, . . ., 32-bits for parameter 31 data
+ * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
  * Direction: device --> dev_handler
  */
-message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]);
+// message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]);
 
 /*
  * A message that a device sends that contains debugging information to be logged.
@@ -168,7 +160,7 @@ message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_va
  * Direction: device --> dev_handler
  * return: NULL if data is too large (over 132 bytes)
  */
-message_t* make_log(char* data);
+// message_t* make_log(char* data);
 
 /*
  * A message that a device sends indicating that an error has occurred
@@ -177,7 +169,7 @@ message_t* make_log(char* data);
  * Payload: 8-bit error_code
  * Direction: device --> dev_handler
  */
-message_t* make_error(uint8_t error_code);
+// message_t* make_error(uint8_t error_code);
 
 /*
  * Frees the memory allocated for the message struct and its payload.
@@ -231,7 +223,7 @@ ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
  * len: The length of params
  * return: 32-bit mask. bit i is on if the device's parameter i is in PARAMS. Otherwise bit i is off.
  */
-uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
+// uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
  * Calculates the largest length possible of a cobs-encoded msg
@@ -274,7 +266,7 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals
  * param_bitmap: The 32-bit param_bitmap for which each i-th bit requires a param_val_struct to be allocated
  * return: An array of pointers to param_val_t structs. The length is equal to the number of on bits in param_bitmap
  */
-param_val_t** make_empty_param_values(uint32_t param_bitmap);
+// param_val_t** make_empty_param_values(uint32_t param_bitmap);
 
 /*
  * Utility function to free the param_val_t structs in an array.
@@ -282,7 +274,7 @@ param_val_t** make_empty_param_values(uint32_t param_bitmap);
  * param_bitmap: 32-bit param_bitmap indicating which parameters are in VALS
  * vals: Array of param_val_t* to be freed. The length is equal to the number of on bits in param_bitmap
  */
-void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]);
+// void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]);
 
 /*
  * Potentially added later:

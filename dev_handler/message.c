@@ -11,18 +11,7 @@ Mac:
 */
 #include "message.h"
 
-uint16_t get_device_type(dev_id_t id) {
-    return id.type;
-}
-
-uint8_t get_year(dev_id_t id) {
-    return id.year;
-}
-uint64_t get_uid(dev_id_t id) {
-    return id.uid;
-}
-
-ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap) {
+static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap) {
     ssize_t result = 4; // Initialize at 4 for the 32-bit param mask
     device_t* dev = get_device(device_type);
     // Loop through each of the device's parameters and add the size of the parameter
@@ -123,6 +112,7 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
  * Payload: 32-bit params + 16-bit delay + 88-bit dev_id
  *          --> 136-bits == 17 bytes
 */
+/*
 message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_response = malloc(sizeof(message_t));
     sub_response->message_id = SubscriptionResponse;
@@ -136,6 +126,7 @@ message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], 
     status += append_payload(sub_response, (uint8_t*) &(device_id->uid), 11);
     return (status == 0) ? sub_response : NULL;
 }
+*/
 
 /*
  * Constructs a DeviceRead message, given DEVICE_ID and array of param names PARAM_NAMES of length Len.
@@ -155,17 +146,16 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
 }
 
 /*
- * Constructs a DeviceWrite message, given DEVICE_ID and an array of param_value structs to write to the device
- * Writes to the device the specified param/values pairs
- * Payload: 32-bit param mask + 32-bits for each of the 32-bit possible params = 32 + 32*32 = 1056 bits = 132 bytes
- * param_values is an array of structs
-    {
-    "switch0" : KEEP THE SAME
-    "switch1" : 30
-    "switch2" : 100
-    }
-*/
-message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]) {
+ * A message to write data to the specified writable parameters of a device
+ * The device is expected to respond with a DeviceData message confirming the new data of the writable parameters.
+ * device_id: The id of the device to write data to
+ * param_bitmap: The 32-bit param bitmap indicating which parameters will be written to
+ * param_values: An array of the parameter values. If i-th bit in the bitmap is on, its value is in the i-th index.
+ *
+ * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
+ * Direction: dev_handler --> device
+ */
+message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]) {
     message_t* dev_write = malloc(sizeof(message_t));
     dev_write->message_id = DeviceWrite;
     dev_write->payload_length = 0;
@@ -176,21 +166,19 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
     status += append_payload(dev_write, (uint8_t*) &param_bitmap, 4);
     // Build the payload with the values
     device_t* dev = get_device(device_id->type);
-    int param_values_idx = 0;
-    for (int i = 0; i < dev->num_params; i++) {
+    for (int i = 0; i < MAX_PARAMS; i++) {
         // If the parameter is off in the bitmap, skip it
         if (((1 << i) & param_bitmap) == 0) {
             continue;
         }
         char* param_type = dev->params[i].type;
         if (strcmp(param_type, "int") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[param_values_idx]->p_i), sizeof(int));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int));
         } else if (strcmp(param_type, "float") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[param_values_idx]->p_f), sizeof(float));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_f), sizeof(float));
         } else if (strcmp(param_type, "bool") == 0) { // Boolean
-            status += append_payload(dev_write, (uint8_t*) &(param_values[param_values_idx]->p_b), sizeof(uint8_t));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_b), sizeof(uint8_t));
         }
-        param_values_idx++;
     }
     return (status == 0) ? dev_write : NULL;
 }
@@ -199,15 +187,18 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
  * Returns a message with a 32-bit param mask and thirty-two 32-bit values
  * Logic is the same as make_device_write.
  */
-message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t* param_values[]) {
+/*
+message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]) {
     message_t* dev_data = make_device_write(device_id, param_bitmap, param_values);
     dev_data->message_id = DeviceData;
     return dev_data;
 }
+*/
 
 /*
  * Returns a new message with DATA as its payload
  */
+/*
 message_t* make_log(char* data) {
     if ((strlen(data) + 1) > (132 * sizeof(char))) {
         printf("Error in making message: DATA IS TOO LONG.\n");
@@ -232,6 +223,7 @@ message_t* make_error(uint8_t error_code) {
     error->max_payload_length = 1;
     return error;
 }
+*/
 
 void destroy_message(message_t* message) {
     free(message->payload);
@@ -284,8 +276,7 @@ Encodes src into dst and returns the size of dst. src nust not overlap dst.
 Replace all zero bytes with nonzero bytes describing the location of the next zero
 For detailed example, view https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
 */
-ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len)
-{
+ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
 	const uint8_t *end = src + src_len;
 	uint8_t *block_len_loc = dst++;
 	uint8_t block_len = 0x01;
@@ -314,8 +305,7 @@ ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len)
  Revert back into original non-cobs_encoded data
  For example, view https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
 */
-ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len)
-{
+ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
 	const uint8_t *end = src + src_len;
 	ssize_t out_len = 0;
 
@@ -343,6 +333,7 @@ ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len)
  *  Switch2 is param 2, switch1 is param 1
  *  Return 110  (switch2 on, switch1 on, switch0 off)
 */
+/*
 uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     uint8_t param_nums[len]; // [1, 9, 2] -> [0001, 1001, 0010]
     device_t* dev = get_device(device_type);
@@ -364,6 +355,7 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
     }
     return mask;
 }
+*/
 
 /*
  * Given a device_type and a mask, return an array of param names
@@ -468,6 +460,7 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals
     }
 }
 
+/*
 param_val_t** make_empty_param_values(uint32_t param_bitmap) {
     // Calculate the length of the array to return
     int len = 0;
@@ -497,3 +490,4 @@ void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]) {
     // Free the array itself
     free(vals);
 }
+*/
