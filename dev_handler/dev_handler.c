@@ -169,11 +169,8 @@ void* relayer(void* relay_cast) {
 	printf("INFO: Device has %d interfaces\n", config->bNumInterfaces);
 
 	// Tell libusb to automatically detach the kernel driver on claimed interfaces then reattach them when releasing the interface
+	// Will do nothing for Arduinos because they don't support this operation
 	ret = libusb_set_auto_detach_kernel_driver(relay->handle, 1);
-	if (ret == LIBUSB_ERROR_NOT_SUPPORTED) {
-		printf("ERROR: Can't set auto-detach kernel driver on device handle\n");
-		return NULL;
-	}
 
 	// Claim an interface on the device's handle, telling OS we want to do I/O on the device
 	ret = libusb_claim_interface(relay->handle, 0); // TODO: Getting the first one. Change later?
@@ -288,15 +285,48 @@ void* sender(void* relay_cast) {
 	 * Call device_read to get the changed parameters and send them to the device
 	 * Also, send HeartBeatRequest at a regular interval, HB_REQ_FREQ.
 	 * Finally, send HeartBeatResponse when receiver gets a HeartBeatRequest */
-	uint32_t* last_pmap;
-	uint32_t* pmap_now;
+	// pmap: Array of thirty-three uint32_t.
+	//       Indices 1-32 are bitmaps indicating which parameters have new values to be written to the device at that index
+	//       pmap[0] is a bitmap indicating which devices have new values to be written
+	uint32_t* pmap;
+	param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read
+	message_t* msg; 		// Message to build
+	int transferred = 0; 	// The number of bytes actually transferred
+	int ret; 				// Hold the value from send_message()
 	while (1) {
-		// If parameter bitmap changed, get the changed parameters
-		// get_param_bitmap(pmap_now);
-		// TODO: Compare them. If diff, device_read and send data to device
-
+		// Get the current param bitmap
+		// get_param_bitmap(pmap);
+		/* If pmap[0] != 0, there are devices that need to be written to.
+		 * This thread is interested in only whether or not THIS device requires being written to.
+		 * If the device's shm_dev_idx bit is on in pmap[0], there are values to be written to the device. */
+		if (pmap[0] & (1 << relay->shm_dev_idx)) {
+			// Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
+			// device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
+			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
+			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
+			ret = send_message(msg, relay->handle, relay->send_endpoint, &transferred);
+			if (ret != 0) {
+				printf("ERROR: DEVICE_WRITE transfer failed with error code %s\n", libusb_error_name(ret));
+			}
+			destroy_message(msg);
+		}
+		// If it's been HB_REQ_FREQ milliseconds since last sending a HeartBeatRequest, send another one
+		if ((millis() - relay->sent_hb_req) >= HB_REQ_FREQ) {
+			msg = make_heartbeat_request(0);
+			send_message(msg, relay->handle, relay->send_endpoint, &transferred);
+			if (ret != 0) {
+				printf("ERROR: HeartBeatRequest transfer failed with error code %s\n", libusb_error_name(ret));
+			}
+			destroy_message(msg);
+		}
+		// If receiver got a HeartBeatRequest, send a HeartBeatResponse and mark the request as resolved
 		if (relay->got_hb_req) {
-			// TODO: Send HeartBeatResponse
+			msg = make_heartbeat_response(0);
+			send_message(msg, relay->handle, relay->send_endpoint, &transferred);
+			if (ret != 0) {
+				printf("ERROR: HeartBeatResponse transfer failed with error code %s\n", libusb_error_name(ret));
+			}
+			destroy_message(msg);
 			relay->got_hb_req = 0; // Mark as resolved
 		}
 		pthread_testcancel(); // Cancellation point
@@ -334,8 +364,36 @@ void* receiver(void* relay_cast) {
 	return NULL;
 }
 
+/*******************************************
+ *            DEVICE MESSAGES              *
+ *******************************************/
+
 /*
- * Send a PING message to the device and wait for a SubscriptionResponse
+ * Serializes and sends a message to the specified endpoint
+ * msg: The message to be sent, constructed from the functions below
+ * handle: A libusb device handle obtained by using libusb_open on the device
+ * endpoint: The usb endpoint address that the message should be sent to
+ * transferred: Output location for number of bytes actually sent
+ * return: The return value of libusb_bulk_transfer
+ *      http://libusb.sourceforge.net/api-1.0/group__libusb__syncio.html#gab8ae853ab492c22d707241dc26c8a805
+ */
+int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint, int* transferred) {
+	int len = calc_max_cobs_msg_length(msg);
+	uint8_t* data = malloc(len);
+	len = message_to_bytes(msg, data, len);
+	int ret = libusb_bulk_transfer(handle, endpoint, data, len, transferred, DEVICE_TIMEOUT);
+	free(data);
+	return ret;
+}
+
+/*
+ * Synchronously sends a PING message to a device to check if it's a lowcar device
+ * relay: Struct holding device, handle, and endpoint fields
+ * return: 0 upon successfully receiving a SubscriptionResponse and setting relay->dev_id
+ *      1 if Ping message couldn't be serialized
+ *      2 if Ping message couldn't be sent or SubscriptionResponse wasn't received
+ *      3 if received message has incorrect checksum
+ *      4 if received message is not a SubscriptionResponse
  */
 int ping(msg_relay_t* relay) {
 	// Make a PING message to be sent over serial
@@ -353,6 +411,7 @@ int ping(msg_relay_t* relay) {
 
 	// Bulk transfer the Ping message to the device
 	printf("INFO: Ping message serialized and ready to transfer\n");
+	print_bytes(data, ret);
 	int transferred = 0; // The number of bytes actually sent
 	ret = libusb_bulk_transfer(relay->handle, relay->send_endpoint, data, ret, &transferred, DEVICE_TIMEOUT);
 	if (ret != 0) {
@@ -375,6 +434,7 @@ int ping(msg_relay_t* relay) {
 	}
 	// Parse the received message to verify it's a SubscriptionResponse
 	printf("INFO: %d bytes of data received and will be parsed!\n", transferred);
+	print_bytes(data, transferred);
 	message_t* sub_response = malloc(sizeof(message_t));
 	ret = parse_message(data, sub_response);
 	free(data); // We don't need the encoded message anymore
@@ -405,6 +465,14 @@ int64_t millis() {
 	int64_t s1 = (int64_t)(time.tv_sec) * 1000; // Convert seconds to milliseconds
 	int64_t s2 = (time.tv_usec / 1000);			// Convert microseconds to milliseconds
 	return s1 + s2;
+}
+
+void print_bytes(uint8_t* data, int len) {
+	printf("INFO: Data: 0x");
+	for (int i = 0; i < len; i++) {
+		printf("%X", data[i]);
+	}
+	printf("\n");
 }
 
 int main() {

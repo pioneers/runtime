@@ -100,6 +100,7 @@ typedef struct msg_relay {
     pthread_t relayer;
     uint8_t send_endpoint;
     uint8_t receive_endpoint;
+    int shm_dev_idx;        // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     uint8_t start;		    // set by relayer: A flag to tell reader and receiver to start work when set to 1
     dev_id_t dev_id;        // set by relayer once SubscriptionResponse is received
     uint64_t sent_hb_req;	// set by sender: The TIME that a HeartBeatRequest was sent. Relay should expect a hb response
@@ -156,6 +157,18 @@ void* receiver(void* relay);
 /*******************************************
  *            DEVICE MESSAGES              *
  *******************************************/
+
+/*
+ * Serializes and sends a message to the specified endpoint
+ * msg: The message to be sent, constructed from the functions below
+ * handle: A libusb device handle obtained by using libusb_open on the device
+ * endpoint: The usb endpoint address that the message should be sent to
+ * transferred: Output location for number of bytes actually sent
+ * return: The return value of libusb_bulk_transfer
+ *      http://libusb.sourceforge.net/api-1.0/group__libusb__syncio.html#gab8ae853ab492c22d707241dc26c8a805
+ */
+int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint, int* transferred);
+
 /*
  * Synchronously sends a PING message to a device to check if it's a lowcar device
  * relay: Struct holding device, handle, and endpoint fields
@@ -172,4 +185,6 @@ int ping(msg_relay_t* relay);
  *******************************************/
 /* Returns the number of milliseconds since the Unix Epoch */
 int64_t millis();
+/* Prints the byte array DATA of length LEN in hex */
+void print_bytes(uint8_t* data, int len);
 #endif
