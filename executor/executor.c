@@ -1,5 +1,5 @@
 #define PY_SSIZE_T_CLEAN
-#include <python3.6/Python.h>              // For Python's C API
+#include <Python.h>                        // For Python's C API
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
 #include <sys/types.h>                     //for sem_t and other standard system types
@@ -24,9 +24,9 @@ pthread_t mode_thread;
 pthread_t handler_thread;
 
 // Timings for all modes
-const struct timespec setup_time = {2, 0};    // Max time allowed for setup functions
+struct timespec setup_time = {2, 0};    // Max time allowed for setup functions
 #define freq 10 // How many times per second the main loop will run
-const struct timespec main_interval = {0, (long) (1.0/freq * 1e9)};
+struct timespec main_interval = {0, (long) (1.0/freq * 1e9)};
 
 /**
  *  Struct used as input to all threads. Not all threads will use all arguments.
@@ -182,7 +182,7 @@ void executor_init(char* student_code) {
         log_runtime(ERROR, "Could not find Gamepad class");
         executor_stop();
     }
-    char* mode_str = get_mode_str(robot_desc_read(RUN_MODE));
+    const char* mode_str = get_mode_str(robot_desc_read(RUN_MODE));
     pGamepad = PyObject_CallFunction(gamepad_class, "s", mode_str);
     if (pGamepad == NULL) {
         PyErr_Print();
@@ -421,7 +421,6 @@ int main(int argc, char* argv[]) {
     robot_desc_val_t new_mode = IDLE;
 
     do {
-        new_mode = robot_desc_read(RUN_MODE);
         if (new_mode != mode) {
             mode = new_mode;
             pthread_cancel(mode_thread);
@@ -430,6 +429,7 @@ int main(int argc, char* argv[]) {
                 pthread_create(&mode_thread, NULL, run_mode_functions, (void*) get_mode_str(mode));
             }
         }
+        new_mode = robot_desc_read(RUN_MODE);
     } while (1);
 
     return 0;
