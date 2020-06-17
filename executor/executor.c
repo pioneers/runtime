@@ -15,7 +15,6 @@
 #include "../logger/logger.h"              // for runtime logger
 
 // Global variables to all functions and threads
-const char *loader_file = "code_loader.py";
 const char *api_module = "studentapi";
 char *student_module;
 PyObject *pModule, *pAPI, *pPrint, *pRobot, *pGamepad;
@@ -23,7 +22,7 @@ pthread_t mode_thread, handler_thread;
 
 // Timings for all modes
 struct timespec setup_time = { 2, 0 };    // Max time allowed for setup functions
-#define freq 10.0 // How many times per second the main loop will run
+#define freq 10.0 // Minimum number of times per second the main loop should run
 struct timespec main_interval = { 0, (long) ((1.0 / freq) * 1e9) };
 
 /**
@@ -42,10 +41,11 @@ struct cleanup {
     PyObject *value;
 };
 
+
 /**
  *  Returns the appropriate string representation from the given mode.
  */
-const char *get_mode_str (robot_desc_val_t mode) {
+const char *get_mode_str(robot_desc_val_t mode) {
     if (mode == AUTO) {
         return "autonomous";
     }
@@ -58,50 +58,41 @@ const char *get_mode_str (robot_desc_val_t mode) {
     return NULL;
 }
 
+
 /**
- *  Cleanup function for threads that cleans up Python objects. 
+ *  Thread cleanup function to decref Python objects. 
  * 
  *  Inputs:
  *      args: a PyObject** that needs their reference decremented
  */
-void py_function_cleanup (void *args) {
+void py_function_cleanup(void *args) {
     struct cleanup *obj = (struct cleanup *) args;
     Py_XDECREF(obj->func);
     Py_XDECREF(obj->value);
 }
 
+
+/**
+ *  Thread cleanup function to release GIL.
+ *  
+ *  Inputs:
+ *      args: a PyGILState_STATE* to release
+ */
+void gil_cleanup(void* args) {
+    PyGILState_STATE* gil = (PyGILState_STATE*) args;
+    PyGILState_Release(*gil);
+    log_runtime(DEBUG, "released GIL");
+}
+
+
 /**
  *  Closes all executor processes and exits cleanly.
  */
-void executor_stop () {
+void executor_stop() {
 	printf("\nShutting down executor...\n");
-    
     pthread_cancel(mode_thread);
     pthread_join(mode_thread, NULL);
     log_runtime(DEBUG, "joining to make sure thread is cancelled");
-
-    // if (pAPI != NULL) {
-    //     PyObject* py_shm_stop = PyObject_GetAttrString(pAPI, "_shm_stop");
-    //     if (py_shm_stop == NULL) {
-    //         log_runtime(ERROR, "Cannot find _shm_stop function in student API");
-    //     }
-    //     else {
-    //         PyObject* status = PyObject_CallFunctionObjArgs(py_shm_stop, NULL);
-    //         log_runtime(DEBUG, "Called shm_stop");
-    //         Py_DECREF(py_shm_stop);
-    //         if (status == NULL) {
-    //             PyErr_Print();
-    //             log_runtime(ERROR, "Could not stop SHM in student API");
-    //         }
-    //         else {
-    //             Py_DECREF(status);
-    //             log_runtime(DEBUG, "Successfully stopped SHM");
-    //         }
-    //     }
-    // }
-    // else {
-    //     log_runtime(WARN, "pAPI is NULL");
-    // }
 
     Py_XDECREF(pAPI);
     Py_XDECREF(pPrint);
@@ -115,28 +106,33 @@ void executor_stop () {
 	exit(1);
 }
 
+
 /**
  *  Handler for keyboard interrupts SIGINT (Ctrl + C)
  */
-void sigintHandler (int signum) {
+void sigintHandler(int signum) {
     executor_stop();
 }
 
+
 /**
  *  Initializes the executor process. Must be the first thing called.
+ *
  *  Input: 
  *      student_code: string representing the name of the student's Python file, without the .py
  */
-void executor_init (char *student_code) {
+void executor_init(char *student_code) {
     //initialize
 	logger_init(EXECUTOR);
     shm_aux_init(EXECUTOR);
     log_runtime(DEBUG, "Aux SHM initialized");
     student_module = student_code;
     Py_Initialize();
+    PyEval_InitThreads();
+    // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
 	
-	//imports the Cython student api
+	//imports the Cython student API
     pAPI = PyImport_ImportModule(api_module);
     if (pAPI == NULL) {
         PyErr_Print();
@@ -193,16 +189,15 @@ void executor_init (char *student_code) {
         executor_stop();
     }
     
-	//PyObject_SetAttrString(pModule, "print", pPrint);
-    int flag = 0;
-    flag |= PyObject_SetAttrString(pModule, "Robot", pRobot);
-    flag |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
-    if (flag != 0) {
+    int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
+    err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
+    if (err != 0) {
         PyErr_Print();
         log_runtime(ERROR, "Could not insert API into student code.");
         executor_stop();
     }
 }
+
 
 /**
  *  Runs the Python function specified in the arguments.
@@ -220,17 +215,20 @@ void executor_init (char *student_code) {
  *          cond: condition variable that blocks the calling thread, used with `run_function_timeout`
  *          timeout: max length of execution time before a warning is issued for the function call
  */
-void *run_py_function (void *thread_args) {
+void *run_py_function(void *thread_args) {
     thread_args_t *args = (thread_args_t *)thread_args;
-	static char msg[128];   //for error messages
-	static int err;
+
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    log_runtime(DEBUG, "Acquired GIL");
+    pthread_cleanup_push(gil_cleanup, (void*) &gstate);
 	
-	//assign the game mode to Python objects
+	//assign the run mode to the Gamepad object
     PyObject *pMode = PyUnicode_FromString(args->mode);
-    err = PyObject_SetAttrString(pGamepad, "mode", pMode);
+    int err = PyObject_SetAttrString(pGamepad, "mode", pMode);
     Py_DECREF(pMode);
     if (err != 0) {
         PyErr_Print();
+        char msg[128];
         sprintf(msg, "Couldn't assign mode for Gamepad while trying to run %s", args->func_name);
         log_runtime(ERROR, msg);
         if (args->cond != NULL) {
@@ -239,28 +237,29 @@ void *run_py_function (void *thread_args) {
         return NULL;
     }
 	
+    //retrieve the Python function from the student code
     PyObject *pFunc = PyObject_GetAttrString(pModule, args->func_name);
     PyObject *pValue = NULL;
-	
     if (pFunc && PyCallable_Check(pFunc)) {
-		//prepare for call to Python function
         struct timespec start, end;
         long time, max_time;
         if (args->timeout) {
             max_time = args->timeout->tv_sec * 1e9 + args->timeout->tv_nsec;
         }
+        //Necessary cleanup to handle pthread_cancel 
         struct cleanup objects = { pFunc, pValue };
-        pthread_cleanup_push(py_function_cleanup, (void *)&objects);
+        pthread_cleanup_push(py_function_cleanup, (void *) &objects);
         pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 		
         do {
             clock_gettime(CLOCK_MONOTONIC, &start);
             pValue = PyObject_CallObject(pFunc, NULL); //make call to Python function
             clock_gettime(CLOCK_MONOTONIC, &end);
-			
-			//if the time the Python function took was greater than > max_time, warn that it's taking too long
+
+			//if the time the Python function took was greater than max_time, warn that it's taking too long
             time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
             if (args->loop && args->timeout && time > max_time) {
+                char msg[128];
                 sprintf(msg, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", args->func_name, (long) (max_time / 1e6));
                 log_runtime(WARN, msg);
             }
@@ -269,6 +268,7 @@ void *run_py_function (void *thread_args) {
                 if (PyErr_Occurred()) {
                     PyErr_Print();
                 }
+                char msg[128];
                 sprintf(msg, "Python function %s call failed", args->func_name);
                 log_runtime(ERROR, msg);
                 break;
@@ -278,15 +278,19 @@ void *run_py_function (void *thread_args) {
             }
         } while(args->loop);
         pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+        // Decrefs the Python objects
         pthread_cleanup_pop(1);
     }
     else {
         if (PyErr_Occurred()) {
             PyErr_Print();
         }
+        char msg[128];
         sprintf(msg, "Cannot find function in student code: %s\n", args->func_name);
         log_runtime(ERROR, msg);
     }
+    // Releases the GIl since we're done calling Python
+    pthread_cleanup_pop(1);
 	
     // Send the signal that the thread is done, using the condition variable.
     if (args->cond != NULL) {
@@ -294,6 +298,7 @@ void *run_py_function (void *thread_args) {
     }
     return NULL;
 }
+
 
 /**
  *  Runs the specified Python function in another thread with the specified timeout.
@@ -307,31 +312,30 @@ void *run_py_function (void *thread_args) {
  *      mode: string of the current mode
  *      timeout: timespec of the max timeout the function should run
  */
-void run_function_timeout (thread_args_t *args) {
+void run_function_timeout(thread_args_t *args) {
     pthread_t tid;
     pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
     args->cond = &cond;
     
-	//calculate the start time of the function
+	//calculate the timeout time of the function
 	struct timespec time;
     pthread_mutex_lock(&mutex);
     clock_gettime(CLOCK_REALTIME, &time);
     time.tv_sec += args->timeout->tv_sec;
     time.tv_nsec += args->timeout->tv_nsec;
-	
-	static char msg[128];  //for error messages
-	static int err;
-    
+	    
 	//create the thread and start running the function
     pthread_create(&tid, NULL, run_py_function, (void*) args);
-    err = pthread_cond_timedwait(&cond, &mutex, &time);
-	
+    //set the timeout for the thread and wait
+    int err = pthread_cond_timedwait(&cond, &mutex, &time);
     if (err == ETIMEDOUT) {
+        char msg[128];
         sprintf(msg, "Function %s is taking longer than %lu seconds, indicating a loop in the code.", args->func_name, args->timeout->tv_sec);
         log_runtime(WARN, msg);
     }
     else if (err != 0) {
+        char msg[128];
         sprintf(msg, "Function %s failed with error code %d", args->func_name, err);
         log_runtime(ERROR, msg);
         perror(msg);
@@ -344,6 +348,7 @@ void run_function_timeout (thread_args_t *args) {
     pthread_cond_destroy(&cond);
 }
 
+
 /**
  *  Begins the given game mode and calls setup and main appropriately. Will run main forever.
  * 
@@ -353,11 +358,10 @@ void run_function_timeout (thread_args_t *args) {
  *  Inputs:
  *      args: string of the mode to start running
  */
-void *run_mode_functions (void *args) {
+void *run_mode_functions(void *args) {
+	//Set up the arguments to the threads that will run the setup and main threads
     char *mode = (char *)args;
     char setup_str[20], main_str[20];
-	
-	//Set up the arguments to the threads that will run the setup and main threads
     sprintf(setup_str, "%s_setup", mode);
     sprintf(main_str, "%s_main", mode);
     thread_args_t setup_args = { setup_str, NULL, mode, &setup_time, 0 };
@@ -372,46 +376,9 @@ void *run_mode_functions (void *args) {
 	//Run the setup function on a timeout, followed by main function on a loop
     run_function_timeout(&setup_args);
     run_py_function(&main_args);
-	
     return NULL;
 }
 
-/////////////////////////////////////////// DEPRECATED CODE
-///////////////////////////////////////////
-///////////////////////////////////////////
-
-/**
- *  Spawns a new subprocess that runs the `code_loader` on the student's code for a specified mode.
- * 
- *  Behavior: This is a blocking function and blocks for the length of the mode.
- * 
- *  Inputs:
- *      args: string representing the mode to run
- */
-void *run_file_subprocess (void *args) {
-    char command[256];
-    char *mode = (char *)args;
-    sprintf(command, "python3.6 %s %s %s", loader_file, student_module, mode);
-    FILE* process = popen(command, "r");
-    if (process == NULL) {
-        log_runtime(ERROR, "Failed to start process for");
-        log_runtime(ERROR, command);
-    }
-    // For debugging only
-    while (fgets(command, 256, process) != NULL) {
-        printf("%s", command);
-    }
-    int status;
-    if ((status = pclose(process)) != 0) {
-        log_runtime(ERROR, "Error occurred while calling process");
-        log_runtime(ERROR, command);
-    }
-    return NULL;
-}
-
-///////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////
 
 /**
  *  Main bootloader that calls `run_mode_functions` with the correct mode. Ensures any previously running
@@ -419,14 +386,16 @@ void *run_file_subprocess (void *args) {
  * 
  *  Behavior: This is a blocking function and will begin handling the run mode forever until a SIGINT.
  */
-int main (int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     signal(SIGINT, sigintHandler);
-    executor_init("studentcode");
-
+    executor_init("studentcode"); // Default name of student code file 
+    Py_BEGIN_ALLOW_THREADS
     robot_desc_val_t mode = IDLE;
     robot_desc_val_t new_mode = IDLE;
 
+    // Main loop that checks for new run mode in shared memory from the network handler
     do {
+        // If we receive a new mode, cancel the previous mode and start the new one
         if (new_mode != mode) {
             mode = new_mode;
             pthread_cancel(mode_thread);
@@ -438,5 +407,15 @@ int main (int argc, char *argv[]) {
         new_mode = robot_desc_read(RUN_MODE);
     } while (1);
 
+    // Test complete match
+    // pthread_create(&mode_thread, NULL, run_mode_functions, (void*) "autonomous");
+    // sleep(4);
+    // pthread_cancel(mode_thread);
+    // pthread_join(mode_thread, NULL);
+    // log_runtime(DEBUG, "auton ended");
+    // pthread_create(&mode_thread, NULL, run_mode_functions, (void*) "teleop");
+    // while(1) {}
+
+    Py_END_ALLOW_THREADS
     return 0;
 }
