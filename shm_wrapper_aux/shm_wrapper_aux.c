@@ -39,8 +39,8 @@ gamepad_t *gp_ptr;                         //points to memory-mapped shared memo
 robot_desc_t *rd_ptr;                      //points to memory-mapped shared memory block for robot description
 sem_t *gp_sem;                             //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                             //semaphore used as a mutex on the robot description
-int gp_val;
-int rd_val;
+int gp_val;                                //holds the value of gp_sem at any given time
+int rd_val;                                //holds the value of rd_sem at any given time
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
@@ -54,27 +54,29 @@ static void error (char *msg)
 //a few very useful semaphore operation wrapper utilities
 static void my_sem_wait (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
+	static char msg[64];
 	if (sem_wait(sem) == -1) {
 		sprintf(msg, "sem_wait: %s", sem_desc);
 		error(msg);
 	}
-	(sem == gp_sem) ? gp_val-- : rd_val--;
+	(sem == gp_sem) ? gp_val-- : rd_val--; //decrement gp_sem
 }
 
 static void my_sem_post (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
+	static char msg[64];
+	(sem == gp_sem) ? gp_val++ : rd_val++; //increment gp_sem
 	if (sem_post(sem) == -1) {
 		sprintf(msg, "sem_post: %s", sem_desc);
 		error(msg);
 	}
-	(sem == gp_sem) ? gp_val++ : rd_val++;
 }
 
 static void my_sem_close (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
+	static char msg[64];
+	
+	//post the given sem before closing if the current process has it locked right now
 	if (sem == gp_sem && gp_val == 0) {
 		my_sem_post(gp_sem, "before close");
 	} else if (sem == rd_sem && rd_val == 0) {
