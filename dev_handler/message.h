@@ -1,3 +1,11 @@
+/**
+ * Functions to build, encode, decode, serialize, and parse messages
+ * Each message, when serialized is in the following format:
+ * [delimiter][Length of cobs encoded message][Cobs encoded message]
+ * The cobs encoded message, when decoded is in the following format:
+ * [message id][payload length][payload][checksum]
+ * The size of each section are defined as constants below
+ */
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
@@ -7,8 +15,24 @@
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 
-/* The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types. */
-#define MAX_PAYLOAD_SIZE 132
+// The size in bytes of the message delimiter
+#define DELIMITER_SIZE 1
+// The size in bytes of the section specifying the length of the cobs encoded message
+#define COBS_LENGTH_SIZE 1
+// The size in bytes of the section specifying the type of message being encoded
+#define MESSAGE_ID_SIZE 1
+// The size in bytes of the section specifying the length of the payload in the message
+#define PAYLOAD_LENGTH_SIZE 1
+// The size in bytes of the param bitmap in SubscriptionRequest, SubscriptionResponse, DeviceRead, DeviceWrite and DeviceData payloads
+#define BITMAP_SIZE (MAX_PARAMS/8)
+// The size in bytes of the section specifying the delay for SubscriptionRequest and SubscriptionResponse
+#define DELAY_SIZE 2
+// The size in bytes of the section specifying the device id
+#define DEVICE_ID_SIZE 11
+// The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types.
+#define MAX_PAYLOAD_SIZE (BITMAP_SIZE+(MAX_PARAMS*sizeof(float))) // Bitmap + Each param (may be floats)
+// The size in bytes of the section specifying the checksum of the message id, the payload length, and the payload itself
+#define CHECKSUM_SIZE 1
 
 /* The types of messages */
 typedef enum packet_type {

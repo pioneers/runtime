@@ -12,7 +12,7 @@ Mac:
 #include "message.h"
 
 static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap) {
-    ssize_t result = 4; // Initialize at 4 for the 32-bit param mask
+    ssize_t result = BITMAP_SIZE;
     device_t* dev = get_device(device_type);
     // Loop through each of the device's parameters and add the size of the parameter
     for (int i = 0; i < dev->num_params; i++) {
@@ -95,14 +95,14 @@ message_t* make_heartbeat_response(char heartbeat_id) {
 message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_request = malloc(sizeof(message_t));
     sub_request->message_id = SubscriptionRequest;
-    sub_request->payload = malloc(6);
+    sub_request->payload = malloc(BITMAP_SIZE + DELAY_SIZE);
     sub_request->payload_length = 0;
-    sub_request->max_payload_length = 6;
+    sub_request->max_payload_length = BITMAP_SIZE + DELAY_SIZE;
     // Fill in 32-bit params mask
     uint32_t mask = encode_params(device_id->type, param_names, len);
     int status = 0;
-    status += append_payload(sub_request, (uint8_t*) &mask, 4);
-    status += append_payload(sub_request, (uint8_t*) &delay, 2);
+    status += append_payload(sub_request, (uint8_t*) &mask, BITMAP_SIZE);
+    status += append_payload(sub_request, (uint8_t*) &delay, DELAY_SIZE);
     return (status == 0) ? sub_request : NULL;
 }
 
@@ -116,14 +116,14 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
 message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_response = malloc(sizeof(message_t));
     sub_response->message_id = SubscriptionResponse;
-    sub_response->payload = malloc(17);
+    sub_response->payload = malloc(BITMAP_SIZE + DELAY_SIZE + DEVICE_ID_SIZE);
     sub_response->payload_length = 0;
-    sub_response->max_payload_length = 17;
+    sub_response->max_payload_length = BITMAP_SIZE + DELAY_SIZE + DEVICE_ID_SIZE;
     uint32_t mask = encode_params(device_id->type, param_names, len);
     int status = 0;
-    status += append_payload(sub_response, (uint8_t*) &mask, 4);
-    status += append_payload(sub_response, (uint8_t*) &delay, 2);
-    status += append_payload(sub_response, (uint8_t*) &(device_id->uid), 11);
+    status += append_payload(sub_response, (uint8_t*) &mask, BITMAP_SIZE);
+    status += append_payload(sub_response, (uint8_t*) &delay, DELAY_SIZE);
+    status += append_payload(sub_response, (uint8_t*) &(device_id->uid), DEVICE_ID_SIZE);
     return (status == 0) ? sub_response : NULL;
 }
 */
@@ -136,12 +136,12 @@ message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], 
 message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t len) {
     message_t* dev_read = malloc(sizeof(message_t));
     dev_read->message_id = DeviceRead;
-    dev_read->payload = malloc(4);
+    dev_read->payload = malloc(BITMAP_SIZE);
     dev_read->payload_length = 0;
-    dev_read->max_payload_length = 4;
+    dev_read->max_payload_length = BITMAP_SIZE;
     uint32_t mask = encode_params(device_id->type, param_names, len);
     int status = 0;
-    status += append_payload(dev_read, (uint8_t*) &mask, 4);
+    status += append_payload(dev_read, (uint8_t*) &mask, BITMAP_SIZE);
     return (status == 0) ? dev_read : NULL;
 }
 
@@ -163,7 +163,7 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
     dev_write->payload = malloc(dev_write->max_payload_length);
     int status = 0;
     // Append the mask
-    status += append_payload(dev_write, (uint8_t*) &param_bitmap, 4);
+    status += append_payload(dev_write, (uint8_t*) &param_bitmap, BITMAP_SIZE);
     // Build the payload with the values
     device_t* dev = get_device(device_id->type);
     for (int i = 0; i < MAX_PARAMS; i++) {
@@ -200,15 +200,15 @@ message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_va
  */
 /*
 message_t* make_log(char* data) {
-    if ((strlen(data) + 1) > (132 * sizeof(char))) {
+    if ((strlen(data) + 1) > (MAX_PAYLOAD_SIZE * sizeof(char))) {
         printf("Error in making message: DATA IS TOO LONG.\n");
         return NULL;
     }
     message_t* log = malloc(sizeof(message_t));
     log->message_id = Log;
-    log->payload = malloc(132);
+    log->payload = malloc(MAX_PAYLOAD_SIZE);
     log->payload_length = 0;
-    log->max_payload_length = 132;
+    log->max_payload_length = MAX_PAYLOAD_SIZE;
     strcpy((char*) log->payload, data);
     log->payload_length = (uint8_t) strlen(data) + 1;
     return log;
@@ -234,8 +234,8 @@ void destroy_message(message_t* message) {
  * Appends DATA with length LENGTH to the end of the payload of MSG
  * msg->payload is an array of 8-bit integers
  * msg->payload_length is the current length of the data in the payload
- * MAX_PAYLOAD_SIZE is the actual length of the payload (all of which may not be used)
- * Returns -1 if payload_length > MAX_PAYLOAD_SIZE (overwrite)
+ * msg->max_payload_length is the actual length of the payload (all of which may not be used)
+ * Returns -1 if payload_length > max_payload_length (overwrite)
  * Returns 0 on success
  * ---This is more or less the same as Messenger::append_payload in Messenger.cpp
 */
@@ -384,13 +384,13 @@ char** decode_params(uint16_t device_type, uint32_t mask) {
 */
 
 int calc_max_cobs_msg_length(message_t* msg){
-  int required_packet_length = 3 + msg->payload_length;
+  int required_packet_length = MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE;
   // Cobs encoding a length N message adds overhead of at most ceil(N/254)
   int cobs_length = required_packet_length + (required_packet_length / 254) + 1;
   /* Add 2 additional bytes to the buffer for use in message_to_bytes()
    * 0th byte will be 0x0 indicating the start of a packet.
    * 1st byte will hold the actual length from cobs encoding */
-  return cobs_length + 2;
+  return DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_length;
 }
 
 
@@ -402,31 +402,31 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     if (len < required_length) {
         return -1;
     }
-    uint8_t data[3 + msg->payload_length];
+    uint8_t data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE];
     data[0] = msg->message_id;
     data[1] = msg->payload_length;
     for (int i = 0; i < msg->payload_length; i++) {
-        data[i+2] = msg->payload[i];
+        data[i + MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE] = msg->payload[i];
     }
-    data[2 + msg->payload_length] = checksum(data, 2 + msg->payload_length);
+    data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length] = checksum(data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length);
 
     cobs_encoded[0] = 0x00;
     int cobs_len = cobs_encode(&cobs_encoded[2], data, 3 + msg->payload_length);
     cobs_encoded[1] = cobs_len;
-    return 2 + cobs_len;
+    return DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len;
 }
 
 int parse_message(uint8_t data[], message_t* msg_to_fill) {
-    uint8_t* decoded = malloc((3 + msg_to_fill->payload_length) * sizeof(uint8_t));
+    uint8_t* decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length + CHECKSUM_SIZE);
     cobs_decode(decoded, &data[2], data[1]);
     msg_to_fill->message_id = decoded[0];
     msg_to_fill->payload_length = decoded[1];
     msg_to_fill->max_payload_length = decoded[1];
     for (int i = 0; i < msg_to_fill->payload_length; i++) {
-        msg_to_fill->payload[i] = decoded[i + 2];
+        msg_to_fill->payload[i] = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + i];
     }
-    char expected_checksum = decoded[2 + msg_to_fill->payload_length];
-    char received_checksum = checksum(decoded, 2 + msg_to_fill->payload_length);
+    char expected_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
+    char received_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
     free(decoded);
     return (expected_checksum != received_checksum) ? 1 : 0;
 }
@@ -437,7 +437,7 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals
     uint32_t bitmap = ((uint32_t*) dev_data->payload)[0];
     /* Iterate through device's parameters. If bit is off, continue
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
-    uint8_t* payload_ptr = &(dev_data->payload[4]); // Start the pointer at the beginning of the values (skip the bitmap)
+    uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
     int vals_idx = 0;
     for (int i = 0; i < dev->num_params; i++) {
         // If bit is off, parameter is not included in the payload
