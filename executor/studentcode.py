@@ -34,10 +34,10 @@ i = 0
 
 def autonomous_main():
     Robot.get_value(MOTOR, 'duty_cycle')
-    global i
-    if i % 500000 == 0:
+    global i, start
+    if i % 100000 == 0:
         print("Iteration:", i, time.time() - start)
-        Robot.run(teleop_setup)
+        start = time.time()
         Robot.run(double, 5.0)
         # Robot.run(wait)
     i += 1
@@ -58,6 +58,8 @@ def teleop_setup():
     print('Teleop setup has begun!')
     global start
     start = time.time()
+    global i
+    i = 0
 
 
 def teleop_main():
