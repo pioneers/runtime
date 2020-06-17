@@ -10,7 +10,7 @@ cdef extern from "../runtime_util/runtime_util.h":
     ctypedef enum process_t:
         EXECUTOR, STUDENTAPI
     ctypedef struct device_t:
-        pass
+        char* name
     ctypedef struct param_val_t:
         int p_i
         float p_f
@@ -22,7 +22,7 @@ cdef extern from "../runtime_util/runtime_util.h":
     char** get_joystick_names() nogil
     int MAX_PARAMS
     param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) nogil
-    uint8_t get_param_idx(uint16_t dev_type, char* param_name) nogil
+    int8_t get_param_idx(uint16_t dev_type, char* param_name) nogil
 
 
 cdef extern from "../logger/logger.h":

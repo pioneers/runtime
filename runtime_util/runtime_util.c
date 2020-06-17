@@ -194,44 +194,35 @@ device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer
                                      &TeamFlag, NULL, &ServoControl, NULL, NULL,
                                      &YogiBear, &RFID, &PolarBear, &KoalaBear};
 
+
 device_t* get_device(uint16_t device_type) {
-    return DEVICES[device_type];
-}
-
-uint16_t device_name_to_type(char* dev_name) {
-    for (int i = 0; i < DEVICES_LENGTH; i++) {
-        if (DEVICES[i] != NULL && strcmp(DEVICES[i]->name, dev_name) == 0) {
-            return i;
-        }
+    if (0 <= device_type && device_type < DEVICES_LENGTH) {
+       return DEVICES[device_type];
     }
-    return -1;
+    return NULL;
 }
 
-char* device_type_to_name(uint16_t dev_type) {
-    return DEVICES[dev_type]->name;
-}
-
-void all_params_for_device_type(uint16_t dev_type, char* param_names[]) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        param_names[i] = DEVICES[dev_type]->params[i].name;
-    }
-}
 
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return &DEVICES[dev_type]->params[i];
+    device_t* device = get_device(dev_type);
+    if (device == NULL) {
+        return NULL;
+    }
+    for (int i = 0; i < device->num_params; i++) {
+        if (strcmp(param_name, device->params[i].name) == 0) {
+            return &device->params[i];
         }
     }
     return NULL;
 }
 
-uint8_t get_param_idx(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-	  for (int i = 0; i < num_params; i++) {
-        if (strcmp(param_name, DEVICES[dev_type]->params[i].name) == 0) {
+int8_t get_param_idx(uint16_t dev_type, char* param_name) {
+    device_t* device = get_device(dev_type);
+    if (device == NULL) {
+        return -1;
+    }
+	for (int i = 0; i < device->num_params; i++) {
+        if (strcmp(param_name, device->params[i].name) == 0) {
             return i;
         }
     }

@@ -278,7 +278,7 @@ void *run_py_function(void *thread_args) {
             }
         } while(args->loop);
         pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-        // Decrefs the Python objects
+        // Calls Python cleanup handler
         pthread_cleanup_pop(1);
     }
     else {
