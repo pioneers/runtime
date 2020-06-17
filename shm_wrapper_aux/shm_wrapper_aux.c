@@ -54,8 +54,8 @@ static void error (char *msg)
 //a few very useful semaphore operation wrapper utilities
 static void my_sem_wait (sem_t *sem, char *sem_desc)
 {
-	static char msg[64];
 	if (sem_wait(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_wait: %s", sem_desc);
 		error(msg);
 	}
@@ -64,18 +64,16 @@ static void my_sem_wait (sem_t *sem, char *sem_desc)
 
 static void my_sem_post (sem_t *sem, char *sem_desc)
 {
-	static char msg[64];
 	(sem == gp_sem) ? gp_val++ : rd_val++; //increment gp_sem
 	if (sem_post(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_post: %s", sem_desc);
 		error(msg);
 	}
 }
 
 static void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	static char msg[64];
-	
+{	
 	//post the given sem before closing if the current process has it locked right now
 	if (sem == gp_sem && gp_val == 0) {
 		my_sem_post(gp_sem, "before close");
@@ -84,6 +82,7 @@ static void my_sem_close (sem_t *sem, char *sem_desc)
 	}
 	
 	if (sem_close(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_close: %s", sem_desc);
 		error(msg);
 	}
