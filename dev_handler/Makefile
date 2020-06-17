@@ -1,16 +1,13 @@
 CC=gcc
 LIBFLAGS=-lusb-1.0 -lpthread
-UNAME_S := $(shell uname -s) # Get Unix name
 
-# Mac
-ifeq ($(UNAME_S), Darwin)
+UNAME=$(shell uname)
+ifeq ($(UNAME), Linux)
+	CFLAGS = -I/usr/include/libusb-1.0
+endif
+ifeq ($(UNAME), Darwin)
 	CFLAGS = -I/usr/local/include/libusb-1.0
 	LDFLAGS = -L/usr/local/lib/
-endif
-
-# Linux
-ifeq ($(UNAME_S), Linux)
-	CFLAGS = -I/usr/include/libusb-1.0
 endif
 
 # Run dev_handler main
