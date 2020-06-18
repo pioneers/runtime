@@ -60,32 +60,6 @@ const char *get_mode_str(robot_desc_val_t mode) {
 
 
 /**
- *  Thread cleanup function to decref Python objects. 
- * 
- *  Inputs:
- *      args: a PyObject** that needs their reference decremented
- */
-void py_function_cleanup(void *args) {
-    struct cleanup *obj = (struct cleanup *) args;
-    Py_XDECREF(obj->func);
-    Py_XDECREF(obj->value);
-}
-
-
-/**
- *  Thread cleanup function to release GIL.
- *  
- *  Inputs:
- *      args: a PyGILState_STATE* to release
- */
-void gil_cleanup(void* args) {
-    PyGILState_STATE* gil = (PyGILState_STATE*) args;
-    PyGILState_Release(*gil);
-    log_runtime(DEBUG, "released GIL");
-}
-
-
-/**
  *  Closes all executor processes and exits cleanly.
  */
 void executor_stop() {
@@ -102,6 +76,8 @@ void executor_stop() {
     // Py_FinalizeEx();
     shm_aux_stop(EXECUTOR);
     log_runtime(DEBUG, "Aux SHM stopped");
+    shm_stop(STUDENTAPI);
+    log_runtime(DEBUG, "SHM stopped");
     logger_stop();
 	exit(1);
 }
@@ -126,6 +102,8 @@ void executor_init(char *student_code) {
 	logger_init(EXECUTOR);
     shm_aux_init(EXECUTOR);
     log_runtime(DEBUG, "Aux SHM initialized");
+    shm_init(STUDENTAPI);
+    log_runtime(DEBUG, "SHM intialized");
     student_module = student_code;
     Py_Initialize();
     PyEval_InitThreads();
@@ -200,6 +178,32 @@ void executor_init(char *student_code) {
 
 
 /**
+ *  Thread cleanup function to decref Python objects. 
+ * 
+ *  Inputs:
+ *      args: a PyObject** that needs their reference decremented
+ */
+void py_function_cleanup(void *args) {
+    struct cleanup *obj = (struct cleanup *) args;
+    Py_XDECREF(obj->func);
+    Py_XDECREF(obj->value);
+}
+
+
+/**
+ *  Thread cleanup function to release GIL.
+ *  
+ *  Inputs:
+ *      args: a PyGILState_STATE* to release
+ */
+void gil_cleanup(void* args) {
+    PyGILState_STATE* gil = (PyGILState_STATE*) args;
+    PyGILState_Release(*gil);
+    log_runtime(DEBUG, "released GIL");
+}
+
+
+/**
  *  Runs the Python function specified in the arguments.
  * 
  *  Behavior: If loop = 0, this will block the calling thread for the length of
@@ -215,7 +219,7 @@ void executor_init(char *student_code) {
  *          cond: condition variable that blocks the calling thread, used with `run_function_timeout`
  *          timeout: max length of execution time before a warning is issued for the function call
  */
-void *run_py_function(void *thread_args) {
+void* run_py_function(void *thread_args) {
     thread_args_t *args = (thread_args_t *)thread_args;
 
     PyGILState_STATE gstate = PyGILState_Ensure();
@@ -349,6 +353,63 @@ void run_function_timeout(thread_args_t *args) {
 }
 
 
+void action_cleanup(void* args) {
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    PyObject* running_actions = PyObject_GetAttrString(pRobot, "running_actions");
+    if (running_actions == NULL) {
+        PyErr_Print();
+        log_runtime(ERROR, "getting running actions failed");
+        return;
+    }
+    PyObject* actions = PyMapping_Values(running_actions);
+    Py_DECREF(running_actions);
+    if (actions == NULL) {
+        PyErr_Print();
+        log_runtime(ERROR, "Getting running threads failed");
+        return;
+    }
+    Py_ssize_t num_actions = PyList_Size(actions);
+    for (int i = 0; i < num_actions; i++) {
+        PyObject* thread = PyList_GetItem(actions, i);
+        if (thread == NULL) {
+            PyErr_Print();
+            log_runtime(ERROR, "Get item from running_actions failed");
+            continue;
+        }
+
+        PyObject* alive = PyObject_CallMethod(thread, "is_alive", NULL);
+        if (alive == NULL) {
+            PyErr_Print();
+            log_runtime(ERROR, "Couldn't get whether thread is alive");
+            continue;
+        }
+        else if (PyObject_Not(alive)) {
+            continue;
+        }
+
+        PyObject* pTID = PyObject_GetAttrString(thread, "ident");
+        if (pTID == NULL) {
+            PyErr_Print();
+            log_runtime(ERROR, "Failed to get ident from thread");
+            continue;
+        }
+
+        long tid = PyLong_AsLongLong(pTID);
+        if (tid == -1) {
+            if (PyErr_Occurred()) {
+                PyErr_Print();
+            }
+            log_runtime(ERROR, "Failed to convert PyLong to C long");
+            continue;
+        }
+
+        PyThreadState_SetAsyncExc(tid, PyExc_TimeoutError);
+    }
+    PyGILState_Release(gstate);
+    log_runtime(DEBUG, "Stopped student actions");
+}
+
+
 /**
  *  Begins the given game mode and calls setup and main appropriately. Will run main forever.
  * 
@@ -358,7 +419,7 @@ void run_function_timeout(thread_args_t *args) {
  *  Inputs:
  *      args: string of the mode to start running
  */
-void *run_mode_functions(void *args) {
+void* run_mode_functions(void *args) {
 	//Set up the arguments to the threads that will run the setup and main threads
     char *mode = (char *)args;
     char setup_str[20], main_str[20];
@@ -373,9 +434,12 @@ void *run_mode_functions(void *args) {
     sigaddset(&set, SIGINT);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 	
+    //Adds cleanup function to stop student actions once mode is finished
+    pthread_cleanup_push(action_cleanup, NULL);
 	//Run the setup function on a timeout, followed by main function on a loop
     run_function_timeout(&setup_args);
     run_py_function(&main_args);
+    pthread_cleanup_pop(1);
     return NULL;
 }
 
