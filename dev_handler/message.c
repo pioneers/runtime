@@ -38,6 +38,7 @@ static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bit
 ***************************************************/
 message_t* make_empty(ssize_t payload_size) {
     message_t* msg = malloc(sizeof(message_t));
+    msg->message_id = 0x0;
     msg->payload = malloc(payload_size);
     msg->payload_length = 0;
     msg->max_payload_length = payload_size;
@@ -431,30 +432,28 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
     return (expected_checksum != received_checksum) ? 1 : 0;
 }
 
-void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]) {
+void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[]) {
     device_t* dev = get_device(dev_type);
     // Bitmap is stored in the first 32 bits of the payload
     uint32_t bitmap = ((uint32_t*) dev_data->payload)[0];
     /* Iterate through device's parameters. If bit is off, continue
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
-    int vals_idx = 0;
-    for (int i = 0; i < dev->num_params; i++) {
+    for (int i = 0; i < MAX_PARAMS; i++) {
         // If bit is off, parameter is not included in the payload
         if (((1 << i) & bitmap) == 0) {
             continue;
         }
         if (strcmp(dev->params[i].type, "int") == 0) {
-            vals[vals_idx]->p_i = ((int*) payload_ptr)[0];
+            vals[i].p_i = ((int*) payload_ptr)[0];
             payload_ptr += sizeof(int) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
-            vals[vals_idx]->p_f = ((float*) payload_ptr)[0];
+            vals[i].p_f = ((float*) payload_ptr)[0];
             payload_ptr += sizeof(float) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "bool") == 0) {
-            vals[vals_idx]->p_b = payload_ptr[0];
+            vals[i].p_b = payload_ptr[0];
             payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
         }
-        vals_idx++;
     }
 }
 
