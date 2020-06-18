@@ -279,10 +279,11 @@ int parse_message(uint8_t data[], message_t* empty_msg);
  * Reads the parameter values from a DeviceData/DeviceWrite message into vals
  * dev_type: The device type that the message is sent from/to
  * dev_data: The DeviceData/DeviceWrite message
- * vals: An array of param_val_t structs to be populated with the values from the message. Use make_empty_param_values;
- *  NOTE: The length of vals MUST be equal to the number of received values (make_empty_param_values should handle this)
+ * vals: An array of param_val_t structs to be populated with the values from the message.
+ *  NOTE: The length of vals MUST be at LEAST the number of params sent in the DeviceData message
+ *  Tip: Allocate MAX_PARAMS param_val_t structs to guarantee this
  */
-void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t* vals[]);
+void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[]);
 
 /*
  * Utility function to allocate enough memory for a buffer to be used in parse_device_data
