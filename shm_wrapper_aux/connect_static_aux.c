@@ -30,6 +30,13 @@ int main() {
 	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
 
+	sleep(5);
+	robot_desc_write(RUN_MODE, TELEOP);
+	sleep(5);
+	robot_desc_write(RUN_MODE, IDLE);
+	sleep(5);
+	robot_desc_write(RUN_MODE, AUTO);
+
     while(1) {
         sleep(1);
     }
