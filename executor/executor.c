@@ -345,68 +345,11 @@ void run_function_timeout(thread_args_t *args) {
         perror(msg);
     }
 	
-	//remove everything associated with the thread
+	// Wait for thread to exit and then remove everything associated with the thread
     pthread_join(tid, NULL);
     pthread_mutex_unlock(&mutex);
     pthread_mutex_destroy(&mutex);
     pthread_cond_destroy(&cond);
-}
-
-
-void action_cleanup(void* args) {
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    PyObject* running_actions = PyObject_GetAttrString(pRobot, "running_actions");
-    if (running_actions == NULL) {
-        PyErr_Print();
-        log_runtime(ERROR, "getting running actions failed");
-        return;
-    }
-    PyObject* actions = PyMapping_Values(running_actions);
-    Py_DECREF(running_actions);
-    if (actions == NULL) {
-        PyErr_Print();
-        log_runtime(ERROR, "Getting running threads failed");
-        return;
-    }
-    Py_ssize_t num_actions = PyList_Size(actions);
-    for (int i = 0; i < num_actions; i++) {
-        PyObject* thread = PyList_GetItem(actions, i);
-        if (thread == NULL) {
-            PyErr_Print();
-            log_runtime(ERROR, "Get item from running_actions failed");
-            continue;
-        }
-
-        PyObject* alive = PyObject_CallMethod(thread, "is_alive", NULL);
-        if (alive == NULL) {
-            PyErr_Print();
-            log_runtime(ERROR, "Couldn't get whether thread is alive");
-            continue;
-        }
-        else if (PyObject_Not(alive)) {
-            continue;
-        }
-
-        PyObject* pTID = PyObject_GetAttrString(thread, "ident");
-        if (pTID == NULL) {
-            PyErr_Print();
-            log_runtime(ERROR, "Failed to get ident from thread");
-            continue;
-        }
-
-        long tid = PyLong_AsLongLong(pTID);
-        if (tid == -1) {
-            if (PyErr_Occurred()) {
-                PyErr_Print();
-            }
-            log_runtime(ERROR, "Failed to convert PyLong to C long");
-            continue;
-        }
-
-        PyThreadState_SetAsyncExc(tid, PyExc_TimeoutError);
-    }
-    PyGILState_Release(gstate);
-    log_runtime(DEBUG, "Stopped student actions");
 }
 
 
@@ -419,7 +362,7 @@ void action_cleanup(void* args) {
  *  Inputs:
  *      args: string of the mode to start running
  */
-void* run_mode_functions(void *args) {
+void* run_mode(void *args) {
 	//Set up the arguments to the threads that will run the setup and main threads
     char *mode = (char *)args;
     char setup_str[20], main_str[20];
@@ -434,13 +377,85 @@ void* run_mode_functions(void *args) {
     sigaddset(&set, SIGINT);
     pthread_sigmask(SIG_BLOCK, &set, NULL);
 	
-    //Adds cleanup function to stop student actions once mode is finished
-    pthread_cleanup_push(action_cleanup, NULL);
 	//Run the setup function on a timeout, followed by main function on a loop
     run_function_timeout(&setup_args);
     run_py_function(&main_args);
-    pthread_cleanup_pop(1);
     return NULL;
+}
+
+
+/**
+ *  Stops the current mode and makes sure to cleanly exit any currenly running Python threads.
+ */
+void stop_mode() {
+    // Must acquire the GIL before calling C API functions
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    log_runtime(DEBUG, "Got GIL");
+    
+    // Cancel the main Python thread by sending a TimeoutError
+    PyThreadState_SetAsyncExc((unsigned long) mode_thread, PyExc_TimeoutError);
+    PyErr_Clear();
+
+    // Get all threads started by student
+    PyObject* running_actions = PyObject_GetAttrString(pRobot, "running_actions");
+    if (running_actions == NULL) {
+        PyErr_Print();
+        log_runtime(ERROR, "getting running actions failed");
+        return;
+    }
+    PyObject* actions = PyMapping_Values(running_actions);
+    Py_DECREF(running_actions);
+    if (actions == NULL) {
+        PyErr_Print();
+        log_runtime(ERROR, "Getting running threads failed");
+        return;
+    }
+
+    // Iterate through all threads started
+    Py_ssize_t num_actions = PyList_Size(actions);
+    for (int i = 0; i < num_actions; i++) {
+        PyObject* thread = PyList_GetItem(actions, i);
+        if (thread == NULL) {
+            PyErr_Print();
+            log_runtime(ERROR, "Get item from running_actions failed");
+            continue;
+        }
+
+        // Ensure we only cancel threads that are still alive
+        PyObject* alive = PyObject_CallMethod(thread, "is_alive", NULL);
+        if (alive == NULL) {
+            PyErr_Print();
+            log_runtime(ERROR, "Couldn't get whether thread is alive");
+            continue;
+        }
+        else if (PyObject_Not(alive)) {
+            continue;
+        }
+
+        // Get the thread ID of the action
+        PyObject* pTID = PyObject_GetAttrString(thread, "ident");
+        if (pTID == NULL) {
+            PyErr_Print();
+            log_runtime(ERROR, "Failed to get ident from thread");
+            continue;
+        }
+        long tid = PyLong_AsLongLong(pTID);
+        if (tid == -1) {
+            if (PyErr_Occurred()) {
+                PyErr_Print();
+            }
+            log_runtime(ERROR, "Failed to convert PyLong to C long");
+            continue;
+        }
+
+        // Cancel any student actions still running by sending a TimeoutError
+        PyThreadState_SetAsyncExc(tid, PyExc_TimeoutError);
+    }
+    // Release the GIL
+    PyGILState_Release(gstate);
+    log_runtime(DEBUG, "Stopped student actions");
+    // Wait for thread to exit
+    pthread_join(mode_thread, NULL);
 }
 
 
@@ -463,22 +478,14 @@ int main(int argc, char *argv[]) {
         if (new_mode != mode) {
             mode = new_mode;
             pthread_cancel(mode_thread);
-            pthread_join(mode_thread, NULL);
+            stop_mode();
             if (mode != IDLE) {
-                pthread_create(&mode_thread, NULL, run_mode_functions, (void*) get_mode_str(mode));
+                pthread_create(&mode_thread, NULL, run_mode, (void*) get_mode_str(mode));
             }
         }
         new_mode = robot_desc_read(RUN_MODE);
     } while (1);
 
-    // Test complete match
-    // pthread_create(&mode_thread, NULL, run_mode_functions, (void*) "autonomous");
-    // sleep(4);
-    // pthread_cancel(mode_thread);
-    // pthread_join(mode_thread, NULL);
-    // log_runtime(DEBUG, "auton ended");
-    // pthread_create(&mode_thread, NULL, run_mode_functions, (void*) "teleop");
-    // while(1) {}
 
     Py_END_ALLOW_THREADS
     return 0;
