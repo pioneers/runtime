@@ -127,23 +127,39 @@ cdef class Gamepad:
         raise KeyError(f"Invalid gamepad parameter {param_name}")
 
 
+class ThreadWrapper(threading.Thread):
+
+    def __init__(self, action, args, kwargs):
+        super().__init__()
+        self.action = action
+        self.args = args
+        self.kwargs = kwargs
+
+    def run(self):
+        try:
+            self.action(*self.args, **self.kwargs)
+        except TimeoutError:
+            pass
+        except Exception as e:
+            _print(str(e), level=ERROR)
+
+
 cdef class Robot:
     """
     The API for accessing the robot and its devices.
     """
-    # Include device handler and executor API
-    cdef dict running_actions
+    cdef public dict running_actions
 
     def __cinit__(self):
         """Initializes the shared memory (SHM) wrapper. """
-        shm_init(STUDENTAPI) # Remove once integrated into executor?
-        log_runtime(DEBUG, "SHM intialized")
+        # shm_init(STUDENTAPI) # Remove once integrated into executor?
+        # log_runtime(DEBUG, "SHM intialized")
         self.running_actions = {}
 
     def __dealloc__(self):
         """Once process is done and object is deallocated, close the mapping to SHM."""
-        shm_stop(STUDENTAPI)
-        log_runtime(DEBUG, "SHM stopped")
+        # shm_stop(STUDENTAPI)
+        # log_runtime(DEBUG, "SHM stopped")
 
 
     def run(self, action, *args, **kwargs) -> None:
@@ -160,7 +176,7 @@ cdef class Robot:
         if threading.active_count() > MAX_THREADS:
             _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=WARN)
             return
-        thread = threading.Thread(target=action, args=args, kwargs=kwargs)
+        thread = ThreadWrapper(action, args, kwargs)
         thread.daemon = True
         self.running_actions[action.__name__] = thread
         thread.start()
