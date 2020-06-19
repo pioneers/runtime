@@ -170,6 +170,18 @@ void* receiver(void* relay);
 int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint, int* transferred);
 
 /*
+ * Attempts to read a message from the specified endpoint
+ * msg: Output empty message to be populated with the read message if successful
+ * handle: A libusb device handle obtained by using libusb_open on the device
+ * endpoint: The usb endpoint address that the message should be read from
+ * return: 0 if a full message was successfully read and put into MSG
+ *         1 if no message was found
+ *         2 if a broken message was received
+ *         3 if a message was received but with an incorrect checksum
+ */
+int receive_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint);
+
+/*
  * Synchronously sends a PING message to a device to check if it's a lowcar device
  * relay: Struct holding device, handle, and endpoint fields
  * return: 0 upon successfully receiving a SubscriptionResponse and setting relay->dev_id

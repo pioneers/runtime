@@ -285,6 +285,7 @@ void relay_clean_up(msg_relay_t* relay) {
 		// device_disconnect(relay->shm_dev_idx)
 	}
 	free(relay);
+	printf("INFO: Cleaned up threads\n");
 	pthread_cancel(pthread_self());
 }
 
@@ -333,6 +334,7 @@ void* sender(void* relay_cast) {
 			}
 			destroy_message(msg);
 		}
+		pthread_testcancel(); // Cancellation point
 		// If it's been HB_REQ_FREQ milliseconds since last sending a HeartBeatRequest, send another one
 		if ((millis() - relay->sent_hb_req) >= HB_REQ_FREQ) {
 			msg = make_heartbeat_request(0);
@@ -342,6 +344,7 @@ void* sender(void* relay_cast) {
 			}
 			destroy_message(msg);
 		}
+		pthread_testcancel(); // Cancellation point
 		// If receiver got a HeartBeatRequest, send a HeartBeatResponse and mark the request as resolved
 		if (relay->got_hb_req) {
 			msg = make_heartbeat_response(0);
@@ -370,87 +373,45 @@ void* receiver(void* relay_cast) {
 		}
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
-
 	/* Do work! Continuously read from the device until a complete message can be parsed.
 	 * If it's a HeartBeatRequest, signal sender to reply with a HeartBeatResponse
 	 * If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
 	 * If it's device data, write it to shared memory
 	 */
-	int transferred = 0; // The number of bytes read
-	// Variable to temporarily hold a read byte
-	uint8_t last_byte_read;
-	// Allocate a buffer with enough space for the largest message + a byte of cobs encoding overhead
-	uint8_t* data = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE + 1);
 	// An empty message to parse the received data into
 	message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
 	// An array of empty parameter values to be populated from DeviceData message payloads and written to shared memory
 	param_val_t* vals = malloc(MAX_PARAMS * sizeof(param_val_t));
-	// Hold return status of libusb transfers
-	int ret;
 	while (1) {
-		// Try to read a byte from the device
-		ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, &last_byte_read, 1, &transferred, DEVICE_TIMEOUT);
-		// If the byte read is the delimiter, (0x0) then we have an incoming message!
-		if (ret == LIBUSB_SUCCESS && transferred == 1) {
-			printf("INFO: A byte was received from the device!\n");
-			if (last_byte_read == 0) {
-				printf("INFO: It's the start of a message!\n");
-				// Read the length of the message
-				ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, &last_byte_read, 1, &transferred, DEVICE_TIMEOUT);
-				if (ret == LIBUSB_SUCCESS && transferred == 1) {
-					int cobs_len = last_byte_read;
-					printf("INFO: Received the length of the encoded message: %d bytes.\n", cobs_len);
-					// Read the encoded message
-					ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, cobs_len, &transferred, DEVICE_TIMEOUT);
-					if (ret == LIBUSB_SUCCESS && transferred == cobs_len) {
-						// Parse the read message
-						printf("INFO: Received the full message and will now parse\n");
-						if (parse_message(data, msg) == 0) {
-							printf("INFO: Message of type %X successfully parsed!\n", msg->message_id);
-						} else {
-							printf("FATAL: The data received has an incorrect checksum. Dropping it.\n");
-						}
-					} else {
-						printf("FATAL: Didn't receive the full message. Dropping it.\n");
-					}
-				} else {
-					printf("FATAL: Didn't receive the length of the message. Dropping it.\n");
-				}
-			} else {
-				printf("FATAL: It's NOT the start of a message. Dropping it.\n");
-			}
-		}
-		// If msg->message_id is set, then we have a parsed message
-		if (msg->message_id == 0x0) {
-			// A message was not received in its entirety, so reset the last byte read
-			last_byte_read = -1;
-		} else {
-			if (msg->message_id == HeartBeatRequest) {
-				// If it's a HeartBeatRequest, take note of it so sender can resolve it
-				relay->got_hb_req = 1;
-			} else if (msg->message_id == HeartBeatResponse) {
-				// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
-				relay->sent_hb_req = 0;
-			} else if (msg->message_id == DeviceData) {
-				// First, parse the payload into an array of parameter values
-				parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
-				// TODO: Now write it to shared memory
-				// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
-			} else if (msg->message_id == Log) {
-				// TODO: Send payload to logger
-			} else if (msg->message_id == Error) {
-				// TODO: Send payload to logger
-			} else {
-				// Received a message of unexpected type.
-				printf("FATAL: Received a message of unexpected type and dropping it.\n");
-			}
-			// Now that the message is taken care of, clear the message
-			msg->message_id = 0x0;
-			msg->payload = 0x0;
-			msg->payload_length = 0;
-		    msg->max_payload_length = MAX_PAYLOAD_SIZE;
-		}
 		pthread_testcancel(); // Cancellation point
+		// Try to read a message
+		if (receive_message(msg, relay->handle, relay->receive_endpoint) != 0) {
+			continue;
+		}
+		if (msg->message_id == HeartBeatRequest) {
+			// If it's a HeartBeatRequest, take note of it so sender can resolve it
+			relay->got_hb_req = 1;
+		} else if (msg->message_id == HeartBeatResponse) {
+			// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
+			relay->sent_hb_req = 0;
+		} else if (msg->message_id == DeviceData) {
+			// First, parse the payload into an array of parameter values
+			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
+			// TODO: Now write it to shared memory
+			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
+		} else if (msg->message_id == Log) {
+			// TODO: Send payload to logger
+		} else if (msg->message_id == Error) {
+			// TODO: Send payload to logger
+		} else {
+			// Received a message of unexpected type.
+			printf("FATAL: Received a message of unexpected type and dropping it.\n");
+		}
+		// Now that the message is taken care of, clear the message
+		msg->message_id = 0x0;
+		msg->payload = 0x0;
+		msg->payload_length = 0;
+	    msg->max_payload_length = MAX_PAYLOAD_SIZE;
 	}
 	return NULL;
 }
@@ -475,6 +436,63 @@ int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint,
 	int ret = libusb_bulk_transfer(handle, endpoint, data, len, transferred, DEVICE_TIMEOUT);
 	free(data);
 	return ret;
+}
+
+/*
+ * Attempts to read a message from the specified endpoint
+ * msg: Output empty message to be populated with the read message if successful
+ * handle: A libusb device handle obtained by using libusb_open on the device
+ * endpoint: The usb endpoint address that the message should be read from
+ * return: 0 if a full message was successfully read and put into MSG
+ *         1 if no message was found
+ *         2 if a broken message was received
+ *         3 if a message was received but with an incorrect checksum
+ */
+int receive_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint) {
+	// Allocate a buffer with enough space for the largest message + a byte of cobs encoding overhead
+	uint8_t* data = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE + 1);
+	// Variable to temporarily hold a read byte
+	uint8_t last_byte_read;
+	// Holds the actual number of bytes read from a transfer
+	int transferred;
+	// Try to read a byte from the device
+	int ret = libusb_bulk_transfer(handle, endpoint, &last_byte_read, 1, &transferred, DEVICE_TIMEOUT);
+	// If the byte read is the delimiter, (0x0) then we have an incoming message!
+	if (ret == LIBUSB_SUCCESS && transferred == 1) {
+		printf("INFO: A byte was received from the device!\n");
+		if (last_byte_read == 0) {
+			printf("INFO: It's the start of a message!\n");
+			// Read the length of the message
+			ret = libusb_bulk_transfer(handle, endpoint, &last_byte_read, 1, &transferred, DEVICE_TIMEOUT);
+			if (ret == LIBUSB_SUCCESS && transferred == 1) {
+				int cobs_len = last_byte_read;
+				printf("INFO: Received the length of the encoded message: %d bytes.\n", cobs_len);
+				// Read the encoded message
+				ret = libusb_bulk_transfer(handle, endpoint, data, cobs_len, &transferred, DEVICE_TIMEOUT);
+				if (ret == LIBUSB_SUCCESS && transferred == cobs_len) {
+					// Parse the read message
+					printf("INFO: Received the full message and will now parse\n");
+					if (parse_message(data, msg) == 0) {
+						printf("INFO: Message of type %X successfully parsed!\n", msg->message_id);
+						return 0;
+					} else {
+						printf("FATAL: The data received has an incorrect checksum. Dropping it.\n");
+						return 3;
+					}
+				} else {
+					printf("FATAL: Didn't receive the full message. Dropping it.\n");
+					return 2;
+				}
+			} else {
+				printf("FATAL: Didn't receive the length of the message. Dropping it.\n");
+				return 2;
+			}
+		} else {
+			printf("FATAL: Received a stray byte. Dropping it.\n");
+			return 2;
+		}
+	}
+	return 1;
 }
 
 /*
