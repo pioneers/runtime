@@ -178,25 +178,25 @@ void* relayer(void* relay_cast) {
 	printf("INFO: Device has %d interfaces\n", config->bNumInterfaces);
 
 	// Tell libusb to automatically detach the kernel driver on claimed interfaces then reattach them when releasing the interface
-	// This function is not supported for Darwin or Windows, and will simply do nothing for those OS
-	ret = libusb_set_auto_detach_kernel_driver(relay->handle, 1);
+	// This function is not supported for Darwin or Windows, and will simply do nothing
+	libusb_set_auto_detach_kernel_driver(relay->handle, 1);
 
 	// Claim an interface on the device's handle, telling OS we want to do I/O on the device
-	ret = libusb_claim_interface(relay->handle, 0); // TODO: Getting the first one. Change later?
+	ret = libusb_claim_interface(relay->handle, INTERFACE_IDX);
 	if (ret != 0) {
-		printf("ERROR: Couldn't claim interface with error code %s\n", libusb_error_name(ret));
+		printf("ERROR: Couldn't claim interface %d with error code %s\n", INTERFACE_IDX, libusb_error_name(ret));
 		relay_clean_up(relay);
 		return NULL;
 	}
-	printf("INFO: Successfully claimed 0th interface!\n");
-	const struct libusb_interface interface = config->interface[0];
+	printf("INFO: Successfully claimed interface %d!\n", INTERFACE_IDX);
+	const struct libusb_interface interface = config->interface[INTERFACE_IDX];
 
 	// Get the 0th setting of the claimed interface. TODO: Getting the first one. Change later?
-	printf("INFO: 0th interface has %d settings\n", interface.num_altsetting);
+	printf("INFO: This interface has %d settings\n", interface.num_altsetting);
 	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0];
 
 	// Get the endpoints for sending and receiving
-	printf("INFO: 0th setting of 0th interface has %d endpoints\n", interface_desc.bNumEndpoints);
+	printf("INFO: 0th setting has %d endpoints\n", interface_desc.bNumEndpoints);
 	uint8_t found_bulk_in = 0;
 	uint8_t found_bulk_out = 0;
 	struct libusb_endpoint_descriptor endpoint;
@@ -272,7 +272,7 @@ void* relayer(void* relay_cast) {
 void relay_clean_up(msg_relay_t* relay) {
 	printf("INFO: Cleaning up threads\n");
 	// Release the device interface. If it was never claimed, this will do nothing.
-	libusb_release_interface(relay->handle, 0);
+	libusb_release_interface(relay->handle, INTERFACE_IDX);
 	// Close the device
 	libusb_close(relay->handle);
 	// Cancel the sender and receiver threads when ongoing transfers are completed
