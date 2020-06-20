@@ -11,6 +11,15 @@ Mac:
 */
 #include "message.h"
 
+// ************************************ PRIVATE FUNCTIONS ****************************************** //
+
+/*
+ * Private utility function to calculate the size of the payload needed
+ * for a DeviceWrite/DeviceData message.
+ * device_type: The type of device (Ex: 2 for Potentiometer)
+ * param_bitmap: 32-bit param bit map. The i-th bit indicates whether param i will be transmitted in the message
+ * return: The size of the payload
+ */
 static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap) {
     ssize_t result = BITMAP_SIZE;
     device_t* dev = get_device(device_type);
@@ -31,6 +40,107 @@ static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bit
     }
     return result;
 }
+
+/*
+ * Appends data to the end of a message's payload
+ * msg: The message whose payload is to be appended to
+ * data: The data to be appended to the payload
+ * length: The length of data in bytes
+ * returns: 0 if successful. -1 otherwise due to overwriting
+ * side-effect: increments msg->payload_length by length
+ */
+int append_payload(message_t *msg, uint8_t *data, uint8_t length)
+{
+	memcpy(&(msg->payload[msg->payload_length]), data, length);
+	msg->payload_length += length;
+	return (msg->payload_length > msg->max_payload_length) ? -1 : 0;
+}
+
+
+/*
+ * Computes the checksum of data
+ * data: An array
+ * len: the length of data
+ * returns: The checksum
+ */
+uint8_t checksum(uint8_t* data, int len) {
+    uint8_t chk = data[0];
+    for (int i = 0; i < len; i++) {
+        chk ^= data[i];
+    }
+    return chk;
+}
+
+/*
+ * A macro to help with cobs_encode
+ */
+#define finish_block() {		\
+	*block_len_loc = block_len; \
+	block_len_loc = dst++;      \
+	out_len++;                  \
+	block_len = 0x01;           \
+}
+
+/*
+ * Cobs encodes data into a buffer
+ * src: The data to be encoded
+ * dst: The buffer to write the encoded data to
+ * src_len: The size of the source data
+ * return: The size of the encoded data
+ */
+ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
+	const uint8_t *end = src + src_len;
+	uint8_t *block_len_loc = dst++;
+	uint8_t block_len = 0x01;
+	ssize_t out_len = 0;
+
+	while (src < end) {
+		if (*src == 0) {
+			finish_block();
+		} else {
+			*dst++ = *src;
+			block_len++;
+			out_len++;
+			if (block_len == 0xFF) {
+				finish_block();
+			}
+		}
+		src++;
+	}
+	finish_block();
+
+	return out_len;
+}
+
+/*
+ * Cobs decodes data into a buffer
+ * src: The data to be decoded
+ * dst: The buffer to write the decoded data to
+ * src_len: The size of the source data
+ * return: The size of the decoded data
+ */
+ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
+	const uint8_t *end = src + src_len;
+	ssize_t out_len = 0;
+
+	while (src < end) {
+		uint8_t code = *src++;
+		for (uint8_t i = 1; i < code; i++) {
+			*dst++ = *src++;
+			out_len++;
+			if (src > end) { // Bad packet
+				return 0;
+			}
+		}
+		if (code < 0xFF && src != end) {
+			*dst++ = 0;
+			out_len++;
+		}
+	}
+	return out_len;
+}
+
+// ************************************ PUBLIC FUNCTIONS ****************************************** //
 
 /***************************************************
 *               MESSAGE CONSTRUCTORS               *
@@ -232,102 +342,6 @@ void destroy_message(message_t* message) {
 }
 
 /*
- * Appends DATA with length LENGTH to the end of the payload of MSG
- * msg->payload is an array of 8-bit integers
- * msg->payload_length is the current length of the data in the payload
- * msg->max_payload_length is the actual length of the payload (all of which may not be used)
- * Returns -1 if payload_length > max_payload_length (overwrite)
- * Returns 0 on success
- * ---This is more or less the same as Messenger::append_payload in Messenger.cpp
-*/
-int append_payload(message_t *msg, uint8_t *data, uint8_t length)
-{
-	memcpy(&(msg->payload[msg->payload_length]), data, length);
-	msg->payload_length += length;
-	return (msg->payload_length > msg->max_payload_length) ? -1 : 0;
-}
-
-/*
- * Compute the checksum of byte-array DATA of length LEN
-*/
-uint8_t checksum(uint8_t* data, int len) {
-    uint8_t chk = data[0];
-    for (int i = 0; i < len; i++) {
-        chk ^= data[i];
-    }
-    return chk;
-}
-
-/***************************************************
-*               COBS ENCODE/DECODE
-* Implementation copied from Messenger.cpp in lowcar
-***************************************************/
-/*
- * A macro to help with cobs_encode
-*/
-#define finish_block() {		\
-	*block_len_loc = block_len; \
-	block_len_loc = dst++;      \
-	out_len++;                  \
-	block_len = 0x01;           \
-}
-
-/*
-Encodes src into dst and returns the size of dst. src nust not overlap dst.
-Replace all zero bytes with nonzero bytes describing the location of the next zero
-For detailed example, view https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
-*/
-ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
-	const uint8_t *end = src + src_len;
-	uint8_t *block_len_loc = dst++;
-	uint8_t block_len = 0x01;
-	ssize_t out_len = 0;
-
-	while (src < end) {
-		if (*src == 0) {
-			finish_block();
-		} else {
-			*dst++ = *src;
-			block_len++;
-			out_len++;
-			if (block_len == 0xFF) {
-				finish_block();
-			}
-		}
-		src++;
-	}
-	finish_block();
-
-	return out_len;
-}
-
-/*
- * Decodes src into dst and returns the size of dst. src may overlap dst.
- Revert back into original non-cobs_encoded data
- For example, view https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
-*/
-ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
-	const uint8_t *end = src + src_len;
-	ssize_t out_len = 0;
-
-	while (src < end) {
-		uint8_t code = *src++;
-		for (uint8_t i = 1; i < code; i++) {
-			*dst++ = *src++;
-			out_len++;
-			if (src > end) { // Bad packet
-				return 0;
-			}
-		}
-		if (code < 0xFF && src != end) {
-			*dst++ = 0;
-			out_len++;
-		}
-	}
-	return out_len;
-}
-
-/*
  * Given string array PARAMS of length LEN consisting of params of DEVICE_UID,
  * Generate a bit-mask of 1s (if param is in PARAMS), 0 otherwise
  * Ex: encode_params(0, ["switch2", "switch1"], 2)
@@ -456,35 +470,3 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
         }
     }
 }
-
-/*
-param_val_t** make_empty_param_values(uint32_t param_bitmap) {
-    // Calculate the length of the array to return
-    int len = 0;
-    while (param_bitmap != 0) {
-        len += (param_bitmap & 1);
-        param_bitmap >>= 1;
-    }
-    param_val_t** result = malloc(len * sizeof(param_val_t*));
-    // Allocate memory for each index
-    for (int i = 0; i < len; i++) {
-        result[i] = malloc(sizeof(param_val_t));
-    }
-    return result;
-}
-
-void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]) {
-    // Calculate the length of the VALS
-    int len = 0;
-    while (param_bitmap != 0) {
-        len += (param_bitmap & 1);
-        param_bitmap >>= 1;
-    }
-    // Free each index
-    for (int i = 0; i < len; i++) {
-        free(vals[i]);
-    }
-    // Free the array itself
-    free(vals);
-}
-*/
