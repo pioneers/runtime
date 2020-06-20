@@ -8,6 +8,140 @@
 
 #include "dev_handler.h"
 
+// ************************************ PRIVATE FUNCTIONS ****************************************** //
+
+// ****************** TRACK AND UNTRACK DEVS ******************  //
+
+/*
+ * Allocates memory for an array of usb_id_t and populates it with data from the provided list
+ * lst: Array of libusb_devices to have their vendor_id, product_id,
+ *      and device address to be put in the result
+ * len: The length of LST
+ * return: Array of usb_id_t pointers of length LEN. Must be freed with free_tracked_devices()
+ */
+usb_id_t** alloc_tracked_devices(libusb_device** lst, int len) {
+ 	struct libusb_device_descriptor desc;
+ 	usb_id_t** result = malloc(len * sizeof(usb_id_t*));
+ 	printf("INFO: There are now %d tracked devices.\n", len);
+ 	for (int i = 0; i < len; i++) {
+ 		result[i] = malloc(sizeof(usb_id_t));
+ 		libusb_device* dev = lst[i];
+ 		libusb_get_device_descriptor(dev, &desc);
+ 		result[i]->vendor_id = desc.idVendor;
+ 		result[i]->product_id = desc.idProduct;
+ 		result[i]->dev_addr = libusb_get_device_address(dev);
+ 	}
+ 	return result;
+}
+
+/*
+ * Frees the given list of usb_id_t pointers
+ */
+void free_tracked_devices(usb_id_t** lst, int len) {
+	for (int i = 0; i < len; i++) {
+		free(lst[i]);
+	}
+	free(lst);
+}
+
+/*
+ * Returns a pointer to the libusb_device in CONNECTED but not in TRACKED
+ * connected: List of libusb_device*
+ * num_connected: Length of CONNECTED
+ * tracked: List of usb_id_t* that holds info about every device in CONNECTED except for one
+ * num_tracked: Length of TRACKED. Expected to be exactly one less than connected
+ * return: Pointer to libusb_device
+ */
+libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_id_t** tracked, int num_tracked) {
+ 	libusb_device* dev;
+ 	struct libusb_device_descriptor desc;
+ 	// Loop through each connected device
+ 	for (int i = 0; i < num_connected; i++) {
+ 		dev = connected[i];
+ 		libusb_get_device_descriptor(dev, &desc);
+ 		uint16_t vendor_id = desc.idVendor;
+ 		uint16_t product_id = desc.idProduct;
+ 		uint8_t dev_addr = libusb_get_device_address(dev);
+ 		// If it's not in tracked, it's a new device
+ 		uint8_t in_tracked = 0;
+ 		for (int j = 0; j < num_tracked; j++) {
+ 			if (vendor_id == tracked[i]->vendor_id &&
+ 				product_id == tracked[i]->product_id &&
+ 				dev_addr == tracked[i]->dev_addr) {
+ 					in_tracked = 1;
+ 					break;
+ 				}
+ 		}
+ 		if (in_tracked == 0) {
+ 			libusb_get_device_descriptor(dev, &desc);
+ 			printf("INFO:    Vendor:Product: %u:%u\n", desc.idVendor, desc.idProduct);
+ 			return connected[i];
+ 		}
+ 	}
+ 	return NULL;
+}
+
+// ****************** IDENTIFY USB ENDPOINTS ******************  //
+/*
+ * Populates RELAY's send_endpoint and receive_endpoint if possible
+ * relay: msg_relay_t struct to be filled with the endpoints
+ * interface: A libusb interface containing (possibly invalid for bulk transfer) endpoints
+ * return:	0 if successful
+ *			1 otherwise
+ */
+int get_endpoints(msg_relay_t* relay, struct libusb_interface interface) {
+	// Get the 0th setting of the claimed interface. TODO: Getting the first one. Change later?
+	printf("INFO: This interface has %d settings\n", interface.num_altsetting);
+	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0];
+
+	// Make sure we have at least 2 endpoints on this interface setting
+	printf("INFO: 0th setting has %d endpoints\n", interface_desc.bNumEndpoints);
+	if (interface_desc.bNumEndpoints < 2) {
+		printf("INFO: This interface setting has fewer than 2 endpoints! Giving up on this interface\n");
+		return 1;
+	}
+
+	// Initialize flags to indicate whether we are able to find the endpoints
+	uint8_t found_bulk_in = 0;
+	uint8_t found_bulk_out = 0;
+	struct libusb_endpoint_descriptor endpoint;
+
+	// Iterate through the endpoints until we get both bulk endpoint in and bulk endpoint out
+	for (int i = 0; i < interface_desc.bNumEndpoints; i++) {
+		endpoint = interface_desc.endpoint[i];
+		// Bits 0 and 1 of endpoint.bmAttributes detail the transfer type. We want bulk
+		if ((3 & endpoint.bmAttributes) != LIBUSB_TRANSFER_TYPE_BULK) {
+			continue;
+		}
+		// Bit 7 of endpoint.bEndpointAddress indicates the direction
+		if (!found_bulk_in && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_IN)) {
+			// LIBUSB_ENDPOINT_IN: Transfer from device to dev_handler
+			relay->receive_endpoint = endpoint.bEndpointAddress;
+			found_bulk_in = 1;
+		} else if (!found_bulk_out && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_OUT)) {
+			// LIBUSB_ENDPOINT_OUT: Transfer from dev_handler to device
+			relay->send_endpoint = endpoint.bEndpointAddress;
+			found_bulk_out = 1;
+		}
+		// If we found both endpoints, return
+		if (found_bulk_in && found_bulk_out) {
+			printf("INFO: Endpoints were successfully identified!\n");
+			printf("INFO:     Send (OUT) Endpoint: 0x%X\n", relay->send_endpoint);
+			printf("INFO:     Receive (IN) Endpoint: 0x%X\n", relay->receive_endpoint);
+			return 0;
+		}
+	}
+	if (!found_bulk_in) {
+		printf("FATAL: Couldn't get endpoint for receiver\n");
+	}
+	if (!found_bulk_out) {
+		printf("FATAL: Couldn't get endpoint for sender\n");
+	}
+	return 1;
+}
+
+// ************************************ PUBLIC FUNCTIONS ****************************************** //
+
 // Initialize data structures / connections
 void init() {
 	// Init shared memory
@@ -31,57 +165,6 @@ void stop() {
 	// TODO: Stop shared memory
 	// shm_stop(DEV_HANDLER);
 	exit(0);
-}
-
-usb_id_t** alloc_tracked_devices(libusb_device** lst, int len) {
-	struct libusb_device_descriptor desc;
-	usb_id_t** result = malloc(len * sizeof(usb_id_t*));
-	printf("INFO: There are now %d tracked devices.\n", len);
-	for (int i = 0; i < len; i++) {
-		result[i] = malloc(sizeof(usb_id_t));
-		libusb_device* dev = lst[i];
-		libusb_get_device_descriptor(dev, &desc);
-		result[i]->vendor_id = desc.idVendor;
-		result[i]->product_id = desc.idProduct;
-		result[i]->dev_addr = libusb_get_device_address(dev);
-	}
-	return result;
-}
-
-void free_tracked_devices(usb_id_t** lst, int len) {
-	for (int i = 0; i < len; i++) {
-		free(lst[i]);
-	}
-	free(lst);
-}
-
-libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_id_t** tracked, int num_tracked) {
-	libusb_device* dev;
-	struct libusb_device_descriptor desc;
-	// Loop through each connected device
-	for (int i = 0; i < num_connected; i++) {
-		dev = connected[i];
-		libusb_get_device_descriptor(dev, &desc);
-		uint16_t vendor_id = desc.idVendor;
-		uint16_t product_id = desc.idProduct;
-		uint8_t dev_addr = libusb_get_device_address(dev);
-		// If it's not in tracked, it's a new device
-		uint8_t in_tracked = 0;
-		for (int j = 0; j < num_tracked; j++) {
-			if (vendor_id == tracked[i]->vendor_id &&
-				product_id == tracked[i]->product_id &&
-				dev_addr == tracked[i]->dev_addr) {
-					in_tracked = 1;
-					break;
-				}
-		}
-		if (in_tracked == 0) {
-			libusb_get_device_descriptor(dev, &desc);
-			printf("INFO:    Vendor:Product: %u:%u\n", desc.idVendor, desc.idProduct);
-			return connected[i];
-		}
-	}
-	return NULL;
 }
 
 void poll_connected_devices() {
@@ -143,6 +226,7 @@ void communicate(libusb_device* dev) {
 	// Initialize relay->start as 0, indicating sender and receiver to not start work yet
 	relay->start = 0;
 	// Initialize the other relay values
+	relay->interface_idx = -1;
 	relay->send_endpoint = -1;
 	relay->receive_endpoint = -1;
 	relay->shm_dev_idx = -1;
@@ -181,64 +265,30 @@ void* relayer(void* relay_cast) {
 	// This function is not supported for Darwin or Windows, and will simply do nothing
 	libusb_set_auto_detach_kernel_driver(relay->handle, 1);
 
-	// Claim an interface on the device's handle, telling OS we want to do I/O on the device
-	ret = libusb_claim_interface(relay->handle, INTERFACE_IDX);
-	if (ret != 0) {
-		printf("ERROR: Couldn't claim interface %d with error code %s\n", INTERFACE_IDX, libusb_error_name(ret));
-		relay_clean_up(relay);
-		return NULL;
-	}
-	printf("INFO: Successfully claimed interface %d!\n", INTERFACE_IDX);
-	const struct libusb_interface interface = config->interface[INTERFACE_IDX];
-
-	// Get the 0th setting of the claimed interface. TODO: Getting the first one. Change later?
-	printf("INFO: This interface has %d settings\n", interface.num_altsetting);
-	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0];
-
-	// Get the endpoints for sending and receiving
-	printf("INFO: 0th setting has %d endpoints\n", interface_desc.bNumEndpoints);
-	uint8_t found_bulk_in = 0;
-	uint8_t found_bulk_out = 0;
-	struct libusb_endpoint_descriptor endpoint;
-	if (interface_desc.bNumEndpoints < 2) {
-		printf("FATAL: This interface has fewer than 2 endpoints! Giving up on this device\n");
-		relay_clean_up(relay);
-		return NULL;
-	}
-	for (int i = 0; i < interface_desc.bNumEndpoints; i++) { // Iterate through the endpoints until we get both bulk endpoint in and bulk endpoint out
-		endpoint = interface_desc.endpoint[i];
-		// Bits 0 and 1 of endpoint.bmAttributes detail the transfer type. We want bulk
-		if ((3 & endpoint.bmAttributes) != LIBUSB_TRANSFER_TYPE_BULK) {
+	/* Claim an interface on the device's handle, telling OS we want to do I/O on the device
+	 * If we couldn't get the send endpoint and receive endpoint, try another interface to claim. */
+	for (int i = 0; i < config->bNumInterfaces; i++) {
+		ret = libusb_claim_interface(relay->handle, i);
+		if (ret != 0) {
+			printf("INFO: Couldn't claim interface %d with error code %s\n", i, libusb_error_name(ret));
 			continue;
 		}
-		// Bit 7 of endpoint.bEndpointAddress indicates the direction
-		if (!found_bulk_in && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_IN)) {
-			// LIBUSB_ENDPOINT_IN: Transfer from device to dev_handler
-			relay->receive_endpoint = endpoint.bEndpointAddress;
-			found_bulk_in = 1;
-		} else if (!found_bulk_out && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_OUT)) {
-			// LIBUSB_ENDPOINT_OUT: Transfer from dev_handler to device
-			relay->send_endpoint = endpoint.bEndpointAddress;
-			found_bulk_out = 1;
-		}
-		// If we found both endpoints, break
-		if (found_bulk_in && found_bulk_out) {
+		printf("INFO: Successfully claimed interface %d!\n", i);
+
+		// If we're able to get the endpoints, set relay->interface_idx and proceed to send a Ping
+		if (get_endpoints(relay, config->interface[i]) == 0) {
+			relay->interface_idx = i;
 			break;
 		}
+		// If we couldn't get the endpoints, release this interface and try another
+		libusb_release_interface(relay->handle, i);
+		// If we tried all interfaces and couldn't get the endpoints, we give up :(
+		if (i == config->bNumInterfaces - 1) {
+			printf("FATAL: Couldn't identify endpoints for this device :( Giving up.\n");
+			relay_clean_up(relay);
+			return NULL;
+		}
 	}
-	if (!found_bulk_in) {
-		printf("FATAL: Couldn't get endpoint for receiver\n");
-	}
-	if (!found_bulk_out) {
-		printf("FATAL: Couldn't get endpoint for sender\n");
-	}
-	if (!found_bulk_in || !found_bulk_out) {
-		relay_clean_up(relay);
-		return NULL;
-	}
-	printf("INFO: Endpoints were successfully identified!\n");
-	printf("INFO:     Send (OUT) Endpoint: 0x%X\n", relay->send_endpoint);
-	printf("INFO:     Receive (IN) Endpoint: 0x%X\n", relay->receive_endpoint);
 
 	// Send a Ping and wait for a SubscriptionResponse
 	printf("INFO: Relayer will send a Ping to the device\n");
@@ -247,6 +297,9 @@ void* relayer(void* relay_cast) {
 		relay_clean_up(relay);
 		return NULL;
 	}
+
+	/****** At this point, the Ping/SubscriptionResponse handshake was successful! ******/
+
 	// TODO: Connect the lowcar device to shared memory
 	printf("INFO: Relayer will connect the device to shared memory\n");
 	// device_connect(relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid, &relay->shm_dev_idx);
@@ -272,7 +325,7 @@ void* relayer(void* relay_cast) {
 void relay_clean_up(msg_relay_t* relay) {
 	printf("INFO: Cleaning up threads\n");
 	// Release the device interface. If it was never claimed, this will do nothing.
-	libusb_release_interface(relay->handle, INTERFACE_IDX);
+	libusb_release_interface(relay->handle, relay->interface_idx);
 	// Close the device
 	libusb_close(relay->handle);
 	// Cancel the sender and receiver threads when ongoing transfers are completed
