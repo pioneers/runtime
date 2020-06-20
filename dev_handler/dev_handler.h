@@ -25,13 +25,6 @@
 #include <unistd.h> // sleep(int seconds)
 
 /*
- * A USB device can have one or more interfaces.
- * This defines which interface we want the DEV_HANDLER to claim
- * It is an error if this is larger than the number of interfaces a device has.
- */
-#define INTERFACE_IDX 1
-
-/*
  * A struct defining a device's information for the lifetime of its connection
  * Fields can be easily retrieved without requiring libusb_open()
  */
@@ -56,32 +49,6 @@ void init();
 void stop();
 
 /*******************************************
- *   FUNCTIONS TO TRACK AND UNTRACK DEVS   *
- *******************************************/
-/*
- * Allocates memory for an array of usb_id_t and populates it with data from the provided list
- * lst: Array of libusb_devices to have their vendor_id, product_id, and device address to be put in the result
- * len: The length of LST
- * return: Array of usb_id_t pointers of length LEN. Must be freed with free_tracked_devices()
- */
-usb_id_t** alloc_tracked_devices(libusb_device** lst, int len);
-
-/*
- * Frees the given list of usb_id_t pointers
- */
-void free_tracked_devices(usb_id_t** lst, int len);
-
-/*
- * Returns a pointer to the libusb_device in CONNECTED but not in TRACKED
- * connected: List of libusb_device*
- * num_connected: Length of CONNECTED
- * tracked: List of usb_id_t* that holds info about every device in CONNECTED except for one
- * num_tracked: Length of TRACKED. Expected to be exactly one less than connected
- * return: Pointer to libusb_device
- */
-libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_id_t** tracked, int num_tracked);
-
-/*******************************************
  *             DEVICE POLLING              *
  *******************************************/
 
@@ -102,6 +69,7 @@ void poll_connected_devices();
 typedef struct msg_relay {
     libusb_device* dev;
     libusb_device_handle* handle;
+    int interface_idx;      // The index of the USB interface claimed on the device
     pthread_t sender;
     pthread_t receiver;
     pthread_t relayer;
