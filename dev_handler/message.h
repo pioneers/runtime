@@ -4,7 +4,9 @@
  * [delimiter][Length of cobs encoded message][Cobs encoded message]
  * The cobs encoded message, when decoded is in the following format:
  * [message id][payload length][payload][checksum]
- * The size of each section are defined as constants below
+ * The size of each section are defined as constants in message.c
+ *
+ * Serves as a utility API for DEV_HANDLER
  */
 #ifndef MESSAGE_H
 #define MESSAGE_H
@@ -29,10 +31,10 @@
 #define DELAY_SIZE 2
 // The size in bytes of the section specifying the device id
 #define DEVICE_ID_SIZE 11
-// The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types.
-#define MAX_PAYLOAD_SIZE (BITMAP_SIZE+(MAX_PARAMS*sizeof(float))) // Bitmap + Each param (may be floats)
 // The size in bytes of the section specifying the checksum of the message id, the payload length, and the payload itself
 #define CHECKSUM_SIZE 1
+// The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types.
+#define MAX_PAYLOAD_SIZE (BITMAP_SIZE+(MAX_PARAMS*sizeof(float))) // Bitmap + Each param (may be floats)
 
 /* The types of messages */
 typedef enum packet_type {
@@ -63,15 +65,6 @@ typedef struct message {
     uint8_t        payload_length;      // The current number of 8-bit integers in payload
     uint8_t        max_payload_length;  // The maximum length of the payload for the specific message_id
 } message_t;
-
-/*
- * Private utility function to calculate the size of the payload needed
- * for a DeviceWrite/DeviceData message.
- * device_type: The type of device (Ex: 2 for Potentiometer)
- * param_bitmap: 32-bit param bit map. The i-th bit indicates whether param i will be transmitted in the message
- * return: The size of the payload
- */
-// ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap);
 
 /******************************************************************************************
  *                              MESSAGE CONSTRUCTORS                                      *
@@ -202,43 +195,8 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
 void destroy_message(message_t* message);
 
 /******************************************************************************************
- *                          Building, encoding, and decoding data
+ *                          Serializing and Parsing Messages                              *
  ******************************************************************************************/
-/*
- * Appends data to the end of a message's payload
- * msg: The message whose payload is to be appended to
- * data: The data to be appended to the payload
- * length: The length of data in bytes
- * returns: 0 if successful. -1 otherwise due to overwriting
- * side-effect: increments msg->payload_length by length
- */
-int append_payload(message_t *msg, uint8_t *data, uint8_t length);
-
-/*
- * Computes the checksum of data
- * data: An array
- * len: the length of data
- * returns: The checksum
- */
-uint8_t checksum(uint8_t* data, int len);
-
-/*
- * Cobs encodes data into a buffer
- * src: The data to be encoded
- * dst: The buffer to write the encoded data to
- * src_len: The size of the source data
- * return: The size of the encoded data
- */
-ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
-
-/*
- * Cobs decodes data into a buffer
- * src: The data to be decoded
- * dst: The buffer to write the decoded data to
- * src_len: The size of the source data
- * return: The size of the decoded data
- */
-ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len);
 
 /*
  * Converts an array of parameter names to a 32-bit mask.
@@ -251,15 +209,16 @@ uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
  * Calculates the largest length possible of a cobs-encoded msg
+ * Used when allocating a buffer to parse a message into via parse_message()
  * msg: The msg to be serialized to a byte array
  * return: the maximum length
  */
 int calc_max_cobs_msg_length(message_t* msg);
 
 /*
- * Serializes msg into a byte array
+ * Serializes msg into a cobs-encoded byte array
  * msg: the message to serialize
- * data: empty buffer to be filled
+ * data: empty buffer to be filled with the cobs-encoded message
  * len: the length of DATA. Should be at least calc_max_cobs_msg_length(msg)
  * return: The length of the serialized message. -1 if len is too small (less than calc_max_cobs_msg_length)
  */
@@ -284,22 +243,6 @@ int parse_message(uint8_t data[], message_t* empty_msg);
  *  Tip: Allocate MAX_PARAMS param_val_t structs to guarantee this
  */
 void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[]);
-
-/*
- * Utility function to allocate enough memory for a buffer to be used in parse_device_data
- * Use destroy_param_values to free vals
- * param_bitmap: The 32-bit param_bitmap for which each i-th bit requires a param_val_struct to be allocated
- * return: An array of pointers to param_val_t structs. The length is equal to the number of on bits in param_bitmap
- */
-// param_val_t** make_empty_param_values(uint32_t param_bitmap);
-
-/*
- * Utility function to free the param_val_t structs in an array.
- * To be used as a complement to make_empty_param_values
- * param_bitmap: 32-bit param_bitmap indicating which parameters are in VALS
- * vals: Array of param_val_t* to be freed. The length is equal to the number of on bits in param_bitmap
- */
-// void destroy_param_values(uint32_t param_bitmap, param_val_t* vals[]);
 
 /*
  * Potentially added later:
