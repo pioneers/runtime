@@ -25,6 +25,13 @@
 #include <unistd.h> // sleep(int seconds)
 
 /*
+ * A USB device can have one or more interfaces.
+ * This defines which interface we want the DEV_HANDLER to claim
+ * It is an error if this is larger than the number of interfaces a device has.
+ */
+#define INTERFACE_IDX 1
+
+/*
  * A struct defining a device's information for the lifetime of its connection
  * Fields can be easily retrieved without requiring libusb_open()
  */
