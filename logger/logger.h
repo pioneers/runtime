@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdarg.h>  // To get variable arguments
 #include <time.h>
 #include <errno.h>
 #include "logger_config.h"
@@ -21,5 +22,7 @@ void logger_stop ();
 //Call to log something. The message should be a string (string literals work too)
 //Level is one of the levels listed in the config file
 void log_runtime (log_level level, char *msg);
+
+void log_printf(log_level level, char* format, ...);
 
 #endif

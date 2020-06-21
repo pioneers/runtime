@@ -35,7 +35,6 @@ def autonomous_setup():
     Robot.run(set_motor)
     Robot.run(constant_print, "auton")
 
-
 i = 0
 
 def autonomous_main():
@@ -44,9 +43,11 @@ def autonomous_main():
     if i % 100000 == 0:
         print("Iteration:", i, time.time() - start)
         start = time.time()
-        Robot.run(double, 5.0)
+        # Robot.run(double, 5.0)
         # Robot.run(wait)
     i += 1
+    Robot.set_value(MOTOR, 'current_thresh', .12)
+    # while True: pass
     # print("testing whether thread dies", time.time())
     # print('Running autonomous main ...')
     # start = time.time()
@@ -82,17 +83,19 @@ def teleop_main():
 
     # print('=>', Robot.get_value('my_rfid', 'id'), Robot.get_value('my_rfid2', 'tag_detect'))
     
-    Robot.set_value(MOTOR, 'duty_cycle', .23)
-    pos = Robot.set_value(MOTOR, 'enc_pos', 12)
+    Robot.set_value(MOTOR, 'duty_cycle', Gamepad.get_value('joystick_left_x'))
+    pos = Robot.get_value(MOTOR, 'enc_pos')
 
     if Gamepad.get_value('button_a'):
-        global i, start
+        global i, start 
         if i % 10000 == 0:
             print("Iteration:", i, time.time() - start)
             start = time.time()
+            # Robot.run(double, 100)
         i += 1
+        # print('in here')
     # print('Running motor ...')
-    Robot.set_value(MOTOR, 'duty_cycle', i)
+    Robot.set_value(MOTOR, 'duty_cycle', .12)
 
 # Times out
 # def autonomous_main():
