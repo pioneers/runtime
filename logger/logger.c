@@ -92,3 +92,18 @@ void log_runtime (log_level level, char *msg)
 	fflush(fd);
 	
 }
+
+
+/**
+ *	Provides same printing functionality as `printf` but prints instead to the log with the specified log level.
+ */
+void log_printf(log_level level, char* format, ...) {
+	va_list args;
+    va_start(args, format);
+	char msg[MAX_LOG_LEN];
+    vsprintf(msg, format, args);
+	log_runtime(level, msg);
+    va_end(args);
+}
+
+
