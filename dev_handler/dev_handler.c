@@ -28,7 +28,7 @@ typedef struct msg_relay {
     int shm_dev_idx;        // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     uint8_t start;		    // set by relayer: A flag to tell reader and receiver to start work when set to 1
     dev_id_t dev_id;        // set by relayer once SubscriptionResponse is received
-    uint64_t sent_hb_req;	// set by sender: The TIME that a HeartBeatRequest was sent. Relay should expect a hb response
+    uint64_t sent_hb_req;	// set by sender: The TIME that the last HeartBeatRequest was sent that is not yet resolved. 0 if there is no pending request
     uint8_t got_hb_req;	// set by receiver: A flag to tell sender to send a HeartBeatResponse
 } msg_relay_t;
 
@@ -309,11 +309,20 @@ void* relayer(void* relay_cast) {
 	while (1) {
 		// Getting the device descriptor if the device is disconnected should give an error
 		ret = libusb_get_device_descriptor(relay->dev, &desc);
-		if ((ret != 0) || ((millis() - relay->sent_hb_req) >= DEVICE_TIMEOUT)) {
+        /* If couldn't get device descriptor due to device disconnect OR
+         * if theres a pending HeartBeatRequest that wasn't resolved in time,
+         * clean up
+         */
+		if ((ret == LIBUSB_ERROR_NO_DEVICE )
+            || (relay->sent_hb_req != 0
+                && (millis() - relay->sent_hb_req) >= DEVICE_TIMEOUT)) {
 			printf("INFO: Device disconnected or timed out!\n");
 			relay_clean_up(relay);
 			return NULL;
-		}
+		} else if (ret != 0) {
+            // There's another error with getting the device descriptor
+            printf("ERROR: libusb_get_device_descriptor errored in relayer with error code %s\n", libusb_error_name(ret));
+        }
 	}
 }
 
@@ -395,6 +404,8 @@ void* sender(void* relay_cast) {
 			if (ret != 0) {
 				printf("ERROR: HeartBeatRequest transfer failed with error code %s\n", libusb_error_name(ret));
 			}
+            // Update the timestamp at which we sent a HeartBeatRequest
+            relay->sent_hb_req = millis();
 			destroy_message(msg);
 		}
 		pthread_testcancel(); // Cancellation point
@@ -406,7 +417,8 @@ void* sender(void* relay_cast) {
 				printf("ERROR: HeartBeatResponse transfer failed with error code %s\n", libusb_error_name(ret));
 			}
 			destroy_message(msg);
-			relay->got_hb_req = 0; // Mark as resolved
+            // Mark the HeartBeatRequest as resolved
+			relay->got_hb_req = 0;
 		}
 		pthread_testcancel(); // Cancellation point
 	}
@@ -654,16 +666,16 @@ int ping(msg_relay_t* relay) {
 	// Parse the received message to verify it's a SubscriptionResponse
 	printf("INFO: %d bytes of data received and will be parsed!\n", transferred);
 	print_bytes(data, transferred);
-	message_t* sub_response = malloc(sizeof(message_t));
+	message_t* sub_response = make_empty(MAX_PAYLOAD_SIZE);
 	ret = parse_message(data, sub_response);
 	free(data); // We don't need the encoded message anymore
 	if (ret != 0) {
 		printf("FATAL: Received data with incorrect checksum\n");
-		free(sub_response);
+		destroy_message(sub_response);
 		return 3;
 	} else if (sub_response->message_id != SubscriptionResponse) {
 		printf("FATAL: Message is not a SubscriptionResponse\n");
-		free(sub_response);
+		destroy_message(sub_response);
 		return 4;
 	}
 	// We have a SubscriptionResponse!
@@ -671,6 +683,7 @@ int ping(msg_relay_t* relay) {
 	relay->dev_id.type = ((uint16_t*)(&sub_response->payload[6]))[0];	// device type is the 16-bits starting at the 6th byte
 	relay->dev_id.year = sub_response->payload[8];						// device year is the 8th byte
 	relay->dev_id.uid  = ((uint64_t*)(&sub_response->payload[9]))[0];	// device uid is the 64-bits starting at the 9th byte
+    destroy_message(sub_response);
 	return 0;
 }
 
