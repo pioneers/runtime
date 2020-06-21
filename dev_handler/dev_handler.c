@@ -1,16 +1,133 @@
-/*
- * Handles lowcar device connects/disconnects and acts as the interface between the devices and shared memory
- * Requires third-party library libusb
- * Linux: sudo apt-get install libusb-1.0-0-dev
- *		  gcc -I/usr/include/libusb-1.0 dev_handler.c -o dev_handler -lusb-1.0
- *		  Don't forget to use sudo when running the executable
-*/
-
 #include "dev_handler.h"
 
-// ************************************ PRIVATE FUNCTIONS ****************************************** //
+// ************************************ PRIVATE TYPEDEFS ****************************************** //
 
-// ****************** TRACK AND UNTRACK DEVS ******************  //
+/*
+ * A struct defining a device's information for the lifetime of its connection
+ * Fields can be easily retrieved without requiring libusb_open()
+ */
+typedef struct usb_id {
+    uint16_t vendor_id;    // Obtained from struct libusb_device_descriptor field from libusb_get_device_descriptor()
+    uint16_t product_id;   // Same as above
+    uint8_t dev_addr;      // Obtained from libusb_get_device_address(libusb_device*)
+} usb_id_t;
+
+/* Struct shared between the three threads so they can communicate with each other
+ * relayer thread acts as the "control center" and connects/disconnects to shared memory
+ *  relayer thread also frees memory when device is disconnected
+ */
+typedef struct msg_relay {
+    libusb_device* dev;
+    libusb_device_handle* handle;
+    int interface_idx;      // The index of the USB interface claimed on the device
+    pthread_t sender;
+    pthread_t receiver;
+    pthread_t relayer;
+    uint8_t send_endpoint;
+    uint8_t receive_endpoint;
+    int shm_dev_idx;        // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
+    uint8_t start;		    // set by relayer: A flag to tell reader and receiver to start work when set to 1
+    dev_id_t dev_id;        // set by relayer once SubscriptionResponse is received
+    uint64_t sent_hb_req;	// set by sender: The TIME that a HeartBeatRequest was sent. Relay should expect a hb response
+    uint8_t got_hb_req;	// set by receiver: A flag to tell sender to send a HeartBeatResponse
+} msg_relay_t;
+
+// ************************************ PRIVATE FUNCTIONS ****************************************** //
+// Polling Utility
+usb_id_t** alloc_tracked_devices(libusb_device** lst, int len);
+void free_tracked_devices(usb_id_t** lst, int len);
+libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_id_t** tracked, int num_tracked);
+
+// Thread-handling for communicating with devices
+void communicate(libusb_device* dev);
+void* relayer(void* relay_cast);
+void relay_clean_up(msg_relay_t* relay);
+void* sender(void* relay_cast);
+void* receiver(void* relay_cast);
+
+// Device communication (Bulk transferring)
+int get_endpoints(msg_relay_t* relay, struct libusb_interface interface);
+int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint, int* transferred);
+int receive_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint);
+int ping(msg_relay_t* relay);
+
+// Utility
+int64_t millis();
+void print_bytes(uint8_t* data, int len);
+
+// ************************************ PUBLIC FUNCTIONS ****************************************** //
+
+// Initialize data structures / connections
+void init() {
+	// Init shared memory
+	// shm_init(DEV_HANDLER);
+	// Init libusb
+	int ret;
+	if ((ret = libusb_init(NULL)) != 0) {
+		printf("libusb_init failed on exit code %d\n", ret);
+		libusb_exit(NULL);
+		return;
+	}
+}
+
+// Free memory and safely stop connections
+void stop() {
+	printf("\nINFO: Ctrl+C pressed. Safely terminating program\n");
+    fflush(stdout);
+	// Exit libusb
+	libusb_exit(NULL);
+	// TODO: For each tracked lowcar device, disconnect from shared memory
+	// TODO: Stop shared memory
+	// shm_stop(DEV_HANDLER);
+	exit(0);
+}
+
+/*
+ * Detects when devices are connected and disconnected.
+ * On lowcar device connect, connect to shared memory and spawn three threads to communicate with the device
+ * On lowcar device disconnect, disconnects the device from shared memory.
+ */
+void poll_connected_devices() {
+	// Initialize variables
+	libusb_device* dev = NULL;
+	libusb_device** connected;	 										// List of connected device in this iteration
+	printf("INFO: Getting initial device list\n");
+	int num_tracked = libusb_get_device_list(NULL, &connected);			// Number of connected devices in previous iteration
+	usb_id_t** tracked = alloc_tracked_devices(connected, num_tracked);	// List of connected deevices in previous iteration
+	libusb_free_device_list(connected, 1);
+	int num_connected;													// Number of connected devices in this iteration
+
+	// Initialize timer
+	// time_t current_time;
+
+	// Poll
+	printf("INFO: Variables initialized. Polling now.\n");
+	while (1) {
+		// Check how many are connected
+		num_connected = libusb_get_device_list(NULL, &connected);
+		if (num_connected == num_tracked) {
+			libusb_free_device_list(connected, 1);
+			continue;
+		} else {
+			if (num_connected > num_tracked) {
+				// Communicate with the new device
+				printf("INFO: NEW DEVICE CONNECTED\n");
+				dev = get_new_device(connected, num_connected, tracked, num_tracked);
+				communicate(dev);
+			} else if (num_connected < num_tracked) {
+				printf("INFO: DEVICE  DISCONNECTED\n");
+			}
+			// Update tracked devices
+			free_tracked_devices(tracked, num_tracked);
+			tracked = alloc_tracked_devices(connected, num_connected);
+			num_tracked = num_connected;
+			// Free connected list
+			libusb_free_device_list(connected, 1);
+		}
+	}
+}
+
+// ************************************ POLLING UTILITY ****************************************** //
 
 /*
  * Allocates memory for an array of usb_id_t and populates it with data from the provided list
@@ -81,140 +198,17 @@ libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_
  	return NULL;
 }
 
-// ****************** IDENTIFY USB ENDPOINTS ******************  //
+// ************************************ THREAD-HANDLING ****************************************** //
+
 /*
- * Populates RELAY's send_endpoint and receive_endpoint if possible
- * relay: msg_relay_t struct to be filled with the endpoints
- * interface: A libusb interface containing (possibly invalid for bulk transfer) endpoints
- * return:	0 if successful
- *			1 otherwise
+ * Opens threads for communication with a device
+ * Three threads will be opened:
+ *  relayer: Verifies device is lowcar and cancels threads when device disconnects/timesout
+ *  sender: Sends changed data in shared memory and periodically sends HeartBeatRequests
+ *  receiver: Receives data from the lowcar device and signals sender thread about HeartBeatRequests
+ *
+ * dev: The libusb_device to communicate with
  */
-int get_endpoints(msg_relay_t* relay, struct libusb_interface interface) {
-	// Get the 0th setting of the claimed interface. TODO: Getting the first one. Change later?
-	printf("INFO: This interface has %d settings\n", interface.num_altsetting);
-	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0];
-
-	// Make sure we have at least 2 endpoints on this interface setting
-	printf("INFO: 0th setting has %d endpoints\n", interface_desc.bNumEndpoints);
-	if (interface_desc.bNumEndpoints < 2) {
-		printf("INFO: This interface setting has fewer than 2 endpoints! Giving up on this interface\n");
-		return 1;
-	}
-
-	// Initialize flags to indicate whether we are able to find the endpoints
-	uint8_t found_bulk_in = 0;
-	uint8_t found_bulk_out = 0;
-	struct libusb_endpoint_descriptor endpoint;
-
-	// Iterate through the endpoints until we get both bulk endpoint in and bulk endpoint out
-	for (int i = 0; i < interface_desc.bNumEndpoints; i++) {
-		endpoint = interface_desc.endpoint[i];
-		// Bits 0 and 1 of endpoint.bmAttributes detail the transfer type. We want bulk
-		if ((3 & endpoint.bmAttributes) != LIBUSB_TRANSFER_TYPE_BULK) {
-			continue;
-		}
-		// Bit 7 of endpoint.bEndpointAddress indicates the direction
-		if (!found_bulk_in && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_IN)) {
-			// LIBUSB_ENDPOINT_IN: Transfer from device to dev_handler
-			relay->receive_endpoint = endpoint.bEndpointAddress;
-			found_bulk_in = 1;
-		} else if (!found_bulk_out && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_OUT)) {
-			// LIBUSB_ENDPOINT_OUT: Transfer from dev_handler to device
-			relay->send_endpoint = endpoint.bEndpointAddress;
-			found_bulk_out = 1;
-		}
-		// If we found both endpoints, return
-		if (found_bulk_in && found_bulk_out) {
-			printf("INFO: Endpoints were successfully identified!\n");
-			printf("INFO:     Send (OUT) Endpoint: 0x%X\n", relay->send_endpoint);
-			printf("INFO:     Receive (IN) Endpoint: 0x%X\n", relay->receive_endpoint);
-			return 0;
-		}
-	}
-	if (!found_bulk_in) {
-		printf("FATAL: Couldn't get endpoint for receiver\n");
-	}
-	if (!found_bulk_out) {
-		printf("FATAL: Couldn't get endpoint for sender\n");
-	}
-	return 1;
-}
-
-// ************************************ PUBLIC FUNCTIONS ****************************************** //
-
-// Initialize data structures / connections
-void init() {
-	// Init shared memory
-	// shm_init(DEV_HANDLER);
-	// Init libusb
-	int ret;
-	if ((ret = libusb_init(NULL)) != 0) {
-		printf("libusb_init failed on exit code %d\n", ret);
-		libusb_exit(NULL);
-		return;
-	}
-}
-
-// Free memory and safely stop connections
-void stop() {
-	printf("\nINFO: Ctrl+C pressed. Safely terminating program\n");
-    fflush(stdout);
-	// Exit libusb
-	libusb_exit(NULL);
-	// TODO: For each tracked lowcar device, disconnect from shared memory
-	// TODO: Stop shared memory
-	// shm_stop(DEV_HANDLER);
-	exit(0);
-}
-
-void poll_connected_devices() {
-	// Initialize variables
-	libusb_device* dev = NULL;
-	libusb_device** connected;	 										// List of connected device in this iteration
-	printf("INFO: Getting initial device list\n");
-	int num_tracked = libusb_get_device_list(NULL, &connected);			// Number of connected devices in previous iteration
-	usb_id_t** tracked = alloc_tracked_devices(connected, num_tracked);	// List of connected deevices in previous iteration
-	libusb_free_device_list(connected, 1);
-	int num_connected;													// Number of connected devices in this iteration
-
-	// Initialize timer
-	// time_t current_time;
-
-	// Poll
-	printf("INFO: Variables initialized. Polling now.\n");
-	while (1) {
-		// Check how many are connected
-		num_connected = libusb_get_device_list(NULL, &connected);
-		if (num_connected == num_tracked) {
-			libusb_free_device_list(connected, 1);
-			continue;
-		} else {
-			if (num_connected > num_tracked) {
-				// Communicate with the new device
-				printf("INFO: NEW DEVICE CONNECTED\n");
-				dev = get_new_device(connected, num_connected, tracked, num_tracked);
-				communicate(dev);
-			} else if (num_connected < num_tracked) {
-				printf("INFO: DEVICE  DISCONNECTED\n");
-			}
-			// Update tracked devices
-			free_tracked_devices(tracked, num_tracked);
-			tracked = alloc_tracked_devices(connected, num_connected);
-			num_tracked = num_connected;
-			// Free connected list
-			libusb_free_device_list(connected, 1);
-		}
-	}
-}
-
-/*******************************************
- *           READ/WRITE THREADS            *
- *******************************************/
-/*
-* Opens threads for communication with a device
-* Threads will cleanup after themselves when they exit
-* dev: The libusb_device to communicate with
-*/
 void communicate(libusb_device* dev) {
 	msg_relay_t* relay = malloc(sizeof(msg_relay_t));
 	relay->dev = dev;
@@ -242,12 +236,13 @@ void communicate(libusb_device* dev) {
 }
 
 /*
-* Sends a Ping to the device and waits for a SubscriptionResponse
-* If the SubscriptionResponse takes too long, close the device and exit all threads
-* Connects the device to shared memory and signals the sender and receiver to start
-* Continuously checks if the device disconnected or HeartBeatRequest was sent without a response
-*      If so, it disconnects the device from shared memory, closes the device, and frees memory
-*/
+ * Sends a Ping to the device and waits for a SubscriptionResponse
+ * If the SubscriptionResponse takes too long, close the device and exit all threads
+ * Connects the device to shared memory and signals the sender and receiver to start
+ * Continuously checks if the device disconnected or HeartBeatRequest was sent without a response
+ *      If so, it disconnects the device from shared memory, closes the device, and frees memory
+ * RELAY_CAST is to be casted as msg_relay_t
+ */
 void* relayer(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
 	int ret;
@@ -322,6 +317,10 @@ void* relayer(void* relay_cast) {
 	}
 }
 
+/* Called by relayer to clean up after the device.
+ * Releases interface, closes device, cancels threads,
+ * disconnects from shared memory, and frees the RELAY struct
+ */
 void relay_clean_up(msg_relay_t* relay) {
 	printf("INFO: Cleaning up threads\n");
 	// Release the device interface. If it was never claimed, this will do nothing.
@@ -343,11 +342,12 @@ void relay_clean_up(msg_relay_t* relay) {
 }
 
 /*
-* Continuously reads from shared memory to serialize the necessary information
-* to send to the device.
-* Sets relay->sent_hb_req when a HeartBeatRequest is sent
-* Sends a HeartBeatResponse when relay->got_hb_req is set
-*/
+ * Continuously reads from shared memory to serialize the necessary information
+ * to send to the device.
+ * Sets relay->sent_hb_req when a HeartBeatRequest is sent
+ * Sends a HeartBeatResponse when relay->got_hb_req is set
+ * RELAY_CAST is to be casted as msg_relay_t
+ */
 void* sender(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
 	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
@@ -414,9 +414,10 @@ void* sender(void* relay_cast) {
 }
 
 /*
-* Continuously attempts to parse incoming data over serial and send to shared memory
-* Sets relay->got_hb_req upon receiving a HeartBeatRequest
-*/
+ * Continuously attempts to parse incoming data over serial and send to shared memory
+ * Sets relay->got_hb_req upon receiving a HeartBeatRequest
+ * RELAY_CAST is to be casted as msg_relay_t
+ */
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
 	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
@@ -469,9 +470,65 @@ void* receiver(void* relay_cast) {
 	return NULL;
 }
 
-/*******************************************
- *            DEVICE MESSAGES              *
- *******************************************/
+// ************************************ DEVICE COMMUNICATION ****************************************** //
+
+/*
+ * Populates RELAY's send_endpoint and receive_endpoint if possible
+ * relay: msg_relay_t struct to be filled with the endpoints
+ * interface: A libusb interface containing (possibly invalid for bulk transfer) endpoints
+ * return:	0 if successful
+ *			1 otherwise
+ */
+int get_endpoints(msg_relay_t* relay, struct libusb_interface interface) {
+	// Get the 0th setting of the claimed interface. TODO: Getting the first one. Change later?
+	printf("INFO: This interface has %d settings\n", interface.num_altsetting);
+	const struct libusb_interface_descriptor interface_desc = interface.altsetting[0];
+
+	// Make sure we have at least 2 endpoints on this interface setting
+	printf("INFO: 0th setting has %d endpoints\n", interface_desc.bNumEndpoints);
+	if (interface_desc.bNumEndpoints < 2) {
+		printf("INFO: This interface setting has fewer than 2 endpoints! Giving up on this interface\n");
+		return 1;
+	}
+
+	// Initialize flags to indicate whether we are able to find the endpoints
+	uint8_t found_bulk_in = 0;
+	uint8_t found_bulk_out = 0;
+	struct libusb_endpoint_descriptor endpoint;
+
+	// Iterate through the endpoints until we get both bulk endpoint in and bulk endpoint out
+	for (int i = 0; i < interface_desc.bNumEndpoints; i++) {
+		endpoint = interface_desc.endpoint[i];
+		// Bits 0 and 1 of endpoint.bmAttributes detail the transfer type. We want bulk
+		if ((3 & endpoint.bmAttributes) != LIBUSB_TRANSFER_TYPE_BULK) {
+			continue;
+		}
+		// Bit 7 of endpoint.bEndpointAddress indicates the direction
+		if (!found_bulk_in && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_IN)) {
+			// LIBUSB_ENDPOINT_IN: Transfer from device to dev_handler
+			relay->receive_endpoint = endpoint.bEndpointAddress;
+			found_bulk_in = 1;
+		} else if (!found_bulk_out && (((1 << 7) & endpoint.bEndpointAddress) == LIBUSB_ENDPOINT_OUT)) {
+			// LIBUSB_ENDPOINT_OUT: Transfer from dev_handler to device
+			relay->send_endpoint = endpoint.bEndpointAddress;
+			found_bulk_out = 1;
+		}
+		// If we found both endpoints, return
+		if (found_bulk_in && found_bulk_out) {
+			printf("INFO: Endpoints were successfully identified!\n");
+			printf("INFO:     Send (OUT) Endpoint: 0x%X\n", relay->send_endpoint);
+			printf("INFO:     Receive (IN) Endpoint: 0x%X\n", relay->receive_endpoint);
+			return 0;
+		}
+	}
+	if (!found_bulk_in) {
+		printf("FATAL: Couldn't get endpoint for receiver\n");
+	}
+	if (!found_bulk_out) {
+		printf("FATAL: Couldn't get endpoint for sender\n");
+	}
+	return 1;
+}
 
 /*
  * Serializes and sends a message to the specified endpoint
@@ -617,9 +674,8 @@ int ping(msg_relay_t* relay) {
 	return 0;
 }
 
-/*******************************************
- *                 UTILITY                 *
- *******************************************/
+// ************************************ UTILITY ****************************************** //
+
 /* Returns the number of milliseconds since the Unix Epoch */
 int64_t millis() {
 	struct timeval time; // Holds the current time in seconds + microsecondsx
@@ -629,6 +685,7 @@ int64_t millis() {
 	return s1 + s2;
 }
 
+/* Prints the byte array DATA of length LEN in hex */
 void print_bytes(uint8_t* data, int len) {
 	printf("INFO: Data: 0x");
 	for (int i = 0; i < len; i++) {
@@ -636,6 +693,8 @@ void print_bytes(uint8_t* data, int len) {
 	}
 	printf("\n");
 }
+
+// ************************************ MAIN ****************************************** //
 
 int main() {
 	// If SIGINT (Ctrl+C) is received, call sigintHandler to clean up
