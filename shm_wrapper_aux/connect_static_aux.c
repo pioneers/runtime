@@ -32,12 +32,26 @@ int main() {
 
 	sleep(5);
 	robot_desc_write(RUN_MODE, TELEOP);
-	sleep(5);
-	robot_desc_write(RUN_MODE, IDLE);
-	sleep(5);
-	robot_desc_write(RUN_MODE, AUTO);
+	// sleep(5);
+	// robot_desc_write(RUN_MODE, IDLE);
+	// sleep(3);
+	// robot_desc_write(RUN_MODE, AUTO);
 
+	char mode[30];
     while(1) {
+		gets(mode);
+		if (strcmp(mode, "auto") == 0) {
+			robot_desc_write(RUN_MODE, AUTO);
+		}
+		else if (strcmp(mode, "teleop") == 0) {
+			robot_desc_write(RUN_MODE, TELEOP);
+		}
+		else if (strcmp(mode, "idle") == 0) {
+			robot_desc_write(RUN_MODE, IDLE);
+		}
+		else if (strcmp(mode, "stop") == 0) {
+			robot_desc_write(RUN_MODE, ESTOP);
+		}
         sleep(1);
     }
 }

@@ -6,7 +6,6 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Free
 import threading
 import sys
 import builtins
-# import numpy as np
 
 """Student API written in Cython. """
 
@@ -15,6 +14,7 @@ logger_init(STUDENTAPI)
 log_runtime(DEBUG, "Student API intialized")
 
 MAX_THREADS = 8
+
 
 ## Tools used for logging
 
@@ -90,15 +90,9 @@ cdef class Gamepad:
     cdef public str mode
 
     def __cinit__(self, mode):
-        """Initializes the mode of the robot. Also initializes the auxiliary SHM. """
+        """Initializes the mode of the robot. """
         self.mode = mode
-        # shm_aux_init(STUDENTAPI)
-        # log_runtime(DEBUG, "Aux SHM initialized")
 
-    def __dealloc__(self):
-        """Once process is finished and object is deallocated, close the mapping to the auxiliary SHM."""
-        # shm_aux_stop(STUDENTAPI)
-        # log_runtime(DEBUG, "Aux SHM stopped")
 
     cpdef get_value(self, str param_name):
         """
@@ -136,12 +130,14 @@ class ThreadWrapper(threading.Thread):
         self.kwargs = kwargs
 
     def run(self):
+        _print(f"Action Thread ID: {self.ident}", level=DEBUG)
         try:
             self.action(*self.args, **self.kwargs)
         except TimeoutError:
             pass
         except Exception as e:
-            _print(str(e), level=ERROR)
+            _print("Action exception", level=DEBUG)
+            raise
 
 
 cdef class Robot:
@@ -151,15 +147,8 @@ cdef class Robot:
     cdef public dict running_actions
 
     def __cinit__(self):
-        """Initializes the shared memory (SHM) wrapper. """
-        # shm_init(STUDENTAPI) # Remove once integrated into executor?
-        # log_runtime(DEBUG, "SHM intialized")
+        """Initializes the dict of running threads. """
         self.running_actions = {}
-
-    def __dealloc__(self):
-        """Once process is done and object is deallocated, close the mapping to SHM."""
-        # shm_stop(STUDENTAPI)
-        # log_runtime(DEBUG, "SHM stopped")
 
 
     def run(self, action, *args, **kwargs) -> None:

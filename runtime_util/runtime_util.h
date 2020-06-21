@@ -16,6 +16,8 @@
 
 #define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
+#define MAX_LOG_LEN 512
+
 //enumerate names of processes
 typedef enum process {
 	DEV_HANDLER, EXECUTOR, NET_HANDLER, STUDENTAPI
