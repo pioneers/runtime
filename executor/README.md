@@ -5,7 +5,7 @@ This folder includes the processes to understand the student code API, interpret
 ## Building
 
 ### Dependencies:
-This program will only work on Linux and MacOS systems. You need to have Python with version `>= 3.6`. The only Python package needed is `Cython` which can be installed with ```python3 -m pip install Cython```. You also need to have `gcc` installed to compile the C code.
+This program will only work on Linux and MacOS systems. You need to have Python with version `>= 3.6`. The only Python package needed is `Cython` which can be installed with `python3 -m pip install Cython`. You also need to have `gcc` installed to compile the C code.
 
 ### Steps:
 First, ensure that for whatever `python3.x` version you are using, there is a corresponding command line tool `python3.x-config`. On Linux, this can be installed by doing `sudo apt install python3.x-dev` with the `x` appropriately substituted with your version number. Then in the Makefile, change the `py` flag under the comment with the version of Python you are using.
@@ -15,18 +15,18 @@ To make the `studentapi`, do `make studentapi` which uses `setup.py` file to com
 To make the executor, do `make executor` which uses `gcc` to compile the C code to an executable.
 
 ## Testing
-To just test the student API functions, run `make test_api`. 
+First, follow the build instructions. To just test the student API functions, run `make test_api`. 
 
-To test the executor, you first need to create instances of the `DEV_HANDLER` and the `NET_HANDLER`. This can be done by first making the files with:
+To test the executor, you first need to create instances of the `DEV_HANDLER` and the `NET_HANDLER`. This can be done by first making the test files:
 
 > cd shm_wrapper  
 > make static  
 > cd ../shm_wrapper_aux  
 > make static
 
-Then in a separate terminal that is at `c-runtime/`, do `./create_static_shm.sh`.
+Then in a separate terminal that is at `c-runtime/`, do `./create_static_shm.sh`. This will begin the initial modes and afterwards, will be a prompt that waits for you to input the next mode of either `auto`, `teleop`, `idle`, or `stop`.
 
-In the original terminal, you can finally go to `c-runtime/executor` and run `./executor` to test that the executor process properly spawns the threads to run the student code. The student code that is by default ran will be in `studentcode.py`.
+In the original terminal, you can finally go to `c-runtime/executor` and run `./executor` to test that the executor process properly spawns the threads to run the student code. The student code that is by default ran will be in `studentcode.py`. 
 
 ## Detailed Description
 
