@@ -260,6 +260,7 @@ void python_init() {
         log_runtime(ERROR, "Could not insert API into student code.");
         executor_stop();
     }
+    PyEval_InitThreads();
     pyState = PyEval_SaveThread();
 }
 
