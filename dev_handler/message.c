@@ -223,7 +223,7 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
  * Payload: 32-bit params + 16-bit delay + 88-bit dev_id
  *          --> 136-bits == 17 bytes
 */
-/*
+
 message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_response = malloc(sizeof(message_t));
     sub_response->message_id = SubscriptionResponse;
@@ -237,7 +237,7 @@ message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], 
     status += append_payload(sub_response, (uint8_t*) &(device_id->uid), DEVICE_ID_SIZE);
     return (status == 0) ? sub_response : NULL;
 }
-*/
+
 
 /*
  * Constructs a DeviceRead message, given DEVICE_ID and array of param names PARAM_NAMES of length Len.

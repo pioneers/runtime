@@ -135,7 +135,7 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
  * Payload: 32-bit param bit-mask, 16-bit delay, 88-bit device identifier
  * Direction: device --> dev_handler
  */
-// message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
+message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
 
 /*
  * A message to request parameter data from a device (a single request, unlike a subscription)
