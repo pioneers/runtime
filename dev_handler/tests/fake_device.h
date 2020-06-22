@@ -24,6 +24,9 @@
 #define YEAR 0x01               // 8-bit
 #define UID 0x0123456789ABCDEF  // 64-bit
 
+// The maximum time (in milliseconds) that we'll wait for the DEV_HANDLER to respond to our HeartBeatRequest
+#define TIMEOUT 1000
+
 // Interval (in milliseconds) at which we send a HeartBeatRequest
 #define HB_REQ_FREQ 2000
 

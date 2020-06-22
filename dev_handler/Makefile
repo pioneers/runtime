@@ -24,3 +24,17 @@ val: dev_handler.c
 test: dev_test.c
 	$(CC) $(CFLAGS) $(LDFLAGS) dev_test.c -o dev_test $(LIBFLAGS)
 	sudo ./dev_test
+
+# Run the fake device
+fake: tests/fake_device.c tests/fake_device.h
+	$(CC) tests/fake_device.c message.c ../runtime_util/runtime_util.c -o fake -lpthread
+	sudo ./fake
+
+# Run the fake device with valgrind
+fake_val: tests/fake_device.c tests/fake_device.h
+	$(CC) tests/fake_device.c message.c ../runtime_util/runtime_util.c -o fake -lpthread
+	sudo valgrind ./fake
+
+# Clean files generated from fake
+clean:
+	rm -f to_dev_handler.txt to_device.txt
