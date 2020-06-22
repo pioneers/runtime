@@ -12,17 +12,14 @@ int main ()
 	Text log_msg = TEXT__INIT; //iniitialize hooray
 	void *buf;                     // Buffer to store serialized data
 	unsigned len;                  // Length of serialized data
-	unsigned total_size = 0;		// total length of strings
 	
 	//put some data
 	log_msg.msg = MSG__LOG;   //this is how you do enums
 	log_msg.n_payloads = 4;
+	log_msg.payloads = (char **) malloc (sizeof(char *) * log_msg.n_payloads);
 	for (int i = 0; i < log_msg.n_payloads; i++) {
-		total_size += (int) strlen(strs[i]);
-	}
-	log_msg.payloads = (char **) malloc (total_size * sizeof(char *));
-	for (int i = 0; i < log_msg.n_payloads; i++) {
-		log_msg.payloads[i] = strs[i];
+		log_msg.payloads[i] = (char *) malloc(sizeof(char) * strlen(strs[i]));
+		strcpy(log_msg.payloads[i], (const char *) strs[i]);
 	}
 	
 	len = text__get_packed_size(&log_msg);
