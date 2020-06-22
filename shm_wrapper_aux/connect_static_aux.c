@@ -49,9 +49,6 @@ int main() {
 		else if (strcmp(mode, "idle") == 0) {
 			robot_desc_write(RUN_MODE, IDLE);
 		}
-		else if (strcmp(mode, "stop") == 0) {
-			robot_desc_write(RUN_MODE, ESTOP);
-		}
         sleep(1);
     }
 }
