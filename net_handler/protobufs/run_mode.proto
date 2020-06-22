@@ -1,0 +1,20 @@
+/*
+ * Defines a message for communicating the run mode
+ */
+
+syntax = "proto3";
+
+import "msg_enum.proto";
+
+option optimize_for = LITE_RUNTIME;
+
+message RunMode {
+	enum Mode {
+		IDLE = 0;
+		AUTO = 1;
+		TELEOP = 2;
+		ESTOP = 3;
+	}
+	Msg msg = 1;               //should be RUN_MODE (2)
+	Mode mode = 2;
+}
