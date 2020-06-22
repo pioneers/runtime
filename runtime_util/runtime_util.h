@@ -20,7 +20,7 @@
 
 //enumerate names of processes
 typedef enum process {
-	DEV_HANDLER, EXECUTOR, NET_HANDLER, STUDENTAPI
+	DEV_HANDLER, EXECUTOR, NET_HANDLER, SUPERVISOR
 } process_t;
 
 //enumerated names for the buttons on the gamepad
@@ -37,7 +37,7 @@ typedef enum gp_joysticks {
 
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-	IDLE, AUTO, TELEOP, ESTOP,       //values for robot.run_mode
+	IDLE, AUTO, TELEOP,       //values for robot.run_mode
 	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
 	BLUE, GOLD                  //values for robot.team
 } robot_desc_val_t;

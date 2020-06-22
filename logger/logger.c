@@ -37,8 +37,8 @@ void logger_init (process_t process)
 		sprintf(process_str, "EXECUTOR");
 	} else if (process == NET_HANDLER) {
 		sprintf(process_str, "NET_HANDLER");
-	} else if (process == STUDENTAPI) {
-		sprintf(process_str, "STUDENTAPI");
+	} else if (process == SUPERVISOR) {
+		sprintf(process_str, "SUPERVISOR");
 	}
 }
 

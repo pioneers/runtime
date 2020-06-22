@@ -67,6 +67,7 @@ def teleop_setup():
     start = time.time()
     global i
     i = 0
+    Robot.run(wait)
 
 
 def teleop_main():
@@ -109,4 +110,5 @@ def double(x):
 
 def wait():
     while True:
-        pass
+        Robot.get_value(MOTOR, 'enc_pos')
+        # print('of course')

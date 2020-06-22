@@ -8,7 +8,7 @@ cdef extern from "../logger/logger_config.h":
 cdef extern from "../runtime_util/runtime_util.h":
     int NUM_GAMEPAD_BUTTONS
     ctypedef enum process_t:
-        EXECUTOR, STUDENTAPI
+        EXECUTOR
     ctypedef struct device_t:
         char* name
     ctypedef struct param_val_t:
