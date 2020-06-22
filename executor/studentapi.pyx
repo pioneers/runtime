@@ -9,8 +9,7 @@ import builtins
 
 """Student API written in Cython. """
 
-# Initializing logger to be used throughout API
-logger_init(STUDENTAPI)
+logger_init(EXECUTOR)
 log_runtime(DEBUG, "Student API intialized")
 
 MAX_THREADS = 8
@@ -44,15 +43,17 @@ sys.stderr = OutputRedirect(PYTHON)
 
 ## Test functions for SHM
 
-def _shm_init():
+def _init():
     """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
-    shm_init(STUDENTAPI)
-    shm_aux_init(STUDENTAPI)
+    logger_init(EXECUTOR)
+    shm_init(EXECUTOR)
+    shm_aux_init(EXECUTOR)
 
-def _shm_stop():
+def _stop():
     """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
-    shm_stop(STUDENTAPI)
-    shm_aux_stop(STUDENTAPI)
+    shm_stop(EXECUTOR)
+    shm_aux_stop(EXECUTOR)
+    logger_stop()
 
 
 ## API Objects
@@ -136,7 +137,6 @@ class ThreadWrapper(threading.Thread):
         except TimeoutError:
             pass
         except Exception as e:
-            _print("Action exception", level=DEBUG)
             raise
 
 
