@@ -32,7 +32,7 @@ static void send_dev_data (udp_arg_t *udp_args, dev_data_t *dev_data)
 }
 
 //wait for a message from Dawn, and paste contents into provided struct
-static void recv_gp_stae (udp_arg_t *udp_args, gp_state_t *gp_state)
+static void recv_gp_state (udp_arg_t *udp_args, gp_state_t *gp_state)
 {
 	char buf[UDP_BUF_SIZE];
 	ssize_t bytes_read;

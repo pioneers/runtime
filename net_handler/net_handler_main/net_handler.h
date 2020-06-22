@@ -15,7 +15,7 @@
 
 //All the different possible messages the network handler works with
 typedef enum net_msg {
-	GAMEPAD_STATE, DEVICE_DATA,       //UDP
+	GAMEPAD_STATE, DEVICE_DATA,       //UDP (mostly)
 	RUN_MODE, CHALLENGE_DATA, LOG,    //TCP
 	NOP, ACK                          //Misc
 } net_msg_t;
@@ -28,7 +28,7 @@ typedef enum target = {
 //Intermediate data structures between the raw bytearray (string) sent over the network
 //and the values actually written into the system:
 
-//RUN_MODE, CODE_UPLOAD_REQUEST
+//RUN_MODE, CHALLENGE_DATA
 struct text_payload = {
 	net_msg_t msg;
 	char *text;

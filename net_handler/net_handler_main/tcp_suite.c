@@ -24,25 +24,36 @@ void *tcp_send_thread (void *args)
 {	
 	tcp_arg_t *tcp_args = (tcp_arg_t *)args; //use this to communicate between the send and recv threads
 	
-	char *buf = (char *) malloc(sizeof(char) * log_msg_maxlen);
-	log_payload_t log_payload;
-	text_payload_t text_payload;
-	log_payload.msg = LOG;
-	text_payload.msg = CHALLENGE_DATA;
+	//preliminary setup for protobufs
+	Text log_msg = TEXT__INIT;
+	log_msg.msg = MSG__LOG;
+	log_msg.payloads = (char **) malloc(sizeof(char *) * MAX_NUM_LOGS);
+	for (int i = 0; i < MAX_NUM_LOGS) {
+		log_msg.payloads[i] = (char *) malloc(sizeof(char) * LOG_MSG_MAXLEN);
+	}
+	
+	Text challenge_data_msg = TEXT__INIT;
+	log_msg.msg = MSG__CHALLENGE_DATA;
+	
+	int len;
+	uint8_t *buf;
 	
 	//open log file and go to the end
 	FILE *fp;
 	fp = fopen("../logger/runtime_log.log", "r");
 	fseek(fp, 0, SEEK_END);
 	
+	//main loop
 	while (!(tcp_args->stop)) {
-		if (fgets(buf, LOG_MSG_MAXLEN, fp) != NULL) { //if there's a log message to send
-			log_payload.num_logs = 0;
-			do {
-				strcpy(log_payload.logs[log_payload.num_logs], (const char *)buf);
-				log_payload_num_logs++;
-			} while (fgets(buf, LOG_MSG_MAXLEN, fp) != NULL); //while there's still stuff to read, get it all
-			//TODO: package data and send over TCP socket
+		if (fgets(log_msg.payloads[0], LOG_MSG_MAXLEN, fp) != NULL) { //if there's a log message to send
+			log_msg.n_payloads = 1;
+			while (fgets(log_msg.payloads[log_msg.n_payloads], LOG_MSG_MAXLEN, fp) != NULL) { //while there's still stuff to read, get it all
+				log_msg.n_payloads++;
+			}
+			len = text__get_packed_size(&log_msg);
+			buf = (uint8_t *) malloc(sizeof(uint8_t) * len);
+			
+			//TODO: send buf over TCP socket
 		}
 		if (tcp_args->challenge_wip) {
 			if (/* TODO: check to see if coding challenge results are in */) {
