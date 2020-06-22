@@ -1,0 +1,12 @@
+/*
+ * Defines a message for communicating GamePad state
+ */
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+message GpState {
+	fixed32 buttons = 1;
+	repeated double axes = 2;
+}
