@@ -60,7 +60,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
     }
 
     // Try to read the length of the cobs encoded message
-    int cobs_len;
+    int cobs_len = 0;
     num_bytes_read = 0;
     while (num_bytes_read != 1) {
         num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
@@ -78,8 +78,6 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         free(data);
         return 1;
     }
-    printf("Read %d bytes from stream: ", DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
-    print_bytes(data, DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
 
     // Parse the message
     if (parse_message(data, msg) != 0) {
@@ -104,8 +102,6 @@ void send_message(msg_relay_t* relay, message_t* msg) {
     // Write the data buffer to the file
     fwrite(data, sizeof(uint8_t), len, relay->write_file);
     fflush(relay->write_file); // Force write the contents to file
-    printf("INFO: Sent %d bytes to stream: ", len);
-    print_bytes(data, len);
     free(data);
 }
 
@@ -126,20 +122,26 @@ void* sender(void* relay_cast) {
     printf("INFO: Sender starting work\n");
     // Allocate a message to be sent
     message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
+    // Counter for HeartBeatRequest
+    int heartbeat_counter = 1;
     // Continuously send messages as needed
     while (1) {
-        if (relay->got_hb_req) {
+        if (relay->got_hb_req != 0) {
             // Send a HeartBeatResponse
-            message_t* msg = make_heartbeat_response(0);
+            int heartbeat_id = relay->got_hb_req;
+            message_t* msg = make_heartbeat_response(heartbeat_id);
             send_message(relay, msg);
+            printf("INFO: Sent HeartBeatResponse: %d\n", heartbeat_id);
             destroy_message(msg);
             relay->got_hb_req = 0;
         } else if ((millis() - relay->last_sent_hbreq_time) > HB_REQ_FREQ) {
             // If it's been been too long since the last HeartBeatRequest, send another one
-            message_t* msg = make_heartbeat_request(0);
+            message_t* msg = make_heartbeat_request(heartbeat_counter);
             send_message(relay, msg);
+            printf("INFO: Sent HeartBeatRequest: %d\n", heartbeat_counter);
             destroy_message(msg);
             relay->last_sent_hbreq_time = millis();
+            heartbeat_counter++;
         } else if (relay->got_write) {
             // TODO: Send DeviceData
             relay->got_write = 0;
@@ -178,8 +180,11 @@ void* receiver(void* relay_cast) {
         } else if (msg->message_id == DeviceWrite) {
             // TODO: Change vals and send DeviceData
         } else if (msg->message_id == HeartBeatRequest) {
-            relay->got_hb_req = 1;
+            int request_id = msg->payload[0];
+            printf("INFO: Got HeartBeatRequest: %d\n", request_id);
+            relay->got_hb_req = request_id;
         } else if (msg->message_id == HeartBeatResponse) {
+            printf("INFO: Got HeartBeatResponse: %d\n", msg->payload[0]);
             relay->last_received_hbresp_time = millis();
         } else {
             printf("FATAL: Got message of unknown type\n");
