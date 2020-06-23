@@ -24,9 +24,21 @@
 #include <time.h>   // For timestamps on HeartBeatRequests
 #include <unistd.h> // sleep(int seconds)
 
-/******************************************
- * STARTING/STOPPING LIBUSB/SHARED MEMORY *
- ******************************************/
+// ************************************ CONFIG ************************************* //
+
+// The types of output the DEV_HANDLER can communicate with. FILE_DEV is used for `make fake`
+typedef enum output_type { USB_DEV, FILE_DEV };
+
+// Whether DEV_HANDLER should communicate with USB devices over serial or to a fake device over .txt files (for testing)
+#define OUTPUT USB_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
+
+// The file to write to if output == FILE_DEV
+#define TO_DEVICE "to_device.txt"
+
+// The file to read from if output == FILE_DEV
+#define TO_DEV_HANDLER "to_dev_handler.txt"
+
+// ************************************ STARTING/STOPING LIBUSB AND SHARED MEMORY ************************************ //
 
 /*
  * Initializes data structures, libusb, and shared memory
@@ -38,9 +50,8 @@ void init();
  */
 void stop();
 
-/*******************************************
- *             DEVICE POLLING              *
- *******************************************/
+// ************************************ POLLING FOR DEVICES ************************************ //
+
 
 /*
  * Detects when devices are connected and disconnected.

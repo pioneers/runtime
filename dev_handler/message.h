@@ -66,6 +66,9 @@ typedef struct message {
     uint8_t        max_payload_length;  // The maximum length of the payload for the specific message_id
 } message_t;
 
+/* Prints the byte array DATA of length LEN in hex */
+void print_bytes(uint8_t* data, int len);
+
 /******************************************************************************************
  *                              MESSAGE CONSTRUCTORS                                      *
  *   The message returned from these MUST be deallocated memory using destroy_message()   *
@@ -228,7 +231,7 @@ int message_to_bytes(message_t* msg, uint8_t data[], int len);
  * Cobs decodes a byte array and populates a message_t*, filling up the fields of msg_to_fill
  * The structure of the byte array is expected to be:
  *      8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
- * data: A byte array containing a cobs encoded message
+ * data: A byte array containing a cobs encoded message. data[0] should be the delimiter. data[1] should be cobs_len
  * empty_msg: A message to be populated. Payload must be properly allocated memory. Use make_empty()
  * return: 0 if successful parsing (correct checksum). 1 Otherwise
  */

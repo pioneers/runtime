@@ -45,42 +45,49 @@ void relay_clean_up(msg_relay_t* relay) {
 }
 
 /*
- * Attempts to read a message in to_device.txt and parses it into a message_t
+ * Continuously reads from file until reads the next message, then attempts to parse
  * msg: The message_t* to be populated with the parsed data (if successful)
- * return:  0 if successfully parsed
- *          1 if no message
- *          2 if broken message
- *          3 if incorrect checksum
+ * return: 0 on successful parse
+ *         1 on broken message
+ *         2 on incorrect checksum
  */
 int receive_message(msg_relay_t* relay, message_t* msg) {
+    size_t num_bytes_read = 0;
     uint8_t last_byte_read;
-    // Try to read the delimiter
-    size_t num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
-    if (num_bytes_read == 0) {
-        return 1;
-    } else if (last_byte_read != 0) {
-        printf("FATAL: Read something besides the delimiter\n");
-        return 2;
+    // Keep reading until we get the delimiter byte
+    while (!(num_bytes_read == 1 && last_byte_read == 0)) {
+        num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
     }
+
     // Try to read the length of the cobs encoded message
-    num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
-    if (num_bytes_read == 0) {
-        return 1;
+    int cobs_len;
+    num_bytes_read = 0;
+    while (num_bytes_read != 1) {
+        num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
     }
-    int cobs_len = last_byte_read;
+
     // Allocate buffer to read message into
-    uint8_t data[cobs_len];
+    uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    data[0] = 0x00;
+    data[1] = cobs_len;
+
     // Read the message
-    num_bytes_read = fread(data, sizeof(uint8_t), cobs_len, relay->read_file);
+    num_bytes_read = fread(&data[2], sizeof(uint8_t), cobs_len, relay->read_file);
     if (num_bytes_read != cobs_len) {
         printf("FATAL: Couldn't read the full message\n");
-        return 2;
+        free(data);
+        return 1;
     }
+    printf("Read %d bytes from stream: ", DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    print_bytes(data, DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+
     // Parse the message
     if (parse_message(data, msg) != 0) {
         printf("FATAL: Incorrect checksum\n");
-        return 3;
+        free(data);
+        return 2;
     }
+    free(data);
     return 0;
 }
 
@@ -91,11 +98,15 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 void send_message(msg_relay_t* relay, message_t* msg) {
     // Allocate memory for data buffer
     int len = calc_max_cobs_msg_length(msg);
-    uint8_t data[len];
+    uint8_t* data = malloc(len);
     // Fill data buffer with serialized, then encoded message
     len = message_to_bytes(msg, data, len);
     // Write the data buffer to the file
     fwrite(data, sizeof(uint8_t), len, relay->write_file);
+    fflush(relay->write_file); // Force write the contents to file
+    printf("INFO: Sent %d bytes to stream: ", len);
+    print_bytes(data, len);
+    free(data);
 }
 
 /*
@@ -104,7 +115,7 @@ void send_message(msg_relay_t* relay, message_t* msg) {
  */
 void* sender(void* relay_cast) {
     msg_relay_t* relay = (msg_relay_t*) relay_cast;
-    printf("INFO: Sender by standby\n");
+    printf("INFO: Sender on standby\n");
     // Sleep until relay->start == 1, which is true when relayer sends a SubscriptionResponse
 	while (1) {
 		if (relay->start == 1) {
@@ -146,7 +157,7 @@ void* sender(void* relay_cast) {
  */
 void* receiver(void* relay_cast) {
     msg_relay_t* relay = (msg_relay_t*) relay_cast;
-    printf("INFO: Receiver by standby\n");
+    printf("INFO: Receiver on standby\n");
     // Sleep until relay->start == 1, which is true when relayer sends a SubscriptionResponse
 	while (1) {
 		if (relay->start == 1) {
@@ -182,29 +193,13 @@ void* receiver(void* relay_cast) {
  */
 void* relayer(void* relay_cast) {
     msg_relay_t* relay = (msg_relay_t*) relay_cast;
-
-    // Keep reading from file until we get a Ping
-    printf("INFO: Relayer trying to read a ping\n");
-    uint8_t last_byte_read = -1;
-    while (last_byte_read != 0x00) {
-        fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
-    }
-    printf("INFO: Relayer found start of message\n");
-    uint8_t cobs_len;
-    fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file); // Read cobs length
-    uint8_t data[cobs_len];
-    fread(data, sizeof(uint8_t), cobs_len, relay->read_file); // Read the message
-    printf("INFO: Relayer parsing message\n");
+    printf("Relayer is ready\n");
+    // Empty message to receive Ping
     message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
-    if (parse_message(data, msg) != 0) {
-        printf("ERROR: First message read had incorrect checksum\n");
-        relay_clean_up(relay);
-        return NULL;
-    }
-    if (msg->message_id != Ping) {
-        printf("ERROR: First message was not a Ping\n");
-        relay_clean_up(relay);
-        return NULL;
+    // Keep reading from file until we get a Ping
+    while (receive_message(relay, msg) != 0) {
+        sleep(1);
+        printf("Waiting for Ping...\n");
     }
 
     // Send a SubscriptionResponse

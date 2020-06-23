@@ -23,13 +23,16 @@ typedef struct msg_relay {
     pthread_t sender;
     pthread_t receiver;
     pthread_t relayer;
-    uint8_t send_endpoint;
-    uint8_t receive_endpoint;
+    FILE* read_file;        // OUTPUT == FILE_DEV: File to read from
+    FILE* write_file;       // OUTPUT == FILE_DEV: File to write to
+    uint8_t send_endpoint;  // OUTPUT == USB_DEV: Endpoint to send to
+    uint8_t receive_endpoint; // OUTPUT == USB_DEV: Endpoint to read from
     int shm_dev_idx;        // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     uint8_t start;		    // set by relayer: A flag to tell reader and receiver to start work when set to 1
     dev_id_t dev_id;        // set by relayer once SubscriptionResponse is received
-    uint64_t sent_hb_req;	// set by sender: The TIME that the last HeartBeatRequest was sent that is not yet resolved. 0 if there is no pending request
-    uint8_t got_hb_req;	// set by receiver: A flag to tell sender to send a HeartBeatResponse
+    uint8_t got_hb_req;	    // set by receiver: A flag to tell sender to send a HeartBeatResponse
+    uint64_t last_sent_hbreq_time;      // set by sender: The last timestamp of a sent HeartBeatRequest. Used to detect timeout
+    uint64_t last_received_hbresp_time; // set by receiver: The last timestamp of a received HeartBeatResponse. Used to detect timeout
 } msg_relay_t;
 
 // ************************************ PRIVATE FUNCTIONS ****************************************** //
@@ -47,13 +50,12 @@ void* receiver(void* relay_cast);
 
 // Device communication (Bulk transferring)
 int get_endpoints(msg_relay_t* relay, struct libusb_interface interface);
-int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint, int* transferred);
-int receive_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint);
+int send_message(msg_relay_t* relay, message_t* msg, int* transferred);
+int receive_message(msg_relay_t* relay, message_t* msg);
 int ping(msg_relay_t* relay);
 
 // Utility
 int64_t millis();
-void print_bytes(uint8_t* data, int len);
 
 // ************************************ PUBLIC FUNCTIONS ****************************************** //
 
@@ -62,12 +64,14 @@ void init() {
 	// Init shared memory
 	// shm_init(DEV_HANDLER);
 	// Init libusb
-	int ret;
-	if ((ret = libusb_init(NULL)) != 0) {
-		printf("libusb_init failed on exit code %d\n", ret);
-		libusb_exit(NULL);
-		return;
-	}
+    if (OUTPUT == USB_DEV) {
+        int ret;
+    	if ((ret = libusb_init(NULL)) != 0) {
+    		printf("libusb_init failed on exit code %d\n", ret);
+    		libusb_exit(NULL);
+    		return;
+    	}
+    }
 }
 
 // Free memory and safely stop connections
@@ -75,7 +79,9 @@ void stop() {
 	printf("\nINFO: Ctrl+C pressed. Safely terminating program\n");
     fflush(stdout);
 	// Exit libusb
-	libusb_exit(NULL);
+	if (OUTPUT == USB_DEV) {
+        libusb_exit(NULL);
+    }
 	// TODO: For each tracked lowcar device, disconnect from shared memory
 	// TODO: Stop shared memory
 	// shm_stop(DEV_HANDLER);
@@ -211,12 +217,28 @@ libusb_device* get_new_device(libusb_device** connected, int num_connected, usb_
  */
 void communicate(libusb_device* dev) {
 	msg_relay_t* relay = malloc(sizeof(msg_relay_t));
+
 	relay->dev = dev;
 	// Open the device
-	int ret = libusb_open(dev, &relay->handle);
-	if (ret != 0) {
-		printf("ERROR: libusb_open in communicate() with error code %s\n", libusb_error_name(ret));
-	}
+    if (OUTPUT == USB_DEV) {
+        int ret = libusb_open(dev, &relay->handle);
+    	if (ret != 0) {
+    		printf("ERROR: libusb_open in communicate() with error code %s\n", libusb_error_name(ret));
+    	}
+    } else if (OUTPUT == FILE_DEV) {
+        // Open the file to read from
+        printf("INFO: Opening TO_DEV_HANDLER file to read\n");
+        relay->read_file = fopen(TO_DEV_HANDLER, "w+");
+        if (relay->read_file == NULL) {
+            printf("ERROR: Couldn't open TO_DEVICE file with error code %d\n", errno);
+        }
+        // Open the file to write to
+        printf("INFO: Opening TO_DEVICE file to write\n");
+        relay->write_file = fopen(TO_DEVICE, "w+");
+        if (relay->write_file == NULL) {
+            printf("ERROR: Couldn't open TO_DEV_HANDLER file\n");
+        }
+    }
 	// Initialize relay->start as 0, indicating sender and receiver to not start work yet
 	relay->start = 0;
 	// Initialize the other relay values
@@ -227,12 +249,16 @@ void communicate(libusb_device* dev) {
 	relay->dev_id.type = -1;
 	relay->dev_id.year = -1;
 	relay->dev_id.uid = -1;
-	relay->sent_hb_req = 0;
-	relay->got_hb_req= 0;
+    relay->got_hb_req = 0;
+    relay->last_sent_hbreq_time = 0;
+    relay->last_received_hbresp_time = 0;
 	// Open threads for sender, receiver, and relayer
 	pthread_create(&relay->sender, NULL, sender, relay);
 	pthread_create(&relay->receiver, NULL, receiver, relay);
 	pthread_create(&relay->relayer, NULL, relayer, relay);
+    if (OUTPUT == FILE_DEV) {
+        pthread_join(relay->relayer, NULL); // Let the threads do work. USB_DEV doesn't need this
+    }
 }
 
 /*
@@ -246,44 +272,46 @@ void communicate(libusb_device* dev) {
 void* relayer(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
 	int ret;
-	// Get the device's active config to find the number of interfaces it has
-	struct libusb_config_descriptor* config;
-	ret = libusb_get_active_config_descriptor(relay->dev, &config);
-	if (ret != 0) {
-		printf("ERROR: Couldn't get active config descriptor with error code %s\n", libusb_error_name(ret));
-		relay_clean_up(relay);
-		return NULL;
-	}
-	printf("INFO: Device has %d interfaces\n", config->bNumInterfaces);
+    if (OUTPUT == USB_DEV) {
+    	// Get the device's active config to find the number of interfaces it has
+    	struct libusb_config_descriptor* config;
+    	ret = libusb_get_active_config_descriptor(relay->dev, &config);
+    	if (ret != 0) {
+    		printf("ERROR: Couldn't get active config descriptor with error code %s\n", libusb_error_name(ret));
+    		relay_clean_up(relay);
+    		return NULL;
+    	}
+    	printf("INFO: Device has %d interfaces\n", config->bNumInterfaces);
 
-	// Tell libusb to automatically detach the kernel driver on claimed interfaces then reattach them when releasing the interface
-	// This function is not supported for Darwin or Windows, and will simply do nothing
-	libusb_set_auto_detach_kernel_driver(relay->handle, 1);
+    	// Tell libusb to automatically detach the kernel driver on claimed interfaces then reattach them when releasing the interface
+    	// This function is not supported for Darwin or Windows, and will simply do nothing
+    	libusb_set_auto_detach_kernel_driver(relay->handle, 1);
 
-	/* Claim an interface on the device's handle, telling OS we want to do I/O on the device
-	 * If we couldn't get the send endpoint and receive endpoint, try another interface to claim. */
-	for (int i = 0; i < config->bNumInterfaces; i++) {
-		ret = libusb_claim_interface(relay->handle, i);
-		if (ret != 0) {
-			printf("INFO: Couldn't claim interface %d with error code %s\n", i, libusb_error_name(ret));
-			continue;
-		}
-		printf("INFO: Successfully claimed interface %d!\n", i);
+    	/* Claim an interface on the device's handle, telling OS we want to do I/O on the device
+    	 * If we couldn't get the send endpoint and receive endpoint, try another interface to claim. */
+    	for (int i = 0; i < config->bNumInterfaces; i++) {
+    		ret = libusb_claim_interface(relay->handle, i);
+    		if (ret != 0) {
+    			printf("INFO: Couldn't claim interface %d with error code %s\n", i, libusb_error_name(ret));
+    			continue;
+    		}
+    		printf("INFO: Successfully claimed interface %d!\n", i);
 
-		// If we're able to get the endpoints, set relay->interface_idx and proceed to send a Ping
-		if (get_endpoints(relay, config->interface[i]) == 0) {
-			relay->interface_idx = i;
-			break;
-		}
-		// If we couldn't get the endpoints, release this interface and try another
-		libusb_release_interface(relay->handle, i);
-		// If we tried all interfaces and couldn't get the endpoints, we give up :(
-		if (i == config->bNumInterfaces - 1) {
-			printf("FATAL: Couldn't identify endpoints for this device :( Giving up.\n");
-			relay_clean_up(relay);
-			return NULL;
-		}
-	}
+    		// If we're able to get the endpoints, set relay->interface_idx and proceed to send a Ping
+    		if (get_endpoints(relay, config->interface[i]) == 0) {
+    			relay->interface_idx = i;
+    			break;
+    		}
+    		// If we couldn't get the endpoints, release this interface and try another
+    		libusb_release_interface(relay->handle, i);
+    		// If we tried all interfaces and couldn't get the endpoints, we give up :(
+    		if (i == config->bNumInterfaces - 1) {
+    			printf("FATAL: Couldn't identify endpoints for this device :( Giving up.\n");
+    			relay_clean_up(relay);
+    			return NULL;
+    		}
+    	}
+    }
 
 	// Send a Ping and wait for a SubscriptionResponse
 	printf("INFO: Relayer will send a Ping to the device\n");
@@ -308,18 +336,21 @@ void* relayer(void* relay_cast) {
 	struct libusb_device_descriptor desc;
 	while (1) {
 		// Getting the device descriptor if the device is disconnected should give an error
-		ret = libusb_get_device_descriptor(relay->dev, &desc);
+        if (OUTPUT == USB_DEV) {
+            ret = libusb_get_device_descriptor(relay->dev, &desc);
+        }
         /* If couldn't get device descriptor due to device disconnect OR
          * if theres a pending HeartBeatRequest that wasn't resolved in time,
          * clean up
          */
-		if ((ret == LIBUSB_ERROR_NO_DEVICE )
-            || (relay->sent_hb_req != 0
-                && (millis() - relay->sent_hb_req) >= DEVICE_TIMEOUT)) {
+        uint8_t pending_request = relay->last_sent_hbreq_time > relay->last_received_hbresp_time;
+		if ((OUTPUT == USB_DEV && ret == LIBUSB_ERROR_NO_DEVICE)
+            || (pending_request
+                && ((millis() - relay->last_sent_hbreq_time) >= DEVICE_TIMEOUT))) {
 			printf("INFO: Device disconnected or timed out!\n");
 			relay_clean_up(relay);
 			return NULL;
-		} else if (ret != 0) {
+		} else if (OUTPUT == USB_DEV && ret != 0) {
             // There's another error with getting the device descriptor
             printf("ERROR: libusb_get_device_descriptor errored in relayer with error code %s\n", libusb_error_name(ret));
         }
@@ -332,10 +363,12 @@ void* relayer(void* relay_cast) {
  */
 void relay_clean_up(msg_relay_t* relay) {
 	printf("INFO: Cleaning up threads\n");
-	// Release the device interface. If it was never claimed, this will do nothing.
-	libusb_release_interface(relay->handle, relay->interface_idx);
-	// Close the device
-	libusb_close(relay->handle);
+    if (OUTPUT == USB_DEV) {
+        // Release the device interface. If it was never claimed, this will do nothing.
+    	libusb_release_interface(relay->handle, relay->interface_idx);
+    	// Close the device
+    	libusb_close(relay->handle);
+    }
 	// Cancel the sender and receiver threads when ongoing transfers are completed
 	pthread_cancel(relay->sender);
 	pthread_cancel(relay->receiver);
@@ -390,7 +423,7 @@ void* sender(void* relay_cast) {
 			// device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
 			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
-			ret = send_message(msg, relay->handle, relay->send_endpoint, &transferred);
+			ret = send_message(relay, msg, &transferred);
 			if (ret != 0) {
 				printf("ERROR: DEVICE_WRITE transfer failed with error code %s\n", libusb_error_name(ret));
 			}
@@ -398,21 +431,21 @@ void* sender(void* relay_cast) {
 		}
 		pthread_testcancel(); // Cancellation point
 		// If it's been HB_REQ_FREQ milliseconds since last sending a HeartBeatRequest, send another one
-		if ((millis() - relay->sent_hb_req) >= HB_REQ_FREQ) {
+		if ((millis() - relay->last_sent_hbreq_time) >= HB_REQ_FREQ) {
 			msg = make_heartbeat_request(0);
-			send_message(msg, relay->handle, relay->send_endpoint, &transferred);
+			send_message(relay, msg, &transferred);
 			if (ret != 0) {
 				printf("ERROR: HeartBeatRequest transfer failed with error code %s\n", libusb_error_name(ret));
 			}
             // Update the timestamp at which we sent a HeartBeatRequest
-            relay->sent_hb_req = millis();
+            relay->last_sent_hbreq_time = millis();
 			destroy_message(msg);
 		}
 		pthread_testcancel(); // Cancellation point
 		// If receiver got a HeartBeatRequest, send a HeartBeatResponse and mark the request as resolved
 		if (relay->got_hb_req) {
 			msg = make_heartbeat_response(0);
-			send_message(msg, relay->handle, relay->send_endpoint, &transferred);
+			send_message(relay, msg, &transferred);
 			if (ret != 0) {
 				printf("ERROR: HeartBeatResponse transfer failed with error code %s\n", libusb_error_name(ret));
 			}
@@ -451,7 +484,7 @@ void* receiver(void* relay_cast) {
 	while (1) {
 		pthread_testcancel(); // Cancellation point
 		// Try to read a message
-		if (receive_message(msg, relay->handle, relay->receive_endpoint) != 0) {
+		if (receive_message(relay, msg) != 0) {
 			continue;
 		}
 		if (msg->message_id == HeartBeatRequest) {
@@ -459,7 +492,7 @@ void* receiver(void* relay_cast) {
 			relay->got_hb_req = 1;
 		} else if (msg->message_id == HeartBeatResponse) {
 			// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
-			relay->sent_hb_req = 0;
+			relay->last_received_hbresp_time = millis();
 		} else if (msg->message_id == DeviceData) {
 			// First, parse the payload into an array of parameter values
 			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
@@ -543,141 +576,130 @@ int get_endpoints(msg_relay_t* relay, struct libusb_interface interface) {
 }
 
 /*
- * Serializes and sends a message to the specified endpoint
+ * Serializes, encodes, and sends a message
  * msg: The message to be sent, constructed from the functions below
- * handle: A libusb device handle obtained by using libusb_open on the device
- * endpoint: The usb endpoint address that the message should be sent to
  * transferred: Output location for number of bytes actually sent
- * return: The return value of libusb_bulk_transfer
- *      http://libusb.sourceforge.net/api-1.0/group__libusb__syncio.html#gab8ae853ab492c22d707241dc26c8a805
+ * return: 0 if successful, Otherwise,
+ *         The return value of libusb_bulk_transfer if OUTPUT == USB_DEV
+ *          http://libusb.sourceforge.net/api-1.0/group__libusb__syncio.html#gab8ae853ab492c22d707241dc26c8a805
+ *          -1 if FILE_DEV and unsuccessful
+ *
  */
-int send_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint, int* transferred) {
+int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
 	int len = calc_max_cobs_msg_length(msg);
 	uint8_t* data = malloc(len);
 	len = message_to_bytes(msg, data, len);
-	int ret = libusb_bulk_transfer(handle, endpoint, data, len, transferred, DEVICE_TIMEOUT);
+    int ret;
+    if (OUTPUT == USB_DEV) {
+        ret = libusb_bulk_transfer(relay->handle, relay->send_endpoint, data, len, transferred, DEVICE_TIMEOUT);
+    } else if (OUTPUT == FILE_DEV) {
+        // Write the data buffer to the file
+        *transferred = fwrite(data, sizeof(uint8_t), len, relay->write_file);
+        fflush(relay->write_file); // Force write the contents to file
+        printf("INFO: Sent %d bytes to stream: ", len);
+        print_bytes(data, len);
+        ret = (*transferred == len) ? 0 : -1;
+    }
 	free(data);
 	return ret;
 }
 
 /*
- * Attempts to read a message from the specified endpoint
- * msg: Output empty message to be populated with the read message if successful
- * handle: A libusb device handle obtained by using libusb_open on the device
- * endpoint: The usb endpoint address that the message should be read from
- * return: 0 if a full message was successfully read and put into MSG
- *         1 if no message was found
- *         2 if a broken message was received
- *         3 if a message was received but with an incorrect checksum
+ * Continuously reads from stream until reads the next message, then attempts to parse
+ * relay: The shred relay object
+ * msg: The message_t* to be populated with the parsed data (if successful)
+ * return: 0 on successful parse
+ *         1 on broken message
+ *         2 on incorrect checksum
  */
-int receive_message(message_t* msg, libusb_device_handle* handle, uint8_t endpoint) {
-	// Allocate a buffer with enough space for the largest message + a byte of cobs encoding overhead
-	uint8_t* data = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE + 1);
+int receive_message(msg_relay_t* relay, message_t* msg) {
+    int num_bytes_read = 0;
 	// Variable to temporarily hold a read byte
 	uint8_t last_byte_read;
-	// Holds the actual number of bytes read from a transfer
-	int transferred;
-	// Try to read a byte from the device
-	int ret = libusb_bulk_transfer(handle, endpoint, &last_byte_read, 1, &transferred, DEVICE_TIMEOUT);
-	// If the byte read is the delimiter, (0x0) then we have an incoming message!
-	if (ret == LIBUSB_SUCCESS && transferred == 1) {
-		printf("INFO: A byte was received from the device!\n");
-		if (last_byte_read == 0) {
-			printf("INFO: It's the start of a message!\n");
-			// Read the length of the message
-			ret = libusb_bulk_transfer(handle, endpoint, &last_byte_read, 1, &transferred, DEVICE_TIMEOUT);
-			if (ret == LIBUSB_SUCCESS && transferred == 1) {
-				int cobs_len = last_byte_read;
-				printf("INFO: Received the length of the encoded message: %d bytes.\n", cobs_len);
-				// Read the encoded message
-				ret = libusb_bulk_transfer(handle, endpoint, data, cobs_len, &transferred, DEVICE_TIMEOUT);
-				if (ret == LIBUSB_SUCCESS && transferred == cobs_len) {
-					// Parse the read message
-					printf("INFO: Received the full message and will now parse\n");
-					if (parse_message(data, msg) == 0) {
-						printf("INFO: Message of type %X successfully parsed!\n", msg->message_id);
-						return 0;
-					} else {
-						printf("FATAL: The data received has an incorrect checksum. Dropping it.\n");
-						return 3;
-					}
-				} else {
-					printf("FATAL: Didn't receive the full message. Dropping it.\n");
-					return 2;
-				}
-			} else {
-				printf("FATAL: Didn't receive the length of the message. Dropping it.\n");
-				return 2;
-			}
-		} else {
-			printf("FATAL: Received a stray byte. Dropping it.\n");
-			return 2;
-		}
-	}
-	return 1;
+    int ret;
+	// Keep reading until we get the delimiter byte
+    while (!(num_bytes_read == 1 && last_byte_read == 0)) {
+        if (OUTPUT == USB_DEV) {
+            libusb_bulk_transfer(relay->handle, relay->receive_endpoint, &last_byte_read, 1, &num_bytes_read, DEVICE_TIMEOUT);
+        } else if (OUTPUT == FILE_DEV) {
+            num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
+        }
+        if (num_bytes_read == 1 && last_byte_read != 0) {
+            printf("Attempting to read delimiter but got 0x%X\n", last_byte_read);
+        }
+    }
+
+    // Try to read the length of the cobs encoded message
+    uint8_t cobs_len;
+    num_bytes_read = 0;
+    while (num_bytes_read != 1) {
+        if (OUTPUT == USB_DEV) {
+            libusb_bulk_transfer(relay->handle, relay->receive_endpoint, &cobs_len, 1, &num_bytes_read, DEVICE_TIMEOUT);
+        } else if (OUTPUT == FILE_DEV) {
+            num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
+        }
+    }
+
+    // Allocate buffer to read message into
+    uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    data[0] = 0x00;
+    data[1] = cobs_len;
+
+    // Read the message
+    num_bytes_read = 0;
+    if (OUTPUT == USB_DEV) {
+        libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, cobs_len, &num_bytes_read, DEVICE_TIMEOUT);
+    } else if (OUTPUT == FILE_DEV) {
+        num_bytes_read = fread(data, sizeof(uint8_t), cobs_len, relay->read_file);
+    }
+    if (num_bytes_read != cobs_len) {
+        printf("FATAL: Couldn't read the full message\n");
+        free(data);
+        return 1;
+    }
+    printf("Read %d bytes from stream: ", DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    print_bytes(data, DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+
+    // Parse the message
+    if (parse_message(data, msg) != 0) {
+        printf("FATAL: Incorrect checksum\n");
+        free(data);
+        return 2;
+    }
+    free(data);
+    return 0;
 }
 
 /*
  * Synchronously sends a PING message to a device to check if it's a lowcar device
  * relay: Struct holding device, handle, and endpoint fields
  * return: 0 upon successfully receiving a SubscriptionResponse and setting relay->dev_id
- *      1 if Ping message couldn't be serialized
- *      2 if Ping message couldn't be sent or SubscriptionResponse wasn't received
- *      3 if received message has incorrect checksum
- *      4 if received message is not a SubscriptionResponse
+ *      1 if Ping message couldn't be sent
+ *      2 SubscriptionResponse wasn't received
  */
 int ping(msg_relay_t* relay) {
-	// Make a PING message to be sent over serial
-	message_t* ping = make_ping();
-	int len = calc_max_cobs_msg_length(ping);
-	uint8_t* data = malloc(len * sizeof(uint8_t));
-	int ret = message_to_bytes(ping, data, len);
-	destroy_message(ping);
-	// ret holds the length of data (the length of the serialized Ping message)
-	if (ret <= 0) {
-		printf("ERROR: Couldn't serialize ping message in ping()\n");
-		free(data);
-		return 1;
-	}
-
-	// Bulk transfer the Ping message to the device
-	printf("INFO: Ping message serialized and ready to transfer\n");
-	print_bytes(data, ret);
-	int transferred = 0; // The number of bytes actually sent
-	ret = libusb_bulk_transfer(relay->handle, relay->send_endpoint, data, ret, &transferred, DEVICE_TIMEOUT);
-	if (ret != 0) {
-		printf("ERROR: Couldn't bulk transfer Ping with error code %s\n", libusb_error_name(ret));
-		free(data);
-		return 2;
-	}
-	free(data);
-	data = NULL;
-	printf("INFO: Ping message successfully sent with %d bytes!\n", transferred);
+	// Send a Ping
+    printf("INFO: Sending a Ping...\n");
+    message_t* ping = make_ping();
+    int transferred;
+    int ret = send_message(relay, ping, &transferred);
+    destroy_message(ping);
+    if (ret != 0) {
+        return 1;
+    }
 
 	// Try to read a SubscriptionResponse, which we expect from a lowcar device that receives a Ping
-	data = malloc(32); // It shouldn't be more than 32 bytes. ~20 + cobs
+    message_t* sub_response = make_empty(MAX_PAYLOAD_SIZE);
 	printf("INFO: Listening for SubscriptionResponse\n");
-	ret = libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, 32, &transferred, DEVICE_TIMEOUT);
-	if (ret != 0) {
-		printf("ERROR: Couldn't bulk transfer SubscriptionResponse with error code %s\n", libusb_error_name(ret));
-		free(data);
-		return 2;
-	}
-	// Parse the received message to verify it's a SubscriptionResponse
-	printf("INFO: %d bytes of data received and will be parsed!\n", transferred);
-	print_bytes(data, transferred);
-	message_t* sub_response = make_empty(MAX_PAYLOAD_SIZE);
-	ret = parse_message(data, sub_response);
-	free(data); // We don't need the encoded message anymore
-	if (ret != 0) {
-		printf("FATAL: Received data with incorrect checksum\n");
-		destroy_message(sub_response);
-		return 3;
-	} else if (sub_response->message_id != SubscriptionResponse) {
+    while (receive_message(relay, sub_response) != 0) {
+        sleep(1);
+    }
+    if (sub_response->message_id != SubscriptionResponse) {
 		printf("FATAL: Message is not a SubscriptionResponse\n");
 		destroy_message(sub_response);
-		return 4;
+		return 2;
 	}
+
 	// We have a SubscriptionResponse!
 	printf("INFO: SubscriptionResponse received!\n");
 	relay->dev_id.type = ((uint16_t*)(&sub_response->payload[6]))[0];	// device type is the 16-bits starting at the 6th byte
@@ -698,15 +720,6 @@ int64_t millis() {
 	return s1 + s2;
 }
 
-/* Prints the byte array DATA of length LEN in hex */
-void print_bytes(uint8_t* data, int len) {
-	printf("INFO: Data: 0x");
-	for (int i = 0; i < len; i++) {
-		printf("%X", data[i]);
-	}
-	printf("\n");
-}
-
 // ************************************ MAIN ****************************************** //
 
 int main() {
@@ -717,7 +730,16 @@ int main() {
 	// if (libusb_set_option(NULL, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_WARNING) != LIBUSB_SUCCESS) {
 	// 	printf("ERROR: libusb log level could not be set\n");
 	// }
-	// Start polling
-	poll_connected_devices();
+    printf("INFO: DEV_HANDLER starting with OUTPUT==");
+    if (OUTPUT == USB_DEV) {
+        printf("USB\n");
+        // Start polling if OUTPUT == USB
+        poll_connected_devices();
+    } else if (OUTPUT == FILE_DEV) {
+        printf("FILE_DEV\n");
+        // Skip polling
+        communicate(NULL);
+    }
+
 	return 0;
 }
