@@ -67,7 +67,6 @@ def teleop_setup():
     start = time.time()
     global i
     i = 0
-    Robot.run(wait)
 
 
 def teleop_main():
