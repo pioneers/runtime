@@ -11,6 +11,15 @@ Mac:
 */
 #include "message.h"
 
+/* Prints the byte array DATA of length LEN in hex */
+void print_bytes(uint8_t* data, int len) {
+	printf("0x");
+	for (int i = 0; i < len; i++) {
+		printf("%X", data[i]);
+	}
+	printf("\n");
+}
+
 // ************************************ PRIVATE FUNCTIONS ****************************************** //
 
 /*
@@ -419,23 +428,28 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     }
     uint8_t data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE];
     data[0] = msg->message_id;
+	printf("INFO: Sending message id 0x%X\n", data[0]);
     data[1] = msg->payload_length;
     for (int i = 0; i < msg->payload_length; i++) {
         data[i + MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE] = msg->payload[i];
     }
     data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length] = checksum(data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length);
-
     cobs_encoded[0] = 0x00;
-    int cobs_len = cobs_encode(&cobs_encoded[2], data, 3 + msg->payload_length);
+    int cobs_len = cobs_encode(&cobs_encoded[2], data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
     cobs_encoded[1] = cobs_len;
     return DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len;
 }
 
 int parse_message(uint8_t data[], message_t* msg_to_fill) {
     uint8_t* decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length + CHECKSUM_SIZE);
-    cobs_decode(decoded, &data[2], data[1]);
+    // printf("Cobs len: %d\n", data[1]);
+    int ret = cobs_decode(decoded, &data[2], data[1]);
+    // printf("Decoded message: ");
+    // print_bytes(decoded, ret);
     msg_to_fill->message_id = decoded[0];
+    printf("INFO: Received message id 0x%X\n", decoded[0]);
     msg_to_fill->payload_length = decoded[1];
+    // printf("INFO: Received payload length %d\n", decoded[1]);
     msg_to_fill->max_payload_length = decoded[1];
     for (int i = 0; i < msg_to_fill->payload_length; i++) {
         msg_to_fill->payload[i] = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + i];
