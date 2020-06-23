@@ -15,29 +15,16 @@
 #include "../logger/logger.h"              // for runtime logger
 
 // Global variables to all functions and threads
-const char *api_module = "studentapi";
-char *student_module;
+const char* api_module = "studentapi";
+char* student_module;
 PyObject *pModule, *pAPI, *pRobot, *pGamepad;
-PyThreadState* pyState;
 robot_desc_val_t mode = IDLE;
 pid_t pid;
-
 
 // Timings for all modes
 struct timespec setup_time = { 2, 0 };    // Max time allowed for setup functions
 #define freq 10.0 // Minimum number of times per second the main loop should run
 struct timespec main_interval = { 0, (long) ((1.0 / freq) * 1e9) };
-
-/**
- *  Struct used as input to all threads. Not all threads will use all arguments.
- */
-typedef struct thread_args {
-    char *func_name;                //name of function to run
-    pthread_cond_t *cond;           //to signal when thread is done
-    char *mode;                     //mode that we're running in
-    struct timespec *timeout;       //time that we this function will exit
-    uint8_t loop;                   //0 when func_name is meant to be run once; 1 when func_name is meant to be run in a loop
-} thread_args_t;
 
 
 /**
@@ -96,7 +83,7 @@ void child_exit_handler(int signum) {
  *  Input: 
  *      student_code: string representing the name of the student's Python file, without the .py
  */
-void executor_init(char *student_code) {
+void executor_init(char* student_code) {
     //initialize
 	logger_init(EXECUTOR);
     shm_aux_init(EXECUTOR);
@@ -173,13 +160,12 @@ void executor_init(char *student_code) {
  *  the Python function call. If loop is nonzero, this will block the calling thread forever.
  *  This function should be run in a separate thread.
  * 
- *  Inputs: Uses thread_args_t as input struct.
+ *  Inputs:
  *      Necessary fields:
  *          func_name: string of function name to run in the student code
  *          mode: string of the current mode
  *          loop: boolean for whether the Python function should be called in a while loop forever
  *      Optional fields:
- *          cond: condition variable that blocks the calling thread, used with `run_function_timeout`
  *          timeout: max length of execution time before a warning is issued for the function call
  *
  *  Returns: error code of function
@@ -189,30 +175,27 @@ void executor_init(char *student_code) {
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-uint8_t run_py_function(thread_args_t* args) {
+uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, int loop) {
     uint8_t ret = 0;
 	
 	//assign the run mode to the Gamepad object
-    PyObject *pMode = PyUnicode_FromString(args->mode);
+    PyObject *pMode = PyUnicode_FromString(mode);
     int err = PyObject_SetAttrString(pGamepad, "mode", pMode);
     Py_DECREF(pMode);
     if (err != 0) {
         PyErr_Print();
-        log_printf(ERROR, "Couldn't assign mode for Gamepad while trying to run %s", args->func_name);
-        if (args->cond != NULL) {
-            pthread_cond_signal(args->cond);
-        }
+        log_printf(ERROR, "Couldn't assign mode for Gamepad while trying to run %s", func_name);
         return 1;
     }
 	
     //retrieve the Python function from the student code
-    PyObject *pFunc = PyObject_GetAttrString(pModule, args->func_name);
+    PyObject *pFunc = PyObject_GetAttrString(pModule, func_name);
     PyObject *pValue = NULL;
     if (pFunc && PyCallable_Check(pFunc)) {
         struct timespec start, end;
         uint64_t time, max_time;
-        if (args->timeout) {
-            max_time = args->timeout->tv_sec * 1e9 + args->timeout->tv_nsec;
+        if (timeout) {
+            max_time = timeout->tv_sec * 1e9 + timeout->tv_nsec;
         }
 
         do {
@@ -222,15 +205,15 @@ uint8_t run_py_function(thread_args_t* args) {
 
 			//if the time the Python function took was greater than max_time, warn that it's taking too long
             time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-            if (args->timeout && time > max_time) {
-                log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", args->func_name, (long) (max_time / 1e6));
+            if (timeout && time > max_time) {
+                log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", func_name, (long) (max_time / 1e6));
             }
 			//catch execution error
             if (pValue == NULL) {
                 PyObject* error = PyErr_Occurred();
                 if (!PyErr_GivenExceptionMatches(error, PyExc_TimeoutError)) {
                     PyErr_Print();
-                    log_printf(ERROR, "Python function %s call failed", args->func_name);
+                    log_printf(ERROR, "Python function %s call failed", func_name);
                     ret = 2;
                 }
                 else {
@@ -241,20 +224,15 @@ uint8_t run_py_function(thread_args_t* args) {
             else {
                 Py_DECREF(pValue);
             }
-        } while(args->loop);
+        } while(loop);
         Py_DECREF(pFunc);
     }
     else {
         if (PyErr_Occurred()) {
             PyErr_Print();
         }
-        log_printf(ERROR, "Cannot find function in student code: %s\n", args->func_name);
+        log_printf(ERROR, "Cannot find function in student code: %s\n", func_name);
         ret = 4;
-    }
-
-    // Send the signal that the thread is done, using the condition variable.
-    if (args->cond != NULL) {
-        pthread_cond_signal(args->cond);
     }
     return ret;
 }
@@ -270,18 +248,15 @@ uint8_t run_py_function(thread_args_t* args) {
  *      args: string of the mode to start running
  */
 void run_mode(robot_desc_val_t mode) {
-    printf("Mode thread %lu \n", pthread_self());
 	//Set up the arguments to the threads that will run the setup and main threads
     char* mode_str = get_mode_str(mode);
     char setup_str[20], main_str[20];
     sprintf(setup_str, "%s_setup", mode_str);
     sprintf(main_str, "%s_main", mode_str);
-    thread_args_t setup_args = { setup_str, NULL, mode_str, &setup_time, 0 };
-    thread_args_t main_args = { main_str, NULL, mode_str, &main_interval, 1 };
 	
-    int err = run_py_function(&setup_args);  // Run setup function once
+    int err = run_py_function(setup_str, mode_str, &setup_time, 0);  // Run setup function once
     if (err == 0) {
-        run_py_function(&main_args);  // Run main function on loop
+        run_py_function(main_str, mode_str, &main_interval, 1);  // Run main function on loop
     }
     else {
         log_printf(WARN, "Won't run %s due to error in %s", main_str, setup_str);
@@ -303,7 +278,6 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
         // Now in child process
         signal(SIGALRM, child_exit_handler);
         executor_init("studentcode"); // Default name of student code file 
-        printf("Main child thread %lu \n", pthread_self());
         run_mode(mode);
         executor_stop();
     }
