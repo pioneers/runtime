@@ -30,7 +30,7 @@
 typedef enum output_type { USB_DEV, FILE_DEV };
 
 // Whether DEV_HANDLER should communicate with USB devices over serial or to a fake device over .txt files (for testing)
-#define OUTPUT USB_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
+#define OUTPUT FILE_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
 
 // The file to write to if output == FILE_DEV
 #define TO_DEVICE "to_device.txt"
@@ -62,9 +62,9 @@ void poll_connected_devices();
 
 /* The maximum number of milliseconds to wait for a SubscriptionResponse or HeartBeatResponse
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
-#define DEVICE_TIMEOUT 1000
+#define DEVICE_TIMEOUT 4000
 
 /* The number of milliseconds between each HeartBeatRequest sent to the device */
-#define HB_REQ_FREQ 500
+#define HB_REQ_FREQ 2000
 
 #endif

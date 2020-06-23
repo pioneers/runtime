@@ -399,6 +399,7 @@ void* sender(void* relay_cast) {
 		}
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
+    printf("INFO: Sender initializing values\n");
 
 	/* Do work! Continuously read shared memory param bitmap. If it changes,
 	 * Call device_read to get the changed parameters and send them to the device
@@ -412,13 +413,15 @@ void* sender(void* relay_cast) {
 	message_t* msg; 		// Message to build
 	int transferred = 0; 	// The number of bytes actually transferred
 	int ret; 				// Hold the value from send_message()
+    int heartbeat_counter = -1;
+    printf("INFO: Sender starting work!\n");
 	while (1) {
 		// Get the current param bitmap
 		// get_param_bitmap(pmap);
 		/* If pmap[0] != 0, there are devices that need to be written to.
 		 * This thread is interested in only whether or not THIS device requires being written to.
 		 * If the device's shm_dev_idx bit is on in pmap[0], there are values to be written to the device. */
-		if (pmap[0] & (1 << relay->shm_dev_idx)) {
+		if (relay->shm_dev_idx > 0 && (pmap[0] & (1 << relay->shm_dev_idx))) {
 			// Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
 			// device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
@@ -432,23 +435,26 @@ void* sender(void* relay_cast) {
 		pthread_testcancel(); // Cancellation point
 		// If it's been HB_REQ_FREQ milliseconds since last sending a HeartBeatRequest, send another one
 		if ((millis() - relay->last_sent_hbreq_time) >= HB_REQ_FREQ) {
-			msg = make_heartbeat_request(0);
+			msg = make_heartbeat_request(heartbeat_counter);
 			send_message(relay, msg, &transferred);
 			if (ret != 0) {
 				printf("ERROR: HeartBeatRequest transfer failed with error code %s\n", libusb_error_name(ret));
 			}
+            printf("INFO: Sent HeartBeatRequest: %d\n", heartbeat_counter);
             // Update the timestamp at which we sent a HeartBeatRequest
             relay->last_sent_hbreq_time = millis();
 			destroy_message(msg);
+            heartbeat_counter--;
 		}
 		pthread_testcancel(); // Cancellation point
 		// If receiver got a HeartBeatRequest, send a HeartBeatResponse and mark the request as resolved
-		if (relay->got_hb_req) {
-			msg = make_heartbeat_response(0);
+		if (relay->got_hb_req != 0) {
+			msg = make_heartbeat_response(relay->got_hb_req);
 			send_message(relay, msg, &transferred);
 			if (ret != 0) {
 				printf("ERROR: HeartBeatResponse transfer failed with error code %s\n", libusb_error_name(ret));
 			}
+            printf("INFO: Sent HeartBeatResponse: %d\n", relay->got_hb_req);
 			destroy_message(msg);
             // Mark the HeartBeatRequest as resolved
 			relay->got_hb_req = 0;
@@ -489,9 +495,11 @@ void* receiver(void* relay_cast) {
 		}
 		if (msg->message_id == HeartBeatRequest) {
 			// If it's a HeartBeatRequest, take note of it so sender can resolve it
-			relay->got_hb_req = 1;
+            printf("INFO: Got HeartBeatRequest: %d\n", msg->payload[0]);
+			relay->got_hb_req = msg->payload[0];
 		} else if (msg->message_id == HeartBeatResponse) {
 			// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
+            printf("INFO: Got HeartBeatResponse: %d\n", msg->payload[0]);
 			relay->last_received_hbresp_time = millis();
 		} else if (msg->message_id == DeviceData) {
 			// First, parse the payload into an array of parameter values
@@ -596,8 +604,6 @@ int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
         // Write the data buffer to the file
         *transferred = fwrite(data, sizeof(uint8_t), len, relay->write_file);
         fflush(relay->write_file); // Force write the contents to file
-        printf("INFO: Sent %d bytes to stream: ", len);
-        print_bytes(data, len);
         ret = (*transferred == len) ? 0 : -1;
     }
 	free(data);
@@ -648,17 +654,15 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
     // Read the message
     num_bytes_read = 0;
     if (OUTPUT == USB_DEV) {
-        libusb_bulk_transfer(relay->handle, relay->receive_endpoint, data, cobs_len, &num_bytes_read, DEVICE_TIMEOUT);
+        libusb_bulk_transfer(relay->handle, relay->receive_endpoint, &data[2], cobs_len, &num_bytes_read, DEVICE_TIMEOUT);
     } else if (OUTPUT == FILE_DEV) {
-        num_bytes_read = fread(data, sizeof(uint8_t), cobs_len, relay->read_file);
+        num_bytes_read = fread(&data[2], sizeof(uint8_t), cobs_len, relay->read_file);
     }
     if (num_bytes_read != cobs_len) {
         printf("FATAL: Couldn't read the full message\n");
         free(data);
         return 1;
     }
-    printf("Read %d bytes from stream: ", DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
-    print_bytes(data, DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
 
     // Parse the message
     if (parse_message(data, msg) != 0) {

@@ -219,11 +219,13 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
     sub_request->payload_length = 0;
     sub_request->max_payload_length = BITMAP_SIZE + DELAY_SIZE;
     // Fill in 32-bit params mask
-    uint32_t mask = encode_params(device_id->type, param_names, len);
-    int status = 0;
-    status += append_payload(sub_request, (uint8_t*) &mask, BITMAP_SIZE);
-    status += append_payload(sub_request, (uint8_t*) &delay, DELAY_SIZE);
-    return (status == 0) ? sub_request : NULL;
+	if (len != 0) {
+		uint32_t mask = encode_params(device_id->type, param_names, len);
+	    int status = 0;
+	    status += append_payload(sub_request, (uint8_t*) &mask, BITMAP_SIZE);
+	    status += append_payload(sub_request, (uint8_t*) &delay, DELAY_SIZE);
+	    return (status == 0) ? sub_request : NULL;
+	}
 }
 
 /*
@@ -426,9 +428,9 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     if (len < required_length) {
         return -1;
     }
-    uint8_t data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE];
+    uint8_t* data = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
     data[0] = msg->message_id;
-	printf("INFO: Sending message id 0x%X\n", data[0]);
+	// printf("INFO: Sending message id 0x%X\n", data[0]);
     data[1] = msg->payload_length;
     for (int i = 0; i < msg->payload_length; i++) {
         data[i + MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE] = msg->payload[i];
@@ -437,17 +439,18 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     cobs_encoded[0] = 0x00;
     int cobs_len = cobs_encode(&cobs_encoded[2], data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
     cobs_encoded[1] = cobs_len;
+	free(data);
     return DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len;
 }
 
 int parse_message(uint8_t data[], message_t* msg_to_fill) {
-    uint8_t* decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length + CHECKSUM_SIZE);
+    uint8_t* decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->max_payload_length + CHECKSUM_SIZE);
     // printf("Cobs len: %d\n", data[1]);
     int ret = cobs_decode(decoded, &data[2], data[1]);
     // printf("Decoded message: ");
     // print_bytes(decoded, ret);
     msg_to_fill->message_id = decoded[0];
-    printf("INFO: Received message id 0x%X\n", decoded[0]);
+    // printf("INFO: Received message id 0x%X\n", decoded[0]);
     msg_to_fill->payload_length = decoded[1];
     // printf("INFO: Received payload length %d\n", decoded[1]);
     msg_to_fill->max_payload_length = decoded[1];
