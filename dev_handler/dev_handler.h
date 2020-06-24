@@ -30,7 +30,7 @@
 typedef enum output_type { USB_DEV, FILE_DEV };
 
 // Whether DEV_HANDLER should communicate with USB devices over serial or to a fake device over .txt files (for testing)
-#define OUTPUT FILE_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
+#define OUTPUT USB_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
 
 // The file to write to if output == FILE_DEV
 #define TO_DEVICE "to_device.txt"
