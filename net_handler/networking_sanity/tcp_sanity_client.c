@@ -4,7 +4,7 @@
 #include <arpa/inet.h>   //for inet_addr, bind, listen, accept, socket types
 #include <unistd.h>      //for read, write, close
 
-#include "../protobuf-c/text.pb-c.h"
+#include "../pbc_gen/text.pb-c.h"
 #define MAX_MSG_SIZE 1024
 #define PORT 8192
 
@@ -70,9 +70,8 @@ int main ()
 	}
 	
 	// display the message's fields.
-	printf("Received: msg = %u\n", log_msg->msg); //notice this comes out as 4, not MSG__LOG or some string
-	for (int i = 0; i < log_msg->n_payloads; i++) {
-		printf("\t%s\n", log_msg->payloads[i]);
+	for (int i = 0; i < log_msg->n_payload; i++) {
+		printf("\t%s\n", log_msg->payload[i]);
 	}
 
 	// Free the unpacked message

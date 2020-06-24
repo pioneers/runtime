@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../protobuf-c/text.pb-c.h"
+#include "../pbc_gen/text.pb-c.h"
 
 #define MAX_STRLEN 100
 
@@ -14,12 +14,11 @@ int main ()
 	unsigned len;                  // Length of serialized data
 	
 	//put some data
-	log_msg.msg = MSG__LOG;   //this is how you do enums
-	log_msg.n_payloads = 4;
-	log_msg.payloads = (char **) malloc (sizeof(char *) * log_msg.n_payloads);
-	for (int i = 0; i < log_msg.n_payloads; i++) {
-		log_msg.payloads[i] = (char *) malloc(sizeof(char) * strlen(strs[i]));
-		strcpy(log_msg.payloads[i], (const char *) strs[i]);
+	log_msg.n_payload = 4;
+	log_msg.payload = (char **) malloc (sizeof(char *) * log_msg.n_payload);
+	for (int i = 0; i < log_msg.n_payload; i++) {
+		log_msg.payload[i] = (char *) malloc(sizeof(char) * strlen(strs[i]));
+		strcpy(log_msg.payload[i], (const char *) strs[i]);
 	}
 	
 	len = text__get_packed_size(&log_msg);
@@ -31,6 +30,9 @@ int main ()
 	fwrite(buf, len, 1, stdout); // Write to stdout to allow direct command line piping
 	
 	free(buf); // Free the allocated serialized buffer
-	free(log_msg.payloads);
+	free(log_msg.payload);
+	for (int i = 0; i < log_msg.n_payload; i++) {
+		free(log_msg.payload[i]);
+	}
 	return 0;
 }

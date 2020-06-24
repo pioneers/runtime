@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../protobuf-c/run_mode.pb-c.h"
+#include "../pbc_gen/run_mode.pb-c.h"
 #define MAX_MSG_SIZE 1024
 
 static size_t read_buffer (unsigned max_length, uint8_t *out)
@@ -36,7 +36,7 @@ int main ()
 	}
 	
 	// display the message's fields.
-	printf("Received: msg = %u\tmode = %u\n", run_mode->msg, run_mode->mode); //comes in as unsigned int
+	printf("Received: mode = %u\n", run_mode->mode); //comes in as unsigned int
 
 	// Free the unpacked message
 	run_mode__free_unpacked(run_mode, NULL);
