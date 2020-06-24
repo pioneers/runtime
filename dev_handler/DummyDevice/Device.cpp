@@ -34,7 +34,7 @@ void Device::loop ()
 	sts = this->msngr->read_message(&(this->curr_msg)); //try to read a new message
 
 	if (sts == Status::SUCCESS) { //we have a message!
-		this->led->slow_blink(3);
+		this->led->quick_blink(10);
 		switch (this->curr_msg.message_id) {
 			case MessageID::PING:
 				this->msngr->send_message(MessageID::SUBSCRIPTION_RESPONSE, &(this->curr_msg), params, sub_delay, &UID);
@@ -77,8 +77,8 @@ void Device::loop ()
 			default:
 				this->led->toggle();
 		}
-	} else if (sts == Status::MALFORMED_DATA || sts == Status::PROCESS_ERROR) { //for now just toggle the LED on parsing errors
-		this->led->toggle();
+	} else {
+		this->led->slow_blink(10);
 	}
 
 	//if it's time to send data again
