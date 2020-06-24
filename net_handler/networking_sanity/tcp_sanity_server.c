@@ -4,7 +4,7 @@
 #include <arpa/inet.h>   //for inet_addr, bind, listen, accept, socket types
 #include <unistd.h>      //for read, write, close
 
-#include "../protobuf-c/text.pb-c.h"
+#include "../pbc_gen/text.pb-c.h"
 
 #define PORT 8192
 
@@ -27,12 +27,11 @@ int main ()
 	unsigned len;                             // Length of serialized data
 	
 	//put some data
-	log_msg.msg = MSG__LOG;   //this is how you do enums
-	log_msg.n_payloads = 4;
-	log_msg.payloads = (char **) malloc (sizeof(char *) * log_msg.n_payloads);
-	for (int i = 0; i < log_msg.n_payloads; i++) {
-		log_msg.payloads[i] = (char *) malloc(sizeof(char) * strlen(strs[i]));
-		strcpy(log_msg.payloads[i], (const char *) strs[i]);
+	log_msg.n_payload = 4;
+	log_msg.payload = (char **) malloc (sizeof(char *) * log_msg.n_payload);
+	for (int i = 0; i < log_msg.n_payload; i++) {
+		log_msg.payload[i] = (char *) malloc(sizeof(char) * strlen(strs[i]));
+		strcpy(log_msg.payload[i], (const char *) strs[i]);
 	}
 	
 	//establish TCP sever-side
@@ -104,6 +103,6 @@ int main ()
 	//fwrite(buf, len, 1, stdout); // Write to stdout to allow direct command line piping
 	
 	free(log_msg_buf); // Free the allocated serialized buffer
-	free(log_msg.payloads);
+	free(log_msg.payload);
 	return 0;
 }
