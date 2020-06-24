@@ -7,7 +7,7 @@
 Device *device; //declare the device
 
 void setup() {
-	device = new Device();
+	device = new Device(DeviceID::LIMIT_SWITCH, 0, 2000, 2000);
 }
 
 void loop() {

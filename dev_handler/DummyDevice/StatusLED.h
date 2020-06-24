@@ -17,9 +17,19 @@ public:
 	//toggles LED between on and off
 	void toggle ();
 
+	// Blinks quickly NUM times
+	void quick_blink(int num);
+
+	// Blink slowly NUM times
+	void slow_blink(int num);
+
+
 private:
 	const static int LED_PIN = 13; //pin to control the LED
 	bool led_enabled; //keeps track of whether LED is on or off
+
+	// Blinks NUM times, waiting DURATION milliseconds between the toggles, and SPACE milliseconds between each blink
+	void blink (int num, int ms, int space);
 };
 
 #endif

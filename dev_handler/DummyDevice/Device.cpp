@@ -17,7 +17,7 @@ Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32
 
 	this->UID.device_type = dev_id;
 	this->UID.year = dev_year;
-	this->UID.id = UID_RANDOM; //this is defined at compile time by the flash script
+	this->UID.id = 1234; //this is defined at compile time by the flash script
 
 	device_enable(); //call device's enable function
 }
@@ -34,6 +34,7 @@ void Device::loop ()
 	sts = this->msngr->read_message(&(this->curr_msg)); //try to read a new message
 
 	if (sts == Status::SUCCESS) { //we have a message!
+		this->led->slow_blink(3);
 		switch (this->curr_msg.message_id) {
 			case MessageID::PING:
 				this->msngr->send_message(MessageID::SUBSCRIPTION_RESPONSE, &(this->curr_msg), params, sub_delay, &UID);
