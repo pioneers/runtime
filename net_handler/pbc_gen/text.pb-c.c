@@ -52,27 +52,15 @@ void   text__free_unpacked
   assert(message->base.descriptor == &text__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCFieldDescriptor text__field_descriptors[2] =
+static const ProtobufCFieldDescriptor text__field_descriptors[1] =
 {
   {
-    "msg",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_ENUM,
-    0,   /* quantifier_offset */
-    offsetof(Text, msg),
-    &msg__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "payloads",
+    "payload",
     2,
     PROTOBUF_C_LABEL_REPEATED,
     PROTOBUF_C_TYPE_STRING,
-    offsetof(Text, n_payloads),
-    offsetof(Text, payloads),
+    offsetof(Text, n_payload),
+    offsetof(Text, payload),
     NULL,
     &protobuf_c_empty_string,
     0,             /* flags */
@@ -80,13 +68,12 @@ static const ProtobufCFieldDescriptor text__field_descriptors[2] =
   },
 };
 static const unsigned text__field_indices_by_name[] = {
-  0,   /* field[0] = msg */
-  1,   /* field[1] = payloads */
+  0,   /* field[0] = payload */
 };
 static const ProtobufCIntRange text__number_ranges[1 + 1] =
 {
-  { 1, 0 },
-  { 0, 2 }
+  { 2, 0 },
+  { 0, 1 }
 };
 const ProtobufCMessageDescriptor text__descriptor =
 {
@@ -96,7 +83,7 @@ const ProtobufCMessageDescriptor text__descriptor =
   "Text",
   "",
   sizeof(Text),
-  2,
+  1,
   text__field_descriptors,
   text__field_indices_by_name,
   1,  text__number_ranges,

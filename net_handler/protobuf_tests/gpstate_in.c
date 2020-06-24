@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../protobuf-c/gp_state.pb-c.h"
+#include "../pbc_gen/gamepad.pb-c.h"
 #define MAX_MSG_SIZE 1024
 
 static size_t read_buffer (unsigned max_length, uint8_t *out)
@@ -37,7 +37,7 @@ int main ()
 	
 	// display the message's fields.
 	printf("Received: buttons = %d\n\taxes:", gp_state->buttons);
-	for (int i = 0; i < gp_state.n_axes; i++) {
+	for (int i = 0; i < gp_state->n_axes; i++) {
 		printf("\t%f", gp_state->axes[i]);
 	}
 	printf("\n");

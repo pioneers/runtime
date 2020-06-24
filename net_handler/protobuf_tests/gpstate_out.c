@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../protobuf-c/gp_state.pb-c.h"
+#include "../pbc_gen/gamepad.pb-c.h"
 
 int main () 
 {

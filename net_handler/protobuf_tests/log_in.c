@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../protobuf-c/text.pb-c.h"
+#include "../pbc_gen/text.pb-c.h"
 #define MAX_MSG_SIZE 1024
 
 static size_t read_buffer (unsigned max_length, uint8_t *out)
@@ -36,9 +36,8 @@ int main ()
 	}
 	
 	// display the message's fields.
-	printf("Received: msg = %u\n", log_msg->msg); //notice this comes out as 4, not MSG__LOG or some string
-	for (int i = 0; i < log_msg->n_payloads; i++) {
-		printf("\t%s\n", log_msg->payloads[i]);
+	for (int i = 0; i < log_msg->n_payload; i++) {
+		printf("\t%s\n", log_msg->payload[i]);
 	}
 
 	// Free the unpacked message

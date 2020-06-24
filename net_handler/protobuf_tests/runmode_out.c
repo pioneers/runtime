@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../protobuf-c/run_mode.pb-c.h"
+#include "../pbc_gen/run_mode.pb-c.h"
 
 int main () 
 {
@@ -9,8 +9,7 @@ int main ()
 	unsigned len;                  // Length of serialized data
 	
 	//put some data
-	run_mode.msg = MSG__RUN_MODE;
-	run_mode.mode = RUN_MODE__MODE__AUTO;
+	run_mode.mode = MODE__AUTO;
 	
 	len = run_mode__get_packed_size(&run_mode);
 	

@@ -52,73 +52,28 @@ void   run_mode__free_unpacked
   assert(message->base.descriptor == &run_mode__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCEnumValue run_mode__mode__enum_values_by_number[4] =
-{
-  { "IDLE", "RUN_MODE__MODE__IDLE", 0 },
-  { "AUTO", "RUN_MODE__MODE__AUTO", 1 },
-  { "TELEOP", "RUN_MODE__MODE__TELEOP", 2 },
-  { "ESTOP", "RUN_MODE__MODE__ESTOP", 3 },
-};
-static const ProtobufCIntRange run_mode__mode__value_ranges[] = {
-{0, 0},{0, 4}
-};
-static const ProtobufCEnumValueIndex run_mode__mode__enum_values_by_name[4] =
-{
-  { "AUTO", 1 },
-  { "ESTOP", 3 },
-  { "IDLE", 0 },
-  { "TELEOP", 2 },
-};
-const ProtobufCEnumDescriptor run_mode__mode__descriptor =
-{
-  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
-  "RunMode.Mode",
-  "Mode",
-  "RunMode__Mode",
-  "",
-  4,
-  run_mode__mode__enum_values_by_number,
-  4,
-  run_mode__mode__enum_values_by_name,
-  1,
-  run_mode__mode__value_ranges,
-  NULL,NULL,NULL,NULL   /* reserved[1234] */
-};
-static const ProtobufCFieldDescriptor run_mode__field_descriptors[2] =
+static const ProtobufCFieldDescriptor run_mode__field_descriptors[1] =
 {
   {
-    "msg",
+    "mode",
     1,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_ENUM,
     0,   /* quantifier_offset */
-    offsetof(RunMode, msg),
-    &msg__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
-  {
-    "mode",
-    2,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_ENUM,
-    0,   /* quantifier_offset */
     offsetof(RunMode, mode),
-    &run_mode__mode__descriptor,
+    &mode__descriptor,
     NULL,
     0,             /* flags */
     0,NULL,NULL    /* reserved1,reserved2, etc */
   },
 };
 static const unsigned run_mode__field_indices_by_name[] = {
-  1,   /* field[1] = mode */
-  0,   /* field[0] = msg */
+  0,   /* field[0] = mode */
 };
 static const ProtobufCIntRange run_mode__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 2 }
+  { 0, 1 }
 };
 const ProtobufCMessageDescriptor run_mode__descriptor =
 {
@@ -128,10 +83,42 @@ const ProtobufCMessageDescriptor run_mode__descriptor =
   "RunMode",
   "",
   sizeof(RunMode),
-  2,
+  1,
   run_mode__field_descriptors,
   run_mode__field_indices_by_name,
   1,  run_mode__number_ranges,
   (ProtobufCMessageInit) run_mode__init,
   NULL,NULL,NULL    /* reserved[123] */
+};
+static const ProtobufCEnumValue mode__enum_values_by_number[4] =
+{
+  { "IDLE", "MODE__IDLE", 0 },
+  { "AUTO", "MODE__AUTO", 1 },
+  { "TELEOP", "MODE__TELEOP", 2 },
+  { "ESTOP", "MODE__ESTOP", 3 },
+};
+static const ProtobufCIntRange mode__value_ranges[] = {
+{0, 0},{0, 4}
+};
+static const ProtobufCEnumValueIndex mode__enum_values_by_name[4] =
+{
+  { "AUTO", 1 },
+  { "ESTOP", 3 },
+  { "IDLE", 0 },
+  { "TELEOP", 2 },
+};
+const ProtobufCEnumDescriptor mode__descriptor =
+{
+  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
+  "Mode",
+  "Mode",
+  "Mode",
+  "",
+  4,
+  mode__enum_values_by_number,
+  4,
+  mode__enum_values_by_name,
+  1,
+  mode__value_ranges,
+  NULL,NULL,NULL,NULL   /* reserved[1234] */
 };
