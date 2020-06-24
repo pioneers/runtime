@@ -7,8 +7,8 @@ td_arg_t global_td_args[2];
 //structure of argument into a pair of tcp threads
 typedef struct tcp_arg = {
 	uint8_t challenge_wip;
-	uint16_t send_port; //TODO: replace with the actual port data type
-	uint16_t recv_port; //TODO: replace with the actual port data type
+	int pi_sock_fd;           //file descriptor of the raspberry pi socket
+	int target_sock_fd;       //file descriptor of the target socket we've connected to
 	uint8_t stop;
 } tcp_arg_t;
 
@@ -107,8 +107,8 @@ void *tcp_recv_thread (void *args)
 	return NULL;
 }
 
-//start the threads managing a TCP connection
-void start_tcp_suite (target_t target)
+//start the threads managing a TCP connection (connection has already been established)
+void start_tcp_suite (target_t target, uint16_t port)
 {
 	tcp_arg_t td_args = (tcp_arg_t *) malloc(sizeof(tcp_arg_t));
 	td_args->challenge_wip = 0;
