@@ -12,6 +12,13 @@
 
 char* strs[4] = { "hello", "beautiful", "precious", "world" };
 
+/* NOTES:
+ * this is the server.
+ * to read from a connection, you read from the file descriptor of the connection socket
+ * to write to a connection, you write to the file descriptor of the connection socket
+ * in this file, that file descriptor is called connfd
+ */
+
 int main () 
 {
 	Text log_msg = TEXT__INIT; //iniitialize hooray
@@ -50,7 +57,7 @@ int main ()
 	// Binding newly created socket to given IP and verification 
 	if ((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) { 
 		printf("socket bind failed...\n"); 
-		exit(0); 
+		exit(0);
 	} else {
 		printf("Socket successfully binded..\n"); 
 	}
@@ -72,6 +79,13 @@ int main ()
 	} else {
 		printf("server acccept the client...\n"); 
 	}
+	
+	//read a connection message for example
+	ssize_t n = read(connfd, conn_msg_buf, 255);
+	if (n < 0) {
+		perror("ERROR reading from socket");
+	}
+	printf("Here is the message: %s\n", conn_msg_buf);
 	
 	//send the serialized data to the client
 	len = text__get_packed_size(&log_msg);

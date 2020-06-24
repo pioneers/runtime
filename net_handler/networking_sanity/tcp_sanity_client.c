@@ -8,6 +8,13 @@
 #define MAX_MSG_SIZE 1024
 #define PORT 8192
 
+/* NOTES:
+ * this is the client.
+ * to read from the server, you read from the file descriptor of my own socket
+ * to write to a server, you write to the file descriptor of my own socket
+ * in this file, that file descriptor is called sockfd
+ */
+
 int main () 
 {
 	uint8_t buf[MAX_MSG_SIZE];
@@ -37,6 +44,12 @@ int main ()
 		exit(0); 
 	} else {
 		printf("connected to the server..\n"); 
+	}
+	
+	//send a connection message for example
+	ssize_t n = write(sockfd, "write", 6);
+	if (n < 0) {
+		perror("ERROR writing to socket");
 	}
 	
 	//read the message
