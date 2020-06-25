@@ -104,12 +104,14 @@ void log_runtime (log_level level, char *msg)
 /**
  *	Provides same printing functionality as `printf` but prints instead to the log with the specified log level.
  */
-void log_printf(log_level level, char* format, ...) {
-	va_list args;
-    va_start(args, format);
+void log_printf (log_level level, char *format, ...)
+{
 	char msg[MAX_LOG_LEN];
-    vsprintf(msg, format, args);
-	log_runtime(level, msg);
+	va_list args; //this holds the variable-length argument list
+	
+    va_start(args, format);
+    vsprintf(msg, format, args); //formats the input message
+	log_runtime(level, msg);     //use log_runtime to write formatted string to log file
     va_end(args);
 }
 
