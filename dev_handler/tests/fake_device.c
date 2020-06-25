@@ -14,7 +14,7 @@ typedef struct msg_relay {
     dev_id_t dev_id;        // Device ID of this device
     uint8_t got_write;      // set by receiver to tell sender to reply with a DeviceData on written values
     uint8_t got_read;       // set by receiver to tell sender to reply with a DeviceData on read values
-    uint8_t got_hb_req;	    // set by receiver: A flag to tell sender to send a HeartBeatResponse
+    int8_t got_hb_req;	    // set by receiver: A flag to tell sender to send a HeartBeatResponse
     uint64_t last_sent_hbreq_time;      // set by sender: The last timestamp of a sent HeartBeatRequest. Used to detect timeout
     uint64_t last_received_hbresp_time; // set by receiver: The last timestamp of a received HeartBeatResponse. Used to detect timeout
 } msg_relay_t;
@@ -85,6 +85,8 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         free(data);
         return 2;
     }
+    //printf("Received: ");
+    //print_bytes(data, 2 + cobs_len);
     free(data);
     return 0;
 }
@@ -102,6 +104,8 @@ void send_message(msg_relay_t* relay, message_t* msg) {
     // Write the data buffer to the file
     fwrite(data, sizeof(uint8_t), len, relay->write_file);
     fflush(relay->write_file); // Force write the contents to file
+    //printf("Sent: ");
+    //print_bytes(data, len);
     free(data);
 }
 
@@ -173,18 +177,21 @@ void* receiver(void* relay_cast) {
     // Continuously read messages and take appropriate action
     while (1) {
         if (receive_message(relay, msg) != 0) {
+            printf("FATAL: Got bad message!\n");
             continue;
         }
-        if (msg->message_id = DeviceRead) {
+        if (msg->message_id == DeviceRead) {
             // TODO: Send DeviceData
+            printf("INFO: Got DeviceRead\n");
         } else if (msg->message_id == DeviceWrite) {
             // TODO: Change vals and send DeviceData
+            printf("INFO: Got DeviceWrite\n");
         } else if (msg->message_id == HeartBeatRequest) {
-            int request_id = msg->payload[0];
+            int8_t request_id = msg->payload[0];
             printf("INFO: Got HeartBeatRequest: %d\n", request_id);
             relay->got_hb_req = request_id;
         } else if (msg->message_id == HeartBeatResponse) {
-            printf("INFO: Got HeartBeatResponse: %d\n", msg->payload[0]);
+            printf("INFO: Got HeartBeatResponse: %d\n", (int8_t) msg->payload[0]);
             relay->last_received_hbresp_time = millis();
         } else {
             printf("FATAL: Got message of unknown type\n");
@@ -198,7 +205,7 @@ void* receiver(void* relay_cast) {
  */
 void* relayer(void* relay_cast) {
     msg_relay_t* relay = (msg_relay_t*) relay_cast;
-    printf("Relayer is ready\n");
+    printf("INFO: Relayer is ready\n");
     // Empty message to receive Ping
     message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
     // Keep reading from file until we get a Ping
@@ -216,7 +223,7 @@ void* relayer(void* relay_cast) {
     relay->start = 1;
 
     // Make sure DEV_HANDLER responds to our HeartBeatRequest in a timely manner
-    printf("INFO: Relayer monitoring heartbeats\n");
+    printf("INFO: Relayer monitoring heartbeats with dev handler\n");
     while (1) {
         uint8_t pending_request = relay->last_sent_hbreq_time > relay->last_received_hbresp_time;
         if (pending_request && ((millis() - relay->last_sent_hbreq_time) > TIMEOUT)) {
@@ -229,7 +236,6 @@ void* relayer(void* relay_cast) {
 
 void init() {
     // Allocate relay object
-    printf("INFO: Making relay struct\n");
     msg_relay_t* relay = malloc(sizeof(msg_relay_t));
     // Open the file to read from
     relay->read_file = fopen(TO_DEVICE, "w+");
