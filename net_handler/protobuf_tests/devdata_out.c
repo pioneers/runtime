@@ -29,14 +29,14 @@ int main ()
 	d2p2.bval = 1;
 	
 	dev1.name = "LimitSwitch";
-	dev1.uid = "984789478297";
+	dev1.uid = 984789478297;
 	dev1.type = 12;
 	dev1.n_params = 1;
 	dev1.params = (Param **) malloc(dev1.n_params * sizeof(Param *));
 	dev1.params[0] = &d1p1;
 	
 	dev2.name = "LineFollower";
-	dev2.uid = "47834674267";
+	dev2.uid = 47834674267;
 	dev2.type = 13;
 	dev2.n_params = 2;
 	dev2.params = (Param **) malloc(dev2.n_params * sizeof(Param *));

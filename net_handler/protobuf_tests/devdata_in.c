@@ -39,7 +39,7 @@ int main ()
 	printf("Received:\n");
 	for (int i = 0; i < dev_data->n_devices; i++) {
 		printf("Device No. %d: ", i);
-		printf("\ttype = %s, uid = %s, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+		printf("\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
 		printf("\tParams:\n");
 		for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
 			printf("\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);

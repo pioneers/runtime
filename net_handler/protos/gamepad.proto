@@ -7,6 +7,7 @@ syntax = "proto3";
 option optimize_for = LITE_RUNTIME;
 
 message GpState {
-	fixed32 buttons = 1;
-	repeated double axes = 2;
+	bool connected = 1;
+	fixed32 buttons = 2;
+	repeated float axes = 3;
 }
