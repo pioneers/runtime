@@ -94,7 +94,10 @@ param_desc_t* get_param_desc(uint16_t dev_type, char* param_name);
 /* Get the param id of PARAM_NAME for the device DEV_TYPE */
 int8_t get_param_idx(uint16_t dev_type, char* param_name);
 
+/* Get array of strings, each representing the name of a button */
 char** get_button_names();
+
+/* Get array of strings, each representing the name of a joystick */
 char** get_joystick_names();
 
 #endif
