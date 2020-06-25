@@ -74,8 +74,8 @@ static void print_bitmap (int num_bits, uint32_t bitmap)
 //a few very useful semaphore operation wrapper utilities
 static void my_sem_wait (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
 	if (sem_wait(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_wait: %s", sem_desc);
 		error(msg);
 	}
@@ -83,8 +83,8 @@ static void my_sem_wait (sem_t *sem, char *sem_desc)
 
 static void my_sem_post (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
 	if (sem_post(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_post: %s", sem_desc);
 		error(msg);
 	}
@@ -92,8 +92,8 @@ static void my_sem_post (sem_t *sem, char *sem_desc)
 
 static void my_sem_close (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
 	if (sem_close(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_close: %s", sem_desc);
 		error(msg);
 	}
@@ -497,10 +497,10 @@ No return value.
 */
 void device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
-	char msg[64]; //for holding error message
 	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
+		char msg[64];
 		sprintf(msg, "no device at dev_ix = %d, read failed", dev_ix);
 		log_runtime(DEBUG, msg);
 		return;
@@ -516,7 +516,6 @@ the device that should be read, rather than the device index.
 */
 void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
-	char msg[64]; //for holding error message
 	int dev_ix = -1;
 	
 	//check catalog and shm_ptr->dev_ids to determine if device exists
@@ -529,6 +528,7 @@ void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint
 	
 	//if device doesn't exist, return immediately
 	if (dev_ix == -1) {
+		char msg[64];
 		sprintf(msg, "no device at dev_uid = %llu, read failed", dev_uid);
 		log_runtime(DEBUG, msg);
 		return;
@@ -553,10 +553,10 @@ No return value.
 */
 void device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
-	char msg[64]; //for holding error message
 	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
+		char msg[64];
 		sprintf(msg, "no device at dev_ix = %d, write failed", dev_ix);
 		log_runtime(DEBUG, msg);
 		return;
@@ -572,7 +572,6 @@ the device that should be written, rather than the device index.
 */
 void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
-	char msg[64]; //for holding error message
 	int dev_ix = -1;
 	
 	//check catalog and shm_ptr->dev_ids to determine if device exists
@@ -585,6 +584,7 @@ void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uin
 	
 	//if device doesn't exist, return immediately
 	if (dev_ix == -1) {
+		char msg[64];
 		sprintf(msg, "no device at dev_uid = %llu, write failed", dev_uid);
 		log_runtime(DEBUG, msg);
 		return;

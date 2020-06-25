@@ -39,6 +39,8 @@ gamepad_t *gp_ptr;                         //points to memory-mapped shared memo
 robot_desc_t *rd_ptr;                      //points to memory-mapped shared memory block for robot description
 sem_t *gp_sem;                             //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                             //semaphore used as a mutex on the robot description
+int gp_val;                                //holds the value of gp_sem at any given time
+int rd_val;                                //holds the value of rd_sem at any given time
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
@@ -52,26 +54,35 @@ static void error (char *msg)
 //a few very useful semaphore operation wrapper utilities
 static void my_sem_wait (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
 	if (sem_wait(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_wait: %s", sem_desc);
 		error(msg);
 	}
+	(sem == gp_sem) ? gp_val-- : rd_val--; //decrement gp_sem
 }
 
 static void my_sem_post (sem_t *sem, char *sem_desc)
 {
-	char msg[64];
+	(sem == gp_sem) ? gp_val++ : rd_val++; //increment gp_sem
 	if (sem_post(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_post: %s", sem_desc);
 		error(msg);
 	}
 }
 
 static void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	char msg[64];
+{	
+	//post the given sem before closing if the current process has it locked right now
+	if (sem == gp_sem && gp_val == 0) {
+		my_sem_post(gp_sem, "before close");
+	} else if (sem == rd_sem && rd_val == 0) {
+		my_sem_post(rd_sem, "before close");
+	}
+	
 	if (sem_close(sem) == -1) {
+		char msg[64];
 		sprintf(msg, "sem_close: %s", sem_desc);
 		error(msg);
 	}
@@ -172,11 +183,13 @@ void shm_aux_init (process_t process)
 		if ((gp_sem = sem_open(GP_MUTEX_NAME, O_CREAT, 0660, 0)) == SEM_FAILED) {
 			error("sem_open: gamepad_mutex@net_handler");
 		}
+		gp_val = 0;
 		
 		//mutual exclusion semaphore, rd_sem with initial value = 1
 		if ((rd_sem = sem_open(RD_MUTEX_NAME, O_CREAT, 0660, 1)) == SEM_FAILED) {
 			error("sem_open: robot_desc_mutex@net_handler");
 		}
+		rd_val = 1;
 		
 		//create gamepad shm block
 		if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
