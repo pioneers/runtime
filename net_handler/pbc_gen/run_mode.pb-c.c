@@ -90,19 +90,21 @@ const ProtobufCMessageDescriptor run_mode__descriptor =
   (ProtobufCMessageInit) run_mode__init,
   NULL,NULL,NULL    /* reserved[123] */
 };
-static const ProtobufCEnumValue mode__enum_values_by_number[4] =
+static const ProtobufCEnumValue mode__enum_values_by_number[5] =
 {
   { "IDLE", "MODE__IDLE", 0 },
   { "AUTO", "MODE__AUTO", 1 },
   { "TELEOP", "MODE__TELEOP", 2 },
   { "ESTOP", "MODE__ESTOP", 3 },
+  { "CHALLENGE", "MODE__CHALLENGE", 4 },
 };
 static const ProtobufCIntRange mode__value_ranges[] = {
-{0, 0},{0, 4}
+{0, 0},{0, 5}
 };
-static const ProtobufCEnumValueIndex mode__enum_values_by_name[4] =
+static const ProtobufCEnumValueIndex mode__enum_values_by_name[5] =
 {
   { "AUTO", 1 },
+  { "CHALLENGE", 4 },
   { "ESTOP", 3 },
   { "IDLE", 0 },
   { "TELEOP", 2 },
@@ -114,9 +116,9 @@ const ProtobufCEnumDescriptor mode__descriptor =
   "Mode",
   "Mode",
   "",
-  4,
+  5,
   mode__enum_values_by_number,
-  4,
+  5,
   mode__enum_values_by_name,
   1,
   mode__value_ranges,
