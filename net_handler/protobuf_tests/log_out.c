@@ -30,9 +30,9 @@ int main ()
 	fwrite(buf, len, 1, stdout); // Write to stdout to allow direct command line piping
 	
 	free(buf); // Free the allocated serialized buffer
-	free(log_msg.payload);
 	for (int i = 0; i < log_msg.n_payload; i++) {
 		free(log_msg.payload[i]);
 	}
+	free(log_msg.payload);
 	return 0;
 }
