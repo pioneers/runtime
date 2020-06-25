@@ -8,18 +8,19 @@
 #include <netinet/in.h>  //for structures relating to IPv4 addresses
 #include <unistd.h>      //for read, write, close
 #include <pthread.h>     //for threading
+#include <signal.h> 	 //for signal
 
 //include other runtime files
-#include "../../runtime_util/runtime_util.h"
-#include "../../shm_wrapper/shm_wrapper.h"
-#include "../../shm_wrapper_aux/shm_wrapper_aux.h"
-#include "../../logger/logger.h"
+#include "../runtime_util/runtime_util.h"
+#include "../shm_wrapper/shm_wrapper.h"
+#include "../shm_wrapper_aux/shm_wrapper_aux.h"
+#include "../logger/logger.h"
 
 //include compiled protobuf headers
-#include "../pbc_gen/device.pb-c.h"
-#include "../pbc_gen/gamepad.pb-c.h"
-#include "../pbc_gen/run_mode.pb-c.h"
-#include "../pbc_gen/text.pb-c.h"
+#include "pbc_gen/device.pb-c.h"
+#include "pbc_gen/gamepad.pb-c.h"
+#include "pbc_gen/run_mode.pb-c.h"
+#include "pbc_gen/text.pb-c.h"
 
 #define RASPI_PORT 8000     //well-known port of TCP listening socket used by runtime on raspi
 #define SHEPHERD_ADDR "192.168.0.25"
