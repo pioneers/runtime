@@ -26,13 +26,14 @@ typedef struct _GpState GpState;
 struct  _GpState
 {
   ProtobufCMessage base;
+  protobuf_c_boolean connected;
   uint32_t buttons;
   size_t n_axes;
-  double *axes;
+  float *axes;
 };
 #define GP_STATE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&gp_state__descriptor) \
-    , 0, 0,NULL }
+    , 0, 0, 0,NULL }
 
 
 /* GpState methods */

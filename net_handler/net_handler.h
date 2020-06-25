@@ -32,35 +32,5 @@ typedef enum target = {
 	SHEPHERD_TARGET, DAWN_TARGET
 } target_t;
 
-//Intermediate data structures between the raw bytearray (string) sent over the network
-//and the values actually written into the system:
-
-//RUN_MODE, CHALLENGE_DATA
-struct text_payload = {
-	net_msg_t msg;
-	char *text;
-} text_payload_t;
-
-//LOG
-struct log_payload = {
-	net_msg_t msg;
-	int num_logs;
-	char logs[MAX_NUM_LOGS][LOGS_MSG_MAXLEN];     //array of strings, one line per string
-} log_payload_t;
-
-//DEVICE_DATA
-struct dev_data = {
-	net_msg_t msg;
-	int num_devices;
-	dev_id_t *device_ids;
-	param_val_t **device_params;  // array of devices of params
-} dev_data_t;
-
-//GAMEPAD_STATE
-struct gp_state = {
-	net_msg_t msg;
-	uint32_t buttons;
-	float joystick_values[4];
-} gp_state_t;
 
 #endif

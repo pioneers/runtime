@@ -36,7 +36,7 @@ int main ()
 	}
 	
 	// display the message's fields.
-	printf("Received: buttons = %d\n\taxes:", gp_state->buttons);
+	printf("Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
 	for (int i = 0; i < gp_state->n_axes; i++) {
 		printf("\t%f", gp_state->axes[i]);
 	}
