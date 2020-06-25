@@ -21,6 +21,8 @@ gen_proto: $(wildcard protos/*.proto)
 clean:
 	rm -f $(GEN_FOLDER)/*
 	rm -f $(shell find protobuf_tests -type f ! -name "*.*")
+	rm -f udp_suite
+	rm -f net_handler
 
 log: log_in log_out
 runmode: runmode_in runmode_out
@@ -39,11 +41,6 @@ server: networking_sanity/tcp_sanity_server.c pbc_gen/text.pb-c.c
 
 udp_suite: udp_suite.c $(wildcard $(GEN_FOLDER)/*.c) ../runtime_util/runtime_util.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
 	gcc $^ -o udp_suite $(LIBS) $(LDFLAGS)
-	gcc $^ -o networking_sanity/$@ -lprotobuf-c
 
-net_handler: $(shell find protos/* -type f) $(shell find net_handler_main/* -type f)
-	make gen_proto
-	gcc $(shell find net_handler_main/*.c) $(shell find pbc_gen/*.c)\
-	 ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c\
-	 -o net_handler_main/net_handler $(LDFLAGS) 
-	
+net_handler: $(wildcard $(GEN_FOLDER)/*.c) net_util.c net_handler.c shepherd_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
+	gcc $^ -o net_handler $(LIBS) $(LDFLAGS) 
