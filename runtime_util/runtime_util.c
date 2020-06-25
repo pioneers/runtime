@@ -188,71 +188,60 @@ device_t ExampleDevice = {
   }
 };
 
+
 /* An array that holds pointers to the structs of each lowcar device */
 device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer, &Encoder, &BatteryBuzzer,
                                      &TeamFlag, NULL, &ServoControl, NULL, NULL,
                                      &YogiBear, &RFID, &PolarBear, &KoalaBear};
 
+
 device_t* get_device(uint16_t device_type) {
-    return DEVICES[device_type];
-}
-
-uint16_t device_name_to_type(char* dev_name) {
-    for (int i = 0; i < DEVICES_LENGTH; i++) {
-        if (DEVICES[i] != NULL && strcmp(DEVICES[i]->name, dev_name) == 0) {
-            return i;
-        }
+    if (0 <= device_type && device_type < DEVICES_LENGTH) {
+       return DEVICES[device_type];
     }
-    return -1;
+    return NULL;
 }
 
-char* device_type_to_name(uint16_t dev_type) {
-    return DEVICES[dev_type]->name;
-}
 
-void all_params_for_device_type(uint16_t dev_type, char* param_names[]) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        param_names[i] = DEVICES[dev_type]->params[i].name;
+param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
+    device_t* device = get_device(dev_type);
+    if (device == NULL) {
+        return NULL;
     }
-}
-
-uint8_t readable(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].read;
-        }
-    }
-    return -1;
-}
-
-uint8_t writeable(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].write;
-        }
-    }
-    return -1;
-}
-
-char* get_param_type(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-    for (int i = 0; i < num_params; i++) {
-        if (strcmp(DEVICES[dev_type]->params[i].name, param_name) == 0) {
-            return DEVICES[dev_type]->params[i].type;
+    for (int i = 0; i < device->num_params; i++) {
+        if (strcmp(param_name, device->params[i].name) == 0) {
+            return &device->params[i];
         }
     }
     return NULL;
 }
 
-uint8_t get_param_id(uint16_t dev_type, char* param_name) {
-    int num_params = DEVICES[dev_type]->num_params;
-	for (int i = 0; i < num_params; i++) {
-        if (strcmp(param_name, DEVICES[dev_type]->params[i].name) == 0) {
+int8_t get_param_idx(uint16_t dev_type, char* param_name) {
+    device_t* device = get_device(dev_type);
+    if (device == NULL) {
+        return -1;
+    }
+	for (int i = 0; i < device->num_params; i++) {
+        if (strcmp(param_name, device->params[i].name) == 0) {
             return i;
         }
     }
     return -1;
+}
+
+
+char* BUTTON_NAMES[] = {
+    "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
+    "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"
+};
+char* JOYSTICK_NAMES[] = {
+    "joystick_left_x", "joystick_left_y", "joystick_right_x", "joystick_right_y"
+};
+
+char** get_button_names() {
+    return BUTTON_NAMES;
+}
+
+char** get_joystick_names() {
+    return JOYSTICK_NAMES;
 }

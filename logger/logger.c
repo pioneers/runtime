@@ -37,13 +37,14 @@ void logger_init (process_t process)
 		sprintf(process_str, "EXECUTOR");
 	} else if (process == NET_HANDLER) {
 		sprintf(process_str, "NET_HANDLER");
-	} else if (process == STUDENTAPI) {
-		sprintf(process_str, "STUDENTAPI");
+	} else if (process == SUPERVISOR) {
+		sprintf(process_str, "SUPERVISOR");
 	}
 }
 
 void logger_stop ()
-{
+{	
+	fprintf(fd, "\n");
 	//close the file at fd
 	if (CURR_OUTPUT_LOC == STD_OUT) { //don't do anything if logging to stdout
 		return;
@@ -80,7 +81,10 @@ void log_runtime (log_level level, char *msg)
 	}
 	
 	len = strlen(msg);
-	if (*(msg + len - 1) == '\n') {
+	if (level == PYTHON) {
+		fprintf(fd, "%s", msg);
+	}
+	else if (*(msg + len - 1) == '\n') {
 		fprintf(fd, "%s @ %s\t(%s) %s", log_level_strs[level], process_str, time_str, msg);
 	} else {
 		fprintf(fd, "%s @ %s\t(%s) %s\n", log_level_strs[level], process_str, time_str, msg);
@@ -88,3 +92,18 @@ void log_runtime (log_level level, char *msg)
 	fflush(fd);
 	
 }
+
+
+/**
+ *	Provides same printing functionality as `printf` but prints instead to the log with the specified log level.
+ */
+void log_printf(log_level level, char* format, ...) {
+	va_list args;
+    va_start(args, format);
+	char msg[MAX_LOG_LEN];
+    vsprintf(msg, format, args);
+	log_runtime(level, msg);
+    va_end(args);
+}
+
+
