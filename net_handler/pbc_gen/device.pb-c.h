@@ -59,7 +59,7 @@ struct  _Device
 {
   ProtobufCMessage base;
   char *name;
-  char *uid;
+  uint64_t uid;
   int32_t type;
   /*
    *each device has some number of params
@@ -69,7 +69,7 @@ struct  _Device
 };
 #define DEVICE__INIT \
  { PROTOBUF_C_MESSAGE_INIT (&device__descriptor) \
-    , (char *)protobuf_c_empty_string, (char *)protobuf_c_empty_string, 0, 0,NULL }
+    , (char *)protobuf_c_empty_string, 0, 0, 0,NULL }
 
 
 struct  _DevData

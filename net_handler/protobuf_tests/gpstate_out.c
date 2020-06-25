@@ -9,9 +9,10 @@ int main ()
 	unsigned len;                  // Length of serialized data
 	
 	//put some data
+	gp_state.connected = 1;
 	gp_state.buttons = 47894789;
 	gp_state.n_axes = 4;
-	gp_state.axes = (double *) malloc(gp_state.n_axes * sizeof(double));
+	gp_state.axes = malloc(gp_state.n_axes * sizeof(double));
 	gp_state.axes[0] = -0.42;
 	gp_state.axes[1] = -0.97;
 	gp_state.axes[2] = 0.77;

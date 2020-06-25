@@ -52,11 +52,23 @@ void   gp_state__free_unpacked
   assert(message->base.descriptor == &gp_state__descriptor);
   protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
 }
-static const ProtobufCFieldDescriptor gp_state__field_descriptors[2] =
+static const ProtobufCFieldDescriptor gp_state__field_descriptors[3] =
 {
   {
-    "buttons",
+    "connected",
     1,
+    PROTOBUF_C_LABEL_NONE,
+    PROTOBUF_C_TYPE_BOOL,
+    0,   /* quantifier_offset */
+    offsetof(GpState, connected),
+    NULL,
+    NULL,
+    0,             /* flags */
+    0,NULL,NULL    /* reserved1,reserved2, etc */
+  },
+  {
+    "buttons",
+    2,
     PROTOBUF_C_LABEL_NONE,
     PROTOBUF_C_TYPE_FIXED32,
     0,   /* quantifier_offset */
@@ -68,9 +80,9 @@ static const ProtobufCFieldDescriptor gp_state__field_descriptors[2] =
   },
   {
     "axes",
-    2,
+    3,
     PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_DOUBLE,
+    PROTOBUF_C_TYPE_FLOAT,
     offsetof(GpState, n_axes),
     offsetof(GpState, axes),
     NULL,
@@ -80,13 +92,14 @@ static const ProtobufCFieldDescriptor gp_state__field_descriptors[2] =
   },
 };
 static const unsigned gp_state__field_indices_by_name[] = {
-  1,   /* field[1] = axes */
-  0,   /* field[0] = buttons */
+  2,   /* field[2] = axes */
+  1,   /* field[1] = buttons */
+  0,   /* field[0] = connected */
 };
 static const ProtobufCIntRange gp_state__number_ranges[1 + 1] =
 {
   { 1, 0 },
-  { 0, 2 }
+  { 0, 3 }
 };
 const ProtobufCMessageDescriptor gp_state__descriptor =
 {
@@ -96,7 +109,7 @@ const ProtobufCMessageDescriptor gp_state__descriptor =
   "GpState",
   "",
   sizeof(GpState),
-  2,
+  3,
   gp_state__field_descriptors,
   gp_state__field_indices_by_name,
   1,  gp_state__number_ranges,

@@ -37,7 +37,7 @@ typedef enum gp_joysticks {
 
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-	IDLE, AUTO, TELEOP,       //values for robot.run_mode
+	IDLE, AUTO, TELEOP, CHALLENGE,      //values for robot.run_mode
 	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
 } robot_desc_val_t;
 
@@ -84,14 +84,13 @@ typedef struct device {
 
 /* Returns a pointer to the device given its DEVICE_TYPE */
 device_t* get_device(uint16_t device_type);
+
 /* Returns the device type given its device name DEV_NAME */
 uint16_t device_name_to_type(char* dev_name);
-/* Returns the name of a device given the DEV_TYPE. */
-char* device_type_to_name(uint16_t dev_type);
-/* Fills PARAM_NAMES with all the names of the parameters for the given device type */
-void all_params_for_device_type(uint16_t dev_type, char* param_names[]);
+
 /* Return the description of the device type's parameter. */
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name);
+
 /* Get the param id of PARAM_NAME for the device DEV_TYPE */
 int8_t get_param_idx(uint16_t dev_type, char* param_name);
 

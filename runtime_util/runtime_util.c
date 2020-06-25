@@ -203,6 +203,16 @@ device_t* get_device(uint16_t device_type) {
 }
 
 
+uint16_t device_name_to_type(char* dev_name) {
+    for (int i = 0; i < DEVICES_LENGTH; i++) {
+        if (DEVICES[i] != NULL && strcmp(DEVICES[i]->name, dev_name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);
     if (device == NULL) {
@@ -216,12 +226,13 @@ param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     return NULL;
 }
 
+
 int8_t get_param_idx(uint16_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);
     if (device == NULL) {
         return -1;
     }
-	for (int i = 0; i < device->num_params; i++) {
+	  for (int i = 0; i < device->num_params; i++) {
         if (strcmp(param_name, device->params[i].name) == 0) {
             return i;
         }
