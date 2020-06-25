@@ -451,12 +451,13 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
     // print_bytes(decoded, ret);
     msg_to_fill->message_id = decoded[0];
     // printf("INFO: Received message id 0x%X\n", decoded[0]);
-    msg_to_fill->payload_length = decoded[1];
-    // printf("INFO: Received payload length %d\n", decoded[1]);
+    msg_to_fill->payload_length = 0;
     msg_to_fill->max_payload_length = decoded[1];
-    for (int i = 0; i < msg_to_fill->payload_length; i++) {
-        msg_to_fill->payload[i] = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + i];
-    }
+	ret = append_payload(msg_to_fill, &decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE], decoded[1]);
+	if (ret != 0) {
+		printf("ERROR: Overwrote to payload\n");
+		return 2;
+	}
     char expected_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
     char received_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
     free(decoded);

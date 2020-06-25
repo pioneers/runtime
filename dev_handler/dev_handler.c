@@ -30,7 +30,7 @@ typedef struct msg_relay {
     int shm_dev_idx;        // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     uint8_t start;		    // set by relayer: A flag to tell reader and receiver to start work when set to 1
     dev_id_t dev_id;        // set by relayer once SubscriptionResponse is received
-    uint8_t got_hb_req;	    // set by receiver: A flag to tell sender to send a HeartBeatResponse
+    int8_t got_hb_req;	    // set by receiver: A flag to tell sender to send a HeartBeatResponse
     uint64_t last_sent_hbreq_time;      // set by sender: The last timestamp of a sent HeartBeatRequest. Used to detect timeout
     uint64_t last_received_hbresp_time; // set by receiver: The last timestamp of a received HeartBeatResponse. Used to detect timeout
 } msg_relay_t;
@@ -227,13 +227,11 @@ void communicate(libusb_device* dev) {
     	}
     } else if (OUTPUT == FILE_DEV) {
         // Open the file to read from
-        printf("INFO: Opening TO_DEV_HANDLER file to read\n");
         relay->read_file = fopen(TO_DEV_HANDLER, "w+");
         if (relay->read_file == NULL) {
             printf("ERROR: Couldn't open TO_DEVICE file with error code %d\n", errno);
         }
         // Open the file to write to
-        printf("INFO: Opening TO_DEVICE file to write\n");
         relay->write_file = fopen(TO_DEVICE, "w+");
         if (relay->write_file == NULL) {
             printf("ERROR: Couldn't open TO_DEV_HANDLER file\n");
@@ -332,7 +330,7 @@ void* relayer(void* relay_cast) {
 	relay->start = 1;
 
 	// If the device disconnects or a HeartBeatRequest takes too long to be resolved, clean up
-	printf("INFO: Relayer will begin to monitor the device\n");
+	printf("INFO: Relayer monitoring heartbeats with the device\n");
 	struct libusb_device_descriptor desc;
 	while (1) {
 		// Getting the device descriptor if the device is disconnected should give an error
@@ -392,6 +390,7 @@ void relay_clean_up(msg_relay_t* relay) {
  */
 void* sender(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
+    printf("INFO: Sender on standby\n");
 	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
 	while (1) {
 		if (relay->start == 1) {
@@ -399,7 +398,6 @@ void* sender(void* relay_cast) {
 		}
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
-    printf("INFO: Sender initializing values\n");
 
 	/* Do work! Continuously read shared memory param bitmap. If it changes,
 	 * Call device_read to get the changed parameters and send them to the device
@@ -413,7 +411,7 @@ void* sender(void* relay_cast) {
 	message_t* msg; 		// Message to build
 	int transferred = 0; 	// The number of bytes actually transferred
 	int ret; 				// Hold the value from send_message()
-    int heartbeat_counter = -1;
+    int8_t heartbeat_counter = -50;
     printf("INFO: Sender starting work!\n");
 	while (1) {
 		// Get the current param bitmap
@@ -436,7 +434,7 @@ void* sender(void* relay_cast) {
 		// If it's been HB_REQ_FREQ milliseconds since last sending a HeartBeatRequest, send another one
 		if ((millis() - relay->last_sent_hbreq_time) >= HB_REQ_FREQ) {
 			msg = make_heartbeat_request(heartbeat_counter);
-			send_message(relay, msg, &transferred);
+			ret = send_message(relay, msg, &transferred);
 			if (ret != 0) {
 				printf("ERROR: HeartBeatRequest transfer failed with error code %s\n", libusb_error_name(ret));
 			}
@@ -471,6 +469,7 @@ void* sender(void* relay_cast) {
  */
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
+    printf("INFO: Receiver on standby\n");
 	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
 	while (1) {
 		if (relay->start == 1) {
@@ -478,6 +477,7 @@ void* receiver(void* relay_cast) {
 		}
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
+    printf("INFO: Receiver starting work!\n");
 	/* Do work! Continuously read from the device until a complete message can be parsed.
 	 * If it's a HeartBeatRequest, signal sender to reply with a HeartBeatResponse
 	 * If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
@@ -495,11 +495,11 @@ void* receiver(void* relay_cast) {
 		}
 		if (msg->message_id == HeartBeatRequest) {
 			// If it's a HeartBeatRequest, take note of it so sender can resolve it
-            printf("INFO: Got HeartBeatRequest: %d\n", msg->payload[0]);
-			relay->got_hb_req = msg->payload[0];
+            printf("INFO: Got HeartBeatRequest: %d\n", (int8_t) msg->payload[0]);
+			relay->got_hb_req = (int8_t) msg->payload[0];
 		} else if (msg->message_id == HeartBeatResponse) {
 			// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
-            printf("INFO: Got HeartBeatResponse: %d\n", msg->payload[0]);
+            printf("INFO: Got HeartBeatResponse: %d\n", (int8_t) msg->payload[0]);
 			relay->last_received_hbresp_time = millis();
 		} else if (msg->message_id == DeviceData) {
 			// First, parse the payload into an array of parameter values
@@ -516,7 +516,7 @@ void* receiver(void* relay_cast) {
 		}
 		// Now that the message is taken care of, clear the message
 		msg->message_id = 0x0;
-		msg->payload = 0x0;
+		// TODO: Maybe empty the payload?
 		msg->payload_length = 0;
 	    msg->max_payload_length = MAX_PAYLOAD_SIZE;
 	}
@@ -606,7 +606,11 @@ int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
         fflush(relay->write_file); // Force write the contents to file
         ret = (*transferred == len) ? 0 : -1;
     }
-	free(data);
+    if (ret == 0) {
+        //printf("Sent: ");
+        //print_bytes(data, len);
+    }
+    free(data);
 	return ret;
 }
 
@@ -670,6 +674,8 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         free(data);
         return 2;
     }
+    // printf("Received: ");
+    // print_bytes(data, 2 + cobs_len);
     free(data);
     return 0;
 }
