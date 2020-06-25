@@ -24,7 +24,8 @@ typedef enum _Mode {
   MODE__IDLE = 0,
   MODE__AUTO = 1,
   MODE__TELEOP = 2,
-  MODE__ESTOP = 3
+  MODE__ESTOP = 3,
+  MODE__CHALLENGE = 4
     PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(MODE)
 } Mode;
 

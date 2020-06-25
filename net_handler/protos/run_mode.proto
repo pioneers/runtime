@@ -11,6 +11,7 @@ enum Mode {
 	AUTO = 1;
 	TELEOP = 2;
 	ESTOP = 3;
+	CHALLENGE = 4;
 }
 
 message RunMode {

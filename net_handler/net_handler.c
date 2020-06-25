@@ -1,13 +1,5 @@
-#include "net_handler.h"
-
-//IP addresses of Dawn and Shepherd and port numbers
-
-static void error (char *msg)
-{
-	perror(msg);
-	log_runtime(ERROR, msg); //send the message to the logger
-	exit(1);
-}
+#include "net_util.h"
+#include "shepherd_conn.h"
 
 int listening_socket_setup (int *sockfd)
 {
@@ -32,7 +24,7 @@ int listening_socket_setup (int *sockfd)
 	if ((bind(*sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in))) != 0) {
 		error("bind: failed to bind listening socket to raspi port");
 		logger_stop(NET_HANDLER);
-		close(sockfd);
+		close(*sockfd);
 		return 1;
 	} else {
 		log_runtime(DEBUG, "bind: successfully bound listening socket to raspi port");
@@ -42,7 +34,7 @@ int listening_socket_setup (int *sockfd)
 	if ((listen(*sockfd, 2)) != 0) {
 		error("listen: failed to set listening socket to listen mode");
 		logger_stop(NET_HANDLER);
-		close(sockfd);
+		close(*sockfd);
 		return 1;
 	} else {
 		log_runtime(DEBUG, "listen: successfully set listening socket to listen mode");
@@ -81,20 +73,22 @@ void sigint_handler (int sig_num)
 		stop_shepherd_conn();
 	}
 	if (robot_desc_read(DAWN) == CONNECTED) {
-		stop_dawn_conn();
-		stop_dawn_udp();
+		//stop_dawn_conn();
+		//stop_dawn_udp();
 	}
 	shm_aux_stop(NET_HANDLER);
 	shm_stop(NET_HANDLER);
 	logger_stop(NET_HANDLER);
-	//connfd is automatically closed when process terminates
+	//sockfd is automatically closed when process terminates
 }
+
+// ******************************************* MAIN ROUTINE ******************************* //
 
 int main ()
 {
 	int sockfd = -1, connfd = -1;
 	struct sockaddr_in cli_addr;
-	size_t cli_addr_len = sizeof(sockaddr_in);
+	socklen_t cli_addr_len = sizeof(struct sockaddr_in);
 	
 	//setup
 	logger_init(NET_HANDLER);
@@ -121,8 +115,8 @@ int main ()
 		if (is_shepherd(&cli_addr)) {
 			start_shepherd_conn(connfd);
 		} else if (is_dawn(&cli_addr)) {
-			start_dawn_conn(connfd);
-			start_dawn_udp();
+			//start_dawn_conn(connfd);
+			//start_dawn_udp();
 		}
 	}
 	
