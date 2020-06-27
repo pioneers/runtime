@@ -26,7 +26,7 @@ void get_device_data(uint8_t** buffer, uint32_t* len) {
 	//get information
 	get_catalog(&catalog);
 	get_device_identifiers(dev_ids);
-	
+
 	//calculate num_devices, get valid device indices
 	dev_data.n_devices = 0;
 	for (int i = 0, j = 0; i < MAX_DEVICES; i++) {
@@ -36,16 +36,21 @@ void get_device_data(uint8_t** buffer, uint32_t* len) {
 		}
 	}
 	dev_data.devices = malloc(dev_data.n_devices * sizeof(Device *));
-	
+	log_printf(DEBUG, "Number of devices found: %d", dev_data.n_devices);
 	//populate dev_data.device[i]
 	for (int i = 0; i < dev_data.n_devices; i++) {
 		dev_data.devices[i] = malloc(sizeof(Device));
 		Device* device = dev_data.devices[i];
 		device__init(device);
+		log_printf(DEBUG, "initialized device %d", i);
 		int idx = valid_dev_idxs[i];
 		device->type = dev_ids[idx].type;
 		device->uid = dev_ids[idx].uid;
 		device_t* device_info = get_device(dev_ids[idx].type);
+		if (device_info == NULL) {
+			log_printf(WARN, "Device %d in SHM is invalid", idx);
+			continue;
+		}
 		device->name = device_info->name;
 
 		device->n_params = device_info->num_params;
@@ -56,6 +61,7 @@ void get_device_data(uint8_t** buffer, uint32_t* len) {
 		device_read_uid(device->uid, NET_HANDLER, DATA, params_to_read, param_data);
 
 		device->params = malloc(device->n_params * sizeof(Param*));
+		//populate device parameters
 		for (int j = 0; j < device->n_params; j++) {
 			device->params[j] = malloc(sizeof(Param));
 			Param* param = device->params[j];
@@ -94,22 +100,32 @@ void get_device_data(uint8_t** buffer, uint32_t* len) {
 
 void update_gamepad_state(uint8_t* buffer, int len) {
 	GpState* gp_state = gp_state__unpack(NULL, len, buffer);
-	if (gp_state->n_axes == 4) {
+	if (gp_state->n_axes != 4) {
 		log_printf(ERROR, "Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
-		return;
 	}
-	robot_desc_write(GAMEPAD,  gp_state->connected ? CONNECTED : DISCONNECTED);
-	if (gp_state->connected) {
-		gamepad_write(gp_state->buttons, gp_state->axes);
+	else {
+		// display the message's fields.
+		log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
+		for (int i = 0; i < gp_state->n_axes; i++) {
+			log_printf(PYTHON, "\t%f", gp_state->axes[i]);
+		}
+		log_printf(PYTHON, "\n");
+		robot_desc_write(GAMEPAD,  gp_state->connected ? CONNECTED : DISCONNECTED);
+		if (gp_state->connected) {
+			gamepad_write(gp_state->buttons, gp_state->axes);
+		}
 	}
+	gp_state__free_unpacked(gp_state, NULL);
 }
 
 
 void* process_udp_data(void* args) {
 	udp_args_t* thread_args = (udp_args_t*) args;
 	DevData dev_data = DEV_DATA__INIT;
-	struct sockaddr_in* dawn_addr = NULL;
-	socklen_t addrlen = sizeof(struct sockaddr_in);
+	struct sockaddr_in* dawn_addr;
+	int first = 1;
+	socklen_t addrlen = sizeof(*dawn_addr);
+	int initial_len = addrlen;
 	int size = sizeof(GpState);
 	uint8_t read_buf[size];
 	int recvlen;
@@ -118,20 +134,25 @@ void* process_udp_data(void* args) {
 	int err;
 
 	while (!thread_args->stop) {
-		if (dawn_addr == NULL) { 
-			log_printf(DEBUG, "Waiting for message");
+		if (first) { 
+			log_printf(DEBUG, "Waiting for first message");
 			recvlen = recvfrom(thread_args->socket, read_buf, size, 0, (struct sockaddr*) dawn_addr, &addrlen);
 			log_printf(DEBUG, "Dawn IP is %s", inet_ntoa(dawn_addr->sin_addr));
+			first = 0;
 		}
 		else {
+			log_printf(DEBUG, "Waiting for message");
 			recvlen = recvfrom(thread_args->socket, read_buf, size, 0, NULL, NULL);
 		}
 		if (recvlen <= 0) {
 			log_printf(ERROR, "UDP recvfrom failed. First connect %d", dawn_addr == NULL);
 			perror("recvfrom");
 		}
+		log_printf(DEBUG, "Received data from Dawn");
 		update_gamepad_state(read_buf, recvlen);
+		log_printf(DEBUG, "Updated gamepad. Getting device data");
 		get_device_data(&send_buf, &sendlen);
+		log_printf(DEBUG, "sending dev data to Dawn");
 		err = sendto(thread_args->socket, send_buf, sendlen, 0, (struct sockaddr*) dawn_addr, addrlen);
 		if (err <= 0) {
 			log_printf(ERROR, "UDP sendto failed");
@@ -148,8 +169,6 @@ void start_udp_suite ()
 {
 	struct sockaddr_in my_addr;    //for holding IP addresses (IPv4)
 	thread_args.stop = 0;
-	char msg[64];        //for error messages
-	char buf[256];       //buffer for receiving messages
 	int ready = 0;
 	
 	//create the socket
@@ -159,20 +178,19 @@ void start_udp_suite ()
 	}
 	
 	//bind the socket to any valid IP address on the raspi and specified port
-	memset((char *)&my_addr, 0, sizeof(struct sockaddr_in));
+	memset(&my_addr, 0, sizeof(struct sockaddr_in));
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	my_addr.sin_port = htons(UDP_PORT);
 	if (bind(thread_args.socket, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) < 0) {
 		perror("udp socket bind failed");
-		close(thread_args.socket);
 		return;
 	}
 	
 	//create send thread
 	if (pthread_create(&socket_thread, NULL, process_udp_data, &thread_args) != 0) {
 		perror("pthread_create");
-		log_printf(ERROR, "failed to create UDP send thread with Dawn");
+		log_printf(ERROR, "failed to create UDP thread");
 	}
 	
 }
@@ -192,7 +210,13 @@ void stop_udp_suite ()
 }
 
 
+void sigintHandler(int signum) {
+	stop_udp_suite();
+}
+
+
 int main() {
+	// signal(SIGINT, sigintHandler);
 	logger_init(NET_HANDLER);
 	shm_aux_init(NET_HANDLER);
 	shm_init(NET_HANDLER);
