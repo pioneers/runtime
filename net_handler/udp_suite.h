@@ -2,9 +2,9 @@
 #define UDP_SUITE_H
 
 #include <sys/socket.h>         // for sockets
-#include <netinet/in.h>         // for ip addresses
 #include <arpa/inet.h>          // for ip addresses
-#include <pthread.h>
+#include <pthread.h>            // for pthreads
+#include <signal.h>             // for signal
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 #include "../shm_wrapper_aux/shm_wrapper_aux.h"

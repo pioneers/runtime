@@ -37,8 +37,8 @@ typedef enum gp_joysticks {
 
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-	IDLE, AUTO, TELEOP, CHALLENGE,      //values for robot.run_mode
-	CONNECTED, DISCONNECTED,    //values for robot.dawn, robot.shepherd, robot.gamepad
+	IDLE, AUTO, TELEOP, CHALLENGE,   //values for robot.run_mode
+	CONNECTED, DISCONNECTED,         //values for robot.dawn, robot.shepherd, robot.gamepad
 } robot_desc_val_t;
 
 //enumerated names for the fields in the robot description

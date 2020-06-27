@@ -28,6 +28,8 @@
 #define DAWN_ADDR "192.168.0.25"
 #define DAWN_PORT 7200
 
+#define UDP_PORT 8192
+
 #define LOG_MSG_MAXLEN 512       //max length of a log message, in chars
 #define MAX_NUM_LOGS 16          //maximum number of logs that can be sent in one msg
 #define MAX_SIZE_BYTES 4096      //maximum number of bytes that a serialized message can be (smaller than MAX_NUM_LOGS * LOG_MSG_MAXLEN)
