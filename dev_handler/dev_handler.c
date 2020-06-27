@@ -607,8 +607,8 @@ int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
         ret = (*transferred == len) ? 0 : -1;
     }
     if (ret == 0) {
-        //printf("Sent: ");
-        //print_bytes(data, len);
+        printf("Sent %d bytes: ", len);
+        print_bytes(data, len);
     }
     free(data);
 	return ret;
@@ -631,6 +631,9 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
     while (!(num_bytes_read == 1 && last_byte_read == 0)) {
         if (OUTPUT == USB_DEV) {
             libusb_bulk_transfer(relay->handle, relay->receive_endpoint, &last_byte_read, 1, &num_bytes_read, DEVICE_TIMEOUT);
+            if (num_bytes_read != 0) {
+                printf("DEV HANDLER RECEIVED %d BYTES FROM THE ARDUINO\n", num_bytes_read);
+            }
         } else if (OUTPUT == FILE_DEV) {
             num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
         }
@@ -638,6 +641,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
             printf("Attempting to read delimiter but got 0x%X\n", last_byte_read);
         }
     }
+    printf("Got start of message!\n");
 
     // Try to read the length of the cobs encoded message
     uint8_t cobs_len;
@@ -674,8 +678,8 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         free(data);
         return 2;
     }
-    // printf("Received: ");
-    // print_bytes(data, 2 + cobs_len);
+    printf("Received %d bytes: ", 2 + cobs_len);
+    print_bytes(data, 2 + cobs_len);
     free(data);
     return 0;
 }

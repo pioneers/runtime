@@ -1,4 +1,5 @@
 CC=gcc
+CXX=g++
 LIBFLAGS=-lusb-1.0 -lpthread
 
 UNAME=$(shell uname)
@@ -34,6 +35,16 @@ fake: tests/fake_device.c tests/fake_device.h
 fake_val: tests/fake_device.c tests/fake_device.h
 	$(CC) tests/fake_device.c message.c ../runtime_util/runtime_util.c -o fake -lpthread
 	sudo valgrind ./fake
+
+# Run the fake C++ device
+cpp: tests/main.cpp tests/Device.cpp tests/Device.h tests/Messenger.cpp tests/Messenger.h tests/defs.h
+	$(CXX) tests/main.cpp tests/Device.cpp tests/Device.h tests/Messenger.cpp tests/Messenger.h tests/defs.h -o fake_cpp
+	sudo ./fake_cpp
+
+# Run the fake C++ device on Valgrind
+cpp_val: tests/main.cpp tests/Device.cpp tests/Device.h tests/Messenger.cpp tests/Messenger.h tests/defs.h
+	$(CXX) tests/main.cpp tests/Device.cpp tests/Device.h tests/Messenger.cpp tests/Messenger.h tests/defs.h -o fake_cpp
+	sudo valgrind ./fake_cpp
 
 # Clean files generated from fake
 clean:
