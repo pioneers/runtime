@@ -43,7 +43,7 @@ server: networking_sanity/tcp_sanity_server.c pbc_gen/text.pb-c.c
 udp_suite: udp_suite.c ../runtime_util/runtime_util.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
 	gcc $^ $(GEN_FILES) -o udp_suite $(LIBS) $(LDFLAGS)
 
-net_handler: net_util.c net_handler.c shepherd_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
+net_handler: net_util.c net_handler.c shepherd_conn.c dawn_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
 	gcc $^ $(GEN_FILES) -o net_handler $(LIBS) $(LDFLAGS) 
 
 fake_dawn: fake_dawn.c ../logger/logger.c
