@@ -6,11 +6,16 @@ ifeq ($(UNAME), Darwin)
 LIBS=
 endif
 
-test1: shm_wrapper_aux_test1.c shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
-	gcc shm_wrapper_aux_test1.c shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o test1 $(LIBS)
-	
-test2: shm_wrapper_aux_test2.c shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
-	gcc shm_wrapper_aux_test2.c shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o test2 $(LIBS)
+FILES=shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
 
-static: connect_static_aux.c shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c
-	gcc connect_static_aux.c shm_wrapper_aux.c ../logger/logger.c  ../runtime_util/runtime_util.c -o static $(LIBS)
+test1: shm_wrapper_aux_test1.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
+	
+test2: shm_wrapper_aux_test2.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
+
+static: connect_static_aux.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
+
+print: print_aux_shm.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
