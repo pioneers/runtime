@@ -22,11 +22,11 @@
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
 
-#define RASPI_PORT 8000     //well-known port of TCP listening socket used by runtime on raspi
+#define RASPI_PORT 8101     //well-known port of TCP listening socket used by runtime on raspi
 #define SHEPHERD_ADDR "192.168.0.25"
-#define SHEPHERD_PORT 6200
+#define SHEPHERD_PORT 6101
 #define DAWN_ADDR "192.168.0.25"
-#define DAWN_PORT 7200
+#define DAWN_PORT 7101
 
 #define UDP_PORT 8192
 
@@ -36,9 +36,9 @@
 
 //All the different possible messages the network handler works with
 typedef enum net_msg {
-	GAMEPAD_STATE_MSG, DEVICE_DATA_MSG,           //UDP (mostly)
-	RUN_MODE_MSG, CHALLENGE_DATA_MSG, LOG_MSG,    //TCP
-	NOP, ACK                                      //Misc
+	GAMEPAD_STATE_MSG, DEVICE_DATA_MSG,                           //UDP (mostly)
+	RUN_MODE_MSG, START_MODE_MSG, CHALLENGE_DATA_MSG, LOG_MSG,    //TCP
+	NOP, ACK                                                      //Misc
 } net_msg_t;
 
 //the two possible endpoints
@@ -58,12 +58,12 @@ ssize_t writen (int fd, const void *buf, size_t n);
 
 //prepares send_buf by prepending msg_type into first byte, and len_pb into second and third bytes
 //caller must free send_buf
-void prep_buf (uint8_t *send_buf, net_msg_t msg_type, unsigned len_pb);
+uint8_t *prep_buf (net_msg_t msg_type, unsigned len_pb, uint16_t *len_pb_uint16);
 
-//reads one byte from *connfd and puts it in msg_type; reads two more bytes from *connfd
+//reads one byte from *fd and puts it in msg_type; reads two more bytes from *connfd
 //and puts it in len_pb, then reads len_pb bytes into buf
 //returns -1 if EOF read (shepherd disconnected); returns 0 on success
-int parse_msg (int *connfd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf);
+int parse_msg (int *fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf);
 
 //finds max of three input numbers (used to find maxfdp1 for select)
 int max (int a, int b, int c);

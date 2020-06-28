@@ -4,30 +4,24 @@
 typedef struct cleanup_objs {
 	int connfd;
 	FILE *log_fp;
-	FILE *results_fp;
 	Text *log_msg;
-	Text *challenge_data_msg;
 } cleanup_objs_t;
 
-int shep_connfd;
+pthread_t dawn_tid;
 
-pthread_t shep_tid;
-
-//cleanup function for shepherd_conn thread
-static void shep_conn_cleanup (void *args)
+//cleanup function for dawn_conn thread
+static void dawn_conn_cleanup (void *args)
 {
 	cleanup_objs_t *cleanup_objs = (cleanup_objs_t *) args;
 	
 	free(cleanup_objs->log_msg->payload);
-	free(cleanup_objs->challenge_data_msg->payload);
 	
 	fclose(cleanup_objs->log_fp);
-	fclose(cleanup_objs->results_fp);
 	
 	if (close(cleanup_objs->connfd) != 0) {
 		error("close: connfd @shep");
 	}
-	robot_desc_write(SHEPHERD, DISCONNECTED);
+	robot_desc_write(DAWN, DISCONNECTED);
 }
 
 //TODO: try and figure out the most optimized way to set up the log message (maybe write a custom allocator?)
@@ -35,35 +29,24 @@ static void send_log_msg (int *connfd, FILE *log_fp, Text *log_msg)
 {
 	uint8_t *send_buf;        //buffer to send data on
 	unsigned len_pb;          //length of serialized protobuf
-	uint16_t len_pb_uint16;   //length of serialized protobuf, as uint16_t
 	size_t next_line_len;     //length of the next log line
 	char buf[MAX_LOG_LEN];    //buffer that next log line is read into, from which it is copied into text message
 	
 	//read in log lines until there are no more to read
-	for (log_msg->n_payload = 0; (fgets(buf, MAX_LOG_LEN, log_fp) != NULL) && (log_msg->n_payload < MAX_NUM_LOGS); log_msg->n_payload++) {
+	log_msg->n_payload = 0;
+	for (log_msg->n_payload = 0; (fgets(buf, LOG_MSG_MAXLEN, log_fp) != NULL) && (log_msg->n_payload < MAX_NUM_LOGS); log_msg->n_payload++) {
 		next_line_len = strlen((const char *) buf);
 		log_msg->payload[log_msg->n_payload] = (char *) malloc(sizeof(char) * next_line_len);
 		strcpy(log_msg->payload[log_msg->n_payload], (const char *) buf);
 	}
 	
-	if (ferror(log_fp) != 0) {
-		printf("error occured when reading log file\n");
-	}
-	
 	//prepare the message for sending
 	len_pb = text__get_packed_size(log_msg);
-	send_buf = prep_buf(LOG_MSG, len_pb, &len_pb_uint16);
-	if (len_pb_uint16 == 0) {
-		printf("no data\n");
-		free(send_buf);
-		return;
-	}
+	prep_buf(send_buf, LOG_MSG, len_pb);
 	text__pack(log_msg, (void *) (send_buf + 3));  //pack message into the rest of send_buf (starting at send_buf[3] onward)
 	
-	printf("send_buf = %hhu %hhu %hhu\n", send_buf[0], send_buf[1], send_buf[2]);
-	
 	//send message on socket
-	if (writen(*connfd, send_buf, (size_t) (len_pb_uint16 + 3)) == -1) {
+	if (writen(*connfd, send_buf, (size_t) (len_pb + 3)) == -1) {
 		error("write: sending log message failed @shep");
 	}
 	
@@ -71,36 +54,6 @@ static void send_log_msg (int *connfd, FILE *log_fp, Text *log_msg)
 	for (int i = 0; i < log_msg->n_payload; i++) {
 		free(log_msg->payload[i]);
 	}
-	free(send_buf);
-}
-
-static void send_challenge_msg (int *connfd, FILE *results_fp, Text *challenge_data_msg)
-{
-	const int max_len = 1000;   //max len of a challenge data message
-	uint8_t *send_buf;          //buffer to send data on
-	unsigned len_pb;            //length of serialized protobuf
-	uint16_t len_pb_uint16;     //length of serialized protobuf, as uint16_t
-	size_t result_len;          //length of results string
-	char buf[max_len];          //buffer that results are read into, from which it is copied into text message
-	
-	//keep trying to read the line until you get it; copy that line into challenge_data_msg.payload[0]
-	while (fgets(buf, max_len, results_fp) != NULL);
-	result_len = strlen((const char *) buf);
-	challenge_data_msg->payload[0] = (char *) malloc(sizeof(char) * result_len);
-	strcpy(challenge_data_msg->payload[0], (const char *) buf);
-	
-	//prepare the message for sending
-	len_pb = text__get_packed_size(challenge_data_msg);
-	send_buf = prep_buf(CHALLENGE_DATA_MSG, len_pb, &len_pb_uint16);
-	text__pack(challenge_data_msg, (void *) (send_buf + 3));  //pack message into the rest of send_buf (starting at send_buf[3] onward)
-	
-	//send message on socket
-	if (writen(*connfd, send_buf, (size_t) (len_pb_uint16 + 3)) == -1) {
-		error("write: sending challenge data message failed @shep");
-	}
-	
-	//free all allocated memory
-	free(challenge_data_msg->payload[0]);
 	free(send_buf);
 }
 
@@ -161,23 +114,22 @@ static void recv_new_msg (int *connfd, FILE *results_fp, Text *challenge_data_ms
 	*retval = 0;
 }
 
-static void *shepherd_conn (void *args)
+static void *dawn_conn (void *args)
 {
-	int *connfd = &shep_connfd;
+	int *connfd = (int *) args;
 	int recv_success = 0; //used to tell if message was received successfully
 	
 	//initialize the protobuf messages
 	Text log_msg = TEXT__INIT;
 	log_msg.payload = (char **) malloc(sizeof(char *) * MAX_NUM_LOGS);
 	
-	Text challenge_data_msg = TEXT__INIT;
-	challenge_data_msg.payload = (char **) malloc(sizeof(char *) * 1);
-	challenge_data_msg.n_payload = 1; 
+	DevData dev_data_msg = DEV_DATA__INIT;
+	//something something something
 	
 	RunMode run_mode_msg = RUN_MODE__INIT;
 	
 	//Open up log file and challenge results file; seek to the end of each file
-	FILE *log_fp, *results_fp;
+	FILE *log_fp;
 	if ((log_fp = fopen("../logger/runtime_log.log", "r")) == NULL) {
 		error("fopen: could not open log file for reading @shep");
 		return NULL;
@@ -186,40 +138,29 @@ static void *shepherd_conn (void *args)
 		error("fseek: could not seek to end of log file @shep");
 		return NULL;
 	}
-	if ((results_fp = fopen("../executor/results.txt", "r+b")) == NULL) { //TODO: NOT IMPLEMENTED YET
-		error("fopen: could not open results file for reading @shep");
-		return NULL;
-	}
-	if (fseek(results_fp, 0, SEEK_END) != 0) { //TODO: NOT IMPLEMENTED YET
-		error("fssek: could not seek to end of results file @shep");
-		return NULL;
-	}
 	
 	//variables used for waiting for something to do using select()
-	int maxfdp1 = max(fileno(log_fp), fileno(results_fp), *connfd) + 1;
+	int maxfdp1 = (fileno(log_fp) > *connfd) ? fileno(log_fp) + 1 : (*connfd) + 1;
 	fd_set read_set;
 	FD_ZERO(&read_set);
 	
 	//set cleanup objects for cancellation handler
-	cleanup_objs_t cleanup_objs = { *connfd, log_fp, results_fp, &log_msg, &challenge_data_msg };
+	cleanup_objs_t cleanup_objs = { *connfd, log_fp, &log_msg };
 	
 	//main control loop that is responsible for sending and receiving data
 	//TODO: maybe try using pselect instead of select
 	while (1) {
 		FD_SET(fileno(log_fp), &read_set);
 		FD_SET(*connfd, &read_set);
-		if (robot_desc_read(RUN_MODE) == CHALLENGE) {
-			FD_SET(fileno(results_fp), &read_set);
-		}
 		
 		//prepare to accept cancellation requests over the select
-		pthread_cleanup_push(shep_conn_cleanup, (void *) &cleanup_objs);
+		pthread_cleanup_push(dawn_conn_cleanup, (void *) &cleanup_objs);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
 		
 		//wait for something to happen
 		if (select(maxfdp1, &read_set, NULL, NULL, NULL) < 0) {
-			error("select: @shep");
+			error("select: @dawn");
 		}
 		
 		//deny all cancellation requests until the next loop
@@ -230,48 +171,42 @@ static void *shepherd_conn (void *args)
 		if (FD_ISSET(fileno(log_fp), &read_set)) {
 			send_log_msg(connfd, log_fp, &log_msg);
 		}
-		//send the challenge results if it is ready
-		if (FD_ISSET(fileno(results_fp), &read_set)) {
-			send_challenge_msg(connfd, results_fp, &challenge_data_msg);
-		}
 		//receive new message on socket if it is ready
 		if (FD_ISSET(*connfd, &read_set)) {
-			recv_new_msg(connfd, results_fp, &challenge_data_msg, &run_mode_msg, &recv_success); 
-			if (recv_success == -1) { //shepherd disconnected
-				log_runtime(WARN, "thread detected shepherd disocnnected @shep");
+			recv_new_msg(connfd, results_fp, &dev_data_msg, &run_mode_msg, &recv_success); 
+			if (recv_success == -1) { //dawn disconnected
+				log_runtime(WARN, "thread detected dawn disocnnected @dawn");
 				break;
 			}
 		}
 	}
 	
 	//call the cleanup function
-	shep_conn_cleanup((void *) &cleanup_objs);
+	dawn_conn_cleanup((void *) &cleanup_objs);
 	return NULL;
 }
 
-void start_shepherd_conn (int connfd)
+void start_dawn_conn (int connfd)
 {
-	shep_connfd = connfd;
-	
 	//create thread, give it connfd, write that shepherd is connected
-	if (pthread_create(&shep_tid, NULL, shepherd_conn, NULL) != 0) {
-		error("pthread_create: @shep");
+	if (pthread_create(&dawn_tid, NULL, dawn_conn, &connfd) != 0) {
+		error("pthread_create: @dawn");
 		return;
 	}
 	//disable cancellation requests on the thread until main loop begins
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	robot_desc_write(SHEPHERD, CONNECTED);
-	log_runtime(INFO, "successfully made connection with Shepherd and started thread!");
+	robot_desc_write(DAWN, CONNECTED);
+	log_runtime(INFO, "successfully made connection with Dawn and started thread!");
 }
 
-void stop_shepherd_conn ()
+void stop_dawn_conn ()
 {
-	if (pthread_cancel(shep_tid) != 0) {
-		error("pthread_cancel: @shep");
+	if (pthread_cancel(dawn_tid) != 0) {
+		error("pthread_cancel: @dawn");
 	}
-	if (pthread_join(shep_tid, NULL) != 0) {
-		error("pthread_join: @shep");
+	if (pthread_join(dawn_tid, NULL) != 0) {
+		error("pthread_join: @dawn");
 	}
-	robot_desc_write(SHEPHERD, DISCONNECTED);
-	log_runtime(INFO, "disconnected with Shepherd and stopped thread");
+	robot_desc_write(DAWN, DISCONNECTED);
+	log_runtime(INFO, "disconnected with Dawn and stopped thread");
 }
