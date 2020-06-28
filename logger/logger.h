@@ -8,6 +8,9 @@
 #include <stdarg.h>  // To get variable arguments
 #include <time.h>
 #include <errno.h>
+#include <fcntl.h>      //for file access permission flags
+#include <unistd.h>     //for write to FIFO
+#include <sys/stat.h>   //for mkfifo
 #include "logger_config.h"
 #include "../runtime_util/runtime_util.h"   //(TODO: consider removing relative pathname in include)
 

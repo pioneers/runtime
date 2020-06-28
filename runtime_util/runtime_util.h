@@ -12,7 +12,7 @@
 #define NUM_DEVICES 11 		// The number of functional devices
 #define DEVICES_LENGTH 14 	// The largest device type number + 1. Note: DEVICES_LENGTH != NUM_DEVICES because some are NULL (Ex: type 6, 8, 9)
 
-#define NUM_DESC_FIELDS 4                   //number of fields in the robot description
+#define NUM_DESC_FIELDS 5                   //number of fields in the robot description
 
 #define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
@@ -39,11 +39,12 @@ typedef enum gp_joysticks {
 typedef enum robot_desc_vals {
 	IDLE, AUTO, TELEOP, CHALLENGE,   //values for robot.run_mode
 	CONNECTED, DISCONNECTED,         //values for robot.dawn, robot.shepherd, robot.gamepad
+	LEFT, RIGHT                      //values for robot.startpos
 } robot_desc_val_t;
 
 //enumerated names for the fields in the robot description
 typedef enum robot_descs {
-	RUN_MODE, DAWN, SHEPHERD, GAMEPAD
+	RUN_MODE, DAWN, SHEPHERD, GAMEPAD, STARTPOS
 } robot_desc_field_t;
 
 // ******************************* CUSTOM STRUCTS ************************** //
