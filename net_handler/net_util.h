@@ -21,6 +21,7 @@
 #include "pbc_gen/gamepad.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
+#include "pbc_gen/startpos.pb-c.h"
 
 #define RASPI_PORT 8101     //well-known port of TCP listening socket used by runtime on raspi
 #define SHEPHERD_ADDR "192.168.0.25"

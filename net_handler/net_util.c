@@ -15,7 +15,7 @@ ssize_t readn (int fd, void *buf, size_t n)
 	char *curr = buf;
 	
 	while (n_remain > 0) {
-		printf("n_remain = %u\n", n_remain);
+		printf("n_remain = %zu\n", n_remain);
 		if ((n_read = read(fd, curr, n_remain)) < 0) {
 			if (errno == EINTR) { //read interrupted by signal; read again
 				n_read = 0;
@@ -65,7 +65,7 @@ uint8_t *prep_buf (net_msg_t msg_type, unsigned len_pb, uint16_t *len_pb_uint16)
 	uint16_t *uint16_ptr;        //used to insert a uint16_t into an array of uint8_t
 	
 	//convert values
-	sprintf(tmp, "%hhu", msg_type);
+	sprintf(tmp, "%u", msg_type);
 	msg_type_uint8 = (uint8_t) strtoul((const char *) tmp, NULL, 0);
  	sprintf(tmp, "%u", len_pb);
 	*len_pb_uint16 = (uint16_t) strtoul((const char *) tmp, NULL, 0);

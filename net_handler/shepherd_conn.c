@@ -3,9 +3,6 @@
 //used for cleaning up shepherd thread on cancel
 typedef struct cleanup_objs {
 	int connfd;
-	FILE *log_fp;
-	FILE *results_fp;
-	Text *log_msg;
 	Text *challenge_data_msg;
 } cleanup_objs_t;
 
@@ -18,11 +15,7 @@ static void shep_conn_cleanup (void *args)
 {
 	cleanup_objs_t *cleanup_objs = (cleanup_objs_t *) args;
 	
-	free(cleanup_objs->log_msg->payload);
 	free(cleanup_objs->challenge_data_msg->payload);
-	
-	fclose(cleanup_objs->log_fp);
-	fclose(cleanup_objs->results_fp);
 	
 	if (close(cleanup_objs->connfd) != 0) {
 		error("close: connfd @shep");
@@ -74,7 +67,7 @@ static void send_log_msg (int *connfd, FILE *log_fp, Text *log_msg)
 	free(send_buf);
 }
 
-static void send_challenge_msg (int *connfd, FILE *results_fp, Text *challenge_data_msg)
+static void send_challenge_msg (int *connfd, int results_fd, Text *challenge_data_msg)
 {
 	const int max_len = 1000;   //max len of a challenge data message
 	uint8_t *send_buf;          //buffer to send data on
@@ -84,7 +77,8 @@ static void send_challenge_msg (int *connfd, FILE *results_fp, Text *challenge_d
 	char buf[max_len];          //buffer that results are read into, from which it is copied into text message
 	
 	//keep trying to read the line until you get it; copy that line into challenge_data_msg.payload[0]
-	while (fgets(buf, max_len, results_fp) != NULL);
+	//TODO: change this to deal with some sort of stream instead of a file
+	//while (read(buf, max_len, results_fd) != 0);
 	result_len = strlen((const char *) buf);
 	challenge_data_msg->payload[0] = (char *) malloc(sizeof(char) * result_len);
 	strcpy(challenge_data_msg->payload[0], (const char *) buf);
@@ -104,7 +98,7 @@ static void send_challenge_msg (int *connfd, FILE *results_fp, Text *challenge_d
 	free(send_buf);
 }
 
-static void recv_new_msg (int *connfd, FILE *results_fp, Text *challenge_data_msg, RunMode *run_mode_msg, int *retval)
+static void recv_new_msg (int *connfd, int results_fd, Text *challenge_data_msg, RunMode *run_mode_msg, StartPos *startpos_msg, int *retval)
 {
 	net_msg_t msg_type;           //message type
 	uint16_t len_pb;              //length of incoming serialized protobuf message
@@ -122,11 +116,14 @@ static void recv_new_msg (int *connfd, FILE *results_fp, Text *challenge_data_ms
 	if (msg_type == CHALLENGE_DATA_MSG) {
 		challenge_data_msg = text__unpack(NULL, len_pb, buf);
 		
-		//write the provided input data for the challenge to results.txt (results_fp)
+		//TODO: write the provided input data for the challenge to wherever it needs to go
+		/*
 		challenge_len = strlen(challenge_data_msg->payload[0]);
 		if (fwrite(challenge_data_msg->payload[0], sizeof(char), challenge_len, results_fp) <= 0) {
 			error("fwrite: could not write to results.txt for challenge data @shep");
 		}
+		*/
+		text__free_unpacked(challenge_data_msg, NULL);
 	} else if (msg_type == RUN_MODE_MSG) {
 		run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
 		
@@ -155,8 +152,26 @@ static void recv_new_msg (int *connfd, FILE *results_fp, Text *challenge_data_ms
 			default:
 				log_runtime(WARN, "requested robot to enter unknown robot mode");
 		}
+		run_mode__free_unpacked(run_mode_msg, NULL);
+	} else if (msg_type == STARTPOS) {
+		startpos_msg = start_pos__unpack(NULL, len_pb, buf);
+		
+		//write the specified start pos to the STARTPOS field of the robot description
+		switch (startpos_msg->pos) {
+			case (POS__LEFT):
+				log_runtime(DEBUG, "robot is in LEFT start position");
+				robot_desc_write(STARTPOS, LEFT);
+				break;
+			case (POS__RIGHT):
+				log_runtime(DEBUG, "robot is in RIGHT start position");
+				robot_desc_write(STARTPOS, RIGHT);
+				break;
+			default:
+				log_runtime(WARN, "entered unknown start position");
+		}
+		start_pos__free_unpacked(startpos_msg, NULL);
 	} else {
-		log_printf(WARN, "unknown message type %d; shepherd should only send RUN_MODE (2) or CHALLENGE_DATA (3)", msg_type);
+		log_printf(WARN, "unknown message type %d; shepherd should only send RUN_MODE (2), STARTPOS (3), or CHALLENGE_DATA (4)", msg_type);
 	}
 	*retval = 0;
 }
@@ -164,28 +179,20 @@ static void recv_new_msg (int *connfd, FILE *results_fp, Text *challenge_data_ms
 static void *shepherd_conn (void *args)
 {
 	int *connfd = &shep_connfd;
+	int results_fd = 0;
 	int recv_success = 0; //used to tell if message was received successfully
 	
 	//initialize the protobuf messages
-	Text log_msg = TEXT__INIT;
-	log_msg.payload = (char **) malloc(sizeof(char *) * MAX_NUM_LOGS);
-	
 	Text challenge_data_msg = TEXT__INIT;
 	challenge_data_msg.payload = (char **) malloc(sizeof(char *) * 1);
 	challenge_data_msg.n_payload = 1; 
 	
 	RunMode run_mode_msg = RUN_MODE__INIT;
 	
-	//Open up log file and challenge results file; seek to the end of each file
-	FILE *log_fp, *results_fp;
-	if ((log_fp = fopen("../logger/runtime_log.log", "r")) == NULL) {
-		error("fopen: could not open log file for reading @shep");
-		return NULL;
-	}
-	if (fseek(log_fp, 0, SEEK_END) != 0) {
-		error("fseek: could not seek to end of log file @shep");
-		return NULL;
-	}
+	StartPos startpos_msg = START_POS__INIT;
+	
+	//TODO: Open connection to method of getting challenge data results
+	/*
 	if ((results_fp = fopen("../executor/results.txt", "r+b")) == NULL) { //TODO: NOT IMPLEMENTED YET
 		error("fopen: could not open results file for reading @shep");
 		return NULL;
@@ -194,22 +201,21 @@ static void *shepherd_conn (void *args)
 		error("fssek: could not seek to end of results file @shep");
 		return NULL;
 	}
+	*/
 	
 	//variables used for waiting for something to do using select()
-	int maxfdp1 = max(fileno(log_fp), fileno(results_fp), *connfd) + 1;
+	int maxfdp1 = ((*connfd > results_fd) ? *connfd : results_fd) + 1;
 	fd_set read_set;
 	FD_ZERO(&read_set);
 	
 	//set cleanup objects for cancellation handler
-	cleanup_objs_t cleanup_objs = { *connfd, log_fp, results_fp, &log_msg, &challenge_data_msg };
+	cleanup_objs_t cleanup_objs = { *connfd, &challenge_data_msg };
 	
 	//main control loop that is responsible for sending and receiving data
-	//TODO: maybe try using pselect instead of select
 	while (1) {
-		FD_SET(fileno(log_fp), &read_set);
 		FD_SET(*connfd, &read_set);
 		if (robot_desc_read(RUN_MODE) == CHALLENGE) {
-			FD_SET(fileno(results_fp), &read_set);
+			FD_SET(results_fd, &read_set);
 		}
 		
 		//prepare to accept cancellation requests over the select
@@ -226,17 +232,13 @@ static void *shepherd_conn (void *args)
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		pthread_cleanup_pop(0); //definitely do NOT execute the cleanup handler!
 		
-		//send a new log message if one is available
-		if (FD_ISSET(fileno(log_fp), &read_set)) {
-			send_log_msg(connfd, log_fp, &log_msg);
-		}
 		//send the challenge results if it is ready
-		if (FD_ISSET(fileno(results_fp), &read_set)) {
-			send_challenge_msg(connfd, results_fp, &challenge_data_msg);
+		if (FD_ISSET(results_fd, &read_set)) {
+			send_challenge_msg(connfd, results_fd, &challenge_data_msg);
 		}
 		//receive new message on socket if it is ready
 		if (FD_ISSET(*connfd, &read_set)) {
-			recv_new_msg(connfd, results_fp, &challenge_data_msg, &run_mode_msg, &recv_success); 
+			recv_new_msg(connfd, results_fd, &challenge_data_msg, &run_mode_msg, &startpos_msg, &recv_success); 
 			if (recv_success == -1) { //shepherd disconnected
 				log_runtime(WARN, "thread detected shepherd disocnnected @shep");
 				break;
