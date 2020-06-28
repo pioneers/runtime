@@ -11,8 +11,8 @@ void ctrl_c_handler (int sig_num)
 }
 
 int main() {
-    shm_aux_init(NET_HANDLER);
 	logger_init(NET_HANDLER);
+    shm_aux_init(NET_HANDLER);
 	signal(SIGINT, ctrl_c_handler);
     robot_desc_write(GAMEPAD, CONNECTED);
     robot_desc_write(RUN_MODE, AUTO);
@@ -37,16 +37,17 @@ int main() {
 	// sleep(3);
 	// robot_desc_write(RUN_MODE, AUTO);
 
-	char mode[30];
+	int size = 30;
+	char mode[size];
     while(1) {
-		gets(mode);
-		if (strcmp(mode, "auto") == 0) {
+		fgets(mode, size, stdin);
+		if (strcmp(mode, "auto\n") == 0) {
 			robot_desc_write(RUN_MODE, AUTO);
 		}
-		else if (strcmp(mode, "teleop") == 0) {
+		else if (strcmp(mode, "teleop\n") == 0) {
 			robot_desc_write(RUN_MODE, TELEOP);
 		}
-		else if (strcmp(mode, "idle") == 0) {
+		else if (strcmp(mode, "idle\n") == 0) {
 			robot_desc_write(RUN_MODE, IDLE);
 		}
         sleep(1);
