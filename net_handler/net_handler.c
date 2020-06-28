@@ -1,5 +1,6 @@
 #include "net_util.h"
 #include "shepherd_conn.h"
+#include "dawn_conn.h"
 
 int listening_socket_setup (int *sockfd)
 {
@@ -47,7 +48,7 @@ int is_shepherd (struct sockaddr_in *cli_addr)
 	//check if the client requesting connection is shepherd, and if shepherd is connected already
 	if (cli_addr->sin_family != AF_INET
 			|| cli_addr->sin_addr.s_addr != inet_addr(SHEPHERD_ADDR)
-			|| cli_addr->sin_addr.s_addr != htons(SHEPHERD_PORT)
+			|| cli_addr->sin_port != htons(SHEPHERD_PORT)
 			|| robot_desc_read(SHEPHERD) == CONNECTED) {
 		return 0;
 	}
@@ -59,7 +60,7 @@ int is_dawn (struct sockaddr_in *cli_addr)
 	//check if the client requesting connection is dawn, and if dawn is connected already
 	if (cli_addr->sin_family != AF_INET
 			|| cli_addr->sin_addr.s_addr != inet_addr(DAWN_ADDR)
-			|| cli_addr->sin_addr.s_addr != htons(DAWN_PORT)
+			|| cli_addr->sin_port != htons(DAWN_PORT)
 			|| robot_desc_read(DAWN) == CONNECTED) {
 		return 0;
 	}
@@ -80,6 +81,8 @@ void sigint_handler (int sig_num)
 	shm_stop(NET_HANDLER);
 	logger_stop(NET_HANDLER);
 	//sockfd is automatically closed when process terminates
+	
+	exit(0);
 }
 
 // ******************************************* MAIN ROUTINE ******************************* //
@@ -110,6 +113,10 @@ int main ()
 			error("accept: listen socket failed to accept a connection");
 			continue;
 		}
+		
+		printf("accepted connection\n");
+		printf("cli_addr->sin_addr.s_addr = %s\n", inet_ntoa(cli_addr.sin_addr));
+		printf("cli_addr->sin_port = %u\n", cli_addr.sin_port);
 		
 		//if the incoming request is dawn or shepherd, start the appropriate threads
 		if (is_shepherd(&cli_addr)) {

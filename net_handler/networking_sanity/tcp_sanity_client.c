@@ -35,7 +35,7 @@ int main ()
   
 	// assign IP, PORT 
 	servaddr.sin_family = AF_INET; 
-	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+	servaddr.sin_addr.s_addr = inet_addr("192.168.0.24"); 
 	servaddr.sin_port = htons(PORT); 
   
 	// connect the client socket to server socket 
@@ -71,10 +71,13 @@ int main ()
 	
 	// display the message's fields.
 	for (int i = 0; i < log_msg->n_payload; i++) {
-		printf("\t%s\n", log_msg->payload[i]);
+		printf("\t%s", log_msg->payload[i]);
 	}
 
 	// Free the unpacked message
 	text__free_unpacked(log_msg, NULL);
+	
+	sleep(1);
+	
 	return 0;
 }
