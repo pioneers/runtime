@@ -40,6 +40,9 @@ void logger_init (process_t process)
 	} else if (process == SUPERVISOR) {
 		sprintf(process_str, "SUPERVISOR");
 	}
+	else {
+		sprintf(process_str, "TEST");
+	}
 }
 
 void logger_stop ()
@@ -63,6 +66,10 @@ void logger_stop ()
 //entire format string syntax of printf / sprintf here
 void log_runtime (log_level level, char *msg)
 {
+	if (fd == NULL) {
+		fprintf(stderr, "ERROR: calling logger print without initializing logger \n");
+		exit(1);
+	}
 	static time_t now;
 	static char *time_str;
 	static int len;
