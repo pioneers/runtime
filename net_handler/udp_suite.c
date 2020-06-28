@@ -28,29 +28,31 @@ void get_device_data(uint8_t** buffer, uint32_t* len) {
 	get_device_identifiers(dev_ids);
 
 	//calculate num_devices, get valid device indices
-	dev_data.n_devices = 0;
+	int num_devices = 0;
 	for (int i = 0, j = 0; i < MAX_DEVICES; i++) {
 		if (catalog & (1 << i)) {
-			dev_data.n_devices++;
+			num_devices++;
 			valid_dev_idxs[j++] = i;
 		}
 	}
-	dev_data.devices = malloc(dev_data.n_devices * sizeof(Device *));
-	log_printf(DEBUG, "Number of devices found: %d", dev_data.n_devices);
+	dev_data.devices = malloc(num_devices * sizeof(Device *));
+	log_printf(DEBUG, "Number of devices found: %d", num_devices);
 	//populate dev_data.device[i]
-	for (int i = 0; i < dev_data.n_devices; i++) {
-		dev_data.devices[i] = malloc(sizeof(Device));
-		Device* device = dev_data.devices[i];
-		device__init(device);
-		log_printf(DEBUG, "initialized device %d", i);
+	int dev_idx = 0;
+	for (int i = 0; i < num_devices; i++) {
 		int idx = valid_dev_idxs[i];
-		device->type = dev_ids[idx].type;
-		device->uid = dev_ids[idx].uid;
 		device_t* device_info = get_device(dev_ids[idx].type);
 		if (device_info == NULL) {
 			log_printf(WARN, "Device %d in SHM is invalid", idx);
 			continue;
 		}
+
+		dev_data.devices[dev_idx] = malloc(sizeof(Device));
+		Device* device = dev_data.devices[dev_idx];
+		device__init(device);
+		log_printf(DEBUG, "initialized device %d", dev_idx);
+		device->type = dev_ids[idx].type;
+		device->uid = dev_ids[idx].uid;
 		device->name = device_info->name;
 
 		device->n_params = device_info->num_params;
@@ -80,9 +82,11 @@ void get_device_data(uint8_t** buffer, uint32_t* len) {
 				param->bval = param_data[j].p_b;
 			}
 		}
+		dev_idx++;
 	}
-
+	dev_data.n_devices = dev_idx;
 	*len = dev_data__get_packed_size(&dev_data);
+	log_printf(DEBUG, "Number of actual devices: %d, total size %d, DevData size %d", dev_idx, *len, sizeof(DevData));
 	*buffer = malloc(*len);
 	dev_data__pack(&dev_data, *buffer);
 
@@ -127,6 +131,7 @@ void* process_udp_data(void* args) {
 	socklen_t addrlen = sizeof(*dawn_addr);
 	int initial_len = addrlen;
 	int size = sizeof(GpState);
+	log_printf(DEBUG, "Size of GP State %d", size);
 	uint8_t read_buf[size];
 	int recvlen;
 	uint8_t* send_buf;
@@ -134,21 +139,15 @@ void* process_udp_data(void* args) {
 	int err;
 
 	while (!thread_args->stop) {
-		if (first) { 
-			log_printf(DEBUG, "Waiting for first message");
-			recvlen = recvfrom(thread_args->socket, read_buf, size, 0, (struct sockaddr*) dawn_addr, &addrlen);
-			log_printf(DEBUG, "Dawn IP is %s", inet_ntoa(dawn_addr->sin_addr));
-			first = 0;
-		}
-		else {
-			log_printf(DEBUG, "Waiting for message");
-			recvlen = recvfrom(thread_args->socket, read_buf, size, 0, NULL, NULL);
-		}
+		log_printf(DEBUG, "Waiting for message");
+		recvlen = recvfrom(thread_args->socket, read_buf, size, 0, (struct sockaddr*) dawn_addr, &addrlen);
+		log_printf(DEBUG, "Dawn IP is %s", inet_ntoa(dawn_addr->sin_addr));
+		first = 0;
+		log_printf(DEBUG, "Receive size %d", recvlen);
 		if (recvlen <= 0) {
 			log_printf(ERROR, "UDP recvfrom failed. First connect %d", dawn_addr == NULL);
 			perror("recvfrom");
 		}
-		log_printf(DEBUG, "Received data from Dawn");
 		update_gamepad_state(read_buf, recvlen);
 		log_printf(DEBUG, "Updated gamepad. Getting device data");
 		get_device_data(&send_buf, &sendlen);
@@ -158,6 +157,7 @@ void* process_udp_data(void* args) {
 			log_printf(ERROR, "UDP sendto failed");
 			perror("sendto");
 		}
+		log_printf(DEBUG, "send buffer length %d, actual sent %d", sendlen, err);
 		free(send_buf);
 	}
 
