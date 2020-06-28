@@ -1,12 +1,21 @@
-# Change depending on Linux or Mac. Code won't work on Windows :(
-LIBFLAGS=-lrt -pthread # Linux
-# LIBFLAGS=               # Mac
+UNAME=$(shell uname)
+ifeq ($(UNAME), Linux)
+LIBS=-pthread -lrt
+endif
+ifeq ($(UNAME), Darwin)
+LIBS=
+endif
 
-test1: shm_wrapper_test1.c shm_wrapper.c ../logger/logger.c ../logger/logger_config.h
-	gcc shm_wrapper_test1.c shm_wrapper.c ../logger/logger.c -o test1 $(LIBFLAGS)
+FILES=shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
+
+test1: shm_wrapper_test1.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
 	
-test2: shm_wrapper_test2.c shm_wrapper.c ../logger/logger.c ../logger/logger_config.h
-	gcc shm_wrapper_test2.c shm_wrapper.c ../logger/logger.c -o test2 $(LIBFLAGS)
+test2: shm_wrapper_test2.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
 
-static: connect_static_devices.c shm_wrapper.c ../logger/logger.c 
-	gcc connect_static_devices.c shm_wrapper.c ../logger/logger.c -o static $(LIBFLAGS)
+static: connect_static_devices.c $(FILES)
+	gcc $^ -o static $(LIBS)
+
+print: print_shm.c $(FILES)
+	gcc $^ -o $@ $(LIBS)

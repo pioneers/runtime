@@ -75,7 +75,11 @@ void sanity_test ()
 		for (int j = 0; j < MAX_DEVICES; j++) {
 			if (pmap[0] & (1 << j)) {
 				device_read(j, DEV_HANDLER, COMMAND, pmap[j + 1], params_out);
-				print_params(pmap[j + 1], params_out);
+				for (int k = 0; k < MAX_PARAMS; k++) {
+					if (pmap[j+1] & (1 << k)) {
+						printf("num = %d, p_i = %d, p_f = %f, p_b = %u\n", i, params_out[i].p_i, params_out[i].p_f, params_out[i].p_b);
+					}
+				}
 			}
 		}
 	}

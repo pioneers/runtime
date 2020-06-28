@@ -22,7 +22,7 @@ int main()
 	//connect as many devices as possible
 	for (int i = 0; i < 20; i++) {
 		//randomly chosen quadratic function that is positive and integral in range [0, 32] for the lols
-		device_connect(i, i % 3, (-10000 * i * i) + (297493 * i) + 474732, &dev_ix);
+		device_connect(i % 13, i % 3, (-10000 * i * i) + (297493 * i) + 474732, &dev_ix);
 		for (int j = 0; j < MAX_PARAMS; j++) {
 			params_in[j].p_i = j * i * MAX_DEVICES;
 			params_in[j].p_f = (float)(j * i * MAX_DEVICES * 3.14159);
