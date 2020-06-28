@@ -58,9 +58,9 @@ void executor_stop() {
     // Py_FinalizeEx();
     
     shm_aux_stop(EXECUTOR);
-    log_runtime(DEBUG, "Aux SHM stopped");
+    log_printf(DEBUG, "Aux SHM stopped");
     shm_stop(EXECUTOR);
-    log_runtime(DEBUG, "SHM stopped");
+    log_printf(DEBUG, "SHM stopped");
     logger_stop();
 	exit(0);
     return;
@@ -73,7 +73,7 @@ void executor_stop() {
 void child_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
     PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    log_runtime(DEBUG, "Sent exception");
+    log_printf(DEBUG, "Sent exception");
 }
 
 
@@ -87,9 +87,9 @@ void executor_init(char* student_code) {
     //initialize
 	logger_init(EXECUTOR);
     shm_aux_init(EXECUTOR);
-    log_runtime(DEBUG, "Aux SHM initialized");
+    log_printf(DEBUG, "Aux SHM initialized");
     shm_init(EXECUTOR);
-    log_runtime(DEBUG, "SHM intialized");
+    log_printf(DEBUG, "SHM intialized");
     student_module = student_code;
     
     Py_Initialize();
@@ -100,7 +100,7 @@ void executor_init(char* student_code) {
     pAPI = PyImport_ImportModule(api_module);
     if (pAPI == NULL) {
         PyErr_Print();
-        log_runtime(ERROR, "Could not import API module");
+        log_printf(ERROR, "Could not import API module");
         executor_stop();
     }
 	
@@ -108,13 +108,13 @@ void executor_init(char* student_code) {
     PyObject* robot_class = PyObject_GetAttrString(pAPI, "Robot");
     if (robot_class == NULL) {
         PyErr_Print();
-        log_runtime(ERROR, "Could not find Robot class");
+        log_printf(ERROR, "Could not find Robot class");
         executor_stop();
     }
     pRobot = PyObject_CallObject(robot_class, NULL);
     if (pRobot == NULL) {
         PyErr_Print();
-        log_runtime(ERROR, "Could not instantiate Robot");
+        log_printf(ERROR, "Could not instantiate Robot");
         executor_stop();
     }
     Py_DECREF(robot_class);
@@ -123,13 +123,13 @@ void executor_init(char* student_code) {
     PyObject* gamepad_class = PyObject_GetAttrString(pAPI, "Gamepad");
     if (gamepad_class == NULL) {
         PyErr_Print();
-        log_runtime(ERROR, "Could not find Gamepad class");
+        log_printf(ERROR, "Could not find Gamepad class");
         executor_stop();
     }
     pGamepad = PyObject_CallFunction(gamepad_class, "s", "idle");
     if (pGamepad == NULL) {
         PyErr_Print();
-        log_runtime(ERROR, "Could not instantiate Gamepad");
+        log_printf(ERROR, "Could not instantiate Gamepad");
         executor_stop();
     }
     Py_DECREF(gamepad_class);
@@ -146,7 +146,7 @@ void executor_init(char* student_code) {
     err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
     if (err != 0) {
         PyErr_Print();
-        log_runtime(ERROR, "Could not insert API into student code.");
+        log_printf(ERROR, "Could not insert API into student code.");
         executor_stop();
     }
 

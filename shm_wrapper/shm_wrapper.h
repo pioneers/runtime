@@ -24,7 +24,7 @@ void print_dev_ids ();
 
 void print_catalog ();
 
-void print_params (uint32_t params_to_print, param_val_t *params);
+void print_params (uint32_t devices);
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
