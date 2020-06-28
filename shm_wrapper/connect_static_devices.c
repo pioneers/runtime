@@ -15,8 +15,8 @@ int main()
 	int dev_ix = -1;
 	param_val_t params_in[MAX_PARAMS];
 	
-	shm_init(DEV_HANDLER);
 	logger_init(DEV_HANDLER);
+	shm_init(DEV_HANDLER);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 
 	//connect as many devices as possible
