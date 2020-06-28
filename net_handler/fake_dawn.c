@@ -47,24 +47,24 @@ int main() {
     log_printf(DEBUG, "About to send");    
     int err = sendto(sockfd, buf, len, 0, (struct sockaddr*) &servaddr, sizeof(servaddr));
     log_printf(DEBUG, "sendto stopped blocking");
-
     if (err < 0) {
-        // perror("sendto");
+        perror("sendto");
         log_printf(DEBUG, "sendto failed");
     }
     free(buf);
     log_printf(DEBUG, "Sent data to socket");
 
-    int max_size = 1024;
+    int max_size = 4096;
     uint8_t msg[max_size];
     struct sockaddr_in recvaddr;
+    socklen_t addrlen = sizeof(recvaddr);
     int recv_size;
-    if ((recv_size = recvfrom(sockfd, msg, max_size, 0, (struct sockaddr*) &recvaddr, NULL)) < 0) {
-        // perror("recvfrom");
+    if ((recv_size = recvfrom(sockfd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
+        perror("recvfrom");
         log_printf(DEBUG, "recvfrom failed");
     }
-    
-    log_printf(DEBUG, "received data");
+    log_printf(DEBUG, "Raspi IP is %s", inet_ntoa(recvaddr.sin_addr));
+    log_printf(DEBUG, "received data size %d", recv_size);
     DevData* dev_data;
     dev_data = dev_data__unpack(NULL, recv_size, msg);
     if (dev_data == NULL)
