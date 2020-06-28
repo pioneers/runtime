@@ -59,14 +59,14 @@ void sanity_gamepad_test ()
 void sanity_robot_desc_test ()
 {
 	int count = 0;
-	robot_desc_val_t curr[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
-	robot_desc_val_t prev[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED, BLUE };
+	robot_desc_val_t curr[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED };
+	robot_desc_val_t prev[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED };
 	
 	sync();
 	
 	printf("Begin sanity robot desc test...\n");
 	
-	while (count < 11) {
+	while (count < 9) {
 		for (int i = 0; i < NUM_DESC_FIELDS; i++) {
 			curr[i] = robot_desc_read(i);
 			if (curr[i] != prev[i]) {

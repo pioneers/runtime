@@ -113,12 +113,6 @@ void sanity_robot_desc_test ()
 				robot_desc_write(GAMEPAD, CONNECTED);
 				break;
 			case 8:
-				robot_desc_write(TEAM, GOLD);
-				break;
-			case 9:
-				robot_desc_write(TEAM, BLUE);
-				break;
-			case 10:
 				robot_desc_write(RUN_MODE, IDLE);
 				break;
 		}
