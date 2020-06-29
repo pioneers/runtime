@@ -19,6 +19,11 @@ mode_t fifo_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH; //
 int fifo_up = 0;  //flag that represents if FIFO is up and running
 int fifo_fd = -1; //file descriptor for FIFO
 
+void sigpipe_handler (int signum)
+{
+	fifo_up = 0;
+}
+
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
 void logger_init (process_t process)
@@ -37,14 +42,15 @@ void logger_init (process_t process)
 	
 	//open a FIFO for nonblocking writes
 	if (CURR_OUTPUT_LOC == NETWORK) {
-		if ((ret = mkfifo(FIFO_NAME, fifo_mode) == -1) && ret != EEXIST) {
+		if (((ret = mkfifo(FIFO_NAME, fifo_mode) == -1)) && errno != EEXIST) {
 			perror("logger create FIFO failed");
 		}
-		if ((fifo_fd = open(FIFO_NAME, O_WRONLY | O_NONBLOCK)) == -1) {
+		if ((fifo_fd = open(FIFO_NAME, O_RDWR | O_NONBLOCK)) == -1) {
 			perror("logger open FIFO failed");
 		} else {
 			fifo_up = 1;
 		}
+		signal(SIGPIPE, sigpipe_handler);
 	}
 	
 	if (process == DEV_HANDLER) {
@@ -92,7 +98,7 @@ void log_runtime (log_level level, char *msg)
 	static char *time_str;
 	static char final_msg[MAX_LOG_LEN];    //only used for sending onto FIFO
 	static int len;
-	
+
 	//don't do anything with this message if less than CURR_LOG_LEVEL
 	if (level < CURR_LOG_LEVEL) {
 		return;
@@ -113,7 +119,7 @@ void log_runtime (log_level level, char *msg)
 	
 	if (CURR_OUTPUT_LOC == NETWORK && fifo_up == 0) {
 		//try to connect to the FIFO
-		if ((fifo_fd = open(FIFO_NAME, O_WRONLY | O_NONBLOCK)) == -1) {
+		if ((fifo_fd = open(FIFO_NAME, O_RDWR | O_NONBLOCK)) == -1) {
 			;
 		} else {
 			fifo_up = 1;
@@ -127,8 +133,8 @@ void log_runtime (log_level level, char *msg)
 		}
 		if (write(fifo_fd, final_msg, strlen(final_msg)) == -1) {
 			//net_handler crashed or was terminated
-			if (errno == SIGPIPE) {
-				fifo_up = 0;
+			if (errno == EPIPE) {
+				perror("write: net handler crashed, defaulting to log file");
 			} else {
 				perror("write: failed to put next log message into FIFO");
 			}
@@ -155,10 +161,8 @@ void log_printf (log_level level, char *format, ...)
 	char msg[MAX_LOG_LEN];
 	va_list args; //this holds the variable-length argument list
 	
-    va_start(args, format);
-    vsprintf(msg, format, args); //formats the input message
+	va_start(args, format);
+	vsprintf(msg, format, args); //formats the input message
 	log_runtime(level, msg);     //use log_runtime to write formatted string to log file
-    va_end(args);
+	va_end(args);
 }
-
-

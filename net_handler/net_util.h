@@ -39,34 +39,68 @@
 typedef enum net_msg {
 	GAMEPAD_STATE_MSG, DEVICE_DATA_MSG,                           //UDP (mostly)
 	RUN_MODE_MSG, START_MODE_MSG, CHALLENGE_DATA_MSG, LOG_MSG,    //TCP
-	NOP, ACK                                                      //Misc
 } net_msg_t;
-
-//the two possible endpoints
-typedef enum target {
-	SHEPHERD_TARGET, DAWN_TARGET
-} target_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //
 
+/*
+ * General error wrapper for net_handler. Sends provided msg to logger.
+ * Arguments:
+ *    - char *msg: pointer to message to be associated with the error
+ */
 void error (char *msg);  //TODO: consider moving this to the general runtime util
 
-//read n bytes from fd into buf; return number of bytes read into buf
+/*
+ * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
+ * Arguments:
+ *    - int fd: file descriptor to read from
+ *    - void *buf: pointer to location to copy read bytes into
+ *    - size_t n: number of bytes to read
+ * Return:
+ *    - > 0: number of bytes read into buf
+ *    - 0: read EOF on fd
+ *    - -1: read errored out
+ */
 ssize_t readn (int fd, void *buf, size_t n);
 
-//write n bytes from buf to fd; return number of bytes written to fd
+/*
+ * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
+ * Arguments:
+ *    - int fd: file descriptor to write to
+ *    - void *buf: pointer to location to read from
+ *    - size_t n: number of bytes to write
+ * Return:
+ *    - >= 0: number of bytes written into buf
+ *    - -1: write errored out
+ */
 ssize_t writen (int fd, const void *buf, size_t n);
 
-//prepares send_buf by prepending msg_type into first byte, and len_pb into second and third bytes
-//caller must free send_buf
+/*
+ * Prepares a buffer of uint8_t for receiving a packed protobuf message of the specified type and length.
+ * Also converts the specified length of message from unsigned to uint16_t and returns it in the third argument.
+ * Returns the prepared buffer containing the message type in the first element and the length in the second and third elements.
+ * The prepared buffer must be freed by the caller.
+ * Arguments:
+ *    - net_msg_t msg_type: one of the message types defined in net_util.h
+ *    - unsigned len_pb: length of the serialized bytes returned by the protobuf function *__get_packed_size() 
+ *    - uint16_t *len_pb_uint16: upon successful return, will hold the given len_pb as a uint16_t (useful for pointer arithmetic)
+ * Return:
+ *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
+ *      to fit the rest of the serialized message into
+ */
 uint8_t *prep_buf (net_msg_t msg_type, unsigned len_pb, uint16_t *len_pb_uint16);
 
-//reads one byte from *fd and puts it in msg_type; reads two more bytes from *connfd
-//and puts it in len_pb, then reads len_pb bytes into buf
-//returns -1 if EOF read (shepherd disconnected); returns 0 on success
+/*
+ * Parses a message from the given file descriptor into its separate components and stores them in provided pointers
+ * Arguments:
+ *    - int *fd: pointer to file descriptor from which to read the incoming message
+ *    - net_msg_t *msg_type: message type of the incoming message will be stored in this location upon successful return
+ *    - uint16_t *len_pb: serialized length, in bytes, of the incoming message will be stored in this location upon successful return
+ *    - uint8_t *buf: serialized message will be stored starting at this location upon successful return
+ * Return:
+ *    - 0: successful return
+ *    - -1: EOF encountered when reading from fd
+ */
 int parse_msg (int *fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf);
-
-//finds max of three input numbers (used to find maxfdp1 for select)
-int max (int a, int b, int c);
 
 #endif
