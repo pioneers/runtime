@@ -11,7 +11,7 @@ cdef extern from "../runtime_util/runtime_util.h":
         EXECUTOR
     ctypedef struct device_t:
         char* name
-    ctypedef struct param_val_t:
+    ctypedef union param_val_t:
         int p_i
         float p_f
         uint8_t p_b
