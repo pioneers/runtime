@@ -9,9 +9,6 @@ import builtins
 
 """Student API written in Cython. """
 
-logger_init(EXECUTOR)
-log_runtime(DEBUG, "Student API intialized")
-
 MAX_THREADS = 8
 
 

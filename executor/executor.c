@@ -150,6 +150,10 @@ void executor_init(char* student_code) {
         executor_stop();
     }
 
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGINT);
+    sigprocmask(SIG_BLOCK, &sigset, NULL);
 }
 
 
@@ -193,7 +197,7 @@ uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, i
     PyObject *pValue = NULL;
     if (pFunc && PyCallable_Check(pFunc)) {
         struct timespec start, end;
-        uint64_t time, max_time;
+        uint64_t time, max_time = 0;
         if (timeout) {
             max_time = timeout->tv_sec * 1e9 + timeout->tv_nsec;
         }
@@ -280,6 +284,7 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
         executor_init("studentcode"); // Default name of student code file 
         run_mode(mode);
         executor_stop();
+        return pid; // Never reach this statement due to exit in executor_stop
     }
     else {
         // Now in parent process
