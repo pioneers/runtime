@@ -111,10 +111,11 @@ void log_runtime (log_level level, char *msg)
 	if (*(time_str + len - 1) == '\n') {
 		*(time_str + len - 1) = '\0';
 	}
-	
+	printf("%s\n", msg);
 	len = strlen(msg);
 	if (level == PYTHON) {
 		fprintf(fd, "%s", msg);
+		return;
 	} 
 	
 	if (CURR_OUTPUT_LOC == NETWORK && fifo_up == 0) {

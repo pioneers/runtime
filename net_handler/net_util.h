@@ -21,34 +21,26 @@
 #include "pbc_gen/gamepad.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
-#include "pbc_gen/startpos.pb-c.h"
+#include "pbc_gen/start_pos.pb-c.h"
 
 #define RASPI_PORT 8101     //well-known port of TCP listening socket used by runtime on raspi
-#define SHEPHERD_ADDR "192.168.0.25"
+#define SHEPHERD_ADDR "127.0.0.1"
 #define SHEPHERD_PORT 6101
-#define DAWN_ADDR "192.168.0.25"
+#define DAWN_ADDR "127.0.0.1"
 #define DAWN_PORT 7101
 
-#define UDP_PORT 8192
+#define UDP_PORT 9000
 
-#define LOG_MSG_MAXLEN 512       //max length of a log message, in chars
 #define MAX_NUM_LOGS 16          //maximum number of logs that can be sent in one msg
 #define MAX_SIZE_BYTES 4096      //maximum number of bytes that a serialized message can be (smaller than MAX_NUM_LOGS * LOG_MSG_MAXLEN)
 
 //All the different possible messages the network handler works with
 typedef enum net_msg {
-	GAMEPAD_STATE_MSG, DEVICE_DATA_MSG,                           //UDP (mostly)
-	RUN_MODE_MSG, START_MODE_MSG, CHALLENGE_DATA_MSG, LOG_MSG,    //TCP
+	RUN_MODE_MSG, START_POS_MSG, CHALLENGE_DATA_MSG, LOG_MSG, DEVICE_DATA_MSG
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //
 
-/*
- * General error wrapper for net_handler. Sends provided msg to logger.
- * Arguments:
- *    - char *msg: pointer to message to be associated with the error
- */
-void error (char *msg);  //TODO: consider moving this to the general runtime util
 
 /*
  * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
@@ -88,7 +80,7 @@ ssize_t writen (int fd, const void *buf, size_t n);
  *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
  *      to fit the rest of the serialized message into
  */
-uint8_t *prep_buf (net_msg_t msg_type, unsigned len_pb, uint16_t *len_pb_uint16);
+uint8_t *prep_buf (net_msg_t msg_type, int len_pb);
 
 /*
  * Parses a message from the given file descriptor into its separate components and stores them in provided pointers
@@ -101,6 +93,6 @@ uint8_t *prep_buf (net_msg_t msg_type, unsigned len_pb, uint16_t *len_pb_uint16)
  *    - 0: successful return
  *    - -1: EOF encountered when reading from fd
  */
-int parse_msg (int *fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf);
+int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf);
 
 #endif

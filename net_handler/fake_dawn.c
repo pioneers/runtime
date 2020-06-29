@@ -36,7 +36,7 @@ int main() {
     gp_state.connected = 1;
     gp_state.buttons = 13879812;
     gp_state.n_axes = 4;
-    gp_state.axes = data;
+    gp_state.axes = &data[0];
 
 
     int len = gp_state__get_packed_size(&gp_state);
@@ -65,8 +65,7 @@ int main() {
     }
     log_printf(DEBUG, "Raspi IP is %s", inet_ntoa(recvaddr.sin_addr));
     log_printf(DEBUG, "received data size %d", recv_size);
-    DevData* dev_data;
-    dev_data = dev_data__unpack(NULL, recv_size, msg);
+    DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
     if (dev_data == NULL)
 	{
 		log_printf(ERROR, "error unpacking incoming message\n");

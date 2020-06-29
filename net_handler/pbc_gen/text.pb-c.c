@@ -56,7 +56,7 @@ static const ProtobufCFieldDescriptor text__field_descriptors[1] =
 {
   {
     "payload",
-    2,
+    1,
     PROTOBUF_C_LABEL_REPEATED,
     PROTOBUF_C_TYPE_STRING,
     offsetof(Text, n_payload),
@@ -72,7 +72,7 @@ static const unsigned text__field_indices_by_name[] = {
 };
 static const ProtobufCIntRange text__number_ranges[1 + 1] =
 {
-  { 2, 0 },
+  { 1, 0 },
   { 0, 1 }
 };
 const ProtobufCMessageDescriptor text__descriptor =

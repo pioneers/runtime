@@ -135,18 +135,18 @@ static void recv_new_msg (int *connfd, int results_fd, Text *challenge_data_msg,
 				log_runtime(WARN, "requested robot to enter unknown robot mode");
 		}
 		run_mode__free_unpacked(run_mode_msg, NULL);
-	} else if (msg_type == STARTPOS) {
+	} else if (msg_type == START_POS_MSG) {
 		startpos_msg = start_pos__unpack(NULL, len_pb, buf);
 		
 		//write the specified start pos to the STARTPOS field of the robot description
 		switch (startpos_msg->pos) {
 			case (POS__LEFT):
 				log_runtime(DEBUG, "robot is in LEFT start position");
-				robot_desc_write(STARTPOS, LEFT);
+				robot_desc_write(START_POS, LEFT);
 				break;
 			case (POS__RIGHT):
 				log_runtime(DEBUG, "robot is in RIGHT start position");
-				robot_desc_write(STARTPOS, RIGHT);
+				robot_desc_write(START_POS, RIGHT);
 				break;
 			default:
 				log_runtime(WARN, "entered unknown start position");
