@@ -49,7 +49,7 @@ typedef enum robot_descs {
 // ******************************* CUSTOM STRUCTS ************************** //
 
 //hold a single param value
-typedef struct param {
+typedef union {
 	int p_i;       //data if int
 	float p_f;     //data if float
 	uint8_t p_b;   //data if bool
