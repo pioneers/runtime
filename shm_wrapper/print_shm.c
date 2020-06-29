@@ -13,4 +13,6 @@ int main(int argc, char* argv[]) {
     logger_init(TEST);
     shm_init(TEST);
     print_params(devices);
+    shm_stop(TEST);
+    logger_stop(TEST);
 }
