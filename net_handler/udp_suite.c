@@ -1,8 +1,6 @@
 #include "udp_suite.h"
 // #include "udp_lib.c"
 
-#define UDP_BUF_SIZE 2000   //largest size, in bytes, of a message (dev_ids could be pretty big)
-#define UDP_PORT 8192       //arbitrarily chosen port number (2^13 bc this was written year 13)
 
 //structure of argument into a pair of udp threads
 typedef struct {
@@ -158,7 +156,7 @@ void* process_udp_data(void* args) {
 			perror("sendto");
 		}
 		log_printf(DEBUG, "send buffer length %d, actual sent %d", sendlen, err);
-		free(send_buf);
+		free(send_buf);  // Free buffer with device data protobuf
 	}
 
 }
@@ -212,6 +210,9 @@ void stop_udp_suite ()
 
 void sigintHandler(int signum) {
 	stop_udp_suite();
+	shm_stop(NET_HANDLER);
+	shm_aux_stop(NET_HANDLER);
+	logger_stop(NET_HANDLER);
 }
 
 

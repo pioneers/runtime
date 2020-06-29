@@ -86,7 +86,7 @@ def teleop_main():
     Robot.set_value(MOTOR, 'duty_cycle', Gamepad.get_value('joystick_left_x'))
     pos = Robot.get_value(MOTOR, 'enc_pos')
 
-    if not Gamepad.get_value('button_a'):
+    if Gamepad.get_value('button_a'):
         global i, start 
         if i % 10000 == 0:
             print("Iteration:", i, time.time() - start)

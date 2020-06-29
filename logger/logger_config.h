@@ -16,7 +16,7 @@ typedef enum log_output { STD_OUT, LOG_FILE, NETWORK } log_output;
 #define CURR_OUTPUT_LOC NETWORK
 
 //define the name/location of the log file (for NETWORK and LOG_FILE)
-#define LOG_FILE_LOC "/home/pi/c-runtime/logger/runtime_log.log"
+#define LOG_FILE_LOC "/home/pi/c-runtime/logger/test.log"
 
 //define the name of the FIFO pipe (for NETWORK only)
 #define FIFO_NAME "/tmp/runtime-fifo"
