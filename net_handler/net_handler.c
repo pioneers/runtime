@@ -1,6 +1,7 @@
 #include "net_util.h"
-#include "shepherd_conn.h"
-#include "dawn_conn.h"
+// #include "shepherd_conn.h"
+// #include "dawn_conn.h"
+#include "tcp_conn.h"
 
 /*
  * Sets up TCP listening socket on raspberry pi.
@@ -17,17 +18,19 @@ int listening_socket_setup (int *sockfd)
 		
 	//create socket
 	if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		error("socket: failed to create listening socket");
+		perror("socket");
+		log_printf(ERROR, "failed to create listening socket");
 		logger_stop(NET_HANDLER);
 		return 1;
 	} else {
-		log_runtime(DEBUG, "socket: successfully created listening socket");
+		log_printf(DEBUG, "socket: successfully created listening socket");
 	}
 	
 	//set the socket option SO_REUSEADDR on so that if raspi terminates and restarts it can immediately reopen the same port
 	int optval = 1;
-	if ((setsockopt(*sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int))) != 0) {
-		error("setsockopt: failed to set listening socket for reuse of address");
+	if ((setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(int))) != 0) {
+		perror("setsockopt");
+		log_printf(ERROR, "failed to set listening socket for reuse of port");
 	}
 	
 	//set the elements of serv_addr
@@ -38,22 +41,24 @@ int listening_socket_setup (int *sockfd)
 	
 	//bind socket to well-known IP_addr:port
 	if ((bind(*sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in))) != 0) {
-		error("bind: failed to bind listening socket to raspi port");
+		perror("bind");
+		log_printf(ERROR, "failed to bind listening socket to raspi port");
 		logger_stop(NET_HANDLER);
 		close(*sockfd);
 		return 1;
 	} else {
-		log_runtime(DEBUG, "bind: successfully bound listening socket to raspi port");
+		log_printf(DEBUG, "bind: successfully bound listening socket to raspi port");
 	}
 	
 	//set the socket to be in listening mode (since the robot is the server)
 	if ((listen(*sockfd, 2)) != 0) {
-		error("listen: failed to set listening socket to listen mode");
+		perror("listen");
+		log_printf(ERROR, "failed to set listening socket to listen mode");
 		logger_stop(NET_HANDLER);
 		close(*sockfd);
 		return 1;
 	} else {
-		log_runtime(DEBUG, "listen: successfully set listening socket to listen mode");
+		log_printf(DEBUG, "listen: successfully set listening socket to listen mode");
 	}
 	return 0;
 }
@@ -105,21 +110,20 @@ int is_dawn (struct sockaddr_in *cli_addr)
  */
 void sigint_handler (int sig_num)
 {
-	log_runtime(INFO, "stopping net_handler");
+	log_printf(INFO, "stopping net_handler");
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
-		stop_shepherd_conn();
+		// stop_shepherd_conn();
 	}
 	if (robot_desc_read(DAWN) == CONNECTED) {
-		stop_dawn_conn();
+		stop_tcp_conn(DAWN);
+		// stop_dawn_conn();
 		//stop_dawn_udp(); //TODO: uncomment this once dawn udp integrated
 	}
 	shm_aux_stop(NET_HANDLER);
 	shm_stop(NET_HANDLER);
 	logger_stop(NET_HANDLER);
 	//sockfd is automatically closed when process terminates
-	
-	sleep(2); //wait for acks from shepherd and dawn to arrive so TCP ports can close properly
-	
+
 	exit(0);
 }
 
@@ -130,7 +134,7 @@ int main ()
 	int sockfd = -1, connfd = -1;
 	struct sockaddr_in cli_addr; //requesting client's address
 	socklen_t cli_addr_len = sizeof(struct sockaddr_in); //length of requesting client's address in bytes
-	
+	printf("size of net_msg %d", sizeof(net_msg_t));
 	//setup
 	logger_init(NET_HANDLER);
 	signal(SIGINT, sigint_handler);
@@ -143,23 +147,27 @@ int main ()
 	}
 	shm_aux_init(NET_HANDLER);
 	shm_init(NET_HANDLER);
-	
-	robot_desc_write(GAMEPAD, CONNECTED);  //TODO: remove once dawn UDP integrated
-	
+	log_printf(DEBUG, "Initialized utilities");
 	//TODO: incorporate a bit more security into this but for barebones this is fine
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
 		if ((connfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_addr_len)) < 0) {
-			error("accept: listen socket failed to accept a connection");
+			perror("accept");
+			log_printf(ERROR, "listen socket failed to accept a connection");
 			continue;
 		}
-		
+		log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
 		//if the incoming request is dawn or shepherd, start the appropriate threads
 		if (is_shepherd(&cli_addr)) {
-			start_shepherd_conn(connfd);
+			log_printf(DEBUG, "Starting Shepherd connection");
+			// start_shepherd_conn(connfd);
 		} else if (is_dawn(&cli_addr)) {
-			start_dawn_conn(connfd);
+			// start_dawn_conn(connfd);
+			log_printf(DEBUG, "Starting Dawn connection");
+			start_tcp_conn(DAWN, connfd, 1);
 			//start_dawn_udp(); //TODO: uncomment this once dawn udp integrated
+		} else {
+			log_printf(ERROR, "Client is neither Dawn nor Shepherd");
 		}
 	}
 	

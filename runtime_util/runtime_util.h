@@ -44,7 +44,7 @@ typedef enum robot_desc_vals {
 
 //enumerated names for the fields in the robot description
 typedef enum robot_descs {
-	RUN_MODE, DAWN, SHEPHERD, GAMEPAD, STARTPOS
+	RUN_MODE, DAWN, SHEPHERD, GAMEPAD, START_POS
 } robot_desc_field_t;
 
 // ******************************* CUSTOM STRUCTS ************************** //

@@ -114,8 +114,8 @@ void print_robot_desc ()
 			case GAMEPAD:
 				printf("\tGAMEPAD = %s\n", (rd_ptr->fields[GAMEPAD] == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
 				break;
-			case STARTPOS:
-				printf("\tSTARTPOS = %s\n", (rd_ptr->fields[STARTPOS] == LEFT) ? "LEFT" : "RIGHT");
+			case START_POS:
+				printf("\tSTART_POS = %s\n", (rd_ptr->fields[START_POS] == LEFT) ? "LEFT" : "RIGHT");
 				break;
 			default:
 				printf("unknown field\n");
@@ -229,7 +229,7 @@ void shm_aux_init (process_t process)
 		rd_ptr->fields[DAWN] = DISCONNECTED;
 		rd_ptr->fields[SHEPHERD] = DISCONNECTED;
 		rd_ptr->fields[GAMEPAD] = DISCONNECTED;
-		rd_ptr->fields[STARTPOS] = LEFT;
+		rd_ptr->fields[START_POS] = LEFT;
 		
 		//initialization complete; set gp_mutex to 1 indicating shm segment available for client(s)
 		my_sem_post(gp_sem, "gamepad_mutex@net_handler");

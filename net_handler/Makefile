@@ -8,7 +8,6 @@ GEN_FILES:=$(GEN_FOLDER)/*.c
 UNAME=$(shell uname)
 ifeq ($(UNAME), Linux)
 LIBS=-pthread -lrt
-#-rdynamic or -export-dynamic to make it dynamically linked
 endif
 ifeq ($(UNAME), Darwin)
 LIBS=
@@ -34,17 +33,20 @@ devdata: devdata_in devdata_out
 %: $(TEST_FOLDER)/%.c
 	gcc $(GEN_FILES) $(TEST_FOLDER)/$@.c -o $(TEST_FOLDER)/$@ $(LDFLAGS)
 
-client: networking_sanity/tcp_sanity_client.c pbc_gen/text.pb-c.c
-	gcc $^ -o networking_sanity/$@ $(LDFLAGS)
+client: protobuf_tests/tcp_pb_client.c pbc_gen/text.pb-c.c
+	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
 
-server: networking_sanity/tcp_sanity_server.c pbc_gen/text.pb-c.c
-	gcc $^ -o networking_sanity/$@ $(LDFLAGS)
+server: protobuf_tests/tcp_pb_server.c pbc_gen/text.pb-c.c
+	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
 
-udp_suite: udp_suite.c ../runtime_util/runtime_util.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
+udp_suite: udp_suite.c ../runtime_util/runtime_util.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../runtime_util/runtime_util.c
 	gcc $^ $(GEN_FILES) -o udp_suite $(LIBS) $(LDFLAGS)
 
-net_handler: net_util.c net_handler.c shepherd_conn.c dawn_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c
+net_handler: net_util.c net_handler.c tcp_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../runtime_util/runtime_util.c 
 	gcc $^ $(GEN_FILES) -o net_handler $(LIBS) $(LDFLAGS) 
 
 fake_dawn: fake_dawn.c ../logger/logger.c
 	gcc $^ $(GEN_FILES) -o fake_dawn $(LDFLAGS)
+
+tcp_client: tcp_test_client.c net_util.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../runtime_util/runtime_util.c 
+	gcc $^ $(GEN_FILES) -o tcp_client $(LIBS) $(LDFLAGS)

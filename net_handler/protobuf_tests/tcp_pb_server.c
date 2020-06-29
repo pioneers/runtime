@@ -6,7 +6,7 @@
 
 #include "../pbc_gen/text.pb-c.h"
 
-#define PORT 8192
+#define PORT 5001
 
 #define MAX_STRLEN 100
 
@@ -56,6 +56,7 @@ int main ()
 	// Binding newly created socket to given IP and verification 
 	if ((bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr))) != 0) { 
 		printf("socket bind failed...\n"); 
+		perror("bind");
 		exit(0);
 	} else {
 		printf("Socket successfully binded..\n"); 
@@ -96,8 +97,8 @@ int main ()
 	if (w_bytes == -1) {
 		perror("failed in socket write");
 	}
-	
 	// After chatting close the socket 
+	close(connfd);
     close(sockfd); 
 	
 	//fwrite(buf, len, 1, stdout); // Write to stdout to allow direct command line piping
