@@ -3,6 +3,7 @@
 //used for cleaning up shepherd thread on cancel
 typedef struct cleanup_objs {
 	int connfd;
+	int challenge_fd;
 	Text *challenge_data_msg;
 } cleanup_objs_t;
 
@@ -10,7 +11,11 @@ int shep_connfd;
 
 pthread_t shep_tid;
 
-//cleanup function for shepherd_conn thread
+/*
+ * Clean up memory and file descriptors before exiting from shepherd connection main control loop
+ * Arguments:
+ *    - void *args: should be a pointer to cleanup_objs_t populated with the listed descriptors and pointers
+ */
 static void shep_conn_cleanup (void *args)
 {
 	cleanup_objs_t *cleanup_objs = (cleanup_objs_t *) args;
@@ -20,53 +25,19 @@ static void shep_conn_cleanup (void *args)
 	if (close(cleanup_objs->connfd) != 0) {
 		error("close: connfd @shep");
 	}
+	if (close(cleanup_objs->challenge_fd) != 0) {
+		error("close: challenge_fd @shep");
+	}
 	robot_desc_write(SHEPHERD, DISCONNECTED);
 }
 
-//TODO: try and figure out the most optimized way to set up the log message (maybe write a custom allocator?)
-static void send_log_msg (int *connfd, FILE *log_fp, Text *log_msg)
-{
-	uint8_t *send_buf;        //buffer to send data on
-	unsigned len_pb;          //length of serialized protobuf
-	uint16_t len_pb_uint16;   //length of serialized protobuf, as uint16_t
-	size_t next_line_len;     //length of the next log line
-	char buf[MAX_LOG_LEN];    //buffer that next log line is read into, from which it is copied into text message
-	
-	//read in log lines until there are no more to read
-	for (log_msg->n_payload = 0; (fgets(buf, MAX_LOG_LEN, log_fp) != NULL) && (log_msg->n_payload < MAX_NUM_LOGS); log_msg->n_payload++) {
-		next_line_len = strlen((const char *) buf);
-		log_msg->payload[log_msg->n_payload] = (char *) malloc(sizeof(char) * next_line_len);
-		strcpy(log_msg->payload[log_msg->n_payload], (const char *) buf);
-	}
-	
-	if (ferror(log_fp) != 0) {
-		printf("error occured when reading log file\n");
-	}
-	
-	//prepare the message for sending
-	len_pb = text__get_packed_size(log_msg);
-	send_buf = prep_buf(LOG_MSG, len_pb, &len_pb_uint16);
-	if (len_pb_uint16 == 0) {
-		printf("no data\n");
-		free(send_buf);
-		return;
-	}
-	text__pack(log_msg, (void *) (send_buf + 3));  //pack message into the rest of send_buf (starting at send_buf[3] onward)
-	
-	printf("send_buf = %hhu %hhu %hhu\n", send_buf[0], send_buf[1], send_buf[2]);
-	
-	//send message on socket
-	if (writen(*connfd, send_buf, (size_t) (len_pb_uint16 + 3)) == -1) {
-		error("write: sending log message failed @shep");
-	}
-	
-	//free all allocated memory
-	for (int i = 0; i < log_msg->n_payload; i++) {
-		free(log_msg->payload[i]);
-	}
-	free(send_buf);
-}
-
+/* 
+ * Send a challenge data message on the TCP connection to Shepherd.
+ * Arguments:
+ *    - int *connfd: pointer to connection socket descriptor on which to write to the TCP port
+ *    - int results_fd: file descriptor of FIFO pipe from which to read challenge results from executor
+ *    - Text *challenge_data_msg: pointer to Text protobuf message structure in which to build the challenge data message
+ */
 static void send_challenge_msg (int *connfd, int results_fd, Text *challenge_data_msg)
 {
 	const int max_len = 1000;   //max len of a challenge data message
@@ -77,7 +48,7 @@ static void send_challenge_msg (int *connfd, int results_fd, Text *challenge_dat
 	char buf[max_len];          //buffer that results are read into, from which it is copied into text message
 	
 	//keep trying to read the line until you get it; copy that line into challenge_data_msg.payload[0]
-	//TODO: change this to deal with some sort of stream instead of a file
+	//TODO: change this to deal with FIFO pipe
 	//while (read(buf, max_len, results_fd) != 0);
 	result_len = strlen((const char *) buf);
 	challenge_data_msg->payload[0] = (char *) malloc(sizeof(char) * result_len);
@@ -98,12 +69,24 @@ static void send_challenge_msg (int *connfd, int results_fd, Text *challenge_dat
 	free(send_buf);
 }
 
+/*
+ * Receives new message from Shepherd on TCP connection and processes the message.
+ * Arguments:
+ *    - int *connfd: pointer to connection socket descriptor from which to read the message
+ *    - int results_fd: file descriptor of FIFO pipe to executor to which to write challenge input data if received
+ *    - Text *challenge_data_msg: pointer to Text protobuf message to use for processing Challenge Data messages
+ *    - RunMode *run_mode_msg: pointer to RunMode protobuf message to use for processing RunMode messages
+ *    - StartPos *startpos_msg: pointer to StartPos protobuf message to use for processing StartPos messages
+ *    - int *retval: pointer to integer in which return status will be stored
+ *            - 0 if message received and processed
+ *            - -1 if message could not be parsed because Shepherd disconnected and connection closed
+ */
 static void recv_new_msg (int *connfd, int results_fd, Text *challenge_data_msg, RunMode *run_mode_msg, StartPos *startpos_msg, int *retval)
 {
 	net_msg_t msg_type;           //message type
 	uint16_t len_pb;              //length of incoming serialized protobuf message
 	uint8_t buf[MAX_SIZE_BYTES];  //buffer to read raw data into
-	int challenge_len;            //length of the challenge data received string
+	size_t challenge_len;         //length of the challenge data received string
 	
 	//get the msg type and length in bytes; read the rest of msg into buf according to len_pb
 	//if parse_msg doesn't return 0, we found EOF and shepherd disconnected
@@ -116,13 +99,12 @@ static void recv_new_msg (int *connfd, int results_fd, Text *challenge_data_msg,
 	if (msg_type == CHALLENGE_DATA_MSG) {
 		challenge_data_msg = text__unpack(NULL, len_pb, buf);
 		
-		//TODO: write the provided input data for the challenge to wherever it needs to go
-		/*
+		//TODO: write the provided input data for the challenge to FIFO pipe to executor
 		challenge_len = strlen(challenge_data_msg->payload[0]);
-		if (fwrite(challenge_data_msg->payload[0], sizeof(char), challenge_len, results_fp) <= 0) {
+		if (writen(results_fd, challenge_data_msg->payload[0], challenge_len) == -1) {
 			error("fwrite: could not write to results.txt for challenge data @shep");
 		}
-		*/
+		
 		text__free_unpacked(challenge_data_msg, NULL);
 	} else if (msg_type == RUN_MODE_MSG) {
 		run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
@@ -176,6 +158,14 @@ static void recv_new_msg (int *connfd, int results_fd, Text *challenge_data_msg,
 	*retval = 0;
 }
 
+/*
+ * Main control loop for shepherd connection. Sets up connection by opening up pipe to read/write challenge data messages
+ * and sets up read_set for select(). Then it runs main control loop, using select() to make actions event-driven.
+ * Arguments:
+ *    - void *args: (always NULL)
+ * Return:
+ *    - NULL
+ */
 static void *shepherd_conn (void *args)
 {
 	int *connfd = &shep_connfd;
@@ -185,13 +175,11 @@ static void *shepherd_conn (void *args)
 	//initialize the protobuf messages
 	Text challenge_data_msg = TEXT__INIT;
 	challenge_data_msg.payload = (char **) malloc(sizeof(char *) * 1);
-	challenge_data_msg.n_payload = 1; 
-	
+	challenge_data_msg.n_payload = 1;
 	RunMode run_mode_msg = RUN_MODE__INIT;
-	
 	StartPos startpos_msg = START_POS__INIT;
 	
-	//TODO: Open connection to method of getting challenge data results
+	//TODO: Open connection to FIFO pipe in /tmp/* to executor for sending/receiving challenge results
 	/*
 	if ((results_fp = fopen("../executor/results.txt", "r+b")) == NULL) { //TODO: NOT IMPLEMENTED YET
 		error("fopen: could not open results file for reading @shep");
@@ -209,7 +197,7 @@ static void *shepherd_conn (void *args)
 	FD_ZERO(&read_set);
 	
 	//set cleanup objects for cancellation handler
-	cleanup_objs_t cleanup_objs = { *connfd, &challenge_data_msg };
+	cleanup_objs_t cleanup_objs = { *connfd, results_fd, &challenge_data_msg };
 	
 	//main control loop that is responsible for sending and receiving data
 	while (1) {
@@ -251,6 +239,12 @@ static void *shepherd_conn (void *args)
 	return NULL;
 }
 
+/*
+ * Start the main shepherd connection control thread. Does not block.
+ * Should be called when Shepherd has requested a connection to Runtime.
+ * Arguments:
+ *    - int connfd: connection socket descriptor on which there is the established connection with Shepherd
+ */
 void start_shepherd_conn (int connfd)
 {
 	shep_connfd = connfd;
@@ -266,6 +260,10 @@ void start_shepherd_conn (int connfd)
 	log_runtime(INFO, "successfully made connection with Shepherd and started thread!");
 }
 
+/*
+ * Stops the shepherd connection control thread cleanly. May block briefly to allow
+ * main control thread to finish what it's doing. Should be called right before the net_handler main loop terminates.
+ */
 void stop_shepherd_conn ()
 {
 	if (pthread_cancel(shep_tid) != 0) {
