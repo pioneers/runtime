@@ -23,8 +23,8 @@ public:
 	 */
 	Status read_message (message_t *msg);
 
-	FILE* read_file; 	// File to read incoming message for file dev handler
-	FILE* write_file;	// File to write outgoing messages for file dev handler
+	FILE* read_file = new FILE(); 	// File to read incoming message for file dev handler
+	FILE* write_file = new FILE();	// File to write outgoing messages for file dev handler
 
 private:
 	//protocol constants
