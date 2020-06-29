@@ -3,11 +3,18 @@
 
 #include "net_util.h"
 
-//starts the shepherd connection thread
-//connfd is the file descriptor of the connected socket returned by accept()
+/*
+ * Start the main shepherd connection control thread. Does not block.
+ * Should be called when Shepherd has requested a connection to Runtime.
+ * Arguments:
+ *    - int connfd: connection socket descriptor on which there is the established connection with Shepherd
+ */
 void start_shepherd_conn (int connfd);
 
-//gracefully stops the shepherd connection thread
+/*
+ * Stops the shepherd connection control thread cleanly. May block briefly to allow
+ * main control thread to finish what it's doing. Should be called right before the net_handler main loop terminates.
+ */
 void stop_shepherd_conn ();
 
 #endif

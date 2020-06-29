@@ -12,10 +12,15 @@ int dawn_connfd;
 pthread_t dawn_tid;
 
 //for the internal log message buffering
-char global_buf[MAX_LOG_LEN];
-int global_buf_pending = 0;    //to keep track of whether there's stuff in the glob_buf for processing
+char glob_buf[MAX_LOG_LEN];
+int glob_buf_ix = 0;  //index of glob_buf we are currently operating on
+int glob_buf_end = 0; //index of first invalid char in glob_buf
 
-//cleanup function for dawn_conn thread
+/*
+ * Clean up memory and file descriptors before exiting from dawn connection main control loop
+ * Arguments:
+ *    - void *args: should be a pointer to cleanup_objs_t populated with the listed descriptors and pointers
+ */
 static void dawn_conn_cleanup (void *args)
 {
 	cleanup_objs_t *cleanup_objs = (cleanup_objs_t *) args;
@@ -32,92 +37,113 @@ static void dawn_conn_cleanup (void *args)
 	robot_desc_write(DAWN, DISCONNECTED);
 }
 
-//TODO: try and figure out the most optimized way to set up the log message (maybe write a custom allocator?)
-static void send_log_msg (int *connfd, int fifofd, Text *log_msg)
+/* 
+ * Read the next line of text from FIFO, including a terminating newline and null character, into a string.
+ * The returned string is exactly long enough to fit the text, and needs to be freed by the caller.
+ * Arguments:
+ *    - int fifofd: file descriptor of the log pipe to read from
+ *    - int *retval: pointer to integer to save a status message in
+ *            - *retval = 1 is set if no more could be read from pipe because there is no data
+ *            - *retval = 0 is set if EOF read from pipe (all writers have closed)
+ *            - *retval = -1 is set if read failed in an unexpected way
+ *            - *retval = 2 if read successful
+ * Return:
+ *    - pointer to character (string) that is newline- and null-terminated containing next line from pipe
+ *    - NULL if error (check retval for specific value)
+ */
+static char *readline (int fifofd, int *retval)
 {
-	uint8_t *send_buf;           //buffer to send data on
-	unsigned len_pb;             //length of serialized protobuf
-	uint16_t len_pb_uint16;      //length of serialized protobuf, as uint16_t
-	size_t next_line_len;        //length of the next log line
-	ssize_t n_read;              //return value of read(), normally the number of bytes read
-	int log_msg_ix = 0;          //indexer into the string in log_msg
-	int line_start_ix;           //saves index of start of current line
-	char buf[MAX_LOG_LEN];       //buffer to read MAX_LOG_LEN bytes from the FIFO
-	int i, j, k;                 //indexers (i is an indexer into global_buf, j into buf, k into log_msg->payload[log_msg->n_payload])
+	static char buf[MAX_LOG_LEN];
+	char *line;
+	ssize_t n_read;
+	int i = 0;
+	
+	//if there is still stuff left to read in glob_buf
+	if (glob_buf_ix < glob_buf_end) {
+		//printf("copying remaining contents before read\n");
+		while (glob_buf_ix < glob_buf_end && glob_buf[glob_buf_ix] != '\n') {
+			buf[i++] = glob_buf[glob_buf_ix++];
+		}
+	}
+	
+	//if we got to the end of glob_buf, we need to read more from pipe
+	if (glob_buf_ix == glob_buf_end) {
+		n_read = read(fifofd, glob_buf, MAX_LOG_LEN);
+		//handle error cases and return NULL
+		if (n_read == -1) {
+			if (errno == EAGAIN || errno == EWOULDBLOCK) { //if no more data on fifo pipe
+				*retval = 1;
+			} else { //some other error
+				*retval = -1;
+				error("read: log fifo @dawn");
+			}
+			return NULL;
+		} else if (n_read == 0) { //EOF
+			*retval = 0;
+			return NULL;
+		}
+		
+		//set global vars
+		glob_buf_ix = 0;
+		glob_buf_end = n_read;
+		
+		//copy from glob_buf into buf until newline
+		while (glob_buf[glob_buf_ix] != '\n') {
+			buf[i++] = glob_buf[glob_buf_ix++];
+		}
+	}
+	glob_buf_ix++; //glob_buf_ix needs to point to next uncopied character after the newline
+	
+	//finished reading next line into buf, now copy into line and newline- and null-terminate it
+	line = (char *) malloc(sizeof(char) * (i + 2)); //+2 for the newline and null characters
+	memcpy(line, buf, i);
+	line[i] = '\n';
+	line[i + 1] = '\0';
+	*retval = 2;
+	
+	return line;
+}
+
+/* 
+ * Send a log message on the TCP connection to Dawn. Reads lines from the pipe until there is no more data
+ * or it has read MAX_NUM_LOGS lines from the pipe, packages the message, and sends it.
+ * Arguments:
+ *    - int *connfd: pointer to connection socket descriptor on which to write to the TCP port
+ *    - int fifofd: file descriptor of FIFO pipe from which to read log lines
+ *    - Text *log_msg: pointer to Text protobuf message structure in which to build the log message
+ * Return:
+ *    - 1: log message sent successfully
+ *    - 0: EOF encoutered on pipe; no more writers to the pipe
+ *    - -1: pipe errored out on read
+ */
+static int send_log_msg (int *connfd, int fifofd, Text *log_msg)
+{	
+	char *nextline;            //next log line read from FIFO pipe
+	int retval;                //return value for readline()
+	unsigned len_pb;           //length of serialized protobuf message
+	uint16_t len_pb_uint16;    //length of serialized protobuf message, as uin16_t
+	uint8_t *send_buf;         //buffer for constructing the final log message
 	
 	//read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
 	log_msg->n_payload = 0;
 	while (log_msg->n_payload < MAX_NUM_LOGS) {
-		n_read = read(fifofd, buf, MAX_LOG_LEN);
-		if (n_read == -1) {
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {  //if no more data on fifo pipe
+		if ((nextline = readline(fifofd, &retval)) == NULL) {
+			if (retval == 1) { //if no more data to read (EWOULDBLOCK or EAGAIN)
 				break;
-			} else {  //some other error
-				error("read: log fifo @dawn");
-				break;
+			} else if (retval == 0) {  //if EOF (all writers of FIFO pipe crashed; shouldn't happen)
+				return 0;
+			} else if  (retval == -1) {  //some other error
+				return -1;
 			}
 		}
-		
-		//if there's something we need to take care of in the global buf
-		i = 0, j = 0;
-		if (global_buf_pending == 1) {
-			for ( ; global_buf[i] != '\n'; i++);
-			for ( ; buf[j] != '\n'; j++);
-			log_msg->payload[log_msg->n_payload] = (char *) malloc(sizeof(char) * (i + j + 2));
-			//copy what remains in the global buf
-			for (k = 0; k < i; k++) {
-				log_msg->payload[log_msg->n_payload][k] = global_buf[k];
-			}
-			//copy the rest of the message in buf
-			for ( ; k < (i + j + 1); k++) {
-				log_msg->payload[log_msg->n_payload][k] = buf[k - i];
-			}
-			log_msg->payload[log_msg->n_payload][k + 1] = '\0'; //null terminate
-			log_msg->n_payload++;
-			j++;
-			global_buf_pending = 0;
-		}
-		
-		//save start of line
-		//read until newline or nothing left
-		//if newline then malloc current index - start of line bytes and copy; increment n_payloads and repeat from top
-		//if nothing left, continue and don't reset anything
-		//after incrementing n_payloads, if over MAX_NUM_LOGS, then break and don't reset anything
-		while (log_msg->n_payload < MAX_NUM_LOGS) {
-			line_start_ix = j;
-			for ( ; buf[j] != '\n' && j < n_read; j++);
-			if (buf[j] == '\n') {
-				log_msg->payload[log_msg->n_payload] = (char *) malloc(sizeof(char) * (j - line_start_ix + 2));
-				//copy the line
-				for (k = 0; k <= (j - line_start_ix); k++) {
-					log_msg->payload[log_msg->n_payload][k] = buf[line_start_ix + k];
-				}
-				log_msg->payload[log_msg->n_payload][k + 1] = '\0'; //null terminate the line
-				log_msg->n_payload++;
-				j++;
-			} else {
-				//if we got to the end of buf, then stash the rest of buf into global_buf to prepend to result of next read
-				for (k = 0; k <= (j - line_start_ix); k++) {
-					global_buf[k] = buf[line_start_ix + k];
-				}
-				global_buf[k + 1] = '\n';
-				global_buf_pending = 1;
-				break; //go back to outer while loop and read more from the FIFO pipe
-			}
-		}
+		log_msg->payload[log_msg->n_payload] = nextline;
+		log_msg->n_payload++;
 	}
 	
 	//prepare the message for sending
 	len_pb = text__get_packed_size(log_msg);
 	send_buf = prep_buf(LOG_MSG, len_pb, &len_pb_uint16);
-	if (len_pb_uint16 == 0) {
-		printf("no data\n");
-		free(send_buf);
-		return;
-	}
 	text__pack(log_msg, (void *) (send_buf + 3));  //pack message into the rest of send_buf (starting at send_buf[3] onward)
-	
-	printf("send_buf = %hhu %hhu %hhu\n", send_buf[0], send_buf[1], send_buf[2]);
 	
 	//send message on socket
 	if (writen(*connfd, send_buf, (size_t) (len_pb_uint16 + 3)) == -1) {
@@ -129,8 +155,19 @@ static void send_log_msg (int *connfd, int fifofd, Text *log_msg)
 		free(log_msg->payload[i]);
 	}
 	free(send_buf);
+	return 1;
 }
 
+/*
+ * Receives new message from Dawn on TCP connection and processes the message.
+ * Arguments:
+ *    - int *connfd: pointer to connection socket descriptor from which to read the message
+ *    - RunMode *run_mode_msg: pointer to RunMode protobuf message to use for processing RunMode messages
+ *    - DevData *dev_data_msg: pointer to DevData protobuf message to use for processing DevData messages
+ *    - int *retval: pointer to integer in which return status will be stored
+ *            - 0 if message received and processed
+ *            - -1 if message could not be parsed because Dawn disconnected and connection closed
+ */
 static void recv_new_msg (int *connfd, RunMode *run_mode_msg, DevData *dev_data_msg, int *retval)
 {
 	net_msg_t msg_type;           //message type
@@ -186,6 +223,14 @@ static void recv_new_msg (int *connfd, RunMode *run_mode_msg, DevData *dev_data_
 	*retval = 0;
 }
 
+/*
+ * Main control loop for dawn connection. Sets up connection by opening up pipe to read log messages from
+ * and sets up read_set for select(). Then it runs main control loop, using select() to make actions event-driven.
+ * Arguments:
+ *    - void *args: (always NULL)
+ * Return:
+ *    - NULL
+ */
 static void *dawn_conn (void *args)
 {
 	int *connfd = &dawn_connfd;
@@ -195,9 +240,7 @@ static void *dawn_conn (void *args)
 	//initialize the protobuf messages
 	Text log_msg = TEXT__INIT;
 	log_msg.payload = (char **) malloc(sizeof(char *) * MAX_NUM_LOGS);
-	
 	RunMode run_mode_msg = RUN_MODE__INIT;
-	
 	DevData dev_data_msg = DEV_DATA__INIT;
 	
 	//Open FIFO pipe for logs
@@ -251,11 +294,17 @@ static void *dawn_conn (void *args)
 	return NULL;
 }
 
+/*
+ * Start the main dawn connection control thread. Does not block.
+ * Should be called when Dawn has requested a connection to Runtime.
+ * Arguments:
+ *    - int connfd: connection socket descriptor on which there is the established connection with Dawn
+ */
 void start_dawn_conn (int connfd)
 {
 	dawn_connfd = connfd;
 	
-	//create thread, give it connfd, write that dawn is connected
+	//create the main control thread
 	if (pthread_create(&dawn_tid, NULL, dawn_conn, NULL) != 0) {
 		error("pthread_create: @dawn");
 		return;
@@ -266,6 +315,10 @@ void start_dawn_conn (int connfd)
 	log_runtime(INFO, "successfully made connection with Dawn and started thread!");
 }
 
+/*
+ * Stops the dawn connection control thread cleanly. May block briefly to allow
+ * main control thread to finish what it's doing. Should be called right before the net_handler main loop terminates.
+ */
 void stop_dawn_conn ()
 {
 	if (pthread_cancel(dawn_tid) != 0) {
