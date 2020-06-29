@@ -5,4 +5,6 @@ int main() {
     shm_aux_init(TEST);
     print_robot_desc();
     print_gamepad_state();
+    shm_aux_stop(TEST);
+    logger_stop(TEST);
 }
