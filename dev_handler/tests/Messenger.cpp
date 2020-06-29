@@ -16,6 +16,21 @@ Messenger::Messenger ()
 {
 	if (OUTPUT == USB_DEV) {
 		//Serial.begin(115200); //open Serial (USB) connection
+	} else if (OUTPUT == FILE_DEV) {
+		printf("ATTEMPING TO OPEN FILES\n");
+		// Open the file to read from
+		this->read_file = fopen(TO_DEVICE, "w+");
+		if (this->read_file == NULL) {
+			printf("ERROR: Couldn't open TO_DEVICE file\n");
+		}
+		printf("OPENED READ_FILE\n");
+		fflush(stdout);
+		// Open the file to write to
+		this->write_file = fopen(TO_DEV_HANDLER, "w+");
+		if (this->write_file == NULL) {
+			printf("ERROR: Couldn't open TO_DEV_HANDLER file\n");
+		}
+		printf("OPENED WRITE_FILE\n");
 	}
 }
 
@@ -55,7 +70,7 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, uint32_t param
 //TODO: be more specific about errors and maybe define the error types in defs.h
 Status Messenger::read_message (message_t *msg)
 {
-	printf("Checking if there's something to read\n");
+	//printf("Checking if there's something to read\n");
 	//if nothing to read
 	if (OUTPUT == USB_DEV) {
 		// if (!Serial.available()) {

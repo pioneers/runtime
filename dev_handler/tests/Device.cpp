@@ -6,7 +6,7 @@ const float Device::ALPHA = 0.25;		//tuning parameter for how the interpolation 
 
 //Device constructor
 //initializer list at end of this line initializes the this->msngr and this->led variables properly
-Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32_t heartbeat_delay) : msngr()//, led()
+Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32_t heartbeat_delay) //: msngr()//, led()
 {
 	//initialize primitive variables
 	this->sub_delay = 0; //default 0 to signal not subscribed
@@ -19,22 +19,9 @@ Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32
 	this->UID.year = dev_year;
 	this->UID.id = UID_RANDOM; //this is defined at compile time by the flash script
 
-	// Ideally this would be in Messenger constructor but idk why it doesn't work
-	if (OUTPUT == FILE_DEV) {
-		printf("ATTEMPING TO OPEN FILES\n");
-		// Open the file to read from
-		this->msngr->read_file = fopen(TO_DEVICE, "w+");
-		if (this->msngr->read_file == NULL) {
-			printf("ERROR: Couldn't open TO_DEVICE file\n");
-		}
-		printf("OPENED READ_FILE\n");
-		// Open the file to write to
-		this->msngr->write_file = fopen(TO_DEV_HANDLER, "w+");
-		if (this->msngr->write_file == NULL) {
-			printf("ERROR: Couldn't open TO_DEV_HANDLER file\n");
-		}
-		printf("OPENED WRITE_FILE\n");
-	}
+	// Initialize the Messenger; Putting msngr() in initializer list doesn't run constructor properly
+	this->msngr = new Messenger();
+
 	device_enable(); //call device's enable function
 }
 
