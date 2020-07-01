@@ -25,7 +25,7 @@ int main ()
 	int optval = 1;
 	if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(int))) != 0) {
 		perror("setsockopt");
-		log_printf(ERROR, "failed to set listening socket for reuse of port");
+		printf("failed to set listening socket for reuse of port");
 	}
 	
 	//set the elements of cli_addr
@@ -76,7 +76,7 @@ int main ()
 	//do actions
 	while (1) {
 		//parse message 
-		if (parse_msg(sockfd, &msg_type, &len, buf) != 0) {
+		if (parse_msg(sockfd, &msg_type, &len, &buf) != 0) {
 			printf("raspi disconnected\n");
 			break;
 		}

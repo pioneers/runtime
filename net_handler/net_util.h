@@ -93,6 +93,6 @@ uint8_t *prep_buf (net_msg_t msg_type, int len_pb);
  *    - 0: successful return
  *    - -1: EOF encountered when reading from fd
  */
-int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf);
+int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf);
 
 #endif

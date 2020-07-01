@@ -8,8 +8,9 @@ typedef struct {
 } tcp_conn_args_t;
 
 pthread_t dawn_tid, shepherd_tid;
-int log_fd;
-int challenge_fd;
+int log_fd = - 1;
+int challenge_fd = -1;
+FILE* log_file;
 
 //for the internal log message buffering
 char glob_buf[MAX_LOG_LEN];
@@ -33,10 +34,10 @@ static void tcp_conn_cleanup (void *args)
         log_printf(ERROR, "Failed to close conn_fd");
 		perror("close: connfd");
 	}
-    // if (close(challenge_fd) != 0) {
-    //     log_printf(ERROR, "Failed to close challenge_fd");
-    //     perror("close: challenge_fd");
-    // }
+    if (close(challenge_fd) != 0) {
+        log_printf(ERROR, "Failed to close challenge_fd");
+        perror("close: challenge_fd");
+    }
 	robot_desc_write(tcp_args->client, DISCONNECTED);
 	free(args);
 }
@@ -69,11 +70,8 @@ static char *readline (int fifofd, int *retval)
 			buf[i++] = glob_buf[glob_buf_ix++];
 		}
 	}
-	log_printf(DEBUG, "About to read %d from queue", MAX_LOG_LEN);
 	//if we got to the end of glob_buf, we need to read more from pipe
 	if (glob_buf_ix == glob_buf_end) {
-		log_printf(DEBUG, "Reading from %d", fifofd);
-		scanf("test");
 		n_read = read(fifofd, glob_buf, MAX_LOG_LEN);
 		//handle error cases and return NULL
 		if (n_read == -1) {
@@ -126,29 +124,40 @@ static char *readline (int fifofd, int *retval)
  */
 static int send_log_msg (int connfd, int fifofd)
 {	
-	char *nextline;            //next log line read from FIFO pipe
+	char nextline[MAX_LOG_LEN];            //next log line read from FIFO pipe
 	int retval;                //return value for readline()
 	
 	//read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
     Text log_msg = TEXT__INIT;
 	log_msg.n_payload = 0;
-	log_printf(DEBUG, "Starting to read from queue");
+	log_msg.payload = malloc(MAX_NUM_LOGS * sizeof(char*));
 	while (log_msg.n_payload < MAX_NUM_LOGS) {
-		if ((nextline = readline(fifofd, &retval)) == NULL) {
-			if (retval == 1) { //if no more data to read (EWOULDBLOCK or EAGAIN)
-				break;
-			} else if (retval == 0) {  //if EOF (all writers of FIFO pipe crashed; shouldn't happen)
-				log_printf(DEBUG, "EOF in readline");
-				return 0;
-			} else if  (retval == -1) {  //some other error
-				log_printf(DEBUG, "Some other error in readline");
-				return -1;
-			}
+		// if ((nextline = readline(fifofd, &retval)) == NULL) {
+		// 	if (retval == 1) { //if no more data to read (EWOULDBLOCK or EAGAIN)
+		// 		break;
+		// 	} else if (retval == 0) {  //if EOF (all writers of FIFO pipe crashed; shouldn't happen)
+		// 		log_printf(DEBUG, "EOF in readline");
+		// 		return 0;
+		// 	} else if  (retval == -1) {  //some other error
+		// 		log_printf(DEBUG, "Some other error in readline");
+		// 		return -1;
+		// 	}
+		// }
+		if (fgets(nextline, MAX_LOG_LEN, log_file) != NULL) {
+			log_msg.payload[log_msg.n_payload] = malloc(MAX_LOG_LEN);
+			strcpy(log_msg.payload[log_msg.n_payload], nextline);
+			log_msg.n_payload++;
 		}
-		log_msg.payload[log_msg.n_payload] = nextline;
-		log_msg.n_payload++;
+		else if (errno == EAGAIN) { // EAGAIN occurs when nothing to read
+			break;
+		}
+		else { 
+			perror("fgets");
+			printf("Error reading from log fifo\n");
+			return -1;
+		}
 	}
-	log_printf(ERROR, "read lines from FIFO");
+	
 	//prepare the message for sending
 	int len_pb = text__get_packed_size(&log_msg);
 	uint8_t* send_buf = prep_buf(LOG_MSG, len_pb);
@@ -164,6 +173,7 @@ static int send_log_msg (int connfd, int fifofd)
 	for (int i = 0; i < log_msg.n_payload; i++) {
 		free(log_msg.payload[i]);
 	}
+	free(log_msg.payload);
 	free(send_buf);
 	return 1;
 }
@@ -178,17 +188,21 @@ static int send_log_msg (int connfd, int fifofd)
  */
 static void send_challenge_msg (int connfd, int results_fd)
 {
-	const int max_len = 1000;   //max len of a challenge data message
-	size_t result_len;          //length of results string
+	const int max_len = 4096;   //max len of a challenge data message
+	int result_len;          //length of results string
 	char buf[max_len];          //buffer that results are read into, from which it is copied into text message
 	
 	//keep trying to read the line until you get it; copy that line into challenge_data_msg.payload[0]
 	//TODO: change this to deal with FIFO pipe
 	//while (read(buf, max_len, results_fd) != 0);
-	result_len = strlen((const char *) buf);
+	if ((result_len = read(results_fd, buf, max_len)) != 0) {
+		perror("read");
+		log_printf(ERROR, "send_challenge: reading from challenge_fd failed");
+		return;
+	}
     Text challenge_data_msg = TEXT__INIT;
 	challenge_data_msg.payload[0] = malloc(result_len);
-	strcpy(challenge_data_msg.payload[0], (const char *) buf);
+	strcpy(challenge_data_msg.payload[0], buf);
 	
 	//prepare the message for sending
 	int len_pb = text__get_packed_size(&challenge_data_msg);
@@ -221,31 +235,44 @@ static int recv_new_msg (int connfd, int results_fd)
 	net_msg_t msg_type;           //message type
 	uint16_t len_pb;              //length of incoming serialized protobuf message
 	uint8_t* buf;                 //buffer to read raw data into
-	size_t challenge_len;         //length of the challenge data received string
 	
 	//get the msg type and length in bytes; read the rest of msg into buf according to len_pb
 	//if parse_msg doesn't return 0, we found EOF and shepherd disconnected
-	if (parse_msg(connfd, &msg_type, &len_pb, buf) != 0) {
+	if (parse_msg(connfd, &msg_type, &len_pb, &buf) != 0) {
 		log_printf(ERROR, "Cannot parse message");
 		return -1;
 	};
-	
+
 	//unpack according to message
 	if (msg_type == CHALLENGE_DATA_MSG) {
-		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
-		robot_desc_write(RUN_MODE, CHALLENGE);
 
 		Text* challenge_data_msg = text__unpack(NULL, len_pb, buf);
+		if (challenge_data_msg == NULL) {
+			log_printf(ERROR, "Cannot unpack text msg");
+		}
 		//TODO: write the provided input data for the challenge to FIFO pipe to executor
-		challenge_len = strlen(challenge_data_msg->payload[0]);
+		int challenge_len = strlen(challenge_data_msg->payload[0]);
 		if (writen(results_fd, challenge_data_msg->payload[0], challenge_len) == -1) {
 			perror("fwrite");
 			log_printf(ERROR, "could not write to results.txt for challenge data");
 		}
 		text__free_unpacked(challenge_data_msg, NULL);
+		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
+		robot_desc_write(RUN_MODE, CHALLENGE);
+		// Blocks till the challenge finished running
+		while (robot_desc_read(RUN_MODE) != IDLE) {
+			sleep(1);
+		}
+		// Send results back to client
+		send_challenge_msg(connfd, results_fd);
 	} 
 	else if (msg_type == RUN_MODE_MSG) {
+		log_printf(DEBUG, "Received run mode msg, len %d", len_pb);
 		RunMode* run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
+		if (run_mode_msg == NULL) {
+			perror("run_mode__unpack");
+			log_printf(ERROR, "Cannot unpack run_mode msg");
+		}
 		
 		//write the specified run mode to the RUN_MODE field of the robot description
 		switch (run_mode_msg->mode) {
@@ -317,35 +344,37 @@ static void* process_tcp (void* tcp_args)
     tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
 	
 	//Open FIFO pipe for logs
-	if ((log_fd = open(FIFO_NAME, O_RDWR | O_NONBLOCK)) == -1) {
+	if ((log_fd = open(FIFO_NAME, O_RDONLY | O_NONBLOCK)) == -1) {
 		perror("fifo open");
-        log_printf(ERROR, " could not open log FIFO on %d", args->client);
+		log_printf(ERROR, "could not open log FIFO on %d", args->client);
 	}
-	log_printf(DEBUG, "Opened up log FIFO %d", log_fd);
-    // open challenge_fd for reading here
-	log_printf(DEBUG, "conn_fd inside process %d", args->conn_fd);
+	if ((log_file = fdopen(log_fd, "r")) == NULL) {
+		perror("fdopen");
+		log_printf(ERROR, "could not open log file from fd");
+	}
+
+    // open challenge_fd for reading
+	if ((challenge_fd = open(CHALLENGE_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
+		perror("fifo open");
+		log_printf(ERROR, "could not open challenge FIFO on %d", args->client);
+	}
+
 	//variables used for waiting for something to do using select()
 	int maxfdp1 = ((args->conn_fd > log_fd) ? args->conn_fd : log_fd) + 1;
 	fd_set read_set;
 	//main control loop that is responsible for sending and receiving data
 	while (1) {
 		FD_ZERO(&read_set);
-		log_printf(DEBUG, "max set size %d, conn_fd %d", FD_SETSIZE, args->conn_fd);
 		FD_SET(args->conn_fd, &read_set);
-		log_printf(DEBUG, "Setting fd_set");
-		FD_SET(log_fd, &read_set);
-		log_printf(DEBUG, "reading from aux SHM");
-        if (robot_desc_read(RUN_MODE) == CHALLENGE) {
-			FD_SET(challenge_fd, &read_set);
+		if (args->send_logs) {
+			FD_SET(log_fd, &read_set);
 		}
-		log_printf(DEBUG, "Setting cleanup handler");
 		//prepare to accept cancellation requests over the select
 		pthread_cleanup_push(tcp_conn_cleanup, args);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel();
 		
 		//wait for something to happen
-		log_printf(DEBUG, "waiting on select");
 		if (select(maxfdp1, &read_set, NULL, NULL, NULL) < 0) {
 			perror("select");
             log_printf(ERROR, "Failed to wait for select in control loop for client %d", args->client);
@@ -356,10 +385,10 @@ static void* process_tcp (void* tcp_args)
 		pthread_cleanup_pop(0); //definitely do NOT execute the cleanup handler!
 		
 		//send a new log message if one is available
-		if (FD_ISSET(log_fd, &read_set)) {
-			log_printf(DEBUG, "received message on log");
+		if (args->send_logs && FD_ISSET(log_fd, &read_set)) {
 			send_log_msg(args->conn_fd, log_fd);
 		}
+
 		//receive new message on socket if it is ready
 		if (FD_ISSET(args->conn_fd, &read_set)) {
 			log_printf(DEBUG, "received message on socket");
