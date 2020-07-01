@@ -17,6 +17,7 @@
 #define NUM_GAMEPAD_BUTTONS 17              //number of gamepad buttons
 
 #define MAX_LOG_LEN 512
+#define CHALLENGE_FIFO "/tmp/challenge-fifo"
 
 //enumerate names of processes
 typedef enum process {

@@ -103,7 +103,7 @@ uint8_t *prep_buf (net_msg_t msg_type, int len_pb)
 	*send_buf = (uint8_t) msg_type;
 	uint16_t* ptr_16 = (uint16_t*) (send_buf + 1);
 	*ptr_16 = (uint16_t) len_pb;
-	log_printf(DEBUG, "prepped buffer, len %d, ptr16 %d, msg_type %d", len_pb, *ptr_16, msg_type);
+	// log_printf(DEBUG, "prepped buffer, len %d, ptr16 %d, msg_type %d, send buf %d %d %d", len_pb, *ptr_16, msg_type, *send_buf, *(send_buf+1), *(send_buf+2));
 	return send_buf;
 }
 
@@ -118,7 +118,7 @@ uint8_t *prep_buf (net_msg_t msg_type, int len_pb)
  *    - 0: successful return
  *    - -1: EOF encountered when reading from fd
  */
-int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf)
+int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf)
 {
 	ssize_t result;
 	uint8_t type;
@@ -135,15 +135,15 @@ int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t *buf)
 		log_printf(DEBUG, "received EOF when attempting to get msg length");
 	}
 	
-	buf = malloc(*len_pb);
+	*buf = malloc(*len_pb);
 	//read len_pb bytes -> put into buffer
-	if ((result = readn(fd, buf, *len_pb)) <= 0) {
+	if ((result = readn(fd, *buf, *len_pb)) <= 0) {
 		if (result == 0) { 
 			free(buf);
 			return -1;
 		}
 		log_printf(DEBUG, "received EOF when attempting to get msg data");
 	}
-	
+	// log_printf(DEBUG, "parse_msg: type %d len %d buf %d", *msg_type, *len_pb, *buf);
 	return 0;
 }
