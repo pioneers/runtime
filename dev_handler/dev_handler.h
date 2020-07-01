@@ -11,7 +11,8 @@
 #ifndef DEV_HANDLER_H
 #define DEV_HANDLER_H
 
-#include <libusb.h>
+// #include <libusb.h>
+#include "tests/arduino-serial-lib.h"
 #include <pthread.h>
 #include "../runtime_util/runtime_util.h"
 // #include "../shm_wrapper/shm_wrapper.h"

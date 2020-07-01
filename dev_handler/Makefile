@@ -1,25 +1,32 @@
 CC=gcc
 CXX=g++
-LIBFLAGS=-lusb-1.0 -lpthread
+LIBFLAGS=-lpthread
 
 UNAME=$(shell uname)
 ifeq ($(UNAME), Linux)
-	CFLAGS = -I/usr/include/libusb-1.0
+	#CFLAGS = -I/usr/include/libusb-1.0
 endif
 ifeq ($(UNAME), Darwin)
-	CFLAGS = -I/usr/local/include/libusb-1.0
+	#CFLAGS = -I/usr/local/include/libusb-1.0
 	LDFLAGS = -L/usr/local/lib/
 endif
 
 # Run dev_handler main
 dev: dev_handler.c message.c
-	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c -o dev_handler $(LIBFLAGS)
+	# $(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c -o dev_handler $(LIBFLAGS)
+	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c tests/arduino-serial-lib.c -o dev_handler $(LIBFLAGS)
 	sudo ./dev_handler
 
 # Run dev_handler main with valgrind
 val: dev_handler.c
-	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c -o dev_handler $(LIBFLAGS)
+	# $(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c -o dev_handler $(LIBFLAGS)
+	$(CC) $(CFLAGS) $(LDFLAGS) dev_handler.c message.c ../runtime_util/runtime_util.c tests/arduino-serial-lib.c -o dev_handler $(LIBFLAGS)
 	sudo valgrind ./dev_handler
+
+# Run the dev_handler using serial ports
+dev_fake:
+	$(CC) tests/fake_handler.c message.c ../runtime_util/runtime_util.c tests/arduino-serial-lib.c -o fake_handler
+	sudo ./fake_handler
 
 # Run test for dev_handler
 test: dev_test.c
