@@ -11,24 +11,24 @@
 #ifndef DEV_HANDLER_H
 #define DEV_HANDLER_H
 
-// #include <libusb.h>
-#include "tests/arduino-serial-lib.h"
+#include "arduino-serial-lib.h"
 #include <pthread.h>
 #include "../runtime_util/runtime_util.h"
 // #include "../shm_wrapper/shm_wrapper.h"
 // #include "string.h" // strcmp
+#include "../logger/logger.h"
 #include "message.h"
 #include <stdio.h> // Print
 #include <stdlib.h>
 #include <stdint.h> // ints with specified sizes (uint8_t, uint16_t, etc.)
 #include <signal.h> // Used to handle SIGTERM, SIGINT, SIGKILL
-#include <time.h>   // For timestamps on HeartBeatRequests
+#include <sys/time.h>   // For timestamps on HeartBeatRequests
 #include <unistd.h> // sleep(int seconds)
 
 // ************************************ CONFIG ************************************* //
 
 // The types of output the DEV_HANDLER can communicate with. FILE_DEV is used for `make fake`
-typedef enum output_type { USB_DEV, FILE_DEV };
+typedef enum { USB_DEV, FILE_DEV } output_type_t;
 
 // Whether DEV_HANDLER should communicate with USB devices over serial or to a fake device over .txt files (for testing)
 #define OUTPUT USB_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
