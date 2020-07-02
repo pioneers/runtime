@@ -275,6 +275,7 @@ void run_mode(robot_desc_val_t mode) {
 pid_t start_mode_subprocess(robot_desc_val_t mode) {
     pid_t pid = fork();
     if (pid < 0) {
+        perror("fork");
         log_printf(ERROR, "Failed to create child subprocess for mode %d", mode);
         return -1;
     }
