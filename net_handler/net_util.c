@@ -12,10 +12,10 @@
  *    - 0: read EOF on fd
  *    - -1: read errored out
  */
-ssize_t readn (int fd, void *buf, size_t n)
+int readn (int fd, void *buf, uint16_t n)
 {
-	size_t n_remain = n;
-	ssize_t n_read;
+	uint16_t n_remain = n;
+	uint16_t n_read;
 	char *curr = buf;
 	
 	while (n_remain > 0) {
@@ -24,7 +24,7 @@ ssize_t readn (int fd, void *buf, size_t n)
 				n_read = 0;
 			} else {
 				perror("read");
-				log_printf(ERROR, "reading from conn_fd failed");
+				log_printf(ERROR, "reading from fd failed");
 				return -1;
 			}
 		} else if (n_read == 0) { //received EOF
@@ -46,11 +46,11 @@ ssize_t readn (int fd, void *buf, size_t n)
  *    - >= 0: number of bytes written into buf
  *    - -1: write errored out
  */
-ssize_t writen (int fd, const void *buf, size_t n)
+int writen (int fd, void *buf, uint16_t n)
 {
-	size_t n_remain = n;
-	ssize_t n_written;
-	const char *curr = buf;
+	uint16_t n_remain = n;
+	uint16_t n_written;
+	char *curr = buf;
 	
 	while (n_remain > 0) {
 		if ((n_written = write(fd, curr, n_remain)) <= 0) {
@@ -58,7 +58,7 @@ ssize_t writen (int fd, const void *buf, size_t n)
 				n_written = 0;
 			} else {
 				perror("write");
-				log_printf(ERROR, "writing to conn_fd failed");
+				log_printf(ERROR, "writing to fd failed");
 				return -1;
 			}
 		}
@@ -81,28 +81,12 @@ ssize_t writen (int fd, const void *buf, size_t n)
  *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
  *      to fit the rest of the serialized message into
  */
-uint8_t *prep_buf (net_msg_t msg_type, int len_pb)
+uint8_t* make_buf (net_msg_t msg_type, uint16_t len_pb)
 {
-	// char tmp[4];                 //used for converting msg_type and len_pb to uint8_t and uint16_t, respectively
-	// uint8_t *send_buf;           //buffer that will eventually be used to send message
-	// uint8_t msg_type_uint8;      //converted value for msg_type
-	// uint16_t *uint16_ptr;        //used to insert a uint16_t into an array of uint8_t
-	
-	// //convert values
-	// sprintf(tmp, "%u", msg_type);
-	// msg_type_uint8 = (uint8_t) strtoul((const char *) tmp, NULL, 0);
- 	// sprintf(tmp, "%u", len_pb);
-	// *len_pb_uint16 = (uint16_t) strtoul((const char *) tmp, NULL, 0);
-	
-	// send_buf = (uint8_t *) malloc(sizeof(uint8_t) * (*len_pb_uint16 + 3)); // +3 because 1 byte for message type, 2 bytes for message length
-	// *send_buf = msg_type_uint8;                 //write the message type to the first byte of send_buf    
-	// uint16_ptr = (uint16_t *)(send_buf + 1);    //make uint16_ptr point to send_buf[1], where we will insert len_pb_uint16
-	// *uint16_ptr = *len_pb_uint16;               //insert len_pb_uint16 into send_buf[1] and send_buf[2]
-
 	uint8_t* send_buf = malloc(len_pb + 3);
-	*send_buf = (uint8_t) msg_type;
+	*send_buf = (uint8_t) msg_type; // Can cast since we know net_msg_t has < 10 options
 	uint16_t* ptr_16 = (uint16_t*) (send_buf + 1);
-	*ptr_16 = (uint16_t) len_pb;
+	*ptr_16 = len_pb;
 	// log_printf(DEBUG, "prepped buffer, len %d, ptr16 %d, msg_type %d, send buf %d %d %d", len_pb, *ptr_16, msg_type, *send_buf, *(send_buf+1), *(send_buf+2));
 	return send_buf;
 }
@@ -115,35 +99,31 @@ uint8_t *prep_buf (net_msg_t msg_type, int len_pb)
  *    - uint16_t *len_pb: serialized length, in bytes, of the incoming message will be stored in this location upon successful return
  *    - uint8_t *buf: serialized message will be stored starting at this location upon successful return
  * Return:
- *    - 0: successful return
- *    - -1: EOF encountered when reading from fd
+ *    - 1: successful return
+ *    - 0: EOF encountered when reading from fd
+ *    - -1: Error encountered when reading from fd
  */
 int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf)
 {
-	ssize_t result;
+	int result;
 	uint8_t type;
 	//read one byte -> determine message type
 	if ((result = readn(fd, &type, 1)) <= 0) {
-		if (result == 0) { return -1; }
-		log_printf(DEBUG, "received EOF when attempting to get msg type");
+		return result;
 	}
 	*msg_type = type;
 
 	//read two bytes -> determine message length
 	if ((result = readn(fd, len_pb, 2)) <= 0) {
-		if (result == 0) { return -1; }
-		log_printf(DEBUG, "received EOF when attempting to get msg length");
+		return result;
 	}
 	
 	*buf = malloc(*len_pb);
 	//read len_pb bytes -> put into buffer
 	if ((result = readn(fd, *buf, *len_pb)) <= 0) {
-		if (result == 0) { 
-			free(buf);
-			return -1;
-		}
-		log_printf(DEBUG, "received EOF when attempting to get msg data");
+		free(buf);
+		return result;
 	}
 	// log_printf(DEBUG, "parse_msg: type %d len %d buf %d", *msg_type, *len_pb, *buf);
-	return 0;
+	return 1;
 }

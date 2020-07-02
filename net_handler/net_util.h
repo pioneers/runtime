@@ -32,7 +32,6 @@
 #define UDP_PORT 9000
 
 #define MAX_NUM_LOGS 16          //maximum number of logs that can be sent in one msg
-#define MAX_SIZE_BYTES 4096      //maximum number of bytes that a serialized message can be (smaller than MAX_NUM_LOGS * LOG_MSG_MAXLEN)
 
 //All the different possible messages the network handler works with
 typedef enum net_msg {
@@ -53,7 +52,7 @@ typedef enum net_msg {
  *    - 0: read EOF on fd
  *    - -1: read errored out
  */
-ssize_t readn (int fd, void *buf, size_t n);
+int readn (int fd, void *buf, uint16_t n);
 
 /*
  * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
@@ -65,7 +64,7 @@ ssize_t readn (int fd, void *buf, size_t n);
  *    - >= 0: number of bytes written into buf
  *    - -1: write errored out
  */
-ssize_t writen (int fd, const void *buf, size_t n);
+int writen (int fd, void *buf, uint16_t n);
 
 /*
  * Prepares a buffer of uint8_t for receiving a packed protobuf message of the specified type and length.
@@ -80,7 +79,7 @@ ssize_t writen (int fd, const void *buf, size_t n);
  *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
  *      to fit the rest of the serialized message into
  */
-uint8_t *prep_buf (net_msg_t msg_type, int len_pb);
+uint8_t* make_buf (net_msg_t msg_type, uint16_t len_pb);
 
 /*
  * Parses a message from the given file descriptor into its separate components and stores them in provided pointers
@@ -91,7 +90,7 @@ uint8_t *prep_buf (net_msg_t msg_type, int len_pb);
  *    - uint8_t *buf: serialized message will be stored starting at this location upon successful return
  * Return:
  *    - 0: successful return
- *    - -1: EOF encountered when reading from fd
+ *    - -1: Error/EOF encountered when reading from fd
  */
 int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf);
 

@@ -52,14 +52,15 @@ int main ()
 	//connect to the server
 	if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {
 		perror("connect: failed to connect to socket");
+		return 1;
 	}
 	
 	//tell the executor to go into TELEOP mode (ideally)
 	RunMode run_mode = RUN_MODE__INIT;
 	
 	run_mode.mode = MODE__AUTO;
-	int len_pb = run_mode__get_packed_size(&run_mode);
-	uint8_t *send_buf = prep_buf(RUN_MODE_MSG, len_pb);
+	uint16_t len_pb = run_mode__get_packed_size(&run_mode);
+	uint8_t *send_buf = make_buf(RUN_MODE_MSG, len_pb);
 	run_mode__pack(&run_mode, send_buf + 3);
 	printf("buffer size %d \n", len_pb);
 	fprintf(stderr, "Writing mode \n"); // See the length of message
@@ -76,7 +77,7 @@ int main ()
 	//do actions
 	while (1) {
 		//parse message 
-		if (parse_msg(sockfd, &msg_type, &len, &buf) != 0) {
+		if (parse_msg(sockfd, &msg_type, &len, &buf) == 0) {
 			printf("raspi disconnected\n");
 			break;
 		}
