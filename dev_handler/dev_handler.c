@@ -35,7 +35,7 @@ void relay_clean_up(msg_relay_t* relay);
 void* sender(void* relay_cast);
 void* receiver(void* relay_cast);
 
-// Device communication (Bulk transferring)
+// Device communication
 int send_message(msg_relay_t* relay, message_t* msg, int* transferred);
 int receive_message(msg_relay_t* relay, message_t* msg);
 int ping(msg_relay_t* relay);
@@ -47,17 +47,27 @@ int64_t millis();
 
 // Initialize data structures / connections
 void init() {
+    // Init logger
+    logger_init(DEV_HANDLER);
 	// Init shared memory
 	// shm_init(DEV_HANDLER);
 }
 
 // Free memory and safely stop connections
 void stop() {
-	printf("\nINFO: Ctrl+C pressed. Safely terminating program\n");
-    fflush(stdout);
+    log_printf(INFO, "Ctrl+C pressed. Safely terminating program\n");
 	// TODO: For each tracked lowcar device, disconnect from shared memory
+    // uint32_t connected_devs = 0;
+    // get_catalog(&connected_devs);
+    // for (int i = 0; i < MAX_DEVICES; i++) {
+    //     if ((1 << i) & connected_devs) {
+    //         device_disconnect(i);
+    //     }
+    // }
 	// TODO: Stop shared memory
 	// shm_stop(DEV_HANDLER);
+    // Stop logger
+    logger_stop();
 	exit(0);
 }
 
@@ -67,18 +77,15 @@ void stop() {
  * On lowcar device disconnect, disconnects the device from shared memory.
  */
 void poll_connected_devices() {
-	//printf("INFO: Handling correctly connected devices first\n");
-    // TODO: Handle all initially connected devices
-
 	// Poll for newly connected devices and open threads for them
-	printf("INFO: Polling now.\n");
+    log_printf(INFO, "Polling now.\n");
 	while (1) {
 		uint8_t port_num = get_new_device();
         if (port_num == (uint8_t) -1) {
-            // printf("Couldn't find a new device\n");
+            // log_printf(DEBUG, "Couldn't find a new device\n");
             continue;
         }
-        printf("Found new device %d Starting threads\n", port_num);
+        log_printf(INFO, "Starting communication with new device /dev/ttyACM%d\n", port_num);
         communicate(port_num);
     }
 }
@@ -92,20 +99,18 @@ uint32_t used_ports = 0;
  * Returns the number of the port corresponding to the newly connected device
  */
 uint8_t get_new_device() {
-    char* port_template = "/dev/ttyACM"; // len == 13 (including null-terminator)
     // Check every port
     for (int i = 0; i < MAX_DEVICES; i++) {
         uint8_t port_unused = ((1 << i) & used_ports) == 0; // Checks if bit i is zero
         // If last time this function was called port i wasn't used
         if (port_unused) {
-            //printf("Port %d was unused. Checking if it's used now\n", i);
             // If that port is being used now, it's a new device
-            char port_name[15]; // Template size + 2 indices for port_number
-            sprintf(port_name, "%s%d\n", port_template, i);
-            //printf("Checking %s\n", port_name);
+            char port_name[14];
+            sprintf(port_name, "/dev/ttyACM%d", i);
+            // log_printf(DEBUG, "Checking %s\n", port_name);
             if (access(port_name, F_OK) != -1) {
                 // File exists
-                printf("INFO: Port /dev/ttyACM%d is new\n", i);
+                log_printf(INFO, "Port /dev/ttyACM%d is new\n", i);
                 // Set the bit to be on
                 used_ports |= (1 << i);
                 return i;
@@ -131,18 +136,18 @@ void communicate(uint8_t port_num) {
     relay->port_num = port_num;
     char port_name[15]; // Template size + 2 indices for port_number
     sprintf(port_name, "%s%d\n", "/dev/ttyACM", relay->port_num);
-    printf("Opening %s\n", port_name);
+    log_printf(DEBUG, "%s\n", port_name);
 	relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
 	if (OUTPUT == FILE_DEV) {
         // Open the file to read from
         relay->read_file = fopen(TO_DEV_HANDLER, "w+");
         if (relay->read_file == NULL) {
-            printf("ERROR: Couldn't open TO_DEVICE file with error code %d\n", errno);
+            log_printf(ERROR, "Couldn't open TO_DEVICE file\n");
         }
         // Open the file to write to
         relay->write_file = fopen(TO_DEVICE, "w+");
         if (relay->write_file == NULL) {
-            printf("ERROR: Couldn't open TO_DEV_HANDLER file\n");
+            log_printf(ERROR, "Couldn't open TO_DEV_HANDLER file\n");
         }
     }
 	// Initialize relay->start as 0, indicating sender and receiver to not start work yet
@@ -177,7 +182,7 @@ void* relayer(void* relay_cast) {
 	int ret;
 
 	// Send a Ping and wait for a SubscriptionResponse
-	printf("INFO: Relayer will send a Ping to the device\n");
+    log_printf(DEBUG, "Sending ping to /dev/ttyACM%d\n", relay->port_num);
 	ret = ping(relay);
 	if (ret != 0) {
 		relay_clean_up(relay);
@@ -187,21 +192,20 @@ void* relayer(void* relay_cast) {
 	/****** At this point, the Ping/SubscriptionResponse handshake was successful! ******/
 
 	// TODO: Connect the lowcar device to shared memory
-	printf("INFO: Relayer will connect the device to shared memory\n");
+	log_printf(DEBUG, "Connecting /dev/ttyACM%d to shared memory\n", relay->port_num);
 	// device_connect(relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid, &relay->shm_dev_idx);
 
 	// Signal the sender and receiver to start work
-	printf("INFO: Relayer broadcasting to Sender and Receiver to start work\n");
 	relay->start = 1;
 
 	// If the device disconnects or a HeartBeatRequest takes too long to be resolved, clean up
-	printf("INFO: Relayer monitoring heartbeats with the device\n");
-    char port_name[15]; // Template size + 2 indices for port_number
-    sprintf(port_name, "%s%d\n", "/dev/ttyACM", relay->port_num);
+    log_printf(DEBUG, "Monitoring heartbeats with /dev/ttyACM%d\n", relay->port_num);
+    char port_name[14];
+    sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
 	while (1) {
 		// If Arduino port file doesn't exist, it disconnected
         if (OUTPUT == USB_DEV && access(port_name, F_OK) == -1) {
-            printf("INFO: Device disconnected!\n");
+            log_printf(INFO, "/dev/ttyACM%d disconnected!\n", relay->port_num);
             relay_clean_up(relay);
             return NULL;
         }
@@ -211,7 +215,7 @@ void* relayer(void* relay_cast) {
         uint8_t pending_request = relay->last_sent_hbreq_time > relay->last_received_hbresp_time;
 		if (pending_request
                 && ((millis() - relay->last_sent_hbreq_time) >= DEVICE_TIMEOUT)) {
-			printf("INFO: Device timed out!\n");
+			log_printf(INFO, "/dev/ttyACM%d timed out!\n", relay->port_num);
 			relay_clean_up(relay);
 			return NULL;
 		}
@@ -219,11 +223,10 @@ void* relayer(void* relay_cast) {
 }
 
 /* Called by relayer to clean up after the device.
- * Releases interface, closes device, cancels threads,
+ * Closes serialport, cancels threads,
  * disconnects from shared memory, and frees the RELAY struct
  */
 void relay_clean_up(msg_relay_t* relay) {
-	printf("INFO: Cleaning up threads\n");
     if (OUTPUT == USB_DEV) {
         serialport_close(relay->file_descriptor);
         used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
@@ -237,8 +240,8 @@ void relay_clean_up(msg_relay_t* relay) {
 	if (relay->shm_dev_idx != -1) {
 		// device_disconnect(relay->shm_dev_idx)
 	}
+    log_printf(DEBUG, "Cleaned up threads for /dev/ttyACM%d\n", relay->port_num);
 	free(relay);
-	printf("INFO: Cleaned up threads\n");
 	pthread_cancel(pthread_self());
 }
 
@@ -251,7 +254,7 @@ void relay_clean_up(msg_relay_t* relay) {
  */
 void* sender(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
-    printf("INFO: Sender on standby\n");
+    log_printf(DEBUG, "Sender on standby\n");
 	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
 	while (1) {
 		if (relay->start == 1) {
@@ -273,7 +276,7 @@ void* sender(void* relay_cast) {
 	int transferred = 0; 	// The number of bytes actually transferred
 	int ret; 				// Hold the value from send_message()
     int8_t heartbeat_counter = -50;
-    printf("INFO: Sender starting work!\n");
+    log_printf(DEBUG, "Sending starting work!\n");
 	while (1) {
 		// Get the current param bitmap
 		// get_param_bitmap(pmap);
@@ -287,7 +290,7 @@ void* sender(void* relay_cast) {
 			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
 			ret = send_message(relay, msg, &transferred);
 			if (ret != 0) {
-				printf("ERROR: DEVICE_WRITE transfer failed\n");
+                log_printf(ERROR, "DeviceWrite transfer failed\n");
 			}
 			destroy_message(msg);
 		}
@@ -297,9 +300,9 @@ void* sender(void* relay_cast) {
 			msg = make_heartbeat_request(heartbeat_counter);
 			ret = send_message(relay, msg, &transferred);
 			if (ret != 0) {
-				printf("ERROR: HeartBeatRequest transfer failed\n");
+                log_printf(ERROR, "HeartBeatRequest transfer failed\n");
 			}
-            printf("INFO: Sent HeartBeatRequest: %d\n", heartbeat_counter);
+            log_printf(DEBUG, "Sent HeartBeatRequest: %d\n", heartbeat_counter);
             // Update the timestamp at which we sent a HeartBeatRequest
             relay->last_sent_hbreq_time = millis();
 			destroy_message(msg);
@@ -311,9 +314,9 @@ void* sender(void* relay_cast) {
 			msg = make_heartbeat_response(relay->got_hb_req);
 			send_message(relay, msg, &transferred);
 			if (ret != 0) {
-				printf("ERROR: HeartBeatResponse transfer failed\n");
+                log_printf(ERROR, "HeartBeatResponse transfer failed\n");
 			}
-            printf("INFO: Sent HeartBeatResponse: %d\n", relay->got_hb_req);
+            log_printf(DEBUG, "Sent HeartBeatResponse: %d\n", relay->got_hb_req);
 			destroy_message(msg);
             // Mark the HeartBeatRequest as resolved
 			relay->got_hb_req = 0;
@@ -330,7 +333,7 @@ void* sender(void* relay_cast) {
  */
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
-    printf("INFO: Receiver on standby\n");
+    log_printf(DEBUG, "Receiver on standby\n");
 	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
 	while (1) {
 		if (relay->start == 1) {
@@ -338,7 +341,7 @@ void* receiver(void* relay_cast) {
 		}
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
-    printf("INFO: Receiver starting work!\n");
+    log_printf(DEBUG, "Receiver starting work!\n");
 	/* Do work! Continuously read from the device until a complete message can be parsed.
 	 * If it's a HeartBeatRequest, signal sender to reply with a HeartBeatResponse
 	 * If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
@@ -356,11 +359,11 @@ void* receiver(void* relay_cast) {
 		}
 		if (msg->message_id == HeartBeatRequest) {
 			// If it's a HeartBeatRequest, take note of it so sender can resolve it
-            printf("INFO: Got HeartBeatRequest: %d\n", (int8_t) msg->payload[0]);
+            log_printf(DEBUG, "Got HeartBeatRequest: %d\n", (int8_t) msg->payload[0]);
 			relay->got_hb_req = (int8_t) msg->payload[0];
 		} else if (msg->message_id == HeartBeatResponse) {
 			// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
-            printf("INFO: Got HeartBeatResponse: %d\n", (int8_t) msg->payload[0]);
+            log_printf(DEBUG, "Got HeartBeatResponse: %d\n", (int8_t) msg->payload[0]);
 			relay->last_received_hbresp_time = millis();
 		} else if (msg->message_id == DeviceData) {
 			// First, parse the payload into an array of parameter values
@@ -368,16 +371,12 @@ void* receiver(void* relay_cast) {
 			// TODO: Now write it to shared memory
 			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
 		} else if (msg->message_id == Log) {
-			// TODO: Send payload to logger
-            printf("ARDUINO: ");
-            printf("%s\n", msg->payload);
+            log_printf(INFO, "FROM /dev/ttyACM%d: %s\n", relay->port_num, msg->payload);
 		} else if (msg->message_id == Error) {
-            // TODO: Send payload to logger
-            printf("ARDUINO: ");
-            printf("%s\n", msg->payload);
+            log_printf(ERROR, "FROM /dev/ttyACM%d: %s\n", relay->port_num, msg->payload);
 		} else {
 			// Received a message of unexpected type.
-			printf("FATAL: Received a message of unexpected type and dropping it.\n");
+			log_printf(FATAL, "Received a message of unexpected type and dropping it.\n");
 		}
 		// Now that the message is taken care of, clear the message
 		msg->message_id = 0x0;
@@ -409,7 +408,7 @@ int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
         for (int i = 0; i < len; i++) {
             ret = serialport_writebyte(relay->file_descriptor, data[i]); // From arduino-serial-lib
             if (ret != 0) {
-                printf("Couldn't write byte 0x%X\n", data[i]);
+                log_printf(DEBUG, "Couldn't write byte 0x%X\n", data[i]);
                 break;
             }
         }
@@ -420,7 +419,7 @@ int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
         ret = (*transferred == len) ? 0 : -1;
     }
     if (ret == 0) {
-        printf("Sent %d bytes: ", len);
+        log_printf(DEBUG, "Sent %d bytes: ", len);
         print_bytes(data, len);
     }
     free(data);
@@ -449,10 +448,10 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         }
         // If we were able to read a byte but it wasn't the delimiter
         if (num_bytes_read == 1 && last_byte_read != 0) {
-            printf("Attempting to read delimiter but got 0x%X\n", last_byte_read);
+            log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
         }
     }
-    printf("Got start of message!\n");
+    log_printf(DEBUG, "Got start of message!\n");
 
     // Try to read the length of the cobs encoded message (the next byte)
     uint8_t cobs_len;
@@ -476,18 +475,18 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         num_bytes_read = fread(&data[2], sizeof(uint8_t), cobs_len, relay->read_file);
     }
     if (num_bytes_read != cobs_len) {
-        printf("FATAL: Couldn't read the full message\n");
+        log_printf(DEBUG, "Couldn't read the full message\n");
         free(data);
         return 1;
     }
 
     // Parse the message
     if (parse_message(data, msg) != 0) {
-        printf("FATAL: Incorrect checksum\n");
+        log_printf(DEBUG, "Incorrect checksum\n");
         free(data);
         return 2;
     }
-    printf("Received %d bytes: ", 2 + cobs_len);
+    log_printf(DEBUG, "Received %d bytes: ", 2 + cobs_len);
     print_bytes(data, 2 + cobs_len);
     free(data);
     return 0;
@@ -502,7 +501,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
  */
 int ping(msg_relay_t* relay) {
 	// Send a Ping
-    printf("INFO: Sending a Ping...\n");
+    log_printf(DEBUG, "Sending a Ping...\n");
     message_t* ping = make_ping();
     int transferred;
     int ret = send_message(relay, ping, &transferred);
@@ -513,21 +512,22 @@ int ping(msg_relay_t* relay) {
 
 	// Try to read a SubscriptionResponse, which we expect from a lowcar device that receives a Ping
     message_t* sub_response = make_empty(MAX_PAYLOAD_SIZE);
-	printf("INFO: Listening for SubscriptionResponse\n");
+	log_printf(DEBUG, "Listening for SubscriptionResponse\n");
     while (receive_message(relay, sub_response) != 0) {
         sleep(1);
     }
     if (sub_response->message_id != SubscriptionResponse) {
-		printf("FATAL: Message is not a SubscriptionResponse\n");
+		log_printf(DEBUG, "Message is not a SubscriptionResponse\n");
 		destroy_message(sub_response);
 		return 2;
 	}
 
 	// We have a SubscriptionResponse!
-	printf("INFO: SubscriptionResponse received!\n");
 	relay->dev_id.type = ((uint16_t*)(&sub_response->payload[6]))[0];	// device type is the 16-bits starting at the 6th byte
 	relay->dev_id.year = sub_response->payload[8];						// device year is the 8th byte
 	relay->dev_id.uid  = ((uint64_t*)(&sub_response->payload[9]))[0];	// device uid is the 64-bits starting at the 9th byte
+    log_printf(DEBUG, "SubscriptionResponse received! /dev/ttyACM%d is type %d, year %d, uid %d!\n", \
+        relay->port_num, relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid);
     destroy_message(sub_response);
 	return 0;
 }
@@ -549,17 +549,11 @@ int main() {
 	// If SIGINT (Ctrl+C) is received, call sigintHandler to clean up
 	signal(SIGINT, stop);
 	init();
-	// Set libusb to log debug messages
-	// if (libusb_set_option(NULL, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_WARNING) != LIBUSB_SUCCESS) {
-	// 	printf("ERROR: libusb log level could not be set\n");
-	// }
-    printf("INFO: DEV_HANDLER starting with OUTPUT==");
+    log_printf(INFO, "DEV_HANDLER starting with OUTPUT==%s\n", (OUTPUT == USB_DEV) ? "USB_DEV" : "FILE_DEV");
     if (OUTPUT == USB_DEV) {
-        printf("USB\n");
         // Start polling if OUTPUT == USB
         poll_connected_devices();
     } else if (OUTPUT == FILE_DEV) {
-        printf("FILE_DEV\n");
         // Skip polling
         communicate(-1);
     }
