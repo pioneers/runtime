@@ -112,18 +112,18 @@ void sigint_handler (int sig_num)
 {
 	log_printf(INFO, "stopping net_handler");
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
-		// stop_shepherd_conn();
+		stop_tcp_conn(SHEPHERD);
 	}
 	if (robot_desc_read(DAWN) == CONNECTED) {
 		stop_tcp_conn(DAWN);
-		// stop_dawn_conn();
-		//stop_dawn_udp(); //TODO: uncomment this once dawn udp integrated
 	}
+	printf("got here \n");
 	shm_aux_stop(NET_HANDLER);
+	printf("closed aux shm \n");
 	shm_stop(NET_HANDLER);
 	logger_stop(NET_HANDLER);
+	printf("closed logger \n");
 	//sockfd is automatically closed when process terminates
-
 	exit(0);
 }
 
@@ -134,7 +134,6 @@ int main ()
 	int sockfd = -1, connfd = -1;
 	struct sockaddr_in cli_addr; //requesting client's address
 	socklen_t cli_addr_len = sizeof(struct sockaddr_in); //length of requesting client's address in bytes
-	printf("size of net_msg %d", sizeof(net_msg_t));
 	//setup
 	logger_init(NET_HANDLER);
 	signal(SIGINT, sigint_handler);
@@ -147,8 +146,7 @@ int main ()
 	}
 	shm_aux_init(NET_HANDLER);
 	shm_init(NET_HANDLER);
-	log_printf(DEBUG, "Initialized utilities");
-	//TODO: incorporate a bit more security into this but for barebones this is fine
+	
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
 		if ((connfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_addr_len)) < 0) {
@@ -156,16 +154,16 @@ int main ()
 			log_printf(ERROR, "listen socket failed to accept a connection");
 			continue;
 		}
+		cli_addr_len = sizeof(struct sockaddr_in);
 		log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
+		
 		//if the incoming request is dawn or shepherd, start the appropriate threads
 		if (is_shepherd(&cli_addr)) {
 			log_printf(DEBUG, "Starting Shepherd connection");
-			// start_shepherd_conn(connfd);
+			start_tcp_conn(SHEPHERD, connfd, 0);
 		} else if (is_dawn(&cli_addr)) {
-			// start_dawn_conn(connfd);
 			log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
-			//start_dawn_udp(); //TODO: uncomment this once dawn udp integrated
 		} else {
 			log_printf(ERROR, "Client is neither Dawn nor Shepherd");
 		}
