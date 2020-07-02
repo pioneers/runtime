@@ -4,7 +4,7 @@
 typedef struct {
 	int conn_fd;
     int send_logs;
-    robot_desc_val_t client;
+    robot_desc_field_t client;
 } tcp_conn_args_t;
 
 pthread_t dawn_tid, shepherd_tid;
@@ -335,7 +335,7 @@ static void* process_tcp (void* tcp_args)
  * Arguments:
  *    - int connfd: connection socket descriptor on which there is the established connection with the client
  */
-void start_tcp_conn (robot_desc_val_t client, int conn_fd, int send_logs)
+void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 {
 	tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
 	args->conn_fd = conn_fd;
@@ -365,7 +365,7 @@ void start_tcp_conn (robot_desc_val_t client, int conn_fd, int send_logs)
  * Stops the dawn connection control thread cleanly. May block briefly to allow
  * main control thread to finish what it's doing. Should be called right before the net_handler main loop terminates.
  */
-void stop_tcp_conn (robot_desc_val_t client)
+void stop_tcp_conn (robot_desc_field_t client)
 {
     pthread_t tid;
     if (client == DAWN) {
