@@ -12,8 +12,10 @@
 #include <unistd.h>     //for write to FIFO
 #include <sys/stat.h>   //for mkfifo
 #include <signal.h>
-#include "logger_config.h"
 #include "../runtime_util/runtime_util.h"   //(TODO: consider removing relative pathname in include)
+
+//enumerate logger levels from least to most critical
+typedef enum log_level { DEBUG, INFO, WARN, ERROR, FATAL, PYTHON } log_level;
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
