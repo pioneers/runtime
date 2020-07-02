@@ -19,9 +19,9 @@ void setup() {
 
 /* Every three seconds, try to read something */
 void loop() {
-    delay(2000); // Wait a bit for dev handler to send Ping
+    //delay(2000); // Wait a bit for dev handler to send Ping
     read_message();
-    delay(100000);
+    //delay(100000);
 }
 
 void read_message ()
@@ -36,9 +36,7 @@ void read_message ()
 	while (Serial.available()) {
 		last_byte_read = Serial.read();
 		if (last_byte_read == 0) {
-            // Found the start of a message!
-            quick_blink(5);
-			break;
+      	break;
 		}
 	}
 
@@ -56,12 +54,12 @@ void read_message ()
 
     // We got a message
     quick_blink(10);
-    delay(2000);
+    //delay(2000);
 
     // Read the rest of the message
     int cobs_len = Serial.read();
     int total_len = 2 + cobs_len; // delimiter + byte for cobs len + sizeof(message)
-    slow_blink(total_len);
+   // slow_blink(total_len);
     byte data[total_len];
     data[0] = 0x00;
     data[1] = cobs_len;
@@ -70,8 +68,10 @@ void read_message ()
 
     // Parrot back to dev handler what we got
     Serial.write(data, total_len);
+   // Serial.write((byte)0x00);
+   // Serial.write((byte)0x02);
     quick_blink(1);
-    delay(100000);
+    //delay(100000);
 }
 
 void quick_blink (int num)

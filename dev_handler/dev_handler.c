@@ -135,9 +135,15 @@ void communicate(uint8_t port_num) {
 	msg_relay_t* relay = malloc(sizeof(msg_relay_t));
     relay->port_num = port_num;
     char port_name[15]; // Template size + 2 indices for port_number
-    sprintf(port_name, "%s%d\n", "/dev/ttyACM", relay->port_num);
-    log_printf(DEBUG, "%s\n", port_name);
-	relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
+    sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
+    log_printf(DEBUG, "Setting up threads for %s\n", port_name);
+	//relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
+    relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
+    if (relay->file_descriptor == -1) {
+        log_printf(ERROR, "Couldn't open port %s\n", port_name);
+    } else {
+        log_printf(DEBUG, "Opened port %s\n", port_name);
+    }
 	if (OUTPUT == FILE_DEV) {
         // Open the file to read from
         relay->read_file = fopen(TO_DEV_HANDLER, "w+");
@@ -455,6 +461,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 
     // Try to read the length of the cobs encoded message (the next byte)
     uint8_t cobs_len;
+    num_bytes_read = 0;
     while (num_bytes_read != 1) {
         if (OUTPUT == USB_DEV) {
             num_bytes_read = read(relay->file_descriptor, &cobs_len, 1);
@@ -462,6 +469,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
             num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
         }
     }
+    log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
 
     // Allocate buffer to read message into
     uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
@@ -559,3 +567,4 @@ int main() {
     }
 	return 0;
 }
+

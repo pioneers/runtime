@@ -8,7 +8,7 @@ CPP_FILES=tests/main.cpp tests/Device.cpp tests/Device.h tests/Messenger.cpp tes
 # Run dev_handler
 dev: dev_handler.c $(DEV_HANDLER_FILES)
 	$(CC) $^ -o dev_handler $(LIBFLAGS)
-	./dev_handler
+	sudo ./dev_handler
 
 # Run dev_handler with Valgrind
 val: dev_handler.c $(DEV_HANDLER_FILES)
