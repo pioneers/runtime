@@ -2,6 +2,7 @@
 // #include "shepherd_conn.h"
 // #include "dawn_conn.h"
 #include "tcp_conn.h"
+#include "udp_suite.h"
 
 /*
  * Sets up TCP listening socket on raspberry pi.
@@ -111,6 +112,7 @@ int is_dawn (struct sockaddr_in *cli_addr)
 void sigint_handler (int sig_num)
 {
 	log_printf(INFO, "stopping net_handler");
+	stop_udp_suite();
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
 		stop_tcp_conn(SHEPHERD);
 	}
@@ -146,7 +148,7 @@ int main ()
 	}
 	shm_aux_init(NET_HANDLER);
 	shm_init(NET_HANDLER);
-	
+	start_udp_suite();
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
 		if ((connfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_addr_len)) < 0) {

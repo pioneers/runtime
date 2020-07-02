@@ -1,26 +1,16 @@
 #include "udp_suite.h"
 // #include "udp_lib.c"
 
-
-//structure of argument into a pair of udp threads
-typedef struct {
-	int socket;                       //socket descriptor (returned by socket())
-	struct sockaddr_in* dawn_addr;   //description of dawn endpoint
-	uint8_t stop;					//signal to stop socket
-} udp_args_t;
-
 pthread_t socket_thread;
-udp_args_t thread_args;
+int socket_fd = -1;
 
 
-// ******************************************* CORE FUNCTIONS *********************************** //
-
-void get_device_data(uint8_t** buffer, uint32_t* len) {
+void get_device_data(uint8_t** buffer, int* len) {
 	DevData dev_data = DEV_DATA__INIT;
 
 	dev_id_t dev_ids[MAX_DEVICES];
 	int valid_dev_idxs[MAX_DEVICES];
-	uint32_t catalog, params_to_read;
+	uint32_t catalog;
 	//get information
 	get_catalog(&catalog);
 	get_device_identifiers(dev_ids);
@@ -122,12 +112,8 @@ void update_gamepad_state(uint8_t* buffer, int len) {
 
 
 void* process_udp_data(void* args) {
-	udp_args_t* thread_args = (udp_args_t*) args;
-	DevData dev_data = DEV_DATA__INIT;
-	struct sockaddr_in* dawn_addr;
-	int first = 1;
-	socklen_t addrlen = sizeof(*dawn_addr);
-	int initial_len = addrlen;
+	struct sockaddr_in dawn_addr;
+	socklen_t addrlen = sizeof(dawn_addr);
 	int size = sizeof(GpState);
 	log_printf(DEBUG, "Size of GP State %d", size);
 	uint8_t read_buf[size];
@@ -136,29 +122,29 @@ void* process_udp_data(void* args) {
 	int sendlen;
 	int err;
 
-	while (!thread_args->stop) {
+	while (1) {
 		log_printf(DEBUG, "Waiting for message");
-		recvlen = recvfrom(thread_args->socket, read_buf, size, 0, (struct sockaddr*) dawn_addr, &addrlen);
-		log_printf(DEBUG, "Dawn IP is %s", inet_ntoa(dawn_addr->sin_addr));
-		first = 0;
+		recvlen = recvfrom(socket_fd, read_buf, size, 0, (struct sockaddr*) &dawn_addr, &addrlen);
 		log_printf(DEBUG, "Receive size %d", recvlen);
-		if (recvlen <= 0) {
-			log_printf(ERROR, "UDP recvfrom failed. First connect %d", dawn_addr == NULL);
+		if (recvlen < 0) {
 			perror("recvfrom");
+			log_printf(ERROR, "UDP recvfrom failed");
 		}
+		log_printf(DEBUG, "Dawn IP is %s", inet_ntoa(dawn_addr.sin_addr));
 		update_gamepad_state(read_buf, recvlen);
 		log_printf(DEBUG, "Updated gamepad. Getting device data");
 		get_device_data(&send_buf, &sendlen);
 		log_printf(DEBUG, "sending dev data to Dawn");
-		err = sendto(thread_args->socket, send_buf, sendlen, 0, (struct sockaddr*) dawn_addr, addrlen);
+		err = sendto(socket_fd, send_buf, sendlen, 0, (struct sockaddr*) &dawn_addr, addrlen);
 		if (err <= 0) {
-			log_printf(ERROR, "UDP sendto failed");
 			perror("sendto");
+			log_printf(ERROR, "UDP sendto failed");
 		}
 		log_printf(DEBUG, "send buffer length %d, actual sent %d", sendlen, err);
 		free(send_buf);  // Free buffer with device data protobuf
+		addrlen = sizeof(dawn_addr);
 	}
-
+	return NULL;
 }
 
 
@@ -166,11 +152,9 @@ void* process_udp_data(void* args) {
 void start_udp_suite ()
 {
 	struct sockaddr_in my_addr;    //for holding IP addresses (IPv4)
-	thread_args.stop = 0;
-	int ready = 0;
 	
 	//create the socket
-	if ((thread_args.socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 		perror("could not create udp socket");
 		return;
 	}
@@ -180,13 +164,13 @@ void start_udp_suite ()
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	my_addr.sin_port = htons(UDP_PORT);
-	if (bind(thread_args.socket, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) < 0) {
+	if (bind(socket_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) < 0) {
 		perror("udp socket bind failed");
 		return;
 	}
 	
 	//create send thread
-	if (pthread_create(&socket_thread, NULL, process_udp_data, &thread_args) != 0) {
+	if (pthread_create(&socket_thread, NULL, process_udp_data, NULL) != 0) {
 		perror("pthread_create");
 		log_printf(ERROR, "failed to create UDP thread");
 	}
@@ -196,32 +180,16 @@ void start_udp_suite ()
 //stop the threads managing the UDP connection
 void stop_udp_suite ()
 {
-	thread_args.stop = 1;
-	
-	//join with send thread
-	if (pthread_join(socket_thread, NULL) != 0) {
-		log_printf(ERROR, "failed to join UDP thread with DAWN_TARGET");
+	if (pthread_cancel(socket_thread) != 0) {
+		perror("pthread_cancel");
+		log_printf(ERROR, "failed to cancel UDP thread");
 	}
-	
-	//close the sockets
-	close(thread_args.socket);
-}
-
-
-void sigintHandler(int signum) {
-	stop_udp_suite();
-	shm_stop(NET_HANDLER);
-	shm_aux_stop(NET_HANDLER);
-	logger_stop(NET_HANDLER);
-}
-
-
-int main() {
-	// signal(SIGINT, sigintHandler);
-	logger_init(NET_HANDLER);
-	shm_aux_init(NET_HANDLER);
-	shm_init(NET_HANDLER);
-	start_udp_suite();
-	
-	while (1) {}
+	if (pthread_join(socket_thread, NULL) != 0) {
+		perror("pthread_join");
+		log_printf(ERROR, "failed to join UDP thread");
+	}
+	if(close(socket_fd) != 0) {
+		perror("close");
+		log_printf(ERROR, "Couldn't close UDP socket properly");
+	}
 }
