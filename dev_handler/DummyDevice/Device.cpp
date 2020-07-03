@@ -28,35 +28,35 @@ Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32
 void Device::loop ()
 {
 	Status sts;
-	uint16_t *payload_ptr_uint16; //use this to shove 16 bits into the first two elements of the payload (which is of type uint8_t *)
+	uint32_t *payload_ptr_uint32; //use this to shove 32 bits into the first four elements of the payload (which is of type uint8_t *)
 
 	this->curr_time = millis();
 	sts = this->msngr->read_message(&(this->curr_msg)); //try to read a new message
 
 	if (sts == Status::SUCCESS) { //we have a message!
-		this->led->quick_blink(10);
+		this->led->quick_blink(5);
 		switch (this->curr_msg.message_id) {
 			case MessageID::PING:
 				this->msngr->send_message(MessageID::SUBSCRIPTION_RESPONSE, &(this->curr_msg), params, sub_delay, &UID);
 				break;
 
 			case MessageID::SUBSCRIPTION_REQUEST:
-				this->params = *((uint16_t *) &(this->curr_msg.payload[0])); //update subscribed params
+				this->params = *((uint32_t *) &(this->curr_msg.payload[0])); //update subscribed params
 				this->sub_delay = *((uint16_t *) &(this->curr_msg.payload[2]));
 				this->msngr->send_message(MessageID::SUBSCRIPTION_RESPONSE, &(this->curr_msg), params, sub_delay, &UID);
 				break;
 
 			case MessageID::DEVICE_READ:
 				//read all specified values from device and store in curr_msg; set payload[0:2] to successfully read params
-				payload_ptr_uint16 = (uint16_t *) this->curr_msg.payload; //store the pointer to the front of the payload, cast to uint16_t
-				*payload_ptr_uint16 = device_rw_all(&(this->curr_msg), *(uint8_t *)payload_ptr_uint16, RWMode::READ); //payload_ptr_uint16 contains bitmap for rw
+				payload_ptr_uint32 = (uint32_t *) this->curr_msg.payload; //store the pointer to the front of the payload, cast to uint32_t
+				*payload_ptr_uint32 = device_rw_all(&(this->curr_msg), *(uint8_t *)payload_ptr_uint32, RWMode::READ); //payload_ptr_uint32 contains bitmap for rw
 				this->msngr->send_message(MessageID::DEVICE_DATA, &(this->curr_msg)); //report device data back to controller
 				break;
 
 			case MessageID::DEVICE_WRITE:
 				//attempt to write specified specified params to device; set payload[0:2] to successfully written params
-				payload_ptr_uint16 = (uint16_t *) this->curr_msg.payload; //store pointer to the front of the payload, cast to uint16_t
-				*payload_ptr_uint16 = device_rw_all(&(this->curr_msg), *(uint8_t *)payload_ptr_uint16, RWMode::WRITE);  //payload_ptr_uint16 contains bitmap for rw
+				payload_ptr_uint32 = (uint32_t *) this->curr_msg.payload; //store pointer to the front of the payload, cast to uint32_t
+				*payload_ptr_uint32 = device_rw_all(&(this->curr_msg), *(uint8_t *)payload_ptr_uint32, RWMode::WRITE);  //payload_ptr_uint32 contains bitmap for rw
 				device_rw_all(&(this->curr_msg), curr_msg.payload[0], RWMode::READ); //read all values from device and store in curr_msg
 				this->msngr->send_message(MessageID::DEVICE_DATA, &(this->curr_msg)); //report device data back to controller
 				break;
@@ -78,14 +78,15 @@ void Device::loop ()
 				this->led->toggle();
 		}
 	} else {
-		this->led->slow_blink(10);
+		// No message received
+		this->led->slow_blink(5);
 	}
 
 	//if it's time to send data again
 	if ((this->sub_delay > 0) && (this->curr_time - this->prev_sub_time >= this->sub_delay)) {
 		this->prev_sub_time = this->curr_time;
-		payload_ptr_uint16 = (uint16_t *) this->curr_msg.payload; //store the pointer to the front of the payload, cast to uint16_t
-		*payload_ptr_uint16 = device_rw_all(&(this->curr_msg), this->params, RWMode::READ); //read all subscribed values from device and store in curr_msg
+		payload_ptr_uint32 = (uint32_t *) this->curr_msg.payload; //store the pointer to the front of the payload, cast to uint32_t
+		*payload_ptr_uint32 = device_rw_all(&(this->curr_msg), this->params, RWMode::READ); //read all subscribed values from device and store in curr_msg
 		this->msngr->send_message(MessageID::DEVICE_DATA, &(this->curr_msg));
 	}
 
@@ -95,6 +96,11 @@ void Device::loop ()
 		this->msngr->send_message(MessageID::HEARTBEAT_REQUEST, &(this->curr_msg));
 	}
 
+	// Send any queued logs
+	if (this->msgr->num_logs != 0) {
+		this->msgr->lowcar_flush();
+	}
+	
 	//if it's been too long since previous heartbeat response, disable device
 	if ((this->disable_time > 0)  && (this->curr_time - this->prev_hbresp_time >= this->disable_time)) {
 		device_disable();
@@ -143,13 +149,13 @@ void Device::device_actions ()
  * In both cases, msg->payload_length set to number of bytes successfully written (to msg->payload or to the device).
  * Returns bitmap corresponding to all params that were successfully read from or written to.
  */
-uint16_t Device::device_rw_all (message_t *msg, uint16_t params, RWMode mode)
+uint32_t Device::device_rw_all (message_t *msg, uint32_t params, RWMode mode)
 {
 	int bytes_written = 2; //number of bytes we've written so far into the payload of the current message OR number of bytes successfully written to device
 	int addtl_bytes_written; //number of bytes written by a call to device_read or device_write (addtl = additional)
 
 	//loop over params and attempt to read or write data for requested bits
-	for (uint16_t param_num = 0; (params >> param_num) > 0; param_num++) {
+	for (uint32_t param_num = 0; (params >> param_num) > 0; param_num++) {
 		if (params & (1 << param_num)) {
 			if (mode == RWMode::READ) { //read parameter into payload at next available bytes in payload; returns # bytes read (= # bytes written to payload)
 				addtl_bytes_written = device_read((uint8_t) param_num, &(msg->payload[bytes_written]), (size_t) sizeof(msg->payload) - bytes_written);

@@ -18,12 +18,14 @@ Messenger::Messenger ()
 }
 
 //TODO: check buffer size
-Status Messenger::send_message (MessageID msg_id, message_t *msg, uint16_t params, uint16_t delay, uid_t *uid)
+Status Messenger::send_message (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, uid_t *uid)
 {
 	//build msg for heartbeat- and subscription-related messages
-	if (build_msg(msg_id, msg, params, delay, uid) == Status::PROCESS_ERROR)
-	{
-		return Status::PROCESS_ERROR;
+	if (msg_id != MessageID::LOG) {
+		if (build_msg(msg_id, msg, params, delay, uid) == Status::PROCESS_ERROR)
+		{
+			return Status::PROCESS_ERROR;
+		}
 	}
 
 	size_t msg_len = msg->payload_length + Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + Messenger::CHECKSUM_BYTES;
@@ -96,7 +98,7 @@ Status Messenger::read_message (message_t *msg)
 //expects msg to exist
 //builds the appropriate payload in msg according to msg_id, or doesn't do anything if msg should already be built
 //returns Status to report on success/failure
-Status Messenger::build_msg (MessageID msg_id, message_t *msg, uint16_t params, uint16_t delay, uid_t *uid)
+Status Messenger::build_msg (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, uid_t *uid)
 {
 	int status = 0;
 	uint8_t fill_data[1] = {0};
@@ -209,4 +211,40 @@ size_t Messenger::cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len)
 		}
 	}
 	return out_len;
+}
+
+/**
+ *	Used to printf from Arduino.
+ *	Adds the formatted string to a queue to be sent over serial on lowcar_flush()
+ *	DEV_HANDLER will process the log and send to runtime logger
+ */
+void Messenger::lowcar_printf(char* format, ...) {
+	// Double the queue size if it's full
+	if (this->num_logs == this->log_queue_max_size) {
+		this->log_queue = (char**) realloc(2 * this->log_queue_max_size * MAX_PAYLOAD_SIZE);
+		this->log_queue_max_size *= 2;
+	}
+	// Add the new formatted log to the queue
+	va_list args;
+    va_start(args, format);
+    vsprintf(this->log_queue[this->num_logs], format, args);
+    va_end(args);
+	// Increment the number of logs
+	this->num_logs++;
+}
+
+/**
+ *	Sends strings in the log queue to DEV_HANDLER and clears the queue
+ */
+void Messenger::lowcar_flush() {
+	message_t log;
+	// For each log, send a new message
+	for (int i = 0; i < this->num_logs; i++) {
+		log.payload_length = strlen(this->log_queue[i]) + 1; // Null terminator character
+		// Copy string into payload
+		strcpy(log.payload, this->log_queue[i]);
+		this->send_message(MessageID::LOG, &log);
+	}
+	// "Clear" the queue
+	this->num_logs = 0;
 }
