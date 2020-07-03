@@ -81,14 +81,14 @@ private:
 	Messenger *msngr; //deals with all encoding/decoding and sending/reading of messages on serial
 	StatusLED *led;
 	uid_t UID; //UID of this device
-	uint16_t params; //bitmap for which parameters are subscribed to on this device
+	uint32_t params; //bitmap for which parameters are subscribed to on this device
 	uint16_t sub_delay; //time between successive subscription responses (ms)
 	uint32_t disable_time, heartbeat_delay; //time betweeen heartbeat requests (ms)
 	uint64_t prev_sub_time, prev_hb_time, prev_hbresp_time, curr_time; //variables to hold times (ms)
 	message_t curr_msg; //current message being processed
 
 	//read or write data to device (more detail in source file)
-	uint16_t device_rw_all (message_t *msg, uint16_t params, RWMode mode);
+	uint32_t device_rw_all (message_t *msg, uint32_t params, RWMode mode);
 	//update subscription delays on heartbeat response packets
 	void update_sub_delay (uint8_t payload_val);
 };

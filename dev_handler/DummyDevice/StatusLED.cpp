@@ -1,5 +1,10 @@
 #include "StatusLED.h"
 
+#define QUICK_TIME 300 // Feel free to change this
+// Morse code ratios
+#define SLOW_TIME (QUICK_TIME*3)
+#define PAUSE_TIME QUICK_TIME
+
 StatusLED::StatusLED ()
 {
 	pinMode(StatusLED::LED_PIN, OUTPUT);
@@ -15,12 +20,12 @@ void StatusLED::toggle ()
 
 void StatusLED::quick_blink (int num)
 {
-	this->blink(num, 200, 200);
+	this->blink(num, QUICK_TIME, PAUSE_TIME);
 }
 
 void StatusLED::slow_blink (int num)
 {
-	this->blink(num, 600, 200);
+	this->blink(num, SLOW_TIME, PAUSE_TIME);
 }
 
 void StatusLED::blink (int num, int ms, int space)

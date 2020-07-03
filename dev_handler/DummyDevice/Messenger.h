@@ -18,7 +18,7 @@ public:
 	 * Expects *msg to exist
 	 * Return a Status enum to report on success/failure
 	 */
-	Status send_message (MessageID msg_id, message_t *msg, uint16_t params = 0, uint16_t delay = 0, uid_t *uid = NULL);
+	Status send_message (MessageID msg_id, message_t *msg, uint32_t params = 0, uint16_t delay = 0, uid_t *uid = NULL);
 
 	/* Reads in data from serial port and puts results into msg
 	 * Return a Status enum to report on success/failure
@@ -35,9 +35,17 @@ private:
 	const static int UID_YEAR_BYTES; 		//bytes in year field of uid
 	const static int UID_ID_BYTES; 			//bytes in uid field of uid
 
+	// A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
+	uint8_t log_queue_max_size = 10;
+	char** log_queue = (char**) malloc(this->log_queue_max_size * MAX_PAYLOAD_SIZE);
+	uint8_t num_logs = 0;
+
+	// Logging
+	void lowcar_printf(char* format, ...);
+	void lowcar_flush();
 
 	//helper methods; see source file for more detailed description of functionality
-	Status build_msg (MessageID msg_id, message_t *msg, uint16_t params = 0, uint16_t delay = 0, uid_t *uid = NULL);
+	Status build_msg (MessageID msg_id, message_t *msg, uint32_t params = 0, uint16_t delay = 0, uid_t *uid = NULL);
 	int append_payload (message_t *msg, uint8_t *data, uint8_t length);
 	void message_to_byte (uint8_t *data, message_t *msg);
 	uint8_t checksum (uint8_t *data, int length);

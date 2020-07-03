@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 //Maximum size of a message payload
-#define MAX_PAYLOAD_SIZE    100
+#define MAX_PAYLOAD_SIZE    132
 
 //manual UID for testing
 //#define UID_RANDOM 0x0123456789ABCDEF
@@ -55,6 +55,7 @@ enum class MessageID : uint8_t {
 	DEVICE_DISABLE			= 0x16,
 	HEARTBEAT_REQUEST		= 0x17,
 	HEARTBEAT_RESPONSE		= 0x18,
+	LOG						= 0x19,
 	ERROR					= 0xFF
 };
 
