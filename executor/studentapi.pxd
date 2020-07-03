@@ -1,10 +1,5 @@
 from libc.stdint cimport *
 
-cdef extern from "../logger/logger_config.h":
-    enum log_level:
-        DEBUG, INFO, WARN, ERROR, PYTHON
-
-
 cdef extern from "../runtime_util/runtime_util.h":
     int NUM_GAMEPAD_BUTTONS
     ctypedef enum process_t:
@@ -29,6 +24,8 @@ cdef extern from "../logger/logger.h":
     void logger_init (process_t process)
     void logger_stop ()
     void log_runtime (log_level level, char *msg)
+    enum log_level:
+        DEBUG, INFO, WARN, ERROR, PYTHON
 
 
 cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:

@@ -1,9 +1,7 @@
 #include "udp_suite.h"
-// #include "udp_lib.c"
 
 pthread_t socket_thread;
 int socket_fd = -1;
-
 
 void get_device_data(uint8_t** buffer, int* len) {
 	DevData dev_data = DEV_DATA__INIT;
@@ -149,7 +147,7 @@ void* process_udp_data(void* args) {
 
 
 //start the threads managing a UDP connection
-void start_udp_suite ()
+void start_udp_conn ()
 {
 	struct sockaddr_in my_addr;    //for holding IP addresses (IPv4)
 	
@@ -178,7 +176,7 @@ void start_udp_suite ()
 }
 
 //stop the threads managing the UDP connection
-void stop_udp_suite ()
+void stop_udp_conn ()
 {
 	if (pthread_cancel(socket_thread) != 0) {
 		perror("pthread_cancel");

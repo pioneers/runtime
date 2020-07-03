@@ -14,8 +14,10 @@
 #include <signal.h>
 #include "../runtime_util/runtime_util.h"   //(TODO: consider removing relative pathname in include)
 
+#define LOG_FIFO "/tmp/log-fifo"   //location of the log FIFO pipe in filesystem
+
 //enumerate logger levels from least to most critical
-typedef enum log_level { DEBUG, INFO, WARN, ERROR, FATAL, PYTHON } log_level;
+typedef enum log_level { DEBUG, INFO, WARN, PYTHON, ERROR, FATAL } log_level_t;
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
@@ -27,8 +29,8 @@ void logger_stop ();
 
 //Call to log something. The message should be a string (string literals work too)
 //Level is one of the levels listed in the config file
-void log_runtime (log_level level, char *msg);
+void log_runtime (log_level_t level, char *msg);
 
-void log_printf(log_level level, char* format, ...);
+void log_printf(log_level_t level, char* format, ...);
 
 #endif
