@@ -30,7 +30,7 @@ With that said, we now see the need for the following design principles:
 
 * **Keep It Simple, Stupid (KISS)**. In Runtime, this means that we want to keep the number of dependencies on third-party libraries to a minimum. This reduces the complexity of building Runtime. Third party-libraries also often have incomplete or questionable documentation; having fewer third-party dependencies means that there is less documentation new staff members have to read in order to begin understanding and working on Runtime. 
 * **Document, document, document**. As you can probably tell by the length and detail in this README, we take our documentation seriously. Mark your TODO items. Describe your functions. Name things well. Write and update READMEs whenever possible. We need to document everything to make it easy for staff to onboard, and for seasoned staff to maintain and extend the code.
-* **Be Able to Log Anywhere**. Runtime has a logger that can send logs from anywhere within the system to a file, terminal, or over the network to Dawn if Dawn is connected. It is crucial that this logger be maintained, and for log statements to be added into the program wherever necessary (including in the Arduino devices). When a problem arises, staff must be able to turn on these logs and be able to see exactly what is happening in the system from somewhere, which enables efficient debugging.
+* **Be Able to Log Anywhere**. Runtime has a logger that can send logs from anywhere within the system to a file, terminal, or over the network to Dawn if Dawn is connected. It is crucial that this logger be maintained, and for log statements to be added into the program wherever necessary (including in the Arduino devices). When a problem arises, staff must be able to turn on these logs, allowing them to see exactly what is happening in the system from somewhere, which enables efficient debugging.
 * **Consider All Posssibilities**. Try to consider all the errors and situations possible. What should happen in each case? Should Runtime restart? Should it handle the error and continue as normal? Should it revert to some default behavior? This all helps make Runtime as robust as possible, helps us debug efficiently when Runtime crashes, and helps keep students happy when Runtime doesn't crash.
 * **Test, test, test**. It is hard to test such a large system, but if at all possible, the effort must be made to test our code. 
 
@@ -66,7 +66,7 @@ Runtime uses a **lot** of systems concepts, which is hopefully why you're here--
 
 * **Networking**
     * Used to connect Runtime to Dawn and Shepherd
-    * **Unreliable Datagram Protocol (UDP)**
+    * **User Datagram Protocol (UDP)**
 	    * This networking standard for transmitting data between two machines on a network is useful when transferring packets of data where dropping, reordering, or duplicating packets occasionally is tolerable
 		* In Runtime, used for Runtime to communicate device data to Dawn, and Dawn to communicate gamepad state to Runtime
 	* **Transmission Control Protocol (TCP)**
@@ -74,13 +74,13 @@ Runtime uses a **lot** of systems concepts, which is hopefully why you're here--
 		* In Runtime, used for Runtime to communicate all other data between itself and Dawn or Shepherd
 	* **Sockets**
 		* These objects are used by computers to communicate with other computers on the network. A connection over a network is made when a socket on one machine and another socket somewhere else on the network begin sending information to each other
-		* In Runtime, used to make connections with Dawn and Shepherd.
+		* In Runtime, used to make connections with Dawn and Shepherd. Also used between `net_handler` and `executor` to communicate about the coding challenges
 * **Shared Memory**
 	* These special files can be used for different processes to communicate messages, especially structured messages. Shared Memory is the fastest type of interprocess communication (IPC)
 	* In Runtime, it is used to enable the fast transfer of most data (especially the high-throughput data) through the system
 * **FIFO Pipes**
     * These special files can be used for different processes to communicate messages, especially unstructured messages where the order in which the messages come is important
-	* In Runtime, used to transfer logs between the logger and `net_handler` before those logs are sent to Dawn, and used for `net_handler` and `executor` to communicate about the coding challenges
+	* In Runtime, used to transfer logs between the logger and `net_handler` before those logs are sent to Dawn
 * **Serial Communication**
 	* Serial communication happens whenever two devices communicate information byte-by-byte (usually over a wired connection), with no protocol or breaking up of large messages into smaller packets when necessary
 	* In Runtime, `dev_handler` and the `lowcar` devices communicate over serial connections
@@ -97,7 +97,7 @@ Remember, one of the design principles is KISS. Nevertheless, Runtime is a compl
 
 As a baseline, Runtime uses the following commonly used tools that should already be installed on your machine (if you don't have these, ask the Runtime Project Manager to help you install them):
 
-* Python 3.7 or later: students write their student code in Python, so in order to run their code, we do need to use some Python in `executor`. To run Python code from C, we need to use Python's C API. Python's C API is notoriously unstable, and we wrote `executor` using Python 3.7 / 3.8.
+* Python 3.7 or later: we wrote `executor` using Python 3.7 / 3.8, so we only guarantee that these versions work as of now (although Python 3.6 should also work).
 * `gcc`: short for "GNU C Compiler", we use this compiler to generate executables from C source code.
 
 Additionally, the Raspberry Pi uses a distribution of the Linux operating system (OS) called "Raspbian", a slight variant of the extremely popular "Debian" Linux. We tested Runtime to work well on Linux systems, but getting it to work properly on MacOS is difficult (and it definitely does not work on Windows). **It's highly recommended that you try to install a dual boot on your computer with some distribution of Linux (preferably Debian or Ubuntu) in order to properly build and run Runtime.**
@@ -107,24 +107,29 @@ Runtime has the following third-party library dependencies:
 * `Cython`: this library is used by `executor` to implement the Student API in a way that is both callable from Runtime (which is written in C) and from student code (which is written in Python)
     * Documentation: https://cython.readthedocs.io/en/latest/
 	* Installation (Debian/Raspbian Linux):
-	    1) `sudo apt-get -y install python3-distutils`   //get some utility functions
-        2) `sudo apt-get -y install python3-dev`         //get `<Python.h>`, `libpython3.7m.so`
-        3) `sudo apt-get -y install python3-pip`         //get `pip`
-        4) `python3 -m pip install Cython`               //get `Cython` using `pip`
+	    1) `sudo apt-get -y install python3-distutils` (get some utility functions)
+        2) `sudo apt-get -y install python3-dev`       (get `<Python.h>`, `libpython3.7m.so`)
+        3) `sudo apt-get -y install python3-pip`       (get `pip`)
+        4) `python3 -m pip install Cython`             (get `Cython` using `pip`)
 
 * Google `protobuf` and `protobuf-c`: Google `protobuf` is the library that we use to serialize our messages between Runtime and Shepherd, and Runtime and Dawn. The brief explanation of how it works is this: the user defines the structure of a message in "protobuf language", and saves it as a `.proto` file. Google's protobuf compiler will then take that `.proto` file and generate code that can be used in a desired target language to serialize and deserialize ("pack" and "unpack" in the language of protobufs) messages of that type. Since Google's protobuf compiler does not have native support for C, we need to use the third party library `protobuf-c` to generate C code. (But `protobuf-c` makes use of Google's library, so we still need it).
     * `proto3` language documentation / guide: https://developers.google.com/protocol-buffers/docs/proto3
 	* `protobuf` Github: https://github.com/protocolbuffers/protobuf
 	* `protobuf-c` Github: https://github.com/protobuf-c/protobuf-c
     * Installation (Debian/Raspbian Linux; MacOS):
-	    1) from `https://github.com/protocolbuffers/protobuf/releases`, download `protobuf-cpp-<release>.tar.gz` and extract it
-        2) from `https://github.com/protobuf-c/protobuf-c/releases` download `protobuf-c-<release>.tar.gz` and extract it
+	    1) From `https://github.com/protocolbuffers/protobuf/releases`, download `protobuf-cpp-<release>.tar.gz` and extract it
+			a) To download tar archive into your current working directory:
+				* `wget https://github.com/protocolbuffers/protobuf/releases/download/<release>.tar.gz` (Linux)
+				* `curl -o <name-of-file> https://github.com/protocolbuffers/protobuf/releases/download/<release>.tar.gz` (MacOS; `<name-of-file>` is what you want the downloaded file to be named. you may need to install `curl` with `brew install curl`)
+			b) To extract the files from the tar archive file:
+				* `tar -xvf protobuf-cpp-<release>.tar.gz` (Linux, MacOS)
+        2) From `https://github.com/protobuf-c/protobuf-c/releases` download `protobuf-c-<release>.tar.gz` and extract it (same as step 1, but replace the links with the ones from the `protobuf-c` Github)
 		3) You may need to install some tools (`libtool`, `pkg-config`, `g++`). To check if you have them already, run `which <tool-name>`, and if the computer spits out a path, then you don't have to install it. For example, to check if you have `libtool`, run `which libtool` and if you have it you should get something like `/usr/bin/libtool` or `/usr/local/bin/libtool`.
 		    a) to install a tool you don't have, run `sudo apt-get -y install <tool-name>`, replace `<tool-name>` with what you want to install.
         4) `cd` into the folder for `protobuf-cpp-<release>.tar.gz` and run:
             a) `./configure`
-            b) `make`                //this takes a while
-			c) `make check`          //this takes a while
+            b) `make`                (this takes a while)
+			c) `make check`          (this takes a while)
 			d) `sudo make install`
 		5) `cd` into the folder for `protobuf-c-<release>.tar.gz` and run:
 			a) `./configure`
@@ -163,7 +168,11 @@ Runtime uses the following language-supported (i.e. not third-party) Python libr
 * `sys`: used for redirecting `print` statements to the Runtime `logger`
 * `builtins`: used to reference the built-in Python `print` function and change it
 
-## Running / Building Runtime
+## Building Runtime
+
+TODO!
+
+## Running Runtime
 
 TODO!
 
@@ -209,6 +218,6 @@ Some inspiration and design was drawn from previous iterations of Runtime and Lo
 
 **<a name="footnote1">1</a>**: Previous iterations of Runtime were written in Python; whether or not this was a good choice is up to the reader's discretion. [↩](#return1)
 
-**<a name="footnote2">2</a>**: This name has an interesting origin. The code for the devices used to be in a completely separate PiE project called "Hibike" (pronounced HEE-bee-kay). Some members of Hibike who wrote much of the original Arduino code were avid fans of anime. So, they named the project Hibike after the anime "Hibike! Yufoniamu" (Sound! Euphonium). Later, some members who were not such avid fans of anime decided to pronounce "Hibike" as "HAI-bike", which sounds like the two English words "High Bike". Later still, when members decided to refactor the code to be more object-oriented, it was decided that a new name was needed for the project. Ben Liao coined the name "Low Car" as wordplay on "High Bike", and the name stuck. [↩](#return2)
+**<a name="footnote2">2</a>**: This name has an interesting origin. The code for the devices used to be in a completely separate PiE project called "Hibike" (pronounced HEE-bee-kay). Some members of Hibike who wrote much of the original Arduino code were avid fans of anime. So, they named the project Hibike after the anime "Hibike! Yufoniamu" (_Sound! Euphonium_). Later, some members who were not such avid fans of anime decided to pronounce "Hibike" as "HAI-bike", which sounds like the two English words "High Bike". Later still, when members decided to refactor the code to be more object-oriented, it was decided that a new name was needed for the project. Ben Liao coined the name "Low Car" as wordplay on "High Bike", and the name stuck. [↩](#return2)
 
 **<a name="footnote3">3</a>**: Previous iterations of Runtime, which were written in Python, had some of these third-party dependencies: `zmq`, `protobufs`, `Cython`, as well as several large Python libraries (not all listed): `asyncio`, `threading`, `aio_msgpack_rpc`, `serial_asyncio`, `multiprocessing`, `glob`, `os`, `json` [↩](#return3)
