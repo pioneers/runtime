@@ -2,14 +2,14 @@
 
 //used for creating and cleaning up TCP connection
 typedef struct {
+	robot_desc_field_t client;
+	int challenge_fd;
 	int conn_fd;
-    int send_logs;
-    robot_desc_field_t client;
+	int send_logs;
+	FILE *log_file;
 } tcp_conn_args_t;
 
 pthread_t dawn_tid, shepherd_tid;
-int challenge_fd = -1;
-FILE* log_file = NULL;
 
 /*
  * Clean up memory and file descriptors before exiting from dawn connection main control loop
@@ -21,17 +21,17 @@ static void tcp_conn_cleanup (void *args)
 	tcp_conn_args_t* tcp_args = (tcp_conn_args_t *) args;
 
 	if (close(tcp_args->conn_fd) != 0) {
-        log_printf(ERROR, "Failed to close conn_fd");
+		log_printf(ERROR, "Failed to close conn_fd");
 		perror("close: conn_fd");
 	}
-	if (log_file != NULL) {
-		if (fclose(log_file) != 0) {
+	if (tcp_args->log_file != NULL) {
+		if (fclose(tcp_args->log_file) != 0) {
 			log_printf(ERROR, "Failed to close log_file");
 			perror("fclose: log_file");
 		}
 	}
-	if (challenge_fd != -1) {
-		if (close(challenge_fd) != 0) {
+	if (tcp_args->challenge_fd != -1) {
+		if (close(tcp_args->challenge_fd) != 0) {
 			log_printf(ERROR, "Failed to close challenge_fd");
 			perror("close: challenge_fd");
 		}
@@ -47,17 +47,17 @@ static void tcp_conn_cleanup (void *args)
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
  */
-static void send_log_msg (int conn_fd)
+static void send_log_msg (int conn_fd, FILE *log_file)
 {	
-	char nextline[MAX_LOG_LEN];            //next log line read from FIFO pipe
+	char nextline[MAX_LOG_LEN];   //next log line read from FIFO pipe
+	Text log_msg = TEXT__INIT;    //initialize a new Text protobuf message
+	log_msg.n_payload = 0;
+	log_msg.payload = (char **) malloc(MAX_NUM_LOGS * sizeof(char *));
 	
 	//read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
-    Text log_msg = TEXT__INIT;
-	log_msg.n_payload = 0;
-	log_msg.payload = malloc(MAX_NUM_LOGS * sizeof(char*));
 	while (log_msg.n_payload < MAX_NUM_LOGS) {
 		if (fgets(nextline, MAX_LOG_LEN, log_file) != NULL) {
-			log_msg.payload[log_msg.n_payload] = malloc(MAX_LOG_LEN);
+			log_msg.payload[log_msg.n_payload] = (char *) malloc(MAX_LOG_LEN);
 			strcpy(log_msg.payload[log_msg.n_payload], nextline);
 			log_msg.n_payload++;
 		}
@@ -90,26 +90,25 @@ static void send_log_msg (int conn_fd)
 	free(send_buf);
 }
 
-
 /* 
  * Send a challenge data message on the TCP connection to the client.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
  *    - int results_fd: file descriptor of FIFO pipe from which to read challenge results from executor
  */
-static void send_challenge_msg (int conn_fd, int results_fd)
+static void send_challenge_msg (int conn_fd, int challenge_fd)
 {
 	const int max_len = 4096;   //max len of a challenge data message
 	int result_len;          //length of results string
 	char buf[max_len];          //buffer that results are read into, from which it is copied into text message
 	
 	//keep trying to read the line until you get it; copy that line into challenge_data.payload[0]
-	if ((result_len = read(results_fd, buf, max_len)) != 0) {
+	if ((result_len = read(challenge_fd, buf, max_len)) != 0) {
 		perror("read");
 		log_printf(ERROR, "send_challenge: reading from challenge_fd failed");
 		return;
 	}
-    Text challenge_data = TEXT__INIT;
+	Text challenge_data = TEXT__INIT;
 	challenge_data.n_payload = 1;
 	challenge_data.payload = malloc(sizeof(char*));
 	challenge_data.payload[0] = malloc(result_len);
@@ -123,7 +122,7 @@ static void send_challenge_msg (int conn_fd, int results_fd)
 	//send message on socket
 	if (writen(conn_fd, send_buf, len_pb + 3) == -1) {
 		perror("write");
-        log_printf(ERROR, "sending challenge data message failed");
+		log_printf(ERROR, "sending challenge data message failed");
 	}
 	
 	//free all allocated memory
@@ -131,7 +130,6 @@ static void send_challenge_msg (int conn_fd, int results_fd)
 	free(challenge_data.payload);
 	free(send_buf);
 }
-
 
 /*
  * Receives new message from client on TCP connection and processes the message.
@@ -143,7 +141,7 @@ static void send_challenge_msg (int conn_fd, int results_fd)
  *     -1 if message could not be parsed because Shepherd disconnected and connection closed
  *     -2 if message could not unpacked
  */
-static int recv_new_msg (int conn_fd, int results_fd)
+static int recv_new_msg (int conn_fd, int challenge_fd)
 {
 	net_msg_t msg_type;           //message type
 	uint16_t len_pb;              //length of incoming serialized protobuf message
@@ -166,22 +164,23 @@ static int recv_new_msg (int conn_fd, int results_fd)
 			log_printf(ERROR, "Cannot unpack text msg");
 			return -2;
 		}
-		//TODO: write the provided input data for the challenge to FIFO pipe to executor
+		
+		//write the provided input data for the challenge to FIFO pipe to executor
 		int challenge_len = strlen(challenge_data_msg->payload[0]) + 1;
-		if (writen(results_fd, challenge_data_msg->payload[0], challenge_len) == -1) {
+		if (writen(challenge_fd, challenge_data_msg->payload[0], challenge_len) == -1) {
 			perror("fwrite");
 			log_printf(ERROR, "could not write to results.txt for challenge data");
 		}
 		text__free_unpacked(challenge_data_msg, NULL);
-
 		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
 		robot_desc_write(RUN_MODE, CHALLENGE);
+		
 		// Blocks till the challenge finished running
 		while (robot_desc_read(RUN_MODE) != IDLE) {
 			sleep(1);
 		}
 		// Send results back to client
-		send_challenge_msg(conn_fd, results_fd);
+		send_challenge_msg(conn_fd, challenge_fd);
 	} 
 	else if (msg_type == RUN_MODE_MSG) {
 		log_printf(DEBUG, "Received run mode msg, len %d", len_pb);
@@ -237,14 +236,14 @@ static int recv_new_msg (int conn_fd, int results_fd)
 		}
 		start_pos__free_unpacked(start_pos_msg, NULL);
 	} 
-    else if (msg_type == DEVICE_DATA_MSG) {
+	else if (msg_type == DEVICE_DATA_MSG) {
 		DevData* dev_data_msg = dev_data__unpack(NULL, len_pb, buf);
 		if (dev_data_msg == NULL) {
 			log_printf(ERROR, "Cannot unpack dev_data msg");
 			return -2;
 		}
 		log_printf(WARN, "Received device data msg which has no implementation");
-		//TODO: tell UDP suite to only send parts of data
+		//TODO: tell UDP suite to only send parts of data, not implemented by Dawn yet
 		
 		dev_data__free_unpacked(dev_data_msg, NULL);
 	}
@@ -267,20 +266,21 @@ static int recv_new_msg (int conn_fd, int results_fd)
  */
 static void* process_tcp (void* tcp_args)
 {
-    tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
+	tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
 	int log_fd;
+	
 	//Open FIFO pipe for logs
-	if ((log_fd = open(FIFO_NAME, O_RDONLY | O_NONBLOCK)) == -1) {
+	if ((log_fd = open(LOG_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
 		perror("fifo open");
 		log_printf(ERROR, "could not open log FIFO on %d", args->client);
 	}
-	if ((log_file = fdopen(log_fd, "r")) == NULL) {
+	if ((args->log_file = fdopen(log_fd, "r")) == NULL) {
 		perror("fdopen");
 		log_printf(ERROR, "could not open log file from fd");
 	}
 
-    // open challenge_fd for reading
-	if ((challenge_fd = open(CHALLENGE_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
+	// open challenge_fd for reading
+	if ((args->challenge_fd = open(CHALLENGE_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
 		perror("fifo open");
 		log_printf(ERROR, "could not open challenge FIFO on %d", args->client);
 	}
@@ -288,13 +288,16 @@ static void* process_tcp (void* tcp_args)
 	//variables used for waiting for something to do using select()
 	int maxfdp1 = ((args->conn_fd > log_fd) ? args->conn_fd : log_fd) + 1;
 	fd_set read_set;
+	
 	//main control loop that is responsible for sending and receiving data
 	while (1) {
+		//set up the read_set argument to selct()
 		FD_ZERO(&read_set);
 		FD_SET(args->conn_fd, &read_set);
 		if (args->send_logs) {
 			FD_SET(log_fd, &read_set);
 		}
+		
 		//prepare to accept cancellation requests over the select
 		pthread_cleanup_push(tcp_conn_cleanup, args);
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -303,20 +306,21 @@ static void* process_tcp (void* tcp_args)
 		//wait for something to happen
 		if (select(maxfdp1, &read_set, NULL, NULL, NULL) < 0) {
 			perror("select");
-            log_printf(ERROR, "Failed to wait for select in control loop for client %d", args->client);
+			log_printf(ERROR, "Failed to wait for select in control loop for client %d", args->client);
 		}
+		
 		//deny all cancellation requests until the next loop
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		pthread_cleanup_pop(0); //definitely do NOT execute the cleanup handler!
 
-		//send a new log message if one is available
+		//send a new log message if one is available and we want to send logs
 		if (args->send_logs && FD_ISSET(log_fd, &read_set)) {
-			send_log_msg(args->conn_fd);
+			send_log_msg(args->conn_fd, args->log_file);
 		}
 
 		//receive new message on socket if it is ready
 		if (FD_ISSET(args->conn_fd, &read_set)) {
-			int err = recv_new_msg(args->conn_fd, challenge_fd); 
+			int err = recv_new_msg(args->conn_fd, args->challenge_fd); 
 			if (err == -1) { 
 				log_printf(WARN, "client %d has disconnected", args->client);
 				break;
@@ -337,53 +341,57 @@ static void* process_tcp (void* tcp_args)
  */
 void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 {
-	tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
-	args->conn_fd = conn_fd;
+	//initialize argument to new connection thread
+	tcp_conn_args_t* args = (tcp_conn_args_t *) malloc(sizeof(tcp_conn_args_t));
 	args->client = client;
+	args->conn_fd = conn_fd;
 	args->send_logs = send_logs;
-    pthread_t* tid;
+	args->log_file = NULL;
+	args->challenge_fd = -1;
+	
+	pthread_t* tid;
 	if (client == DAWN) {
-        tid = &dawn_tid;
-    }
-    else if (client == SHEPHERD) {
-        tid = &shepherd_tid;
-    }
-    else {
-        log_printf(ERROR, "Invalid TCP client %d", client);
-    }
+		tid = &dawn_tid;
+	}
+	else if (client == SHEPHERD) {
+		tid = &shepherd_tid;
+	}
+	else {
+		log_printf(ERROR, "Invalid TCP client %d", client);
+	}
+	
 	//create the main control thread
 	if (pthread_create(tid, NULL, process_tcp, args) != 0) {
 		perror("pthread_create");
-        log_printf(ERROR, "Failed to create main TCP thread for %d", client);
+		log_printf(ERROR, "Failed to create main TCP thread for %d", client);
 		return;
 	}
 	robot_desc_write(client, CONNECTED);
 }
 
-
 /*
- * Stops the dawn connection control thread cleanly. May block briefly to allow
+ * Stops the TCP connection control thread with given client cleanly. May block briefly to allow
  * main control thread to finish what it's doing. Should be called right before the net_handler main loop terminates.
  */
 void stop_tcp_conn (robot_desc_field_t client)
 {
-    pthread_t tid;
-    if (client == DAWN) {
-        tid = dawn_tid;
-    }
-    else if (client == SHEPHERD) {
-        tid = shepherd_tid;
-    }
-    else {
-        log_printf(ERROR, "Invalid TCP client %d", client);
-    }
+	pthread_t tid;
+	if (client == DAWN) {
+		tid = dawn_tid;
+	}
+	else if (client == SHEPHERD) {
+		tid = shepherd_tid;
+	}
+	else {
+		log_printf(ERROR, "Invalid TCP client %d", client);
+	}
 
 	if (pthread_cancel(tid) != 0) {
 		perror("pthread_cancel");
-        log_printf(ERROR, "Failed to cancel TCP client thread for %d", client);
+		log_printf(ERROR, "Failed to cancel TCP client thread for %d", client);
 	}
 	if (pthread_join(tid, NULL) != 0) {
 		perror("pthread_join");
-        log_printf(ERROR, "Failed to join on TCP client thread for %d", client);
+		log_printf(ERROR, "Failed to join on TCP client thread for %d", client);
 	}
 }

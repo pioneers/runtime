@@ -1,18 +1,16 @@
 #include "net_util.h"
-// #include "shepherd_conn.h"
-// #include "dawn_conn.h"
 #include "tcp_conn.h"
 #include "udp_suite.h"
 
 /*
- * Sets up TCP listening socket on raspberry pi.
- * Creates the socket, binds it to the raspi's well-known address and port, and puts it in listen mode.
- * Arguments:
- *    - int *sockfd: pointer to integer which will store the litening socket descriptor upon successful return
- * Return:
- *    - 0: all steps completed successfully
- *    - 1: listening socket setup failed
- */
+* Sets up TCP listening socket on raspberry pi.
+* Creates the socket, binds it to the raspi's well-known address and port, and puts it in listen mode.
+* Arguments:
+*    - int *sockfd: pointer to integer which will store the litening socket descriptor upon successful return
+* Return:
+*    - 0: all steps completed successfully
+*    - 1: listening socket setup failed
+*/
 int listening_socket_setup (int *sockfd)
 {
 	struct sockaddr_in serv_addr;
@@ -65,13 +63,13 @@ int listening_socket_setup (int *sockfd)
 }
 
 /*
- * Check to see if requesting client is indeed Shepherd
- * Arguments:
- *    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
- * Return:
- *    - 0 if cli_addr is not Shepherd
- *    - 1 if cli_addr is Shepherd
- */
+* Check to see if requesting client is indeed Shepherd
+* Arguments:
+*    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
+* Return:
+*    - 0 if cli_addr is not Shepherd
+*    - 1 if cli_addr is Shepherd
+*/
 int is_shepherd (struct sockaddr_in *cli_addr)
 {
 	//check if the client requesting connection is shepherd, and if shepherd is connected already
@@ -85,13 +83,13 @@ int is_shepherd (struct sockaddr_in *cli_addr)
 }
 
 /*
- * Check to see if requesting client is indeed Dawn
- * Arguments:
- *    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
- * Return:
- *    - 0 if cli_addr is not Dawn
- *    - 1 if cli_addr is Dawn
- */
+* Check to see if requesting client is indeed Dawn
+* Arguments:
+*    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
+* Return:
+*    - 0 if cli_addr is not Dawn
+*    - 1 if cli_addr is Dawn
+*/
 int is_dawn (struct sockaddr_in *cli_addr)
 {
 	//check if the client requesting connection is dawn, and if dawn is connected already
@@ -105,14 +103,14 @@ int is_dawn (struct sockaddr_in *cli_addr)
 }
 
 /*
- * Handles SIGINT being sent to the process by closing connections and closing shm_aux, shm, and logger.
- * Arguments:
- *    - int sig_num: signal that caused this handler to execute (will always be SIGINT in this case)
- */
+* Handles SIGINT being sent to the process by closing connections and closing shm_aux, shm, and logger.
+* Arguments:
+*    - int sig_num: signal that caused this handler to execute (will always be SIGINT in this case)
+*/
 void sigint_handler (int sig_num)
 {
 	log_printf(INFO, "stopping net_handler");
-	stop_udp_suite();
+	stop_udp_conn();
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
 		stop_tcp_conn(SHEPHERD);
 	}
@@ -136,6 +134,7 @@ int main ()
 	int sockfd = -1, connfd = -1;
 	struct sockaddr_in cli_addr; //requesting client's address
 	socklen_t cli_addr_len = sizeof(struct sockaddr_in); //length of requesting client's address in bytes
+	
 	//setup
 	logger_init(NET_HANDLER);
 	signal(SIGINT, sigint_handler);
@@ -148,7 +147,9 @@ int main ()
 	}
 	shm_aux_init(NET_HANDLER);
 	shm_init(NET_HANDLER);
-	start_udp_suite();
+	start_udp_conn(); //start UDP connection with Dawn here
+	
+	//run net_handler main control loop
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
 		if ((connfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_addr_len)) < 0) {

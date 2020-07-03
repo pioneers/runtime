@@ -15,7 +15,7 @@ int main ()
 	struct sockaddr_in serv_addr, cli_addr;
 	
 	signal(SIGINT, &sigint_handler); //set the signal handler for SIGINT
-	logger_init(TEST);
+	//logger_init(TEST);
 	//create socket
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("socket: failed to create listening socket");
@@ -47,7 +47,7 @@ int main ()
 	memset(&serv_addr, '\0', sizeof(struct sockaddr_in));     //initialize everything to 0
 	serv_addr.sin_family = AF_INET;                           //use IPv4
 	serv_addr.sin_port = htons(RASPI_PORT);                   //want to connect to raspi port
-	serv_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	serv_addr.sin_addr.s_addr = inet_addr("192.168.0.24");
 	
 	//connect to the server
 	if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {

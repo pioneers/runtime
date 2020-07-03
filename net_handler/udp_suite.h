@@ -15,9 +15,9 @@
 #include "pbc_gen/device.pb-c.h"
 
 //start the threads managing a UDP connection
-void start_udp_suite ();
+void start_udp_conn ();
 
 //stop the threads managing the UDP connection
-void stop_udp_suite ();
+void stop_udp_conn ();
 
 #endif
