@@ -80,7 +80,7 @@ private:
 
 	Messenger *msngr; //deals with all encoding/decoding and sending/reading of messages on serial
 	StatusLED *led;
-	uid_t UID; //UID of this device
+	dev_id_t UID; //UID of this device
 	uint32_t params; //bitmap for which parameters are subscribed to on this device
 	uint16_t sub_delay; //time between successive subscription responses (ms)
 	uint32_t disable_time, heartbeat_delay; //time betweeen heartbeat requests (ms)

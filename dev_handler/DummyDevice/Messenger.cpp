@@ -18,7 +18,7 @@ Messenger::Messenger ()
 }
 
 //TODO: check buffer size
-Status Messenger::send_message (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, uid_t *uid)
+Status Messenger::send_message (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, dev_id_t *uid)
 {
 	//build msg for heartbeat- and subscription-related messages
 	if (msg_id != MessageID::LOG) {
@@ -98,17 +98,19 @@ Status Messenger::read_message (message_t *msg)
 //expects msg to exist
 //builds the appropriate payload in msg according to msg_id, or doesn't do anything if msg should already be built
 //returns Status to report on success/failure
-Status Messenger::build_msg (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, uid_t *uid)
+Status Messenger::build_msg (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, dev_id_t *uid)
 {
 	int status = 0;
 	uint8_t fill_data[1] = {0};
 	msg->message_id = msg_id;
 	if (msg_id == MessageID::HEARTBEAT_REQUEST) {
-	    msg->payload_length = 0;
-	    status += append_payload(msg, fill_data, sizeof(uint8_t));
+		msg->payload[0] = this->hb_counter;
+	    msg->payload_length = 1;
+		printf("Sending HeartBeatRequest %d\n", (int8_t) this->hb_counter);
+		this->hb_counter++;
 	} else if (msg_id == MessageID::HEARTBEAT_RESPONSE) {
-	    msg->payload_length = 0;
-	    status += append_payload(msg, fill_data, sizeof(uint8_t));
+		msg->payload[0] = this->got_hb_req;
+	    msg->payload_length = 1;
 	} else if (msg_id == MessageID::SUBSCRIPTION_RESPONSE) {
 	    msg->payload_length = 0;
 
@@ -221,7 +223,7 @@ size_t Messenger::cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len)
 void Messenger::lowcar_printf(char* format, ...) {
 	// Double the queue size if it's full
 	if (this->num_logs == this->log_queue_max_size) {
-		this->log_queue = (char**) realloc(2 * this->log_queue_max_size * MAX_PAYLOAD_SIZE);
+		this->log_queue = (char**) realloc(this->log_queue, 2 * this->log_queue_max_size * MAX_PAYLOAD_SIZE);
 		this->log_queue_max_size *= 2;
 	}
 	// Add the new formatted log to the queue
@@ -242,7 +244,7 @@ void Messenger::lowcar_flush() {
 	for (int i = 0; i < this->num_logs; i++) {
 		log.payload_length = strlen(this->log_queue[i]) + 1; // Null terminator character
 		// Copy string into payload
-		strcpy(log.payload, this->log_queue[i]);
+		strcpy((char*) log.payload, this->log_queue[i]);
 		this->send_message(MessageID::LOG, &log);
 	}
 	// "Clear" the queue

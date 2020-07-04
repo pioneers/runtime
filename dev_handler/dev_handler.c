@@ -134,17 +134,18 @@ uint8_t get_new_device() {
 void communicate(uint8_t port_num) {
 	msg_relay_t* relay = malloc(sizeof(msg_relay_t));
     relay->port_num = port_num;
-    char port_name[15]; // Template size + 2 indices for port_number
-    sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
-    log_printf(DEBUG, "Setting up threads for %s\n", port_name);
-	//relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
-    relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
-    if (relay->file_descriptor == -1) {
-        log_printf(ERROR, "Couldn't open port %s\n", port_name);
-    } else {
-        log_printf(DEBUG, "Opened port %s\n", port_name);
-    }
-	if (OUTPUT == FILE_DEV) {
+    if (OUTPUT == USB_DEV) {
+        char port_name[15]; // Template size + 2 indices for port_number
+        sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
+        log_printf(DEBUG, "Setting up threads for %s\n", port_name);
+    	//relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
+        relay->file_descriptor = serialport_init(port_name, BAUD_RATE);
+        if (relay->file_descriptor == -1) {
+            log_printf(ERROR, "Couldn't open port %s\n", port_name);
+        } else {
+            log_printf(DEBUG, "Opened port %s\n", port_name);
+        }
+    } else if (OUTPUT == FILE_DEV) {
         // Open the file to read from
         relay->read_file = fopen(TO_DEV_HANDLER, "w+");
         if (relay->read_file == NULL) {
@@ -308,7 +309,7 @@ void* sender(void* relay_cast) {
 			if (ret != 0) {
                 log_printf(ERROR, "HeartBeatRequest transfer failed\n");
 			}
-            log_printf(DEBUG, "Sent HeartBeatRequest: %d\n", heartbeat_counter);
+            log_printf(DEBUG, "Sent HeartBeatRequest %d to /dev/ttyACM%d\n", heartbeat_counter, relay->port_num);
             // Update the timestamp at which we sent a HeartBeatRequest
             relay->last_sent_hbreq_time = millis();
 			destroy_message(msg);
@@ -322,7 +323,7 @@ void* sender(void* relay_cast) {
 			if (ret != 0) {
                 log_printf(ERROR, "HeartBeatResponse transfer failed\n");
 			}
-            log_printf(DEBUG, "Sent HeartBeatResponse: %d\n", relay->got_hb_req);
+            log_printf(DEBUG, "Sent HeartBeatResponse %d to /dev/ttyACM%d\n", relay->got_hb_req, relay->port_num);
 			destroy_message(msg);
             // Mark the HeartBeatRequest as resolved
 			relay->got_hb_req = 0;
@@ -365,11 +366,12 @@ void* receiver(void* relay_cast) {
 		}
 		if (msg->message_id == HeartBeatRequest) {
 			// If it's a HeartBeatRequest, take note of it so sender can resolve it
-            log_printf(DEBUG, "Got HeartBeatRequest: %d\n", (int8_t) msg->payload[0]);
+            log_printf(DEBUG, "Got HeartBeatRequest %d from /dev/ttyACM%d\n", (int8_t) msg->payload[0], relay->port_num);
 			relay->got_hb_req = (int8_t) msg->payload[0];
+            // log_printf(DEBUG, "got_hb_req set to %d\n", (int) relay->got_hb_req);
 		} else if (msg->message_id == HeartBeatResponse) {
 			// If it's a HeartBeatResponse, mark the current HeartBeatRequest as resolved
-            log_printf(DEBUG, "Got HeartBeatResponse: %d\n", (int8_t) msg->payload[0]);
+            log_printf(DEBUG, "Got HeartBeatResponse %d from /dev/ttyACM%d\n", (int8_t) msg->payload[0], relay->port_num);
 			relay->last_received_hbresp_time = millis();
 		} else if (msg->message_id == DeviceData) {
 			// First, parse the payload into an array of parameter values
@@ -425,8 +427,8 @@ int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
         ret = (*transferred == len) ? 0 : -1;
     }
     if (ret == 0) {
-        log_printf(DEBUG, "Sent %d bytes: ", len);
-        print_bytes(data, len);
+        //log_printf(DEBUG, "Sent %d bytes: ", len);
+        //print_bytes(data, len);
     }
     free(data);
 	return ret;
@@ -457,7 +459,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
             log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
         }
     }
-    log_printf(DEBUG, "Got start of message!\n");
+    //log_printf(DEBUG, "Got start of message!\n");
 
     // Try to read the length of the cobs encoded message (the next byte)
     uint8_t cobs_len;
@@ -469,7 +471,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
             num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
         }
     }
-    log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
+    //log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
 
     // Allocate buffer to read message into
     uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
@@ -488,15 +490,16 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         return 1;
     }
 
+    //log_printf(DEBUG, "Received %d bytes: ", 2 + cobs_len);
+    //print_bytes(data, 2 + cobs_len);
+
     // Parse the message
-    if (parse_message(data, msg) != 0) {
+    ret = parse_message(data, msg);
+    free(data);
+    if (ret != 0) {
         log_printf(DEBUG, "Incorrect checksum\n");
-        free(data);
         return 2;
     }
-    log_printf(DEBUG, "Received %d bytes: ", 2 + cobs_len);
-    print_bytes(data, 2 + cobs_len);
-    free(data);
     return 0;
 }
 
@@ -520,7 +523,7 @@ int ping(msg_relay_t* relay) {
 
 	// Try to read a SubscriptionResponse, which we expect from a lowcar device that receives a Ping
     message_t* sub_response = make_empty(MAX_PAYLOAD_SIZE);
-	log_printf(DEBUG, "Listening for SubscriptionResponse\n");
+	log_printf(DEBUG, "Listening for SubscriptionResponse from /dev/ttyACM%d\n", relay->port_num);
     while (receive_message(relay, sub_response) != 0) {
         sleep(1);
     }
@@ -567,4 +570,3 @@ int main() {
     }
 	return 0;
 }
-
