@@ -6,7 +6,7 @@ const float Device::ALPHA = 0.25;		//tuning parameter for how the interpolation 
 
 //Device constructor
 //initializer list at end of this line initializes the this->msngr and this->led variables properly
-Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32_t heartbeat_delay) : msngr(), led()
+Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32_t heartbeat_delay) : led()
 {
 	//initialize primitive variables
 	this->sub_delay = 0; //default 0 to signal not subscribed
@@ -18,6 +18,9 @@ Device::Device (DeviceID dev_id, uint8_t dev_year, uint32_t disable_time, uint32
 	this->UID.device_type = dev_id;
 	this->UID.year = dev_year;
 	this->UID.id = 1234; //this is defined at compile time by the flash script
+
+	// Initialize the Messenger; Putting msngr() in initializer list doesn't run constructor properly
+	this->msngr = new Messenger();
 
 	device_enable(); //call device's enable function
 }
@@ -34,7 +37,6 @@ void Device::loop ()
 	sts = this->msngr->read_message(&(this->curr_msg)); //try to read a new message
 
 	if (sts == Status::SUCCESS) { //we have a message!
-		this->led->quick_blink(5);
 		switch (this->curr_msg.message_id) {
 			case MessageID::PING:
 				this->msngr->send_message(MessageID::SUBSCRIPTION_RESPONSE, &(this->curr_msg), params, sub_delay, &UID);
@@ -79,7 +81,6 @@ void Device::loop ()
 		}
 	} else {
 		// No message received
-		this->led->slow_blink(5);
 	}
 
 	//if it's time to send data again
@@ -97,10 +98,10 @@ void Device::loop ()
 	}
 
 	// Send any queued logs
-	if (this->msgr->num_logs != 0) {
-		this->msgr->lowcar_flush();
+	if (this->msngr->num_logs != 0) {
+		this->msngr->lowcar_flush();
 	}
-	
+
 	//if it's been too long since previous heartbeat response, disable device
 	if ((this->disable_time > 0)  && (this->curr_time - this->prev_hbresp_time >= this->disable_time)) {
 		device_disable();

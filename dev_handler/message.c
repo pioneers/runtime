@@ -15,7 +15,7 @@ Mac:
 void print_bytes(uint8_t* data, int len) {
 	printf("0x");
 	for (int i = 0; i < len; i++) {
-		printf("%X", data[i]);
+		printf("%02X ", data[i]);
 	}
 	printf("\n");
 }
@@ -74,7 +74,7 @@ int append_payload(message_t *msg, uint8_t *data, uint8_t length)
  */
 uint8_t checksum(uint8_t* data, int len) {
     uint8_t chk = data[0];
-    for (int i = 0; i < len; i++) {
+    for (int i = 1; i < len; i++) {
         chk ^= data[i];
     }
     return chk;
@@ -430,12 +430,15 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     }
     uint8_t* data = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
     data[0] = msg->message_id;
-	// printf("INFO: Sending message id 0x%X\n", data[0]);
+
     data[1] = msg->payload_length;
+	//log_printf(DEBUG, "Sending message id 0x%02X\n", data[0]);
+	//log_printf(DEBUG, "Sending payload length 0x%02X\n", data[1]);
     for (int i = 0; i < msg->payload_length; i++) {
         data[i + MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE] = msg->payload[i];
     }
     data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length] = checksum(data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length);
+	//log_printf(DEBUG, "Sending checksum 0x%02X\n", data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length]);
     cobs_encoded[0] = 0x00;
     int cobs_len = cobs_encode(&cobs_encoded[2], data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
     cobs_encoded[1] = cobs_len;
@@ -458,8 +461,12 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
 		printf("ERROR: Overwrote to payload\n");
 		return 2;
 	}
-    char expected_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
-    char received_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
+	//printf("Received payload length %d\n", msg_to_fill->payload_length);
+    char expected_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
+    char received_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
+	if (expected_checksum != received_checksum) {
+		printf("Expected checksum 0x%02X. Received 0x%02X\n", expected_checksum, received_checksum);
+	}
     free(decoded);
     return (expected_checksum != received_checksum) ? 1 : 0;
 }

@@ -116,6 +116,6 @@ typedef struct {
 	DeviceID device_type;
 	uint8_t year;
 	uint64_t id;
-} uid_t;
+} dev_id_t;
 
 #endif
