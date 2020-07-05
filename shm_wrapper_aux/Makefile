@@ -6,7 +6,7 @@ ifeq ($(UNAME), Darwin)
 LIBS=
 endif
 
-FILES=shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
+FILES=shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c
 
 test1: shm_wrapper_aux_test1.c $(FILES)
 	gcc $^ -o $@ $(LIBS)

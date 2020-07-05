@@ -121,7 +121,8 @@ int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf)
 	*buf = malloc(*len_pb);
 	//read len_pb bytes -> put into buffer
 	if ((result = readn(fd, *buf, *len_pb)) <= 0) {
-		free(buf);
+		log_printf(DEBUG, "readn error: %d wanted %d read", *len_pb, result);
+		free(*buf);
 		return result;
 	}
 	// log_printf(DEBUG, "parse_msg: type %d len %d buf %d", *msg_type, *len_pb, *buf);

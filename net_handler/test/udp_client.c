@@ -4,17 +4,14 @@
 #include <arpa/inet.h>   //for inet_addr, bind, listen, accept, socket types
 #include <unistd.h>      //for read, write, close
 
-#include "../logger/logger.h"
-#include "net_util.h"
-#include "pbc_gen/gamepad.pb-c.h"
-#include "pbc_gen/device.pb-c.h"
+#include "../net_util.h"
 
 float data[4] = {.012, 13.1, -.13, .30};
 
 int main() {
     logger_init(TEST);
-    //Open TCP connection
-    int sockfd, connfd; 
+    //Open UDP connection
+    int sockfd; 
     struct sockaddr_in servaddr; 
 
     // socket create and varification 
