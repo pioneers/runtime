@@ -7,7 +7,6 @@
 
 #define NUM_CONFIGS 7             //number of configuration parameters in the config file
 #define MAX_CONFIG_LINE_LEN 512   //maximum length of a configuration file line, in chars
-#define CONF_FILE "/home/pi/c-runtime/logger/logger.config"   //path to logger config file
 
 #define PROCESS_STR_SIZE 32       //size in bytes of the process string
 
@@ -20,6 +19,7 @@ char *log_level_strs[] = {                 //strings for holding names of log le
 	"DEBUG",
 	"INFO",
 	"WARN",
+	"PYTHON",
 	"ERROR",
 	"FATAL"
 };
@@ -57,7 +57,7 @@ static void read_config_file ()
 	char important_char;
 	FILE *conf_fd;
 	
-	if ((conf_fd = fopen(CONF_FILE, "r")) == NULL) {  //open the config file for reading
+	if ((conf_fd = fopen(CONFIG_FILE, "r")) == NULL) {  //open the config file for reading
 		perror("fopen: logger could not open config file; exiting...");
 		exit(1);
 	}

@@ -111,3 +111,15 @@ def wait():
     while True:
         Robot.get_value(MOTOR, 'enc_pos')
         # print('of course')
+
+
+
+########################################### Code Challenges ###########################################
+
+
+
+def reverse_digits(num):
+    # time.sleep(10)
+    return int(str(num)[::-1])
+
+
