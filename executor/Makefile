@@ -8,11 +8,11 @@ PY_LIB=-l$(py)m
 
 UNAME=$(shell uname)
 ifeq ($(UNAME), Linux)
-LIBS=-pthread -lrt -export-dynamic
+LIBS=-pthread -lrt -export-dynamic -lprotobuf-c
 #-rdynamic or -export-dynamic to make it dynamically linked
 endif
 ifeq ($(UNAME), Darwin)
-LIBS=-export-dynamic
+LIBS=-export-dynamic -lprotobuf-c
 endif
 
 
@@ -24,8 +24,8 @@ func: run_python.c
 simple: run_simple_python.c
 	$(cc) run_simple_python.c -o simple $(PY_LIB)
 
-executor: executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c  ../runtime_util/runtime_util.c
-	$(cc) executor.c $(CFLAGS) ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o executor $(LIBS) $(PY_LIB)
+executor: executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/pbc_gen/text.pb-c.c
+	$(cc) $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
 studentapi: studentapi.pyx studentapi.pxd
 	$(py) setup.py build_ext -i

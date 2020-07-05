@@ -1,4 +1,4 @@
-#include "udp_suite.h"
+#include "udp_conn.h"
 
 pthread_t socket_thread;
 int socket_fd = -1;
@@ -90,7 +90,11 @@ void get_device_data(uint8_t** buffer, int* len) {
 
 void update_gamepad_state(uint8_t* buffer, int len) {
 	GpState* gp_state = gp_state__unpack(NULL, len, buffer);
-	if (gp_state->n_axes != 4) {
+	if (gp_state == NULL) {
+		log_printf(ERROR, "Failed to unpack GpState");
+		return;
+	}
+ 	if (gp_state->n_axes != 4) {
 		log_printf(ERROR, "Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
 	}
 	else {
@@ -123,18 +127,19 @@ void* process_udp_data(void* args) {
 	while (1) {
 		log_printf(DEBUG, "Waiting for message");
 		recvlen = recvfrom(socket_fd, read_buf, size, 0, (struct sockaddr*) &dawn_addr, &addrlen);
-		log_printf(DEBUG, "Receive size %d", recvlen);
-		if (recvlen < 0) {
+		if (recvlen == size) {
+			log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
+		}
+		if (recvlen <= 0) {
 			perror("recvfrom");
 			log_printf(ERROR, "UDP recvfrom failed");
 		}
 		log_printf(DEBUG, "Dawn IP is %s", inet_ntoa(dawn_addr.sin_addr));
 		update_gamepad_state(read_buf, recvlen);
-		log_printf(DEBUG, "Updated gamepad. Getting device data");
 		get_device_data(&send_buf, &sendlen);
 		log_printf(DEBUG, "sending dev data to Dawn");
 		err = sendto(socket_fd, send_buf, sendlen, 0, (struct sockaddr*) &dawn_addr, addrlen);
-		if (err <= 0) {
+		if (err <= 0 || err != sendlen) {
 			perror("sendto");
 			log_printf(ERROR, "UDP sendto failed");
 		}
@@ -162,7 +167,7 @@ void start_udp_conn ()
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	my_addr.sin_port = htons(UDP_PORT);
-	if (bind(socket_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr)) < 0) {
+	if (bind(socket_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_in)) < 0) {
 		perror("udp socket bind failed");
 		return;
 	}
