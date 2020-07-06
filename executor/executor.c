@@ -15,7 +15,6 @@
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 #include "../shm_wrapper_aux/shm_wrapper_aux.h" // Shared memory wrapper for robot state
 #include "../logger/logger.h"              // for runtime logger
-#include "../net_handler/pbc_gen/text.pb-c.h" // for Text protobuf
 
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
@@ -31,7 +30,7 @@ struct timespec setup_time = { 2, 0 };    // Max time allowed for setup function
 struct timespec main_interval = { 0, (long) ((1.0 / freq) * 1e9) };
 int challenge_time = 5; // Max allowed time for running challenges in seconds
 
-char* challenge_names[NUM_CHALLENGES] = {"reverse_digits"};
+char* challenge_names[NUM_CHALLENGES] = {"reverse_digits", "list_prime_factors"};
 
 
 /**
@@ -63,23 +62,13 @@ void executor_stop() {
     // Py_XDECREF(pRobot);
     // Py_XDECREF(pModule);
     // Py_FinalizeEx();
-    log_printf(DEBUG, "Trying to shut down aux SHM");
+
     shm_aux_stop(EXECUTOR);
     log_printf(DEBUG, "Aux SHM stopped");
     shm_stop(EXECUTOR);
     log_printf(DEBUG, "SHM stopped");
     logger_stop();
-    exit(2);
-}
-
-
-/**
- *  Handler for killing the child subprocess
- */
-void child_exit_handler(int signum) {
-    // Cancel the Python thread by sending a TimeoutError
-    PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    log_printf(DEBUG, "Sent exception");
+    // exit(2);
 }
 
 
@@ -156,10 +145,6 @@ void executor_init(char* student_code) {
         exit(1);
     }
 
-    sigset_t sigset;
-    sigemptyset(&sigset);
-    sigaddset(&sigset, SIGINT);
-    sigprocmask(SIG_BLOCK, &sigset, NULL);
 }
 
 
@@ -219,9 +204,13 @@ uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, i
                 log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", func_name, (long) (max_time / 1e6));
             }
 
+            // Set return value
+            if (ret_value != NULL) {
+                *ret_value = pValue;
+            }
+
 			//catch execution error
             if (pValue == NULL) {
-                *ret_value = NULL;
                 PyObject* error = PyErr_Occurred();
                 if (!PyErr_GivenExceptionMatches(error, PyExc_TimeoutError)) {
                     PyErr_Print();
@@ -234,11 +223,7 @@ uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, i
                 }
                 break;
             }
-            else if (ret_value != NULL) {
-                log_printf(DEBUG, "I'm here");
-                *ret_value = pValue;
-            }
-            else {
+            else if (ret_value == NULL) { // Decrement reference if nothing pointing at the value
                 Py_DECREF(pValue);
             }
         } while(loop);
@@ -251,7 +236,6 @@ uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, i
         log_printf(ERROR, "Cannot find function in student code: %s\n", func_name);
         ret = 4;
     }
-    log_printf(DEBUG, "Returning from run_py_function");
     return ret;
 }
 
@@ -286,75 +270,93 @@ void run_mode(robot_desc_val_t mode) {
 }
 
 
+/**
+ *  Receives inputs from net handler, runs the coding challenges, and sends output back to net handler.
+ */
 void run_challenges() {
-    int size = 4096;
-    uint8_t read_buf[size];
+    char read_buf[CHALLENGE_LEN];
     struct sockaddr_un address;
     socklen_t addrlen = sizeof(address);
-    int recvlen = recvfrom(challenge_fd, read_buf, size, 0, (struct sockaddr*) &address, &addrlen);
-    if (recvlen == size) {
-	    log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
-	}
-    if (recvlen <= 0) {
-        perror("recvfrom");
-        log_printf(ERROR, "Socket read from challenge_fd failed");
-        return;
-    }
-
-    Text* challenge_inputs = text__unpack(NULL, recvlen, read_buf);
-    if (challenge_inputs == NULL) {
-        log_printf(ERROR, "Failed to unpack challenge inputs");
-        return;
-    }
-    if (challenge_inputs->n_payload != NUM_CHALLENGES) {
-        log_printf(ERROR, "Number of inputs sent doesn't match number of challenges");
-        return;
-    }
-
-    Text challenge_outputs = TEXT__INIT;
-    challenge_outputs.n_payload = NUM_CHALLENGES;
-    challenge_outputs.payload = malloc(sizeof(char*) * NUM_CHALLENGES);
-    int ret_size = 32;
-
+    char send_buf[NUM_CHALLENGES][CHALLENGE_LEN];
+ 
     for (int i = 0; i < NUM_CHALLENGES; i++) {
-        challenge_outputs.payload[i] = malloc(sizeof(char) * ret_size);
-        // PyObject* arg = PyLong_FromString(challenge_inputs->payload[i], NULL, 10);
-        long input = atoi(challenge_inputs->payload[i]);
+        int recvlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, (struct sockaddr*) &address, &addrlen);
+        if (recvlen == CHALLENGE_LEN) {
+            log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
+        }
+        if (recvlen <= 0) {
+            perror("recvfrom");
+            log_printf(ERROR, "Socket read from challenge_fd failed");
+            return;
+        }
+        long input = strtol(read_buf, NULL, 10);
+        log_printf(DEBUG, "received inputs for %d: %ld", i, input);
         PyObject* arg = Py_BuildValue("(l)", input);
         if (arg == NULL) {
             PyErr_Print();
             log_printf(ERROR, "Couldn't decode input string into Python long for challenge %s", challenge_names[i]);
             continue;
         }
-        PyObject* ret;
-        run_py_function(challenge_names[i], "challenge", NULL, 0, arg, &ret);
+        PyObject* ret = NULL;
+        if (run_py_function(challenge_names[i], "challenge", NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
+            static char* msg = "Timed out";
+            // Set rest of challenge results to unblock the TCP client
+            for (int j = i; j < NUM_CHALLENGES; j++) {
+                strcpy(send_buf[j], msg);
+            }
+            break;
+        }
         Py_DECREF(arg);
-        long return_val = PyLong_AsLong(ret);
-        Py_DECREF(ret);
-        if (return_val == -1 && PyErr_Occurred()) {
+        PyObject* ret_string = PyObject_Str(ret);
+        Py_XDECREF(ret);
+        if (ret_string == NULL) {
             PyErr_Print();
-            log_printf(ERROR, "Couldn't decode return int into Python int for challenge %s", challenge_names[i]);
+            log_printf(ERROR, "Couldn't decode return value into Python string for challenge %s", challenge_names[i]);
             continue;
         }
-        sprintf(challenge_outputs.payload[i], "%ld", return_val);
+        int ret_len;
+        const char* c_ret = PyUnicode_AsUTF8AndSize(ret_string, &ret_len);
+        Py_DECREF(ret_string);
+        if (ret_len >= CHALLENGE_LEN) {
+            log_printf(ERROR, "Size of return string from challenge %d %s is greater than allocated %d", i, challenge_names[i], CHALLENGE_LEN);
+        }
+        strncpy(send_buf[i], c_ret, CHALLENGE_LEN);
+        memset(read_buf, 0 , CHALLENGE_LEN);
     }
-    text__free_unpacked(challenge_inputs, NULL);
 
-    int pb_len = text__get_packed_size(&challenge_outputs);
-    uint8_t send_buf[pb_len];
-    text__pack(&challenge_outputs, send_buf);
-
-    int sendlen = sendto(challenge_fd, send_buf, pb_len, 0, (struct sockaddr*) &address, addrlen);
-    if (sendlen <= 0) {
-        perror("sendto");
-        log_printf(ERROR, "Socket send to challenge_fd failed");
+    // Send all results back to net handler
+    for (int i = 0; i < NUM_CHALLENGES; i++) {
+        int len = strlen(send_buf[i]) + 1;
+        int sendlen = sendto(challenge_fd, send_buf[i], len, 0, (struct sockaddr*) &address, addrlen);
+        if (sendlen <= 0 || sendlen != len) {
+            log_printf(ERROR, "Socket send to challenge_fd failed: %s", strerror(errno));
+        }
     }
     alarm(0);
 }
 
 
+
+/**
+ *  Handler for killing the child mode subprocess
+ */
+void mode_exit_handler(int signum) {
+    // Cancel the Python thread by sending a TimeoutError
+    PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
+    log_printf(DEBUG, "Sent exception");
+}
+
+
+/**
+ *  Handler for killing the child challenge subprocess
+ */
+void challenge_exit_handler(int signum) {
+    exit(3);
+}
+
+
 /** 
- *  Creates a new subprocess with fork that will run the given mode using `run_mode`.
+ *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
  */
 pid_t start_mode_subprocess(robot_desc_val_t mode) {
     int pipe_fd[2];
@@ -369,22 +371,25 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
     }
     else if (pid == 0) {
         // Now in child process
-        // atexit(executor_stop);
-        signal(SIGALRM, child_exit_handler);
+        atexit(executor_stop);
+        signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
         executor_init("studentcode"); // Default name of student code file 
-        printf("In child process stdout \n");
-        fprintf(stderr, "sending to child stderr \n");
         if (mode == CHALLENGE) {
+            signal(SIGTERM, challenge_exit_handler);
+            signal(SIGALRM, mode_exit_handler);
             alarm(challenge_time);
             run_challenges();
+            robot_desc_write(RUN_MODE, IDLE); // Will tell supervisor to call kill_subprocess
+            while (1) {
+                sleep(1); // Wait for process to be exited
+            }
         }
         else {
+            signal(SIGTERM, mode_exit_handler);
             run_mode(mode);
-            printf("Finished running mode %d\n", mode);
+            exit(2);
         }
-        executor_stop(); 
-        // exit(2);
-        return pid; // Never reach this statement due to exit
+        return pid; // Never reach this statement due to exit, needed to fix compiler warning
     }
     else {
         // Now in parent process
@@ -397,14 +402,7 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
  *  Kills any running subprocess.
  */
 void kill_subprocess() {
-    int sig;
-    if (mode == CHALLENGE) {
-        sig = SIGALRM;
-    }
-    else {
-        sig = SIGALRM;
-    }
-    if (kill(pid, SIGALRM) != 0) {
+    if (kill(pid, SIGTERM) != 0) {
         log_printf(ERROR, "Kill signal not sent: %s", strerror(errno));
     } 
     else {
@@ -414,10 +412,10 @@ void kill_subprocess() {
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
     }
-    else if (!WIFEXITED(status)) {
+    if (!WIFEXITED(status)) {
         log_printf(ERROR, "Error when shutting down execution of mode %d", mode);
     }
-    else if (WIFSIGNALED(status)) {
+    if (WIFSIGNALED(status)) {
         log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
     }
     mode = IDLE;

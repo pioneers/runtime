@@ -18,20 +18,20 @@ int main() {
     sockfd = socket(AF_INET, SOCK_DGRAM, 0); 
     if (sockfd == -1) { 
         printf("socket creation failed...\n"); 
-        exit(1); 
+        return 1;
     } else {
         printf("Socket successfully created..\n"); 
     }
     memset(&servaddr, 0, sizeof(servaddr));
 
-    // assign IP, PORT 
+    // server IP, PORT 
     servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+    servaddr.sin_addr.s_addr = inet_addr(DAWN_ADDR); 
     servaddr.sin_port = htons(UDP_PORT); 
 
     GpState gp_state = GP_STATE__INIT;
     gp_state.connected = 1;
-    gp_state.buttons = 13879812;
+    gp_state.buttons = 13879811;
     gp_state.n_axes = 4;
     gp_state.axes = &data[0];
 
@@ -47,6 +47,7 @@ int main() {
     if (err < 0) {
         perror("sendto");
         log_printf(DEBUG, "sendto failed");
+        return 1;
     }
     free(buf);
     log_printf(DEBUG, "Sent data to socket");
@@ -66,7 +67,7 @@ int main() {
     if (dev_data == NULL)
 	{
 		log_printf(ERROR, "error unpacking incoming message\n");
-		exit(1);
+		return 1;
 	}
     // display the message's fields.
 	printf("Received:\n");

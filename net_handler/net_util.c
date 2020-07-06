@@ -120,8 +120,7 @@ int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf)
 	
 	*buf = malloc(*len_pb);
 	//read len_pb bytes -> put into buffer
-	if ((result = readn(fd, *buf, *len_pb)) <= 0) {
-		log_printf(DEBUG, "readn error: %d wanted %d read", *len_pb, result);
+	if ((result = readn(fd, *buf, *len_pb)) < 0) {
 		free(*buf);
 		return result;
 	}
