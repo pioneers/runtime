@@ -13,6 +13,7 @@ FILE* log_file = NULL;
 
 struct sockaddr_un exec_addr = {AF_UNIX, CHALLENGE_SOCKET};
 
+
 /*
  * Clean up memory and file descriptors before exiting from dawn connection main control loop
  * Arguments:
@@ -37,6 +38,9 @@ static void tcp_conn_cleanup (void *args)
 		}
 	}
 	robot_desc_write(tcp_args->client, DISCONNECTED);
+	if (tcp_args->client == DAWN) {
+		robot_desc_write(GAMEPAD, DISCONNECTED);
+	}
 	free(args);
 }
 
@@ -57,7 +61,7 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 	//read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
 	while (log_msg.n_payload < MAX_NUM_LOGS) {
 		if (fgets(nextline, MAX_LOG_LEN, log_file) != NULL) {
-			log_msg.payload[log_msg.n_payload] = malloc(MAX_LOG_LEN);
+			log_msg.payload[log_msg.n_payload] = malloc(strlen(nextline) + 1);
 			strcpy(log_msg.payload[log_msg.n_payload], nextline);
 			log_msg.n_payload++;
 		}
@@ -74,10 +78,10 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 	//prepare the message for sending
 	uint16_t len_pb = text__get_packed_size(&log_msg);
 	uint8_t* send_buf = make_buf(LOG_MSG, len_pb);
-	text__pack(&log_msg, send_buf + 3);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
+	text__pack(&log_msg, send_buf + BUFFER_OFFSET);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
 	
 	//send message on socket
-	if (writen(conn_fd, send_buf, len_pb + 3) == -1) {
+	if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
 		perror("writen");
 		log_printf(ERROR, "sending log message failed");
 	}
@@ -87,6 +91,47 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 		free(log_msg.payload[i]);
 	}
 	free(log_msg.payload);
+	free(send_buf);
+}
+
+
+static void send_challenge_results(int conn_fd, int challenge_fd) {
+	// Get results from executor
+	Text results = TEXT__INIT;
+	results.n_payload = NUM_CHALLENGES;
+	results.payload = malloc(sizeof(char*) * NUM_CHALLENGES);
+
+	char read_buf[CHALLENGE_LEN];
+
+	// read results from executor, line by line	
+	for (int i = 0; i < NUM_CHALLENGES; i++) {
+		int readlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, NULL, NULL);
+		if (readlen == CHALLENGE_LEN) {
+			log_printf(WARN, "challenge_fd: Read length matches size of read buffer %d", readlen);
+		}
+		if (readlen <= 0) {
+			perror("recvfrom");
+			log_printf(ERROR, "Socket recv from challenge_fd failed");
+		}
+		results.payload[i] = malloc(readlen);
+		strcpy(results.payload[i], read_buf);
+		memset(read_buf, 0, CHALLENGE_LEN);
+	}
+
+	// Send results to client
+	uint16_t len_pb = text__get_packed_size(&results);
+	uint8_t* send_buf = make_buf(CHALLENGE_DATA_MSG, len_pb);
+	text__pack(&results, send_buf + BUFFER_OFFSET);
+	if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
+		perror("write");
+		log_printf(ERROR, "sending challenge data message failed");
+	}
+
+	// free allocated memory
+	for (int i = 0; i < results.n_payload; i++) {
+		free(results.payload[i]);
+	}
+	free(results.payload);
 	free(send_buf);
 }
 
@@ -115,16 +160,29 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	else if (err == -1) { // Means there is some other error while reading
 		return -2; 
 	}
-	log_printf(DEBUG,"in recv msg");
 	//unpack according to message
 	if (msg_type == CHALLENGE_DATA_MSG) {
-		// Send to executor
-		int sendlen = sendto(challenge_fd, buf, len_pb, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
-		if (sendlen <= 0 || sendlen != len_pb) {
-			perror("sendto");
-			log_printf(ERROR, "Socket send to challenge_fd failed");
+		Text* inputs = text__unpack(NULL, len_pb, buf);
+		if (inputs == NULL) {
+			log_printf(ERROR, "Cannot unpack challenge_data msg");
 			return -2;
 		}
+		if (inputs->n_payload != NUM_CHALLENGES) {
+			log_printf(ERROR, "Number of challenge inputs %d is not equal to number of challenges %d", inputs->n_payload, NUM_CHALLENGES);
+			return -2;
+		}
+		// Send to executor
+		for(int i = 0; i < NUM_CHALLENGES; i++) {
+			int input_len = strlen(inputs->payload[i]) + 1;
+			int sendlen = sendto(challenge_fd, inputs->payload[i], input_len, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
+			if (sendlen <= 0 || sendlen != input_len) {
+				perror("sendto");
+				log_printf(ERROR, "Socket send to challenge_fd failed");
+				return -2;
+			}	
+		}
+		text__free_unpacked(inputs, NULL);
+
 		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
 		robot_desc_write(RUN_MODE, CHALLENGE);
 	} 
@@ -159,6 +217,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				break;
 		}
 		run_mode__free_unpacked(run_mode_msg, NULL);
+		log_printf(DEBUG, "freed run mode msg");
 	} 
 	else if (msg_type == START_POS_MSG) {
 		StartPos* start_pos_msg = start_pos__unpack(NULL, len_pb, buf);
@@ -252,32 +311,13 @@ static void* process_tcp (void* tcp_args)
 
 		//send challenge results if executor sent them
 		if(FD_ISSET(args->challenge_fd, &read_set)) {
-			// Get results from executor
-			int max_size = 32 * NUM_CHALLENGES;
-			uint8_t read_buf[max_size];
-			int readlen = recvfrom(args->challenge_fd, read_buf, max_size, 0, NULL, NULL);
-			if (readlen == max_size) {
-				log_printf(WARN, "challenge_fd: Read length matches size of read buffer %d", readlen);
-			}
-			if (readlen <= 0) {
-				perror("recvfrom");
-				log_printf(ERROR, "Socket recv from challenge_fd failed");
-			}
-
-			// Send results to client
-			uint8_t* send_buf = make_buf(CHALLENGE_DATA_MSG, readlen);
-			memcpy(send_buf+3, read_buf, readlen); 
-			if (writen(args->conn_fd, send_buf, readlen + 3) == -1) {
-				perror("write");
-				log_printf(ERROR, "sending challenge data message failed");
-			}
+			send_challenge_results(args->conn_fd, args->challenge_fd);
 		}
 
 		//receive new message on socket if it is ready
 		if (FD_ISSET(args->conn_fd, &read_set)) {
-			int err = recv_new_msg(args->conn_fd, args->challenge_fd); 
-			if (err == -1) { 
-				log_printf(WARN, "client %d has disconnected", args->client);
+			if (recv_new_msg(args->conn_fd, args->challenge_fd) == -1) { 
+				log_printf(DEBUG, "client %d has disconnected", args->client);
 				break;
 			}
 		}
