@@ -60,18 +60,18 @@ int main ()
 	
 	run_mode.mode = MODE__AUTO;
 	uint16_t len_pb = run_mode__get_packed_size(&run_mode);
+	printf("buffer size %d \n", len_pb);
 	uint8_t *send_buf = make_buf(RUN_MODE_MSG, len_pb);
 	run_mode__pack(&run_mode, send_buf + 3);
-	printf("buffer size %d \n", len_pb);
-	fprintf(stderr, "Writing mode \n"); // See the length of message
 	writen(sockfd, send_buf, len_pb + 3); //write the message to the raspi
 	free(send_buf); // Free the allocated serialized buffer
 	
 	sleep(3);
 	Text inputs = TEXT__INIT;
-	inputs.n_payload = 1;
+	inputs.n_payload = NUM_CHALLENGES;
 	inputs.payload = malloc(sizeof(char*) * inputs.n_payload);
 	inputs.payload[0] = "2039";
+	inputs.payload[1] = "190172344";
 	len_pb = text__get_packed_size(&inputs);
 	send_buf = make_buf(CHALLENGE_DATA_MSG, len_pb);
 	text__pack(&inputs, send_buf+3);
