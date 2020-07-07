@@ -37,30 +37,18 @@
 #define MAX_PAYLOAD_SIZE (BITMAP_SIZE+(MAX_PARAMS*sizeof(float))) // Bitmap + Each param (may be floats)
 
 /* The types of messages */
-typedef enum packet_type {
-    Ping = 0x10,
-    SubscriptionRequest = 0x11,
-    SubscriptionResponse = 0x12,
-    DeviceRead = 0x13,
-    DeviceWrite = 0x14,
-    DeviceData = 0x15,
-    Disable = 0x16,
-    HeartBeatRequest = 0x17,
-    HeartBeatResponse = 0x18,
-    Log = 0x19, // A packet used for print/debugging purposes
-    Error = 0xFF,
-} packet_type;
-
-/* The types of error codes a device can send */
-// typedef enum error_code {
-//     UnexpectedDelimiter = 0xFD,
-//     CheckumError = 0xFE,
-//     GenericError = 0xFF
-// } error_code_t;
+typedef enum {
+    PING                    = 0x00, // Bidirectional
+    ACKNOWLEDGEMENT         = 0x01, // To dev handler
+    SUBSCRIPTION_REQUEST    = 0x02, // To lowcar
+    DEVICE_WRITE            = 0x03, // To lowcar
+    DEVICE_DATA             = 0x04, // To dev handler
+    LOG                     = 0x05  // To dev handler
+} message_id_t;
 
 /* A struct defining a message to be sent over serial */
 typedef struct message {
-    packet_type    message_id;
+    message_id_t   message_id;
     uint8_t*       payload;             // Array of 8-bit integers
     uint8_t        payload_length;      // The current number of 8-bit integers in payload
     uint8_t        max_payload_length;  // The maximum length of the payload for the specific message_id
@@ -85,36 +73,8 @@ message_t* make_empty(ssize_t payload_size);
 /*
  * A message that pings a device
  * Payload: empty
- * Direction: dev_handler --> device
  */
 message_t* make_ping();
-
-/*
- * A message to disable a device
- * Payload: empty
- * Direction: dev_handler --> device
- */
-message_t* make_disable();
-
-/*
- * A message to ask the receiver to immediately send back a HeartBeatResponse
- * heartbeat_id: An optional character to send in the payload.
- *  May be useful for keeping track of individual heartbeats
- * Payload: 8-bit heartbeat_id
- * Direction: dev_handler <--> device
- */
-message_t* make_heartbeat_request(char heartbeat_id);
-
-/*
- * A message to respond to a HeartBeatRequest
- * Should not be sent otherwise.
- * heartbeat_id: An optional character to send in the payload.
- *  May be useful for keeping track of individual heartbeats
- *
- * Payload: 8-bit heartbeat_id
- * Direction: dev_handler <--> device
- */
-message_t* make_heartbeat_response(char heartbeat_id);
 
 /*
  * A message to request parameter data from a device at an interval
@@ -124,72 +84,18 @@ message_t* make_heartbeat_response(char heartbeat_id);
  * delay: The number of microseconds to wait between each response
  *
  * Payload: 32-bit param bit-mask, 16-bit delay
- * Direction: dev_handler --> device
  */
 message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
 
 /*
- * A message in response to a SubscriptionRequest.
- * device_id: The device to request data from
- * param_names: An array of the parameter names to request data about
- * len: The length of param_names
- * delay: The number of microseconds to wait between each response
- *
- * Payload: 32-bit param bit-mask, 16-bit delay, 88-bit device identifier
- * Direction: device --> dev_handler
- */
-message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
-
-/*
- * A message to request parameter data from a device (a single request, unlike a subscription)
- * The device is expected to respond with a DeviceData message with the data of the readable parameters.
- * device_id: The device to request data from
- * param_names: An array of the parameter names to request data about
- * len: The length of param_names
- *
- * Payload: 32-bit param mask
- * Direction: dev_handler --> device
- */
-message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t len);
-
-/*
  * A message to write data to the specified writable parameters of a device
- * The device is expected to respond with a DeviceData message confirming the new data of the writable parameters.
  * device_id: The id of the device to write data to
  * param_bitmap: The 32-bit param bitmap indicating which parameters will be written to
  * param_values: An array of the parameter values. If i-th bit in the bitmap is on, its value is in the i-th index.
  *
  * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
- * Direction: dev_handler --> device
  */
 message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]);
-
-/*
- * A message that a device responds with to DeviceRead, DeviceWrite, or SubscriptionRequest
- *
- * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
- * Direction: device --> dev_handler
- */
-// message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]);
-
-/*
- * A message that a device sends that contains debugging information to be logged.
- * data: The message to be encoded and sent (NULL-TERMINATED STRING))
- *
- * Payload: 1056 bits
- * Direction: device --> dev_handler
- * return: NULL if data is too large (over 132 bytes)
- */
-// message_t* make_log(char* data);
-
-/*
- * A message that a device sends indicating that an error has occurred
- * error_code: The error code indicating what type of error occurred
- *
- * Payload: 8-bit error_code
- * Direction: device --> dev_handler
- */
-// message_t* make_error(uint8_t error_code);
 
 /*
  * Frees the memory allocated for the message struct and its payload.
@@ -249,8 +155,6 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
 
 /*
  * Potentially added later:
- * sendMessage(), read() from serial to get message         [Likely to be put in dev_handler]
  * decode_params
- * parse_subscription_response: Break down sub_response received into its parts
  */
 #endif

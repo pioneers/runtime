@@ -166,44 +166,11 @@ message_t* make_empty(ssize_t payload_size) {
 
 message_t* make_ping() {
     message_t* ping = malloc(sizeof(message_t));
-    ping->message_id = Ping;
+    ping->message_id = PING;
     ping->payload = NULL;
     ping->payload_length = 0;
     ping->max_payload_length = 0;
     return ping;
-}
-
-message_t* make_disable() {
-    message_t* disable = malloc(sizeof(message_t));
-    disable->message_id = Disable;
-    disable->payload = NULL;
-    disable->payload_length = 0;
-    disable->max_payload_length = 0;
-    return disable;
-}
-
-message_t* make_heartbeat_request(char heartbeat_id) {
-    message_t* heartbeat_request = malloc(sizeof(message_t));
-    heartbeat_request->message_id = HeartBeatRequest;
-    heartbeat_request->payload = malloc(1); // Payload is 8 bits == 1 byte
-    heartbeat_request->payload[0] = heartbeat_id ? heartbeat_id : 0;
-    // Note that the content of payload is unused at the moment
-    // May be used in the future to calculate latency
-    heartbeat_request->payload_length = 1;
-    heartbeat_request->max_payload_length = 1;
-    return heartbeat_request;
-}
-
-message_t* make_heartbeat_response(char heartbeat_id) {
-    message_t* heartbeat_response = malloc(sizeof(message_t));
-    heartbeat_response->message_id = HeartBeatResponse;
-    heartbeat_response->payload = malloc(1); // Payload is 8 bits == 1 byte
-    heartbeat_response->payload[0] = heartbeat_id ? heartbeat_id : 0;
-    // Note that the content of payload is unused at the moment
-    // May be used in the future to calculate latency
-    heartbeat_response->payload_length = 1;
-    heartbeat_response->max_payload_length = 1;
-    return heartbeat_response;
 }
 
 /*
@@ -214,7 +181,7 @@ message_t* make_heartbeat_response(char heartbeat_id) {
 */
 message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
     message_t* sub_request = malloc(sizeof(message_t));
-    sub_request->message_id = SubscriptionRequest;
+    sub_request->message_id = SUBSCRIPTION_REQUEST;
     sub_request->payload = malloc(BITMAP_SIZE + DELAY_SIZE);
     sub_request->payload_length = 0;
     sub_request->max_payload_length = BITMAP_SIZE + DELAY_SIZE;
@@ -229,45 +196,6 @@ message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], u
 }
 
 /*
- * Constructs a subscription response given DEVICE_ID, array of param names PARAM_NAMES of length LEN,
- * a DELAY in milliseconds
- * Payload: 32-bit params + 16-bit delay + 88-bit dev_id
- *          --> 136-bits == 17 bytes
-*/
-
-message_t* make_subscription_response(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
-    message_t* sub_response = malloc(sizeof(message_t));
-    sub_response->message_id = SubscriptionResponse;
-    sub_response->payload = malloc(BITMAP_SIZE + DELAY_SIZE + DEVICE_ID_SIZE);
-    sub_response->payload_length = 0;
-    sub_response->max_payload_length = BITMAP_SIZE + DELAY_SIZE + DEVICE_ID_SIZE;
-    uint32_t mask = encode_params(device_id->type, param_names, len);
-    int status = 0;
-    status += append_payload(sub_response, (uint8_t*) &mask, BITMAP_SIZE);
-    status += append_payload(sub_response, (uint8_t*) &delay, DELAY_SIZE);
-    status += append_payload(sub_response, (uint8_t*) &(device_id->uid), DEVICE_ID_SIZE);
-    return (status == 0) ? sub_response : NULL;
-}
-
-
-/*
- * Constructs a DeviceRead message, given DEVICE_ID and array of param names PARAM_NAMES of length Len.
- * Requests the device to send data about the PARAMS
- * Payload: 32-bit param mask == 8 bytes
-*/
-message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t len) {
-    message_t* dev_read = malloc(sizeof(message_t));
-    dev_read->message_id = DeviceRead;
-    dev_read->payload = malloc(BITMAP_SIZE);
-    dev_read->payload_length = 0;
-    dev_read->max_payload_length = BITMAP_SIZE;
-    uint32_t mask = encode_params(device_id->type, param_names, len);
-    int status = 0;
-    status += append_payload(dev_read, (uint8_t*) &mask, BITMAP_SIZE);
-    return (status == 0) ? dev_read : NULL;
-}
-
-/*
  * A message to write data to the specified writable parameters of a device
  * The device is expected to respond with a DeviceData message confirming the new data of the writable parameters.
  * device_id: The id of the device to write data to
@@ -279,12 +207,12 @@ message_t* make_device_read(dev_id_t* device_id, char* param_names[], uint8_t le
  */
 message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]) {
     message_t* dev_write = malloc(sizeof(message_t));
-    dev_write->message_id = DeviceWrite;
+    dev_write->message_id = DEVICE_WRITE;
     dev_write->payload_length = 0;
     dev_write->max_payload_length = device_data_payload_size(device_id->type, param_bitmap);
     dev_write->payload = malloc(dev_write->max_payload_length);
     int status = 0;
-    // Append the mask
+    // Append the param bitmap
     status += append_payload(dev_write, (uint8_t*) &param_bitmap, BITMAP_SIZE);
     // Build the payload with the values
     device_t* dev = get_device(device_id->type);
@@ -295,7 +223,7 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
         }
         char* param_type = dev->params[i].type;
         if (strcmp(param_type, "int") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int32_t));
         } else if (strcmp(param_type, "float") == 0) {
             status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_f), sizeof(float));
         } else if (strcmp(param_type, "bool") == 0) { // Boolean
@@ -304,48 +232,6 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
     }
     return (status == 0) ? dev_write : NULL;
 }
-
-/*
- * Returns a message with a 32-bit param mask and thirty-two 32-bit values
- * Logic is the same as make_device_write.
- */
-/*
-message_t* make_device_data(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]) {
-    message_t* dev_data = make_device_write(device_id, param_bitmap, param_values);
-    dev_data->message_id = DeviceData;
-    return dev_data;
-}
-*/
-
-/*
- * Returns a new message with DATA as its payload
- */
-/*
-message_t* make_log(char* data) {
-    if ((strlen(data) + 1) > (MAX_PAYLOAD_SIZE * sizeof(char))) {
-        printf("Error in making message: DATA IS TOO LONG.\n");
-        return NULL;
-    }
-    message_t* log = malloc(sizeof(message_t));
-    log->message_id = Log;
-    log->payload = malloc(MAX_PAYLOAD_SIZE);
-    log->payload_length = 0;
-    log->max_payload_length = MAX_PAYLOAD_SIZE;
-    strcpy((char*) log->payload, data);
-    log->payload_length = (uint8_t) strlen(data) + 1;
-    return log;
-}
-
-message_t* make_error(uint8_t error_code) {
-    message_t* error = malloc(sizeof(message_t));
-    error->message_id = Error;
-    error->payload = malloc(1);
-    error->payload[0] = error_code;
-    error->payload_length = 1;
-    error->max_payload_length = 1;
-    return error;
-}
-*/
 
 void destroy_message(message_t* message) {
     free(message->payload);
