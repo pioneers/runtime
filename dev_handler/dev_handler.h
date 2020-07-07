@@ -61,11 +61,11 @@ void stop();
  */
 void poll_connected_devices();
 
-/* The maximum number of milliseconds to wait for a SubscriptionResponse or HeartBeatResponse
+/* The maximum number of milliseconds to wait between each PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
-#define DEVICE_TIMEOUT 4000
+#define TIMEOUT 4000
 
-/* The number of milliseconds between each HeartBeatRequest sent to the device */
-#define HB_REQ_FREQ 2000
+/* The number of milliseconds between each PING sent to the device */
+#define PING_FREQ 2000
 
 #endif

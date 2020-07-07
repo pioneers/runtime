@@ -27,4 +27,4 @@ cpp_val: $(CPP_FILES)
 
 # Clean files generated from FILE_DEV
 clean:
-	rm -f to_dev_handler.txt to_device.txt
+	rm -f to_dev_handler.txt to_device.txt ./dev_handler ./file_dev
