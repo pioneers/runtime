@@ -31,13 +31,13 @@
 #define DAWN_ADDR "127.0.0.1"
 #define DAWN_PORT 7101
 
-#define UDP_PORT 9000
+#define RASPI_UDP_PORT 9000
 
 #define MAX_NUM_LOGS 16          //maximum number of logs that can be sent in one msg
 
 #define BUFFER_OFFSET 3
 
-//All the different possible messages the network handler works with
+//All the different possible messages the network handler works with. The order must be the same between net_handler and clients
 typedef enum net_msg {
 	RUN_MODE_MSG, START_POS_MSG, CHALLENGE_DATA_MSG, LOG_MSG, DEVICE_DATA_MSG
 } net_msg_t;

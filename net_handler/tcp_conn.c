@@ -24,22 +24,20 @@ static void tcp_conn_cleanup (void *args)
 	tcp_conn_args_t* tcp_args = (tcp_conn_args_t *) args;
 
 	if (close(tcp_args->conn_fd) != 0) {
-		log_printf(ERROR, "Failed to close conn_fd");
-		perror("close: conn_fd");
+		log_printf(ERROR, "Failed to close conn_fd: %s", strerror(errno));
 	}
 	if (close(tcp_args->challenge_fd) != 0) {
-		log_printf(ERROR, "Failed to close challenge_fd");
-		perror("close: challenge_fd");
+		log_printf(ERROR, "Failed to close challenge_fd: %s", strerror(errno));
 	}
 	if (log_file != NULL) {
 		if (fclose(log_file) != 0) {
-			log_printf(ERROR, "Failed to close log_file");
-			perror("fclose: log_file");
+			log_printf(ERROR, "Failed to close log_file: %s", strerror(errno));
 		}
+		log_file = NULL;
 	}
 	robot_desc_write(tcp_args->client, DISCONNECTED);
 	if (tcp_args->client == DAWN) {
-		robot_desc_write(GAMEPAD, DISCONNECTED);
+		robot_desc_write(GAMEPAD, DISCONNECTED); // Disconnect gamepad if Dawn is no longer connected
 	}
 	free(args);
 }
@@ -217,7 +215,6 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				break;
 		}
 		run_mode__free_unpacked(run_mode_msg, NULL);
-		log_printf(DEBUG, "freed run mode msg");
 	} 
 	else if (msg_type == START_POS_MSG) {
 		StartPos* start_pos_msg = start_pos__unpack(NULL, len_pb, buf);
@@ -275,10 +272,11 @@ static void* process_tcp (void* tcp_args)
 	pthread_cleanup_push(tcp_conn_cleanup, args);
 
 	//variables used for waiting for something to do using select()
-	int log_fd = fileno(log_file);
 	fd_set read_set;
+	int log_fd;
 	int maxfd = args->challenge_fd > args->conn_fd ? args->challenge_fd : args->conn_fd;
 	if (args->send_logs) {
+		log_fd = fileno(log_file);
 		maxfd = log_fd > maxfd ? log_fd : maxfd;
 	}
 	maxfd = maxfd + 1;
@@ -363,7 +361,6 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	struct sockaddr_un my_addr;
 	memset(&my_addr, 0, sizeof(struct sockaddr_un));
 	my_addr.sun_family = AF_UNIX;
-	// sprintf(my_addr.sun_path, "/tmp/net_handler_%d", client);
 	if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, sizeof(sa_family_t)) < 0) {
         log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
 		close(args->challenge_fd);
