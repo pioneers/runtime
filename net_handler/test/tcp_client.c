@@ -32,7 +32,7 @@ int main ()
 	memset(&cli_addr, '\0', sizeof(struct sockaddr_in));     //initialize everything to 0
 	cli_addr.sin_family = AF_INET;                           //use IPv4
 	cli_addr.sin_port = htons(DAWN_PORT);                    //use this port to connect
-	cli_addr.sin_addr.s_addr = inet_addr(DAWN_ADDR);
+	cli_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	
 	//bind the client side too, so that net_handler can verify it's Dawn
 	if ((bind(sockfd, (struct sockaddr *)&cli_addr, sizeof(struct sockaddr_in))) != 0) {
@@ -54,6 +54,10 @@ int main ()
 		perror("connect: failed to connect to socket");
 		return 1;
 	}
+
+	uint8_t client = 0;
+	write(sockfd, &client, 1);
+	printf("send client type\n");
 	
 	//tell the executor to go into TELEOP mode (ideally)
 	RunMode run_mode = RUN_MODE__INIT;
