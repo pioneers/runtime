@@ -38,12 +38,12 @@
 
 /* The types of messages */
 typedef enum {
-    PING                    = 0x00, // Bidirectional
-    ACKNOWLEDGEMENT         = 0x01, // To dev handler
-    SUBSCRIPTION_REQUEST    = 0x02, // To lowcar
-    DEVICE_WRITE            = 0x03, // To lowcar
-    DEVICE_DATA             = 0x04, // To dev handler
-    LOG                     = 0x05  // To dev handler
+    PING                    = 0x01, // Bidirectional
+    ACKNOWLEDGEMENT         = 0x02, // To dev handler
+    SUBSCRIPTION_REQUEST    = 0x03, // To lowcar
+    DEVICE_WRITE            = 0x04, // To lowcar
+    DEVICE_DATA             = 0x05, // To dev handler
+    LOG                     = 0x06  // To dev handler
 } message_id_t;
 
 /* A struct defining a message to be sent over serial */
