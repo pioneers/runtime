@@ -493,6 +493,7 @@ int verify_lowcar(msg_relay_t* relay) {
     }
     if (ack->message_id != ACKNOWLEDGEMENT) {
 		log_printf(DEBUG, "Message is not an ACKNOWLEDGEMENT\n");
+		log_printf(DEBUG, "Message type is %d \n", ack->message_id);
 		destroy_message(ack);
 		return 2;
 	}
