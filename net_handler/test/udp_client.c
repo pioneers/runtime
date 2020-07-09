@@ -26,8 +26,8 @@ int main() {
 
     // server IP, PORT 
     servaddr.sin_family = AF_INET; 
-    servaddr.sin_addr.s_addr = inet_addr(DAWN_ADDR); 
-    servaddr.sin_port = htons(UDP_PORT); 
+    servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR); 
+    servaddr.sin_port = htons(RASPI_UDP_PORT); 
 
     GpState gp_state = GP_STATE__INIT;
     gp_state.connected = 1;
@@ -61,7 +61,7 @@ int main() {
         perror("recvfrom");
         log_printf(DEBUG, "recvfrom failed");
     }
-    log_printf(DEBUG, "Raspi IP is %s", inet_ntoa(recvaddr.sin_addr));
+    log_printf(DEBUG, "Raspi IP is %s:%d", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
     log_printf(DEBUG, "received data size %d", recv_size);
     DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
     if (dev_data == NULL)

@@ -25,7 +25,7 @@ int listening_socket_setup (int *sockfd)
 		log_printf(DEBUG, "socket: successfully created listening socket");
 	}
 	
-	//set the socket option SO_REUSEADDR on so that if raspi terminates and restarts it can immediately reopen the same port
+	//set the socket option SO_REUSEPORT on so that if raspi terminates and restarts it can immediately reopen the same port
 	int optval = 1;
 	if ((setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(int))) != 0) {
 		perror("setsockopt");
@@ -74,7 +74,6 @@ int is_shepherd (struct sockaddr_in *cli_addr)
 {
 	//check if the client requesting connection is shepherd, and if shepherd is connected already
 	if (cli_addr->sin_family != AF_INET
-			|| cli_addr->sin_addr.s_addr != inet_addr(SHEPHERD_ADDR)
 			|| cli_addr->sin_port != htons(SHEPHERD_PORT)
 			|| robot_desc_read(SHEPHERD) == CONNECTED) {
 		return 0;
@@ -94,7 +93,6 @@ int is_dawn (struct sockaddr_in *cli_addr)
 {
 	//check if the client requesting connection is dawn, and if dawn is connected already
 	if (cli_addr->sin_family != AF_INET
-			|| cli_addr->sin_addr.s_addr != inet_addr(DAWN_ADDR)
 			|| cli_addr->sin_port != htons(DAWN_PORT)
 			|| robot_desc_read(DAWN) == CONNECTED) {
 		return 0;
@@ -109,7 +107,7 @@ int is_dawn (struct sockaddr_in *cli_addr)
 */
 void sigint_handler (int sig_num)
 {
-	log_printf(INFO, "stopping net_handler");
+	log_printf(DEBUG, "stopping net_handler");
 	stop_udp_conn();
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
 		stop_tcp_conn(SHEPHERD);
@@ -117,12 +115,9 @@ void sigint_handler (int sig_num)
 	if (robot_desc_read(DAWN) == CONNECTED) {
 		stop_tcp_conn(DAWN);
 	}
-	printf("got here \n");
 	shm_aux_stop(NET_HANDLER);
-	printf("closed aux shm \n");
 	shm_stop(NET_HANDLER);
 	logger_stop(NET_HANDLER);
-	printf("closed logger \n");
 	//sockfd is automatically closed when process terminates
 	exit(0);
 }
@@ -147,7 +142,9 @@ int main ()
 	}
 	shm_aux_init(NET_HANDLER);
 	shm_init(NET_HANDLER);
-	start_udp_conn(); //start UDP connection with Dawn here
+
+	//start UDP connection with Dawn
+	start_udp_conn(); 
 	
 	//run net_handler main control loop
 	while (1) {
@@ -159,16 +156,21 @@ int main ()
 		}
 		cli_addr_len = sizeof(struct sockaddr_in);
 		log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
-		
+		uint8_t is_dawn;
+		if (read(connfd, &is_dawn, 1) == -1) {
+			log_printf(ERROR, "Couldn't get client type: %s", strerror(errno));
+			continue;
+		}
 		//if the incoming request is dawn or shepherd, start the appropriate threads
-		if (is_shepherd(&cli_addr)) {
-			log_printf(DEBUG, "Starting Shepherd connection");
-			start_tcp_conn(SHEPHERD, connfd, 0);
-		} else if (is_dawn(&cli_addr)) {
+		if (is_dawn && robot_desc_read(DAWN) == DISCONNECTED) {
 			log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
+		} else if (robot_desc_read(SHEPHERD) == DISCONNECTED) {
+			log_printf(DEBUG, "Starting Shepherd connection");
+			start_tcp_conn(SHEPHERD, connfd, 0);
 		} else {
 			log_printf(ERROR, "Client is neither Dawn nor Shepherd");
+			close(connfd);
 		}
 	}
 	
