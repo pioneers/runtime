@@ -13,6 +13,7 @@ class Device
 {
 public:
   //******************************************* UNIVERSAL DEVICE METHODS ************************************** //
+
   /* Constructor with default args (times in ms)
    * set timeout to 0 if no disable on lack of PING
    * set ping_interval to 0 if don't PING
@@ -22,12 +23,14 @@ public:
   Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000, uint32_t ping_interval = 200);
 
   /* Generic device loop function that wraps all device actions
-   * asks Messenger to read a new packet, if any, and responds appropriately
-   * sends heartbeat requests and device data at set intervals
+   * Asks messenger to read any incoming messages and responds appropriately
+   * Sends PING and DEVICE_DATA at specified interval
+   * Sends log messages if any
+   * calls device_actions() to do device-type-specific actions
    */
   void loop ();
 
-  //******************************************* DEVICE-SPECIFIC METHODS ************************************** //
+  //************************************** DEVICE-SPECIFIC METHODS ************************************** //
   /* These functions are meant to be overridden by overridden by each device as it sees fit.
    * There are default dummy implementations of all these functions that do nothing so that the program will not
    * crash if they are not overwritten (for example, you don't need to overwrite device_write for a device that
@@ -73,27 +76,25 @@ public:
   virtual void device_actions ();
 
 private:
-  //******************************* PRIVATE VARIABLES AND HELPER METHOD ************************************** //
-  const static float MAX_SUB_DELAY_MS;  //maximum tolerable subscription delay, in ms
-  const static float MIN_SUB_DELAY_MS;  //minimum tolerable subscription delay, in ms
-  const static float ALPHA;       //subscription delay interpolation tuning constant
+  const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
+  const static float MIN_SUB_INTERVAL_MS;  // Minimum tolerable subscription delay, in ms
 
-  Messenger *msngr;   // Encodes/decodes and send/receive messages over serial
-  StatusLED *led;     // The LED on the Arduino
-  dev_id_t dev_id;      // dev_id of this device determined when flashing
-  uint32_t params;    // Bitmap of parameters subscribed to by dev handler
-  uint16_t sub_interval;  // Time between sending new DEVICE_DATA messages
-  uint32_t timeout;   // Maximum time (ms) we'll wait between PING messages from dev handler
-  uint32_t ping_interval; // Time (ms) between each PING message we send out
-  uint64_t last_sub_time;     // Timestamp of last time we sent DEVICE_DATA due to Subscription
-  uint64_t last_sent_ping_time; // Timestamp of last time we sent a PING
+  Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
+  StatusLED *led;                   // The LED on the Arduino
+  dev_id_t dev_id;                  // dev_id of this device determined when flashing
+  uint32_t params;                  // Bitmap of parameters subscribed to by dev handler
+  uint16_t sub_interval;            // Time between sending new DEVICE_DATA messages
+  uint32_t timeout;                 // Maximum time (ms) we'll wait between PING messages from dev handler
+  uint32_t ping_interval;           // Time (ms) between each PING message we send out
+  uint64_t last_sub_time;           // Timestamp of last time we sent DEVICE_DATA due to Subscription
+  uint64_t last_sent_ping_time;     // Timestamp of last time we sent a PING
   uint64_t last_received_ping_time; // Timestamp of last time we received a PING
-  uint64_t curr_time;       // The current time
-  message_t curr_msg;       //current message being processed
-  bool acknowledged;    // Whether or not we sent an ACKNOWLEDGEMENT
+  uint64_t curr_time;               // The current time
+  message_t curr_msg;               // current message being processed
+  bool acknowledged;                // Whether or not we sent an ACKNOWLEDGEMENT
 
-  //read or write data to device (more detail in source file)
-  void device_rw_all (message_t *msg, uint32_t params, RWMode mode);
+  // Read param data into MSG or write data from MSG into the device
+  void device_rw_all (message_t *msg, RWMode mode);
 };
 
 #endif

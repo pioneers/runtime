@@ -2,15 +2,19 @@
 
 //************************************* MESSENGER CLASS CONSTANTS *********************************** //
 
-const int Messenger::MESSAGEID_BYTES = 1;    //bytes in message ID field of packet
-const int Messenger::PAYLOAD_SIZE_BYTES = 1;  //bytes in payload size field of packet
-const int Messenger::CHECKSUM_BYTES = 1;    //bytes in checksum field of packet
+// Final encoded data sizes
+const int Messenger::DELIMITER_BYTES = 1;       // Bytes of the delimiter
+const int Messenger::COBS_LEN_BYTES = 1;        // Bytes indicating the size of the cobs encoded message
 
-const int Messenger::DEV_ID_TYPE_BYTES = 2;     //bytes in device type field of uid
-const int Messenger::DEV_ID_YEAR_BYTES = 1;     //bytes in year field of uid
-const int Messenger::DEV_ID_UID_BYTES = 8;      //bytes in uid field of uid
+// Message sizes
+const int Messenger::MESSAGEID_BYTES = 1;       // Bytes in message ID field of packet
+const int Messenger::PAYLOAD_SIZE_BYTES = 1;    // Bytes in payload size field of packet
+const int Messenger::CHECKSUM_BYTES = 1;        // Bytes in checksum field of packet
 
-
+// Sizes for ACKNOWLEDGEMENT message
+const int Messenger::DEV_ID_TYPE_BYTES = 2;     // Bytes in device type field of dev id
+const int Messenger::DEV_ID_YEAR_BYTES = 1;     // Bytes in year field of dev id
+const int Messenger::DEV_ID_UID_BYTES = 8;      // Bytes in uid field of dev id
 
 //************************************** MESSENGER CLASS METHODS ************************************//
 
@@ -19,84 +23,97 @@ Messenger::Messenger ()
   Serial.begin(115200); //open Serial (USB) connection
 }
 
-//TODO: check buffer size
-Status Messenger::send_message (MessageID msg_id, message_t *msg, uint32_t params, uint16_t delay, dev_id_t *dev_id)
+Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_id)
 {
-  msg->message_id = msg_id;
-  int status;
-  // All other Message Types should already be built (if needed)
-  if (msg_id == MessageID::ACKNOWLEDGEMENT) {
-    status += append_payload(msg, (uint8_t *) &dev_id->type, Messenger::DEV_ID_TYPE_BYTES);
-      status += append_payload(msg, (uint8_t *) &dev_id->year, Messenger::DEV_ID_YEAR_BYTES);
-      status += append_payload(msg, (uint8_t *) &dev_id->uid, Messenger::DEV_ID_UID_BYTES);
-  }
-  if (status != 0) {
-    return Status::PROCESS_ERROR;
-  }
+    // Fill MessageID field
+    msg->message_id = msg_id;
 
-  size_t msg_len = msg->payload_length + Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + Messenger::CHECKSUM_BYTES;
+    /* Build the message
+     * All other Message Types (PING, DEVICE_DATA, LOG) should already be built (if needed) */
+     int status;
+    if (msg_id == MessageID::ACKNOWLEDGEMENT) {
+        status += append_payload(msg, (uint8_t *) &dev_id->type, Messenger::DEV_ID_TYPE_BYTES);
+        status += append_payload(msg, (uint8_t *) &dev_id->year, Messenger::DEV_ID_YEAR_BYTES);
+        status += append_payload(msg, (uint8_t *) &dev_id->uid, Messenger::DEV_ID_UID_BYTES);
+    }
+    if (status != 0) {
+        return Status::PROCESS_ERROR;
+    }
+
+    // Serialize the message into byte array
+    size_t msg_len = Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + msg->payload_length + Messenger::CHECKSUM_BYTES;
     uint8_t data[msg_len];
-    uint8_t cobs_buf[2 + msg_len + 1]; //cobs encoding adds at most 2 overhead and one leading 0
-  size_t cobs_len; //length of cobs-encoded data array, as reported by cobs_encode()
-  uint8_t written; //number of bytes written to serial
-
     message_to_byte(data, msg);
     data[msg_len - Messenger::CHECKSUM_BYTES] = checksum(data, msg_len - Messenger::CHECKSUM_BYTES); //put the checksum into data
 
-    cobs_buf[0] = 0x00; //set overhead bytes to 0 as placeholder
-    cobs_len = cobs_encode(&cobs_buf[2], data, msg_len);
+    // Cobs encode the byte array
+    uint8_t cobs_buf[Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + msg_len + 1]; // Cobs encoding adds at most 1 byte overhead
+    cobs_buf[0] = 0x00; // Start with the delimiter
+    size_t cobs_len = cobs_encode(&cobs_buf[2], data, msg_len);
     cobs_buf[1] = (byte) cobs_len;
 
-    written = Serial.write(cobs_buf, 2 + cobs_len); //write to serial port
+    // Write to serial
+    uint8_t written = Serial.write(cobs_buf, Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len);
 
-  return (written == 2 + cobs_len) ? Status::SUCCESS : Status::PROCESS_ERROR;
+    // Clear the message for the next send
+    msg->message_id = 0;        // 0 is an invalid MessageID
+    msg->payload_length = 0;
+
+    return (written == Messenger:DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len) ? Status::SUCCESS : Status::PROCESS_ERROR;
 }
 
-//TODO: check buffer size
-//TODO: be more specific about errors and maybe define the error types in defs.h
 Status Messenger::read_message (message_t *msg)
 {
-  //if nothing to read
-  if (!Serial.available()) {
-    return Status::NO_DATA;
-  }
-
-  //find the start of packet
-  int last_byte_read = -1;
-  while (Serial.available()) {
-    last_byte_read = Serial.read();
-    if (last_byte_read == 0) {
-      break;
+    // Check if there's something to read
+    if (!Serial.available()) {
+        return Status::NO_DATA;
     }
-  }
 
-  if (last_byte_read != 0) { //no start of packet found
-    return Status::MALFORMED_DATA;
-  }
-  if (Serial.available() == 0 || Serial.peek() == 0) { //no packet length found
-    return Status::MALFORMED_DATA;
-  }
+    // Find the start of the packet (the delimiter)
+    int last_byte_read = -1;
+    while (Serial.available()) {
+        last_byte_read = Serial.read();
+        if (last_byte_read == 0) { // Byte 0x00 is the delimiter
+            break;
+        }
+    }
 
-  uint8_t data[MAX_PAYLOAD_SIZE + Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES];
-  uint8_t cobs_buf[MAX_PAYLOAD_SIZE + Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + 1]; //for leading zero
-  size_t cobs_len = Serial.read();
-  size_t read_len = Serial.readBytesUntil(0x00, (char *)cobs_buf, cobs_len);
-  if (cobs_len != read_len || cobs_decode(data, cobs_buf, cobs_len) < 3) {
-    return Status::PROCESS_ERROR;
-  }
+    if (last_byte_read != 0) { //no start of packet found
+        return Status::MALFORMED_DATA;
+    }
+    if (Serial.available() == 0 || Serial.peek() == 0) { //no packet length found
+        return Status::MALFORMED_DATA;
+    }
 
-  uint8_t message_id = data[0];
-  uint8_t payload_length = data[1];
-  uint8_t expected_chk = checksum(data, payload_length + Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES);
-  uint8_t received_chk = data[Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + payload_length];
-  if (received_chk != expected_chk) { //if checksums don't match (no need to empty cobs buffer)
-    return Status::MALFORMED_DATA;
-  }
-  //copy received data into msg
-  msg->message_id = (MessageID) message_id;
-  msg->payload_length = payload_length;
-  memcpy(msg->payload, &data[Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES], payload_length);
-  return Status::SUCCESS;
+    // Read the cobs len (how many bytes left in the message)
+    size_t cobs_len = Serial.read();
+
+    // Read the rest of the message into buffer
+    uint8_t cobs_buf[cobs_len];
+    size_t read_len = Serial.readBytesUntil(0x00, (char *)cobs_buf, cobs_len); // Read cobs_len bytes or until the next delimiter (whichever is first)
+    if (cobs_len != read_len) {
+        return Status::PROCESS_ERROR;
+    }
+
+    // Decode the cobs-encoded message into a buffer
+    uint8_t data[cobs_len];     // The decoded message will be smaller than COBS_LEN
+    cobs_decode(data, cobs_buf, cobs_len);
+
+    uint8_t message_id = data[0];
+    uint8_t payload_length = data[1];
+
+    // Verify that the received message has the correct checksum
+    uint8_t expected_chk = checksum(data, Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + payload_length);
+    uint8_t received_chk = data[Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES + payload_length];
+    if (received_chk != expected_chk) {
+        return Status::MALFORMED_DATA;
+    }
+
+    // Populate MSG with received data
+    msg->message_id = (MessageID) message_id;
+    msg->payload_length = payload_length;
+    memcpy(msg->payload, &data[Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES], payload_length);
+    return Status::SUCCESS;
 }
 
 /**
@@ -137,23 +154,28 @@ void Messenger::lowcar_flush() {
 
 //************************************** HELPER METHODS *****************************************//
 
-//appends DATA with length LENGTH to the end of the payload array of MSG
-//returns -1 if payload has become too large; 0 on success
+/**
+ *  Appends DATA of length LENGTH bytes to the end of MSG->PAYLOAD
+ *  MSG->payload_length is incremented accordingly
+ *  Returns 0 on success
+ *  Returns -1 if LENGTH is too large
+ */
 int Messenger::append_payload(message_t *msg, uint8_t *data, uint8_t length)
 {
-  memcpy(&(msg->payload[msg->payload_length]), data, length);
-  msg->payload_length += length;
-  return (msg->payload_length > MAX_PAYLOAD_SIZE) ? -1 : 0;
+    if (msg->payload_length + length > MAX_PAYLOAD_SIZE) {
+        return -1;
+    }
+    memcpy(&(msg->payload[msg->payload_length]), data, length);
+    msg->payload_length += length;
+    return 0;
 }
 
-//stores members of MSG into array DATA
+// Serializes the fields in MSG into byte array DATA
 void Messenger::message_to_byte(uint8_t *data, message_t *msg)
 {
-  data[0] = (uint8_t) msg->message_id; //first byte is messageID
-  data[1] = msg->payload_length; //second byte is payload length
-  for (int i = 0; i < msg->payload_length; i++) { //copy the payload in one byte at a time
-    data[i + Messenger::MESSAGEID_BYTES + Messenger::PAYLOAD_SIZE_BYTES] = msg->payload[i];
-  }
+  data[0] = (uint8_t) msg->message_id;
+  data[1] = msg->payload_length;
+  memcpy(&data[2], msg->payload, msg->payload_length);
 }
 
 //returns an 8-bit checksum of data array, computed by
@@ -167,7 +189,7 @@ uint8_t Messenger::checksum (uint8_t *data, int length)
   return chk;
 }
 
-//******************************************** COBS ENCODING ********************************//
+//******************************** COBS ENCODING ********************************//
 /* Cobs, short for Consistent Overhead Byte Stuffing, is an algorithm for preparing / encoding data for
  * transport. Read more here: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
  */
