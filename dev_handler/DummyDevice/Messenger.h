@@ -15,11 +15,14 @@ public:
   Messenger ();
 
   /* Handles any type of message and fills in appropriate parameters, then sends onto Serial port
-   * params, delay, and uid only used for subscription responses
-   * Expects *msg to exist
+   * msg_id: The MessageID to populate msg->message_id
+   * msg: The message to send
+   * dev_id: The id of the device. Used only for ACKNOWLEDGEMENT messages
+   *
    * Return a Status enum to report on success/failure
+   * Resets msg->message_id and msg->payload_length
    */
-  Status send_message (MessageID msg_id, message_t *msg, uint32_t params = 0, uint16_t delay = 0, dev_id_t *uid = NULL);
+  Status send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_id = NULL);
 
   /* Reads in data from serial port and puts results into msg
    * Return a Status enum to report on success/failure
@@ -37,6 +40,9 @@ public:
 
 private:
   //protocol constants
+  const static int DELIMITER_BYTES;
+  const static int COBS_LEN_BYTES;
+
   const static int MESSAGEID_BYTES;   //bytes in message ID field of packet
   const static int PAYLOAD_SIZE_BYTES;  //bytes in payload size field of packet
   const static int CHECKSUM_BYTES;    //bytes in checksum field of packet
@@ -45,10 +51,7 @@ private:
   const static int DEV_ID_YEAR_BYTES;     //bytes in year field of dev_id
   const static int DEV_ID_UID_BYTES;      //bytes in uid field of dev_id
 
-
-
   //helper methods; see source file for more detailed description of functionality
-  Status build_msg (MessageID msg_id, message_t *msg, uint32_t params = 0, uint16_t delay = 0, dev_id_t *uid = NULL);
   int append_payload (message_t *msg, uint8_t *data, uint8_t length);
   void message_to_byte (uint8_t *data, message_t *msg);
   uint8_t checksum (uint8_t *data, int length);
