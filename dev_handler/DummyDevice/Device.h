@@ -37,33 +37,30 @@ public:
    * has only read-only parameters).
    */
 
-  /* This function is called when the device receives a Device Read packet.
+  /* This function is called periodically to build a DEVICE_DATA message
    * It modifies DATA_BUF to contain the most recent value of parameter PARAM.
    * param      -   Parameter index (0, 1, 2, 3 ...)
-   * data_buf     -   Buffer to return data in, little-endian
-   * buf_len      -   Number of bytes available in data_buf to store data
+   * data_buf   -   Buffer to return data in, little-endian
+   * buf_len    -   Number of bytes available in data_buf to store data
    *
    * return     -   sizeof(<parameter_value>) on success; 0 otherwise
    */
   virtual uint8_t device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len);
 
-  /* This function is called when the device receives a Device Write packet.
+  /* This function is called when the device receives a DEVICE_WRITE message
    * Updates PARAM to new value contained in DATA.
    * param      -   Parameter index (0, 1, 2, 3 ...)
-   * data_buf     -   Contains value to write, little-endian
-   *
-   * return     -   sizeof(<bytes_written>) on success; 0 otherwise
+   * data_buf   -   Contains value to write, little-endian
    */
-  virtual uint32_t device_write (uint8_t param, uint8_t *data_buf);
+  virtual void device_write (uint8_t param, uint8_t *data_buf);
 
   /* This function is called in the Device constructor
-   * (or potentially on receiving a Device Enable packet in the future).
    * It should do whatever setup is necessary for the device to operate.
    */
   virtual void device_enable ();
 
-  /* This function is called when receiving a Device Disable packet, or
-   * when the controller has stopped responding to heartbeat requests.
+  /* This function is called when the device hasn't received a PING message
+   * from dev handler for the specified timeout duration.
    * It should do whatever cleanup is necessary for the device to disable.
    */
   virtual void device_disable ();

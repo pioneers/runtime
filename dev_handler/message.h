@@ -25,19 +25,20 @@
 #define MESSAGE_ID_SIZE 1
 // The size in bytes of the section specifying the length of the payload in the message
 #define PAYLOAD_LENGTH_SIZE 1
-// The size in bytes of the param bitmap in SubscriptionRequest, SubscriptionResponse, DeviceRead, DeviceWrite and DeviceData payloads
+// The size in bytes of the param bitmap in SUBSCRIPTION_REQUEST, DEVICE_WRITE and DEVICE_DATA payloads
 #define BITMAP_SIZE (MAX_PARAMS/8)
-// The size in bytes of the section specifying the delay for SubscriptionRequest and SubscriptionResponse
+// The size in bytes of the section specifying the delay for SUBSCRIPTION_REQUEST
 #define DELAY_SIZE 2
-// The size in bytes of the section specifying the device id
+// The size in bytes of the section specifying the device id for ACKNOWLEDGEMENT
 #define DEVICE_ID_SIZE 11
 // The size in bytes of the section specifying the checksum of the message id, the payload length, and the payload itself
 #define CHECKSUM_SIZE 1
-// The length of the largest payload in bytes, which may be reached for DeviceWrite and DeviceData message types.
+// The length of the largest payload in bytes, which may be reached for DEVICE_WRITE and DEVICE_DATA message types.
 #define MAX_PAYLOAD_SIZE (BITMAP_SIZE+(MAX_PARAMS*sizeof(float))) // Bitmap + Each param (may be floats)
 
 /* The types of messages */
 typedef enum {
+    NOP                     = 0x00, // Dummy message
     PING                    = 0x01, // Bidirectional
     ACKNOWLEDGEMENT         = 0x02, // To dev handler
     SUBSCRIPTION_REQUEST    = 0x03, // To lowcar
@@ -49,8 +50,8 @@ typedef enum {
 /* A struct defining a message to be sent over serial */
 typedef struct message {
     message_id_t   message_id;
-    uint8_t*       payload;             // Array of 8-bit integers
-    uint8_t        payload_length;      // The current number of 8-bit integers in payload
+    uint8_t*       payload;             // Array of bytes
+    uint8_t        payload_length;      // The current number of bytes in payload
     uint8_t        max_payload_length;  // The maximum length of the payload for the specific message_id
 } message_t;
 
@@ -60,7 +61,6 @@ void print_bytes(uint8_t* data, int len);
 /******************************************************************************************
  *                              MESSAGE CONSTRUCTORS                                      *
  *   The message returned from these MUST be deallocated memory using destroy_message()   *
- *   Message constructors for only device --> dev_handler included for completion's sake  *
  ******************************************************************************************/
 
 /*

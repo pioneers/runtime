@@ -370,8 +370,8 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
             continue;
         }
         if (strcmp(dev->params[i].type, "int") == 0) {
-            vals[i].p_i = ((int*) payload_ptr)[0];
-            payload_ptr += sizeof(int) / sizeof(uint8_t);
+            vals[i].p_i = ((int32_t*) payload_ptr)[0];
+            payload_ptr += sizeof(int32_t) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
             vals[i].p_f = ((float*) payload_ptr)[0];
             payload_ptr += sizeof(float) / sizeof(uint8_t);
