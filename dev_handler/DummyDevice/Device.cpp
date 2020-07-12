@@ -36,13 +36,9 @@ void Device::loop ()
         switch (this->curr_msg.message_id) {
             case MessageID::PING:
                 this->last_received_ping_time = this->curr_time;
-                this->led->quick_blink(4);
                 // If this is the first PING received, send an ACKNOWLEDGEMENT
                 if (!this->acknowledged) {
-                    this->led->quick_blink(5);
-                    if (this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), this->params, this->sub_interval, &(this->dev_id)) == Status::PROCESS_ERROR){
-                        this->led->quick_blink(5);
-                    }
+                    this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), this->params, this->sub_interval, &(this->dev_id));
                     this->acknowledged = true;
                 }
                 break;
@@ -69,6 +65,11 @@ void Device::loop ()
         // No message received
     }
 
+    // If we still haven't gotten our first PING yet, keep waiting for it
+    if (!(this->acknowledged)) {
+        continue;
+    }
+
     /* Send another DEVICE_DATA with subscribed parameters if this->sub_interval
      * passed since the last time we sent a DEVICE_DATA
      * If this->sub_interval == 0, don't send DEVICE_DATA */
@@ -80,7 +81,7 @@ void Device::loop ()
 
     // Send another PING if this->ping_interval passed since the last time we sent a PING
     // Don't start sending PING messages until after we sent an ACKNOWLEDGEMENT
-    if ((this->acknowledged) && (this->ping_interval > 0) && (this->curr_time - this->last_sent_ping_time >= this->ping_interval)) {
+    if ((this->ping_interval > 0) && (this->curr_time - this->last_sent_ping_time >= this->ping_interval)) {
         this->last_sent_ping_time = this->curr_time;
         this->msngr->send_message(MessageID::PING, &(this->curr_msg));
     }
@@ -107,7 +108,7 @@ uint8_t Device::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_l
 }
 
 //a device uses this function to change a state
-uint32_t Device::device_write (uint8_t param, uint8_t *data_buf)
+void Device::device_write (uint8_t param, uint8_t *data_buf)
 {
   return 0; //by default, we wrote 0 bytes successfully to device
 }

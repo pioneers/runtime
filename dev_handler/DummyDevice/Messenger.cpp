@@ -56,10 +56,10 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_
     uint8_t written = Serial.write(cobs_buf, Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len);
 
     // Clear the message for the next send
-    msg->message_id = 0;        // 0 is an invalid MessageID
+    msg->message_id = MessageID::NOP;
     msg->payload_length = 0;
 
-    return (written == Messenger:DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len) ? Status::SUCCESS : Status::PROCESS_ERROR;
+    return (written == Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len) ? Status::SUCCESS : Status::PROCESS_ERROR;
 }
 
 Status Messenger::read_message (message_t *msg)

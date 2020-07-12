@@ -35,9 +35,13 @@ void* sender(void* relay_cast);
 void* receiver(void* relay_cast);
 
 // Device communication
-int send_message(msg_relay_t* relay, message_t* msg, int* transferred);
+int send_message(msg_relay_t* relay, message_t* msg);
 int receive_message(msg_relay_t* relay, message_t* msg);
 int verify_lowcar(msg_relay_t* relay);
+
+// Serial port opening and closing
+int serialport_init(const char* serialport, int baud);
+int serialport_close(int fd);
 
 // Utility
 int64_t millis();
@@ -79,6 +83,7 @@ void poll_connected_devices() {
 	// Poll for newly connected devices and open threads for them
     log_printf(INFO, "Polling now.\n");
 	while (1) {
+        sleep(100);   // Save CPU usage by sleeping for less than second
 		int8_t port_num = get_new_device();
         if (port_num == -1) {
             continue;
@@ -270,7 +275,6 @@ void* sender(void* relay_cast) {
 	uint32_t* pmap;
 	param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read
 	message_t* msg; 		// Message to build
-	int transferred = 0; 	// The number of bytes actually transferred
 	int ret; 				// Hold the value from send_message()
     log_printf(DEBUG, "Sender starting work!\n");
 	while (1) {
@@ -284,7 +288,7 @@ void* sender(void* relay_cast) {
 			// device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
 			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
-			ret = send_message(relay, msg, &transferred);
+			ret = send_message(relay, msg);
 			if (ret != 0) {
                 log_printf(FATAL, "DeviceWrite transfer failed\n");
 			}
@@ -294,7 +298,7 @@ void* sender(void* relay_cast) {
 		// Send another PING if it's time again
 		if ((millis() - relay->last_sent_ping_time) >= PING_FREQ) {
 			msg = make_ping();
-			ret = send_message(relay, msg, &transferred);
+			ret = send_message(relay, msg);
 			if (ret != 0) {
                 log_printf(FATAL, "Ping transfer failed\n");
 			}
@@ -370,35 +374,30 @@ void* receiver(void* relay_cast) {
  * return: 0 if successful
  *         -1 if couldn't write all the bytes
  */
-int send_message(msg_relay_t* relay, message_t* msg, int* transferred) {
+int send_message(msg_relay_t* relay, message_t* msg) {
 	int len = calc_max_cobs_msg_length(msg);
 	uint8_t* data = malloc(len);
 	len = message_to_bytes(msg, data, len);
-    int ret;
+    int transferred = 0;
     if (OUTPUT == USB_DEV) {
-        for (int i = 0; i < len; i++) {
-            ret = serialport_writebyte(relay->file_descriptor, data[i]); // From arduino-serial-lib
-            if (ret != 0) {
-                log_printf(DEBUG, "Couldn't write byte 0x%X\n", data[i]);
-                return -1;
-            }
-        }
+        transferred = write(relay->file_descriptor, data, len);
     } else if (OUTPUT == FILE_DEV) {
         // Write the data buffer to the file
-        *transferred = fwrite(data, sizeof(uint8_t), len, relay->write_file);
+        transferred = fwrite(data, sizeof(uint8_t), len, relay->write_file);
         fflush(relay->write_file); // Force write the contents to file
-        ret = (*transferred == len) ? 0 : -1;
     }
-    if (ret == 0) {
-        //log_printf(DEBUG, "Sent %d bytes: ", len);
-        //print_bytes(data, len);
+    if (transferred != len) {
+        log_printf(FATAL, "Sent only %d out of %d bytes\n", transferred, len);
     }
     free(data);
-	return ret;
+    //log_printf(DEBUG, "Sent %d bytes: ", len);
+    //print_bytes(data, len);
+	return (transferred == len) ? 0 : -1;
 }
 
 /*
  * Continuously reads from stream until reads the next message, then attempts to parse
+ * This function blocks until it reads a (possibly broken) message
  * relay: The shred relay object
  * msg: The message_t* to be populated with the parsed data (if successful)
  * return: 0 on successful parse
@@ -478,8 +477,7 @@ int verify_lowcar(msg_relay_t* relay) {
 	// Send a Ping
     log_printf(DEBUG, "Sending a Ping...\n");
     message_t* ping = make_ping();
-    int transferred;
-    int ret = send_message(relay, ping, &transferred);
+    int ret = send_message(relay, ping);
     destroy_message(ping);
     if (ret != 0) {
         return 1;
@@ -499,13 +497,98 @@ int verify_lowcar(msg_relay_t* relay) {
 	}
 
 	// We have a lowcar device!
-	relay->dev_id.type = ((uint16_t*)(&ack->payload))[0];      // device type is the first 16 bits
-	relay->dev_id.year = ack->payload[2];                      // device year is next 8 bits
-	relay->dev_id.uid  = ((uint64_t*)(&ack->payload[3]))[0];   // device uid is the last 64-bits
-    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type %d, year %d, uid %d!\n", \
+	relay->dev_id.type = *((uint16_t*)(&ack->payload));      // device type is the first 16 bits
+	relay->dev_id.year = ack->payload[2];                    // device year is next 8 bits
+	relay->dev_id.uid  = *((uint64_t*)(&ack->payload[3]));   // device uid is the last 64-bits
+    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X, year 0x%02X, uid %llx!\n", \
         relay->port_num, relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid);
     destroy_message(ack);
 	return 0;
+}
+
+// ************************************ SERIAL PORTS ****************************************** //
+
+/**
+ * Opens a serial port for reading and writing binary data
+ * serialport: The name of the port (ex: "/dev/ttyACM0", "/dev/tty.usbserial", "COM1")
+ * baud: The baud rate of the connection
+ * returns a file_descriptor or -1 on error
+ *
+ * source: https://github.com/todbot/arduino-serial
+ */
+int serialport_init(const char* serialport, int baud) {
+    struct termios toptions;
+    int fd;
+
+    //fd = open(serialport, O_RDWR | O_NOCTTY | O_NDELAY);
+    fd = open(serialport, O_RDWR | O_NONBLOCK );
+
+    if (fd == -1)  {
+        perror("serialport_init: Unable to open port ");
+        return -1;
+    }
+
+    //int iflags = TIOCM_DTR;
+    //ioctl(fd, TIOCMBIS, &iflags);     // turn on DTR
+    //ioctl(fd, TIOCMBIC, &iflags);    // turn off DTR
+
+    if (tcgetattr(fd, &toptions) < 0) {
+        perror("serialport_init: Couldn't get term attributes");
+        return -1;
+    }
+    speed_t brate = baud; // let you override switch below if needed
+    switch(baud) {
+    case 4800:   brate=B4800;   break;
+    case 9600:   brate=B9600;   break;
+#ifdef B14400
+    case 14400:  brate=B14400;  break;
+#endif
+    case 19200:  brate=B19200;  break;
+#ifdef B28800
+    case 28800:  brate=B28800;  break;
+#endif
+    case 38400:  brate=B38400;  break;
+    case 57600:  brate=B57600;  break;
+    case 115200: brate=B115200; break;
+    }
+    cfsetispeed(&toptions, brate);
+    cfsetospeed(&toptions, brate);
+
+    // 8N1
+    toptions.c_cflag &= ~PARENB;
+    toptions.c_cflag &= ~CSTOPB;
+    toptions.c_cflag &= ~CSIZE;
+    toptions.c_cflag |= CS8;
+    // no flow control
+    toptions.c_cflag &= ~CRTSCTS;
+
+    //toptions.c_cflag &= ~HUPCL; // disable hang-up-on-close to avoid reset
+
+    toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
+    toptions.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL); // turn off s/w flow ctrl
+
+    toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
+    toptions.c_oflag &= ~OPOST; // make raw
+
+    // see: http://unixwiz.net/techtips/termios-vmin-vtime.html
+    toptions.c_cc[VMIN]  = 0;
+    toptions.c_cc[VTIME] = 0;
+    //toptions.c_cc[VTIME] = 20;
+
+    tcsetattr(fd, TCSANOW, &toptions);
+    if( tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
+        perror("init_serialport: Couldn't set term attributes");
+        return -1;
+    }
+
+    return fd;
+}
+
+/**
+ * Closes the serial port using the file descriptor obtained from serialport_init()
+ */
+int serialport_close(int fd) {
+    return close(fd);
 }
 
 // ************************************ UTILITY ****************************************** //

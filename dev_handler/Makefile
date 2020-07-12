@@ -2,7 +2,7 @@ CC=gcc
 CXX=g++
 LIBFLAGS=-pthread
 
-DEV_HANDLER_FILES=message.c ../logger/logger.c ../runtime_util/runtime_util.c arduino-serial-lib.c
+DEV_HANDLER_FILES=message.c ../logger/logger.c ../runtime_util/runtime_util.c
 CPP_FILES=tests/main.cpp tests/Device.cpp tests/Device.h tests/Messenger.cpp tests/Messenger.h tests/defs.h
 
 # Run dev_handler

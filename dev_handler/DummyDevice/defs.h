@@ -9,9 +9,6 @@
 
 #define PARAM_BITMAP_BYTES  4
 
-//manual UID for testing
-//#define UID (0x0123456789ABCDEF) // 8 bytes
-//uint64_t UID = 0x0123456789ABCDEF;
 //identification for analog pins
 enum class Analog : uint8_t {
   IO0 = A0,
@@ -32,6 +29,7 @@ enum class Digital : uint8_t {
 
 /* The types of messages */
 enum class MessageID : uint8_t {
+    NOP                     = 0x00  // Dummy message
     PING                    = 0x01, // Bidirectional
     ACKNOWLEDGEMENT         = 0x02, // To dev handler
     SUBSCRIPTION_REQUEST    = 0x03, // To lowcar
