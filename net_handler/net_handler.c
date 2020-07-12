@@ -65,17 +65,19 @@ int listening_socket_setup (int *sockfd)
 /*
 * Check to see if requesting client is indeed Shepherd
 * Arguments:
+*    - uint8_t client_id: the first byte read from the TCP socket that identifies the client
 *    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
 * Return:
 *    - 0 if cli_addr is not Shepherd
 *    - 1 if cli_addr is Shepherd
 */
-int is_shepherd (struct sockaddr_in *cli_addr)
+int is_shepherd (uint8_t client_id, struct sockaddr_in *cli_addr)
 {
 	//check if the client requesting connection is shepherd, and if shepherd is connected already
 	if (cli_addr->sin_family != AF_INET
 			|| cli_addr->sin_port != htons(SHEPHERD_PORT)
-			|| robot_desc_read(SHEPHERD) == CONNECTED) {
+			|| robot_desc_read(SHEPHERD) == CONNECTED
+			|| client_id != 0) {
 		return 0;
 	}
 	return 1;
@@ -84,17 +86,19 @@ int is_shepherd (struct sockaddr_in *cli_addr)
 /*
 * Check to see if requesting client is indeed Dawn
 * Arguments:
+*    - uint8_t client_id: the first byte read from the TCP socket that identifies the client
 *    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
 * Return:
 *    - 0 if cli_addr is not Dawn
 *    - 1 if cli_addr is Dawn
 */
-int is_dawn (struct sockaddr_in *cli_addr)
+int is_dawn (uint8_t client_id, struct sockaddr_in *cli_addr)
 {
 	//check if the client requesting connection is dawn, and if dawn is connected already
 	if (cli_addr->sin_family != AF_INET
 			|| cli_addr->sin_port != htons(DAWN_PORT)
-			|| robot_desc_read(DAWN) == CONNECTED) {
+			|| robot_desc_read(DAWN) == CONNECTED
+			|| client_id != 1) {
 		return 0;
 	}
 	return 1;
@@ -165,10 +169,10 @@ int main ()
 		}
 		
 		//if the incoming request is shepherd or dawn, start the appropriate threads
-		if (client_id == 0 && robot_desc_read(SHEPHERD) == DISCONNECTED) {
+		if (is_shepherd(client_id, cli_addr)) {
 			log_printf(DEBUG, "Starting Shepherd connection");
 			start_tcp_conn(SHEPHERD, connfd, 0);
-		} else if (client_id == 1 && robot_desc_read(DAWN) == DISCONNECTED) {
+		} else if (is_dawn(client_id, cli_addr)) {
 			log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
 		} else {
