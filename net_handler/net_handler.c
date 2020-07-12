@@ -129,6 +129,7 @@ int main ()
 	int sockfd = -1, connfd = -1;
 	struct sockaddr_in cli_addr; //requesting client's address
 	socklen_t cli_addr_len = sizeof(struct sockaddr_in); //length of requesting client's address in bytes
+	uint8_t client_id; //this is 0 if shepherd, 1 if dawn
 	
 	//setup
 	logger_init(NET_HANDLER);
@@ -156,18 +157,20 @@ int main ()
 		}
 		cli_addr_len = sizeof(struct sockaddr_in);
 		log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
-		uint8_t is_dawn;
-		if (read(connfd, &is_dawn, 1) == -1) {
+		
+		//get the client ID (first byte on the socket from client)
+		if (read(connfd, &client_id, 1) == -1) {
 			log_printf(ERROR, "Couldn't get client type: %s", strerror(errno));
 			continue;
 		}
-		//if the incoming request is dawn or shepherd, start the appropriate threads
-		if (is_dawn && robot_desc_read(DAWN) == DISCONNECTED) {
-			log_printf(DEBUG, "Starting Dawn connection");
-			start_tcp_conn(DAWN, connfd, 1);
-		} else if (robot_desc_read(SHEPHERD) == DISCONNECTED) {
+		
+		//if the incoming request is shepherd or dawn, start the appropriate threads
+		if (client_id == 0 && robot_desc_read(SHEPHERD) == DISCONNECTED) {
 			log_printf(DEBUG, "Starting Shepherd connection");
 			start_tcp_conn(SHEPHERD, connfd, 0);
+		} else if (client_id == 1 && robot_desc_read(DAWN) == DISCONNECTED) {
+			log_printf(DEBUG, "Starting Dawn connection");
+			start_tcp_conn(DAWN, connfd, 1);
 		} else {
 			log_printf(ERROR, "Client is neither Dawn nor Shepherd");
 			close(connfd);
