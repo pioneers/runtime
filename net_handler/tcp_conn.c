@@ -12,7 +12,7 @@ typedef struct {
 pthread_t dawn_tid, shepherd_tid;
 
 /*
- * Clean up memory and file descriptors before exiting from dawn connection main control loop
+ * Clean up memory and file descriptors before exiting from tcp_process
  * Arguments:
  *    - void *args: should be a pointer to tcp_conn_args_t populated with the listed descriptors and pointers
  */
@@ -89,7 +89,13 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 	free(send_buf);
 }
 
-
+/* 
+ * Send a challenge data message on the TCP connection to the client. Reads packets from the UNIX socket from
+ * executor until all messages are read, packages the message, and sends it.
+ * Arguments:
+ *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+ *    - int challenge_fd: Unix socket connection's file descriptor from which to read challenge results from executor
+ */
 static void send_challenge_results(int conn_fd, int challenge_fd) {
 	// Get results from executor
 	Text results = TEXT__INIT;
@@ -138,7 +144,7 @@ static void send_challenge_results(int conn_fd, int challenge_fd) {
  *    - int results_fd: file descriptor of FIFO pipe to executor to which to write challenge input data if received
  * Returns: pointer to integer in which return status will be stored
  *      0 if message received and processed
- *     -1 if message could not be parsed because Shepherd disconnected and connection closed
+ *     -1 if message could not be parsed because ckuebt disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
 static int recv_new_msg (int conn_fd, int challenge_fd)
@@ -261,10 +267,10 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 
 
 /*
- * Main control loop for dawn connection. Sets up connection by opening up pipe to read log messages from
+ * Main control loop for a TCP connection. Sets up connection by opening up pipe to read log messages from
  * and sets up read_set for select(). Then it runs main control loop, using select() to make actions event-driven.
  * Arguments:
- *    - void *args: (always NULL)
+ *    - void *args: arguments containing file descriptors and file pointers that need to be closed on exit (and other settings)
  * Return:
  *    - NULL
  */

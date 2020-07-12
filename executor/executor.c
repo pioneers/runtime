@@ -481,6 +481,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-		usleep(4000); //throttle this thread to ~200 loops/sec
+		usleep(100000); //throttle this thread to ~10 Hz
     }
 }
