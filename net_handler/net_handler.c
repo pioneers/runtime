@@ -62,47 +62,6 @@ int listening_socket_setup (int *sockfd)
 	return 0;
 }
 
-/*
-* Check to see if requesting client is indeed Shepherd
-* Arguments:
-*    - uint8_t client_id: the first byte read from the TCP socket that identifies the client
-*    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
-* Return:
-*    - 0 if cli_addr is not Shepherd
-*    - 1 if cli_addr is Shepherd
-*/
-int is_shepherd (uint8_t client_id, struct sockaddr_in *cli_addr)
-{
-	//check if the client requesting connection is shepherd, and if shepherd is connected already
-	if (cli_addr->sin_family != AF_INET
-			|| cli_addr->sin_port != htons(SHEPHERD_PORT)
-			|| robot_desc_read(SHEPHERD) == CONNECTED
-			|| client_id != 0) {
-		return 0;
-	}
-	return 1;
-}
-
-/*
-* Check to see if requesting client is indeed Dawn
-* Arguments:
-*    - uint8_t client_id: the first byte read from the TCP socket that identifies the client
-*    - struct sockaddr_in *cli_addr: pointer to struct sockaddr_in containing the address and port of requesting client
-* Return:
-*    - 0 if cli_addr is not Dawn
-*    - 1 if cli_addr is Dawn
-*/
-int is_dawn (uint8_t client_id, struct sockaddr_in *cli_addr)
-{
-	//check if the client requesting connection is dawn, and if dawn is connected already
-	if (cli_addr->sin_family != AF_INET
-			|| cli_addr->sin_port != htons(DAWN_PORT)
-			|| robot_desc_read(DAWN) == CONNECTED
-			|| client_id != 1) {
-		return 0;
-	}
-	return 1;
-}
 
 /*
 * Handles SIGINT being sent to the process by closing connections and closing shm_aux, shm, and logger.
@@ -154,7 +113,7 @@ int main ()
 	//run net_handler main control loop
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
-		if ((connfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_addr_len)) < 0) {
+		if ((connfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_addr_len)) < 0) {
 			perror("accept");
 			log_printf(ERROR, "listen socket failed to accept a connection");
 			continue;
@@ -169,10 +128,10 @@ int main ()
 		}
 		
 		//if the incoming request is shepherd or dawn, start the appropriate threads
-		if (is_shepherd(client_id, cli_addr)) {
+		if (client_id == 0 && cli_addr.sin_family == AF_INET && cli_addr.sin_port == htons(SHEPHERD_PORT) && robot_desc_read(SHEPHERD) == DISCONNECTED) {
 			log_printf(DEBUG, "Starting Shepherd connection");
 			start_tcp_conn(SHEPHERD, connfd, 0);
-		} else if (is_dawn(client_id, cli_addr)) {
+		} else if (client_id == 1 && cli_addr.sin_family == AF_INET && cli_addr.sin_port == htons(DAWN_PORT) && robot_desc_read(DAWN) == DISCONNECTED) {
 			log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
 		} else {

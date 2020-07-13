@@ -10,6 +10,7 @@ void* send_device_data(void* args) {
 	int len;
 	uint8_t* buffer;
 	int err;
+	// Needed to wait for UDP client to talk to us
 	while(dawn_addr.sin_family == 0) {
 		sleep(1);
 	}

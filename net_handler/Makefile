@@ -22,6 +22,8 @@ clean:
 	rm -f $(GEN_FOLDER)/*
 	rm -f $(shell find protobuf_tests -type f ! -name "*.*")
 	rm -f net_handler
+	rm -f tcp_client
+	rm -f udp_client
 
 proto_tests: gen_proto log runmode gpstate devdata
 

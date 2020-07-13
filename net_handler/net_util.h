@@ -24,11 +24,11 @@
 #include "pbc_gen/text.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 
-#define RASPI_ADDR "192.168.0.24"
+#define RASPI_ADDR "127.0.0.1"
 #define RASPI_PORT 8101     //well-known port of TCP listening socket used by runtime on raspi
-#define SHEPHERD_ADDR "192.168.0.25"
+#define SHEPHERD_ADDR "127.0.0.1"
 #define SHEPHERD_PORT 6101
-#define DAWN_ADDR "192.168.0.25"
+#define DAWN_ADDR "127.0.0.1"
 #define DAWN_PORT 7101
 
 #define RASPI_UDP_PORT 9000
