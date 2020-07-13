@@ -299,10 +299,12 @@ void run_challenges() {
         }
         PyObject* ret = NULL;
         if (run_py_function(challenge_names[i], "challenge", NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
-            static char* msg = "Timed out";
-            // Set rest of challenge results to unblock the TCP client
-            for (int j = i; j < NUM_CHALLENGES; j++) {
-                strcpy(send_buf[j], msg);
+            strcpy(send_buf[i], "Timed out");
+            for (int j = i+1; j < NUM_CHALLENGES; j++) {
+                // Read rest of inputs to clear the challenge socket
+                recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, NULL, NULL);
+                // Set rest of challenge outputs to notify the TCP client
+                strcpy(send_buf[j], "Timed out");
             }
             break;
         }
@@ -359,11 +361,6 @@ void challenge_exit_handler(int signum) {
  *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
  */
 pid_t start_mode_subprocess(robot_desc_val_t mode) {
-    int pipe_fd[2];
-    if (pipe(pipe_fd) != 0) {
-        log_printf(ERROR, "Pipe failed: %s", strerror(errno));
-        return NULL;
-    }
     pid_t pid = fork();
     if (pid < 0) {
         log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
@@ -371,13 +368,13 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
     }
     else if (pid == 0) {
         // Now in child process
-        atexit(executor_stop);
+        atexit(executor_stop); // Always call executor_stop when process dies to free handles to SHM
         signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
         executor_init("studentcode"); // Default name of student code file 
         if (mode == CHALLENGE) {
             signal(SIGTERM, challenge_exit_handler);
             signal(SIGALRM, mode_exit_handler);
-            alarm(challenge_time);
+            alarm(challenge_time); // Set timeout for challenges
             run_challenges();
             robot_desc_write(RUN_MODE, IDLE); // Will tell supervisor to call kill_subprocess
             while (1) {

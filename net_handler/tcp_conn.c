@@ -110,7 +110,7 @@ static void send_challenge_results(int conn_fd, int challenge_fd) {
 		if (readlen == CHALLENGE_LEN) {
 			log_printf(WARN, "challenge_fd: Read length matches size of read buffer %d", readlen);
 		}
-		if (readlen <= 0) {
+		if (readlen <= 0) { 
 			perror("recvfrom");
 			log_printf(ERROR, "Socket recv from challenge_fd failed");
 		}
@@ -144,7 +144,7 @@ static void send_challenge_results(int conn_fd, int challenge_fd) {
  *    - int results_fd: file descriptor of FIFO pipe to executor to which to write challenge input data if received
  * Returns: pointer to integer in which return status will be stored
  *      0 if message received and processed
- *     -1 if message could not be parsed because ckuebt disconnected and connection closed
+ *     -1 if message could not be parsed because client disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
 static int recv_new_msg (int conn_fd, int challenge_fd)
@@ -165,6 +165,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	if (msg_type == CHALLENGE_DATA_MSG) {
 		//socket address structure for the UNIX socket to executor for challenge data
 		struct sockaddr_un exec_addr;
+		memset(&exec_addr, 0, sizeof(struct sockaddr_un));
 		exec_addr.sun_family = AF_UNIX;
 		strcpy(exec_addr.sun_path, CHALLENGE_SOCKET);
 		

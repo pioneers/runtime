@@ -23,7 +23,7 @@ def test_api():
     print("R X joystick:", gamepad.get_value('joystick_right_x'))
     gamepad.mode = 'auto'
     studentapi._stop()
-    # print("Auto gamepad:", gamepad.get_value('button_xbox'))
+    print('all done')
 
 if __name__ == '__main__':
     test_api()
