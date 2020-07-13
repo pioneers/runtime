@@ -1,0 +1,29 @@
+os: linux 
+arch: arm64 
+dist: bionic # Ubuntu 18
+
+language: python
+python:
+  - "3.6"
+  - "3.7"
+  - "3.8"
+
+compiler: gcc
+
+# require the branch name to be master (note for PRs this is the base branch name)
+branches:
+  only:
+    - master
+
+
+before_install:
+  - sudo add-apt-repository -y ppa:deadsnakes/ppa
+  - sudo apt-get -q update  
+  - sudo apt-get -y install python3.6-dev python3.7-dev python3.8-dev
+
+# Install protobuf, protobuf-c, Cython
+install:
+  - pip3 install Cython
+
+jobs:
+  include:
