@@ -83,7 +83,7 @@ void poll_connected_devices() {
 	// Poll for newly connected devices and open threads for them
     log_printf(INFO, "Polling now.\n");
 	while (1) {
-        sleep(100);   // Save CPU usage by sleeping for less than second
+        usleep(100000);   // Save CPU usage by sleeping for less than second
 		int8_t port_num = get_new_device();
         if (port_num == -1) {
             continue;
@@ -217,12 +217,13 @@ void* relayer(void* relay_cast) {
             relay_clean_up(relay);
             return NULL;
         }
-        /* If it took too long to receive a HeartBeat, the device timed out */
+        /* If it took too long to receive a Ping, the device timed out */
 		if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
 			log_printf(INFO, "/dev/ttyACM%d timed out!\n", relay->port_num);
 			relay_clean_up(relay);
 			return NULL;
 		}
+		sleep(1);
 	}
 }
 
@@ -290,23 +291,25 @@ void* sender(void* relay_cast) {
 			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
 			ret = send_message(relay, msg);
 			if (ret != 0) {
-                log_printf(FATAL, "DeviceWrite transfer failed\n");
+				log_printf(FATAL, "DeviceWrite transfer failed\n");
 			}
 			destroy_message(msg);
 		}
 		pthread_testcancel(); // Cancellation point
+
 		// Send another PING if it's time again
 		if ((millis() - relay->last_sent_ping_time) >= PING_FREQ) {
 			msg = make_ping();
 			ret = send_message(relay, msg);
 			if (ret != 0) {
-                log_printf(FATAL, "Ping transfer failed\n");
+				log_printf(FATAL, "Ping transfer failed\n");
 			}
-            // Update the timestamp at which we sent a PING
-            relay->last_sent_ping_time = millis();
+			// Update the timestamp at which we sent a PING
+			relay->last_sent_ping_time = millis();
 			destroy_message(msg);
 		}
 		pthread_testcancel(); // Cancellation point
+		usleep(1000);
 	}
 	return NULL;
 }
@@ -342,7 +345,7 @@ void* receiver(void* relay_cast) {
 			continue;
 		}
 		if (msg->message_id == PING) {
-			// If it's a HeartBeatRequest, take note of it so sender can resolve it
+			// If it's a Ping, take note of it so sender can resolve it
             log_printf(DEBUG, "Got PING from /dev/ttyACM%d\n", relay->port_num);
 			relay->last_received_ping_time = millis();
 		} else if (msg->message_id == DEVICE_DATA) {
@@ -421,6 +424,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
             log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
             num_bytes_read = 0;
         }
+	usleep(1000);
     }
     //log_printf(DEBUG, "Got start of message!\n");
 
@@ -497,11 +501,12 @@ int verify_lowcar(msg_relay_t* relay) {
 	}
 
 	// We have a lowcar device!
-	relay->dev_id.type = *((uint16_t*)(&ack->payload));      // device type is the first 16 bits
+	relay->dev_id.type = *((uint16_t*)(&ack->payload[0]));      // device type is the first 16 bits
 	relay->dev_id.year = ack->payload[2];                    // device year is next 8 bits
 	relay->dev_id.uid  = *((uint64_t*)(&ack->payload[3]));   // device uid is the last 64-bits
-    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X, year 0x%02X, uid %llx!\n", \
+    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X, year 0x%02X, uid %llX!\n", \
         relay->port_num, relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid);
+	relay->last_received_ping_time = millis();
     destroy_message(ack);
 	return 0;
 }
@@ -518,52 +523,28 @@ int verify_lowcar(msg_relay_t* relay) {
  */
 int serialport_init(const char* serialport, int baud) {
     struct termios toptions;
-    int fd;
-
-    //fd = open(serialport, O_RDWR | O_NOCTTY | O_NDELAY);
-    fd = open(serialport, O_RDWR | O_NONBLOCK );
+    int fd = open(serialport, O_RDWR);
 
     if (fd == -1)  {
-        perror("serialport_init: Unable to open port ");
+        log_printf(ERROR, "serialport_init: Unable to open port");
         return -1;
     }
-
-    //int iflags = TIOCM_DTR;
-    //ioctl(fd, TIOCMBIS, &iflags);     // turn on DTR
-    //ioctl(fd, TIOCMBIC, &iflags);    // turn off DTR
 
     if (tcgetattr(fd, &toptions) < 0) {
-        perror("serialport_init: Couldn't get term attributes");
+        log_printf(ERROR, "serialport_init: Couldn't get term attributes");
         return -1;
     }
-    speed_t brate = baud; // let you override switch below if needed
-    switch(baud) {
-    case 4800:   brate=B4800;   break;
-    case 9600:   brate=B9600;   break;
-#ifdef B14400
-    case 14400:  brate=B14400;  break;
-#endif
-    case 19200:  brate=B19200;  break;
-#ifdef B28800
-    case 28800:  brate=B28800;  break;
-#endif
-    case 38400:  brate=B38400;  break;
-    case 57600:  brate=B57600;  break;
-    case 115200: brate=B115200; break;
-    }
+    speed_t brate = B115200;
     cfsetispeed(&toptions, brate);
     cfsetospeed(&toptions, brate);
 
-    // 8N1
+    // set toptions: https://linux.die.net/man/3/cfsetspeed
     toptions.c_cflag &= ~PARENB;
     toptions.c_cflag &= ~CSTOPB;
     toptions.c_cflag &= ~CSIZE;
     toptions.c_cflag |= CS8;
-    // no flow control
+
     toptions.c_cflag &= ~CRTSCTS;
-
-    //toptions.c_cflag &= ~HUPCL; // disable hang-up-on-close to avoid reset
-
     toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
     toptions.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL); // turn off s/w flow ctrl
 
@@ -573,11 +554,10 @@ int serialport_init(const char* serialport, int baud) {
     // see: http://unixwiz.net/techtips/termios-vmin-vtime.html
     toptions.c_cc[VMIN]  = 0;
     toptions.c_cc[VTIME] = 0;
-    //toptions.c_cc[VTIME] = 20;
 
     tcsetattr(fd, TCSANOW, &toptions);
     if( tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
-        perror("init_serialport: Couldn't set term attributes");
+        log_printf(ERROR, "init_serialport: Couldn't set term attributes");
         return -1;
     }
 

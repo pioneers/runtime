@@ -8,19 +8,21 @@ Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t 
 {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
-    this->dev_id.uid = 0x0123456789ABCDEF;
-
+    this->dev_id.uid = 0xFEDCBA987654321;
+    //this->dev_id.uid = 0x123456789ABCDEF;
+    
     this->params = 0;         // nothing subscribed to right now
     this->sub_interval = 0;   // 0 acts as flag indicating no subscription
     this->timeout = timeout;
     this->ping_interval = ping_interval;
-    this->last_sub_time = this->last_sent_ping_time = this->last_received_ping_time = this->curr_time = millis();
     this->acknowledged = false;
 
     this->msngr = new Messenger();
     this->led = new StatusLED();
 
     device_enable(); //call device's enable function
+
+    this->last_sub_time = this->last_sent_ping_time = this->last_received_ping_time = this->curr_time = millis();
 }
 
 //universal loop function
@@ -38,8 +40,10 @@ void Device::loop ()
                 this->last_received_ping_time = this->curr_time;
                 // If this is the first PING received, send an ACKNOWLEDGEMENT
                 if (!this->acknowledged) {
-                    this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), this->params, this->sub_interval, &(this->dev_id));
+                    this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sending ACK", this->dev_id.type, this->dev_id.uid);
+                    this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), &(this->dev_id));
                     this->acknowledged = true;
+                    this->msngr->send_message(MessageID::PING, &(this->curr_msg));
                 }
                 break;
 
@@ -57,17 +61,17 @@ void Device::loop ()
                 break;
 
             // Receiving some other Message
-            //default:
-                //this->led->toggle();
-                // break;
+            default:
+                this->msngr->lowcar_printf("Unrecognized message received by lowcar device");
+                break;
         }
-    } else {
-        // No message received
+    } else if (sts != Status::NO_DATA) {
+        this->msngr->lowcar_printf("Error when reading message by lowcar device");
     }
 
     // If we still haven't gotten our first PING yet, keep waiting for it
     if (!(this->acknowledged)) {
-        continue;
+        return;
     }
 
     /* Send another DEVICE_DATA with subscribed parameters if this->sub_interval
@@ -84,12 +88,12 @@ void Device::loop ()
     if ((this->ping_interval > 0) && (this->curr_time - this->last_sent_ping_time >= this->ping_interval)) {
         this->last_sent_ping_time = this->curr_time;
         this->msngr->send_message(MessageID::PING, &(this->curr_msg));
+        //this->led->quick_blink(5);
+        //delay(3000);
     }
 
     // Send any queued logs
-    if (this->msngr->num_logs != 0) {
-        this->msngr->lowcar_flush();
-    }
+    this->msngr->lowcar_flush();
 
     // If it's been too long since we received a PING, disable the device
     if ((this->timeout > 0)  && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
