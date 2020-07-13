@@ -1,6 +1,6 @@
 # Student Code Executor
 
-This folder includes the processes to understand the student code API, interpret it, and execute the corresponding Runtime functions. 
+This folder includes the processes to understand the student API and execute the student code using the corresponding Runtime functions. 
 
 ## Building
 
@@ -10,7 +10,7 @@ This program will only work on Linux and MacOS systems. You need to have Python 
 ### Steps:
 First, ensure that for whatever `python3.x` version you are using, there is a corresponding command line tool `python3.x-config`. On Linux, this can be installed by doing `sudo apt install python3.x-dev` with the `x` appropriately substituted with your version number. Then in the Makefile, change the `py` flag under the comment with the version of Python you are using.
 
-To make the `studentapi`, do `make studentapi` which uses `setup.py` file to compile the Cython extensions into C extensions and then into an executable file that can be imported in Python with `import studentapi`.
+To make the `studentapi`, do `make studentapi` which uses the `setup.py` file to compile the Cython extensions into C extensions and then into an executable file that can be imported in Python with `import studentapi`.
 
 To make the executor, do `make executor` which uses `gcc` to compile the C code to an executable.
 
@@ -28,7 +28,7 @@ Then in a separate terminal that is at `c-runtime/`, do `./create_static_shm.sh`
 
 In the original terminal, you can finally go to `c-runtime/executor` and run `./executor` to test that the executor process properly spawns the threads to run the student code. The student code that is by default ran will be in `studentcode.py`. 
 
-## Detailed Description
+## Details
 
 ### Student API
 The student API is written in Cython, which is a static compiler for Python. It provides static typing and lets you easily call C functions within Python. You can read the documentation at https://cython.readthedocs.io/en/latest/index.html. The specification for the API functions can be read
@@ -43,8 +43,12 @@ This process will read the current `mode` from the `shm_wrapper_aux` which will 
 
 To actually have the student code call the student API functions, we need to insert the API functions into the student module's namespace. This is done in `executor_init` where the logger, shared memory, and Python are all initialized. The insertion is done by setting the student code's attributes `Robot` and `Gamepad` to the corresponding attributes in the student API. 
 
-One thing to note is that the executor process is now linked dynamically, and so it shares the symbols for the shared memory and logger with the `studentapi.pyx` file. 
+The last mode is `CHALLENGE` which is used to run the student's coding challenges. The subprocess is started the same as the other modes but will call `run_challenges` instead. This function will start reading from the challenge UNIX socket that is listening to the `net_handler` for the challenge inputs. It then runs the challenges with its inputs using `run_py_function`. Finally, it will return the outputs as a string to the `net_handler` by sending over the challenge UNIX socket.
 
-Another very important caveat to always consider is Python's global interpreter lock (GIL). The Python interpreter can run in only 1 thread at a time and which thread is running is the one that acquires the GIL. As a result, whenever ANY Python C API functions need to be called, we must always be careful to acquire the GIL first and then release it when we are done. More details on this can be read here https://python.readthedocs.io/en/stable/c-api/init.html#thread-state-and-the-global-interpreter-lock. 
+The tricky thing for the `CHALLENGE` mode is that it isn't idempotent like the other 2 modes since it requires an input. As a result, we need to ensure that if the `CHALLENGE` mode finishes or gets cancelled, it will set the mode to `IDLE` first.
+
+One thing to note which can cause unwanted interactions is that the executor process is now linked dynamically, and so it shares the symbols for the shared memory and logger with the `studentapi.pyx` file. This means that if you initialize it once on `executor.c`, you don't need to initialize it in `studentapi.pyx`.
+
+Another very important caveat to be aware of is Python's global interpreter lock (GIL). The Python interpreter can run in only 1 thread at a time and which thread is running is the one that acquires the GIL. As a result, whenever any Python C API functions need to be called, you must always be careful to acquire the GIL first and then release it when you are done. To make it easier on the programmer, we designed the architecture such that each mode runs in a separate process instead of a separate thread.
 
 More details on how all these functions work are in the function documentation in `executor.c`.

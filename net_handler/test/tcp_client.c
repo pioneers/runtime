@@ -82,17 +82,6 @@ int main ()
 	printf("Giving challenge inputs \n");
 	writen(sockfd, send_buf, len_pb + 3);
 	free(send_buf);
-	
-	sleep(3);
-	
-	//tell the executor to go into AUTO mode
-	run_mode.mode = MODE__AUTO;
-	len_pb = run_mode__get_packed_size(&run_mode);
-	printf("buffer size %d \n", len_pb);
-	send_buf = make_buf(RUN_MODE_MSG, len_pb);
-	run_mode__pack(&run_mode, send_buf + 3);
-	writen(sockfd, send_buf, len_pb + 3); //write the message to the raspi
-	free(send_buf); // Free the allocated serialized buffer
 
 	//vars to read logs into
 	net_msg_t msg_type;

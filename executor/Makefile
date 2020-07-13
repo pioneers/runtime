@@ -30,8 +30,8 @@ executor: executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper
 studentapi: studentapi.pyx studentapi.pxd
 	$(py) setup.py build_ext -i
 
-test_api: studentapi
-	$(py) test_studentapi.py
+test_api: studentapi test_studentapi.py
+	- $(py) test_studentapi.py
 
 clean:
 	rm studentapi.c
