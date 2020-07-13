@@ -29,11 +29,6 @@ public:
    */
   Status read_message (message_t *msg);
 
-  // A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
-  uint8_t log_queue_max_size = 10;
-  char** log_queue = (char**) malloc(this->log_queue_max_size * MAX_PAYLOAD_SIZE);
-  uint8_t num_logs = 0;
-
   // Logging
   void lowcar_printf(char* format, ...);
   void lowcar_flush();
@@ -50,6 +45,11 @@ private:
   const static int DEV_ID_TYPE_BYTES;     //bytes in device type field of dev_id
   const static int DEV_ID_YEAR_BYTES;     //bytes in year field of dev_id
   const static int DEV_ID_UID_BYTES;      //bytes in uid field of dev_id
+
+  //private variables
+  uint8_t log_queue_max_size;
+  char **log_queue;
+  uint8_t num_logs;
 
   //helper methods; see source file for more detailed description of functionality
   int append_payload (message_t *msg, uint8_t *data, uint8_t length);

@@ -21,6 +21,14 @@ const int Messenger::DEV_ID_UID_BYTES = 8;      // Bytes in uid field of dev id
 Messenger::Messenger ()
 {
   Serial.begin(115200); //open Serial (USB) connection
+
+   // A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
+  this->log_queue_max_size = 10;
+  this->log_queue = (char **) malloc(sizeof(char *) * this->log_queue_max_size);
+  for (int i = 0; i < this->log_queue_max_size; i++) {
+    this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
+  }
+  this->num_logs = 0;
 }
 
 Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_id)
@@ -30,7 +38,7 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_
 
     /* Build the message
      * All other Message Types (PING, DEVICE_DATA, LOG) should already be built (if needed) */
-     int status;
+     int status = 0;
     if (msg_id == MessageID::ACKNOWLEDGEMENT) {
         status += append_payload(msg, (uint8_t *) &dev_id->type, Messenger::DEV_ID_TYPE_BYTES);
         status += append_payload(msg, (uint8_t *) &dev_id->year, Messenger::DEV_ID_YEAR_BYTES);
@@ -124,14 +132,20 @@ Status Messenger::read_message (message_t *msg)
 void Messenger::lowcar_printf(char* format, ...) {
   // Double the queue size if it's full
   if (this->num_logs == this->log_queue_max_size) {
-    this->log_queue = (char**) realloc(this->log_queue, 2 * this->log_queue_max_size * MAX_PAYLOAD_SIZE);
+    char **new_queue = (char **) malloc(sizeof(char *) * 2 * this->log_queue_max_size);
+    memcpy(new_queue, this->log_queue, this->log_queue_max_size);
+    for (int i = this->log_queue_max_size; i < 2 * this->log_queue_max_size; i++) {
+      new_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
+    }
+    free(this->log_queue);
+    this->log_queue = new_queue;
     this->log_queue_max_size *= 2;
   }
   // Add the new formatted log to the queue
   va_list args;
-    va_start(args, format);
-    vsprintf(this->log_queue[this->num_logs], format, args);
-    va_end(args);
+  va_start(args, format);
+  vsprintf(this->log_queue[this->num_logs], format, args);
+  va_end(args);
   // Increment the number of logs
   this->num_logs++;
 }
@@ -140,12 +154,18 @@ void Messenger::lowcar_printf(char* format, ...) {
  *  Sends strings in the log queue to DEV_HANDLER and clears the queue
  */
 void Messenger::lowcar_flush() {
+  //don't send anything if no logs
+  if (this->num_logs == 0) {
+      return;
+  }
+  
   message_t log;
   // For each log, send a new message
   for (int i = 0; i < this->num_logs; i++) {
     log.payload_length = strlen(this->log_queue[i]) + 1; // Null terminator character
+    
     // Copy string into payload
-    strcpy((char*) log.payload, this->log_queue[i]);
+    memcpy((char*) log.payload, this->log_queue[i], (size_t) log.payload_length);
     this->send_message(MessageID::LOG, &log);
   }
   // "Clear" the queue
