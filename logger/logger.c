@@ -232,16 +232,16 @@ void log_printf (log_level_t level, char *format, ...)
 	static int len;                      //holding lengths of various strings
 	static char msg[MAX_LOG_LEN - 100];  //holds the expanded format string (100 to make room for log header)
 	va_list args;                        //this holds the variable-length argument list
-	
-	//expands the format string into msg
-	va_start(args, format);
-	vsprintf(msg, format, args);
-	va_end(args);
 
 	//don't do anything with this message if less than all set levels
 	if (level < network_level && level < file_level && level < stdout_level) {
 		return;
 	}
+	
+	//expands the format string into msg
+	va_start(args, format);
+	vsprintf(msg, format, args);
+	va_end(args);
 	
 	//build the message and put into final_msg
 	if (level == PYTHON) {
