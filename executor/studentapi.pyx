@@ -130,8 +130,6 @@ class ThreadWrapper(threading.Thread):
             self.action(*self.args, **self.kwargs)
         except TimeoutError:
             pass
-        except Exception as e:
-            raise
 
 
 cdef class Robot:
