@@ -1,12 +1,21 @@
-# Change depending on Linux or Mac. Code won't work on Windows :(
-LIBFLAGS=-lrt -pthread # Linux
-# LIBFLAGS=               # Mac
+UNAME=$(shell uname)
+ifeq ($(UNAME), Linux)
+LIBS=-pthread -lrt
+endif
+ifeq ($(UNAME), Darwin)
+LIBS=
+endif
 
-test1: shm_wrapper_aux_test1.c shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
-	gcc shm_wrapper_aux_test1.c shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o test1 $(LIBFLAGS)
+FILES=shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c
+
+test1: shm_wrapper_aux_test1.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
 	
-test2: shm_wrapper_aux_test2.c shm_wrapper_aux.c ../logger/logger.c ../logger/logger_config.h ../runtime_util/runtime_util.c
-	gcc shm_wrapper_aux_test2.c shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c -o test2 $(LIBFLAGS)
+test2: shm_wrapper_aux_test2.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
 
-static: connect_static_aux.c shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c
-	gcc connect_static_aux.c shm_wrapper_aux.c ../logger/logger.c  ../runtime_util/runtime_util.c -o static $(LIBFLAGS)
+static: connect_static_aux.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
+
+print: print_aux_shm.c $(FILES)
+	gcc $^ -o $@ $(LIBS)

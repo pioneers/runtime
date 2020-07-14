@@ -1,6 +1,5 @@
 # cython: nonecheck=True
 
-from cython cimport view
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 
 import threading
@@ -8,9 +7,6 @@ import sys
 import builtins
 
 """Student API written in Cython. """
-
-logger_init(EXECUTOR)
-log_runtime(DEBUG, "Student API intialized")
 
 MAX_THREADS = 8
 
@@ -247,9 +243,7 @@ cdef class Robot:
             raise KeyError(f"Invalid device parameter {param_name} for device type {device_type}")
 
         # Allocating memory for parameter to write
-        # Question: Use numpy arrays or cython arrays?
-        # cdef param_val_t[:] param_value = np.empty(MAX_PARAMS, dtype=np.dtype([('p_i', 'i4'), ('p_f', 'f4'), ('p_b', 'u1'), ('pad', 'V3')]))
-        cdef param_val_t[:] param_value = view.array(shape=(MAX_PARAMS,), itemsize=sizeof(param_val_t), format='ifB')
+        cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
         cdef str param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
             param_value[param_idx].p_i = value
@@ -258,4 +252,5 @@ cdef class Robot:
         elif param_type == 'bool':
             param_value[param_idx].p_b = int(value)
         device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
+        PyMem_Free(param_value)
 
