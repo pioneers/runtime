@@ -308,7 +308,7 @@ void run_challenges() {
         Py_XDECREF(ret);
         if (ret_string == NULL) {
             PyErr_Print();
-            log_printf(ERROR, "Couldn't decode return value into Python string for challenge %s", challenge_names[i]);
+            log_printf(ERROR, "Couldn't convert return value to Python string for challenge %s", challenge_names[i]);
             continue;
         }
         int ret_len;

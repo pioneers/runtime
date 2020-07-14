@@ -11,12 +11,15 @@
 !*/Makefile
 !Makefile
 
+### Above combination will ignore all files without extension, except MakeFiles ###
+
 # Log files
 *.log
 
-### Above combination will ignore all files without extension, except MakeFiles ###
-
+# Cython build files
 studentapi.c
+
+# Python build files
 *.pyc
 *.pyo
 __pycache__/
@@ -56,5 +59,4 @@ build/
 *.out
 *.app
 
-# .DS_Store
 *.DS_Store
