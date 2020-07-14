@@ -23,16 +23,24 @@ typedef enum log_level { DEBUG, INFO, WARN, PYTHON, ERROR, FATAL } log_level_t;
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
-//Call function at process start with one of the named processes
+/*
+ * Call function at process start with one of the named processes
+ */
 void logger_init (process_t process);
 
-//Call before process terminates to clean up logger before exiting
+/* 
+ * Call before process terminates to clean up logger before exiting
+ */
 void logger_stop ();
 
-//Call to log something. The message should be a string (string literals work too)
-//Level is one of the levels listed in the config file
-void log_runtime (log_level_t level, char *msg);
-
+/* 
+ * Logs a message at a specified level to the locations specified in config file
+ * Handles format strings (can handle expressions like those in 'printf()')
+ * Arguments:
+ *    - log_level_t level: one of the levels listed in the enum in this file
+ *    - char *format: format string representing message to be formatted
+ *    - ...: additional arguments to be formatted in format string
+ */
 void log_printf(log_level_t level, char* format, ...);
 
 #endif

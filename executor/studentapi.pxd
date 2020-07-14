@@ -23,9 +23,9 @@ cdef extern from "../runtime_util/runtime_util.h":
 cdef extern from "../logger/logger.h":
     void logger_init (process_t process)
     void logger_stop ()
-    void log_runtime (log_level level, char *msg)
+    void log_printf (log_level level, char *format, ...)
     enum log_level:
-        DEBUG, INFO, WARN, ERROR, PYTHON
+        DEBUG, INFO, WARN, PYTHON, ERROR, FATAL
 
 
 cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:

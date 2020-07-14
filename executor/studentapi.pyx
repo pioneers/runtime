@@ -25,13 +25,13 @@ def _print(*values, sep=' ', end='\n', file=None, flush=None, level=INFO):
         level = INFO
     elif file == sys.stderr:
         level = ERROR
-    log_runtime(level, string.encode('utf-8'))
+    log_printf(level, string.encode('utf-8'))
 
 class OutputRedirect:
     def __init__(self, level):
         self.level = level
     def write(self, text):
-        log_runtime(self.level, text.encode('utf-8'))
+        log_printf(self.level, text.encode('utf-8'))
 
 builtins.print = _print
 sys.stderr = OutputRedirect(PYTHON)
