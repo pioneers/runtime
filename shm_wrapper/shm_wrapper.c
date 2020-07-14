@@ -265,31 +265,31 @@ void shm_init (process_t process)
 		
 		//mutual exclusion semaphore, catalog_mutex with initial value = 0
 		if ((catalog_sem = sem_open(CATALOG_MUTEX_NAME, O_CREAT, 0660, 0)) == SEM_FAILED) {
-			log_printf(FATAL, "sem_open: catalog_mutex@dev_handler");
+			log_printf(FATAL, "sem_open: catalog_mutex@dev_handler: %s", strerror(errno));
 			exit(1);
 		}
 		
 		//mutual exclusion semaphore, pmap_mutex with initial value = 1
 		if ((pmap_sem = sem_open(PMAP_MUTEX_NAME, O_CREAT, 0660, 1)) == SEM_FAILED) {
-			log_printf(FATAL, "sem_open: pmap_mutex@dev_handler");
+			log_printf(FATAL, "sem_open: pmap_mutex@dev_handler: %s", strerror(errno));
 			exit(1);
 		}
 		
 		//create shared memory block; initialize catalog and pmap to all zeros
 		if ((fd_shm = shm_open(SHARED_MEM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
-			log_printf(FATAL, "shm_open: @dev_handler");
+			log_printf(FATAL, "shm_open: @dev_handler: %s", strerror(errno));
 			exit(1);
 		}
 		if (ftruncate(fd_shm, sizeof(shm_t)) == -1) {
-			log_printf(FATAL, "ftruncate: @dev_handler");
+			log_printf(FATAL, "ftruncate: @dev_handler: %s", strerror(errno));
 			exit(1);
 		}
 		if ((shm_ptr = mmap(NULL, sizeof(shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-			log_printf(FATAL, "mmap: @dev_handler");
+			log_printf(FATAL, "mmap: @dev_handler: %s", strerror(errno));
 			exit(1);
 		}
 		if (close(fd_shm) == -1) {
-			log_printf(ERROR, "close: @dev_handler");
+			log_printf(ERROR, "close: @dev_handler: %s", strerror(errno));
 		}
 		shm_ptr->catalog = 0;
 		for (int i = 0; i < MAX_DEVICES + 1; i++) {
@@ -300,12 +300,12 @@ void shm_init (process_t process)
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			generate_sem_name(DATA, i, sname); //get the data name
 			if ((sems[i].data_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
-				log_printf(FATAL, "sem_open: data sem for dev_ix %d @dev_handler", i);
+				log_printf(FATAL, "sem_open: data sem for dev_ix %d @dev_handler: %s", i, strerror(errno));
 				exit(1);
 			}
 			generate_sem_name(COMMAND, i, sname); //get the command name
 			if ((sems[i].command_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
-				log_printf(FATAL, "sem_open: command sem for dev_ix %d @dev_handler", i);
+				log_printf(FATAL, "sem_open: command sem for dev_ix %d @dev_handler: %s", i, strerror(errno));
 				exit(1);
 			}
 		}
@@ -315,13 +315,13 @@ void shm_init (process_t process)
 	} else {
 		//mutual exclusion semaphore, catalog_mutex
 		if ((catalog_sem = sem_open(CATALOG_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
-			log_printf(FATAL, "sem_open: catalog_mutex@client");
+			log_printf(FATAL, "sem_open: catalog_mutex@client: %s", strerror(errno));
 			exit(1);
 		}
 		
 		//mutual exclusion semaphore, pmap_mutex
 		if ((pmap_sem = sem_open(PMAP_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
-			log_printf(ERROR, "sem_open: pmap_mutex@client");
+			log_printf(ERROR, "sem_open: pmap_mutex@client: %s", strerror(errno));
 			exit(1);
 		}
 		
@@ -330,26 +330,26 @@ void shm_init (process_t process)
 		
 		//open shared memory block and map to client process virtual memory
 		if ((fd_shm = shm_open(SHARED_MEM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
-			log_printf(FATAL, "shm_open: @client");
+			log_printf(FATAL, "shm_open: @client: %s", strerror(errno));
 			exit(1);
 		}
 		if ((shm_ptr = mmap(NULL, sizeof(shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-			log_printf(FATAL, "mmap: @client");
+			log_printf(FATAL, "mmap: @client: %s", strerror(errno));
 			exit(1);
 		}
 		if (close(fd_shm) == -1) {
-			log_printf(ERROR, "close: @client");
+			log_printf(ERROR, "close: @client: %s", strerror(errno));
 		}
 		
 		//create all the semaphores with initial value 1
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			generate_sem_name(DATA, i, sname); //get the data name
 			if ((sems[i].data_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
-				log_printf(ERROR, "sem_open: data sem for dev_ix %d @client", i);
+				log_printf(ERROR, "sem_open: data sem for dev_ix %d @client: %s", i, strerror(errno));
 			}
 			generate_sem_name(COMMAND, i, sname); //get the command name
 			if ((sems[i].command_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
-				log_printf(ERROR, "sem_open: command sem for dev_ix %d @client", i);
+				log_printf(ERROR, "sem_open: command sem for dev_ix %d @client: %s", i, strerror(errno));
 			}
 		}
 		
