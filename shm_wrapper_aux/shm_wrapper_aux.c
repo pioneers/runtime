@@ -102,7 +102,8 @@ void print_robot_desc ()
 	for (int i = 0; i < NUM_DESC_FIELDS; i++) {
 		switch (i) {
 			case RUN_MODE:
-				printf("\tRUN_MODE = %s\n", (rd_ptr->fields[RUN_MODE] == IDLE) ? "IDLE" : ((rd_ptr->fields[RUN_MODE] == AUTO) ? "AUTO" : "TELEOP"));
+				printf("\tRUN_MODE = %s\n", (rd_ptr->fields[RUN_MODE] == IDLE) ? "IDLE" : 
+					((rd_ptr->fields[RUN_MODE] == AUTO) ? "AUTO" : ((rd_ptr->fields[RUN_MODE] == TELEOP) ? "TELEOP" : "CHALLENGE")));
 				break;
 			case DAWN:
 				printf("\tDAWN = %s\n", (rd_ptr->fields[DAWN] == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
@@ -113,8 +114,8 @@ void print_robot_desc ()
 			case GAMEPAD:
 				printf("\tGAMEPAD = %s\n", (rd_ptr->fields[GAMEPAD] == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
 				break;
-			case TEAM:
-				printf("\tTEAM = %s\n", (rd_ptr->fields[TEAM] == BLUE) ? "BLUE" : "GOLD");
+			case START_POS:
+				printf("\tSTART_POS = %s\n", (rd_ptr->fields[START_POS] == LEFT) ? "LEFT" : "RIGHT");
 				break;
 			default:
 				printf("unknown field\n");
@@ -228,7 +229,7 @@ void shm_aux_init (process_t process)
 		rd_ptr->fields[DAWN] = DISCONNECTED;
 		rd_ptr->fields[SHEPHERD] = DISCONNECTED;
 		rd_ptr->fields[GAMEPAD] = DISCONNECTED;
-		rd_ptr->fields[TEAM] = BLUE;                //arbitrary
+		rd_ptr->fields[START_POS] = LEFT;
 		
 		//initialization complete; set gp_mutex to 1 indicating shm segment available for client(s)
 		my_sem_post(gp_sem, "gamepad_mutex@net_handler");

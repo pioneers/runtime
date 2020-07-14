@@ -180,14 +180,13 @@ void print_pmap ()
 	uint32_t pmap[MAX_DEVICES + 1];
 	get_param_bitmap(pmap);
 	
-	printf("changed devices: ");
+	printf("Changed devices: ");
 	print_bitmap(MAX_DEVICES, pmap[0]);
 	
-	printf("changed params:\n");
-	
+	printf("Changed params:\n");
 	for (int i = 1; i < 33; i++) {
 		if (pmap[0] & (1 << (i - 1))) {
-			printf("\tdevice %d: ", i - 1);
+			printf("\tDevice %d: ", i - 1);
 			print_bitmap(MAX_PARAMS, pmap[i]);
 		}
 	}
@@ -220,11 +219,42 @@ void print_catalog ()
 	print_bitmap(MAX_DEVICES, catalog);
 }
 
-void print_params (uint32_t params_to_print, param_val_t *params)
-{
-	for (int i = 0; i < MAX_PARAMS; i++) {
-		if (params_to_print & (1 << i)) {
-			printf("num = %d, p_i = %d, p_f = %f, p_b = %u\n", i, params[i].p_i, params[i].p_f, params[i].p_b);
+void print_params(uint32_t devices) {
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		if ((shm_ptr->catalog & (1 << i)) && (devices & (1 << i))) {
+			int type = shm_ptr->dev_ids[i].type;
+			device_t* device = get_device(type);
+			if (device == NULL) {
+				printf("Device at index %d with type %d is invalid\n", i, type);
+				continue;
+			}
+			printf("dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu\n", i, device->name, type, shm_ptr->dev_ids[i].year, shm_ptr->dev_ids[i].uid);
+			for (int s = 0; s < 2; s++) {
+				if (s == 0) {
+					printf("\tDATA stream:\n");
+				}
+				else if (s == 1) {
+					printf("\tCOMMAND stream:\n");
+				}
+				for (int j = 0; j < device->num_params; j++) {
+					float val;
+					char* param_type = device->params[j].type;
+					if (strcmp(param_type, "int") == 0) {
+						val = shm_ptr->params[s][i][j].p_i;
+					}
+					else if (strcmp(param_type, "float") == 0) {
+						val = shm_ptr->params[s][i][j].p_f;
+					}
+					else if (strcmp(param_type, "bool") == 0) {
+						val = shm_ptr->params[s][i][j].p_b;
+					}
+					else {
+						printf("Invalid parameter type %s\n", param_type);
+						continue;
+					}
+					printf("\t\tparam_idx = %d, name = %s, type = %s, value = %f\n", j, device->params[j].name, param_type, val);
+				}
+			}
 		}
 	}
 }

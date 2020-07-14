@@ -15,14 +15,14 @@ int main()
 	int dev_ix = -1;
 	param_val_t params_in[MAX_PARAMS];
 	
-	shm_init(DEV_HANDLER);
 	logger_init(DEV_HANDLER);
+	shm_init(DEV_HANDLER);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 
 	//connect as many devices as possible
 	for (int i = 0; i < 20; i++) {
 		//randomly chosen quadratic function that is positive and integral in range [0, 32] for the lols
-		device_connect(i, i % 3, (-10000 * i * i) + (297493 * i) + 474732, &dev_ix);
+		device_connect(i % 13, i % 3, (-10000 * i * i) + (297493 * i) + 474732, &dev_ix);
 		for (int j = 0; j < MAX_PARAMS; j++) {
 			params_in[j].p_i = j * i * MAX_DEVICES;
 			params_in[j].p_f = (float)(j * i * MAX_DEVICES * 3.14159);
