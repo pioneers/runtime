@@ -443,7 +443,7 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 		}
 	}
 	if (*dev_ix == MAX_DEVICES) {
-		log_runtime(ERROR, "too many devices, connection unsuccessful");
+		log_printf(ERROR, "too many devices, connection unsuccessful");
 		my_sem_post(catalog_sem, "catalog_sem"); //release the catalog semaphore
 		return;
 	}
