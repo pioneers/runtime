@@ -8,8 +8,10 @@
 !*/
 
 # Unignore Makefiles
-!*/Makefile
 !Makefile
+
+# Unignore Dockerfile
+!Dockerfile
 
 ### Above combination will ignore all files without extension, except MakeFiles ###
 
