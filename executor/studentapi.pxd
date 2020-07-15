@@ -13,6 +13,10 @@ cdef extern from "../runtime_util/runtime_util.h":
     ctypedef struct param_desc_t:
         char* name
         char* type
+    ctypedef enum robot_desc_field_t:
+        GAMEPAD, START_POS, RUN_MODE
+    ctypedef enum robot_desc_val_t:
+        CONNECTED, DISCONNECTED, LEFT, RIGHT, AUTO, TELEOP
     char** get_button_names() nogil
     char** get_joystick_names() nogil
     int MAX_PARAMS
@@ -35,4 +39,5 @@ cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
     void shm_stop()
     int device_read_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
     int device_write_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
-    int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
+    int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
+    robot_desc_val_t robot_desc_read (robot_desc_field_t field)
