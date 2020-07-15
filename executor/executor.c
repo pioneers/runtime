@@ -116,7 +116,7 @@ void executor_init(char* student_code) {
         log_printf(ERROR, "Could not find Gamepad class");
         exit(1);
     }
-    pGamepad = PyObject_CallFunction(gamepad_class, "s", "idle");
+    pGamepad = PyObject_CallObject(gamepad_class, NULL);
     if (pGamepad == NULL) {
         PyErr_Print();
         log_printf(ERROR, "Could not instantiate Gamepad");
@@ -165,18 +165,8 @@ void executor_init(char* student_code) {
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, int loop, PyObject* args, PyObject** ret_value) {
+uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** ret_value) {
     uint8_t ret = 0;
-	
-	//assign the run mode to the Gamepad object
-    PyObject *pMode = PyUnicode_FromString(mode);
-    int err = PyObject_SetAttrString(pGamepad, "mode", pMode);
-    Py_DECREF(pMode);
-    if (err != 0) {
-        PyErr_Print();
-        log_printf(ERROR, "Couldn't assign mode for Gamepad while trying to run %s", func_name);
-        return 1;
-    }
 	
     //retrieve the Python function from the student code
     PyObject *pFunc = PyObject_GetAttrString(pModule, func_name);
@@ -251,9 +241,9 @@ void run_mode(robot_desc_val_t mode) {
     sprintf(setup_str, "%s_setup", mode_str);
     sprintf(main_str, "%s_main", mode_str);
 	
-    int err = run_py_function(setup_str, mode_str, &setup_time, 0, NULL, NULL);  // Run setup function once
+    int err = run_py_function(setup_str, &setup_time, 0, NULL, NULL);  // Run setup function once
     if (err == 0) {
-        err = run_py_function(main_str, mode_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
+        err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
         if (err != 0) {
             log_printf(DEBUG, "Return status of %s: %d", main_str, err);
         }
@@ -293,7 +283,7 @@ void run_challenges() {
             continue;
         }
         PyObject* ret = NULL;
-        if (run_py_function(challenge_names[i], "challenge", NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
+        if (run_py_function(challenge_names[i], NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
             strcpy(send_buf[i], "Timed out");
             for (int j = i+1; j < NUM_CHALLENGES; j++) {
                 // Read rest of inputs to clear the challenge socket
