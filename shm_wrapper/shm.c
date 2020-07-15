@@ -44,6 +44,7 @@ void generate_sem_name (stream_t stream, int dev_ix, char *name)
 	}
 }
 
+//this is NOT the same as the function in shm_wrapper.c! This creates the semaphore with permissions
 sem_t *my_sem_open (char *sem_name, char *sem_desc)
 {
 	sem_t *ret;
