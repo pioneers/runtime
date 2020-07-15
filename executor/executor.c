@@ -244,7 +244,7 @@ void run_mode(robot_desc_val_t mode) {
     int err = run_py_function(setup_str, &setup_time, 0, NULL, NULL);  // Run setup function once
     if (err == 0) {
         err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
-        if (err != 0) {
+        if (err != 0 && err != 3) {
             log_printf(DEBUG, "Return status of %s: %d", main_str, err);
         }
     }
@@ -320,6 +320,11 @@ void run_challenges() {
         }
     }
     alarm(0);
+}
+
+
+void stop_motors() {
+    
 }
 
 
@@ -399,6 +404,9 @@ void kill_subprocess() {
     }
     if (WIFSIGNALED(status)) {
         log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
+    }
+    if (mode != CHALLENGE) {
+        stop_motors();
     }
     mode = IDLE;
 }
