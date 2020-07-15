@@ -1,23 +1,25 @@
 #include "shm_wrapper.h"
 
-#define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
-
 //names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm_process
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
-#define PMAP_MUTEX_NAME "/pmap-mutex"   //name of semaphore used as a mutex on the param bitmap
-#define DEV_SHM_NAME "/dev-shm"      //name of shared memory block across devices
+#define CMDMAP_MUTEX_NAME "/cmap-mutex" //name of semaphore used as a mutex on the command bitmap
+#define SUBMAP_MUTEX_NAME "/smap-mutex" //name of semaphore used as a mutex on the various subcription bitmaps
+#define DEV_SHM_NAME "/dev-shm"         //name of shared memory block across devices
 
 #define GPAD_SHM_NAME "/gp-shm"         //name of shared memory block for gamepad
 #define ROBOT_DESC_SHM_NAME "/rd-shm"   //name of shared memory block for robot description
 #define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
 #define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
 
+#define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
+
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
 dual_sem_t sems[MAX_DEVICES];  //array of semaphores, two for each possible device (one for data and one for commands)
 dev_shm_t *dev_shm_ptr;        //points to memory-mapped shared memory block for device data and commands
 sem_t *catalog_sem;            //semaphore used as a mutex on the catalog
-sem_t *pmap_sem;               //semaphore used as a mutex on the param bitmap
+sem_t *cmd_map_sem;            //semaphore used as a mutex on the command bitmap
+sem_t *sub_map_sem;            //semaphore used as a mutex on the subscription bitmap
 
 gamepad_shm_t *gp_shm_ptr;     //points to memory-mapped shared memory block for gamepad
 robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for robot description
@@ -78,6 +80,20 @@ static void print_bitmap (int num_bits, uint32_t bitmap)
 	printf("\n");
 }
 
+//function that returns dev_ix of specified device if it exists (-1 if it doesn't)
+static int get_dev_ix_from_uid (uint64_t dev_uid)
+{
+	int dev_ix = -1;
+	
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		if ((dev_shm_ptr->catalog & (1 << i)) && (dev_shm_ptr->dev_ids[i].uid == dev_uid)) {
+			dev_ix = i;
+			break;
+		}
+	}
+	return dev_ix;
+}
+
 //function that actually reads a value from device shm blocks (does not perform catalog check)
 static void device_read_helper (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
@@ -98,14 +114,14 @@ static void device_read_helper (int dev_ix, process_t process, stream_t stream, 
 	//if the device handler has processed the command, then turn off the change
 	//if stream = downstream and process = dev_handler then also update params bitmap
 	if (process == DEV_HANDLER && stream == COMMAND) {
-		//wait on pmap_sem
-		my_sem_wait(pmap_sem, "pmap_sem @device_read");
+		//wait on cmd_map_sem
+		my_sem_wait(cmd_map_sem, "cmd_map_sem @device_read");
 	
-		dev_shm_ptr->pmap[0] &= (~(1 << dev_ix)); //turn off changed device bit in pmap[0]
-		dev_shm_ptr->pmap[dev_ix + 1] &= (~params_to_read); //turn off bits for params that were changed and then read in pmap[dev_ix + 1]
+		dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix)); //turn off changed device bit in cmd_map[0]
+		dev_shm_ptr->cmd_map[dev_ix + 1] &= (~params_to_read); //turn off bits for params that were changed and then read in cmd_map[dev_ix + 1]
 	
-		//release pmap_sem
-		my_sem_post(pmap_sem, "pmap_sem @device_read");
+		//release cmd_map_sem
+		my_sem_post(cmd_map_sem, "cmd_map_sem @device_read");
 	}
 
 	//release semaphore for appropriate stream and device
@@ -136,14 +152,14 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 	//turn on flag if executor is sending a command to the device
 	//if stream = downstream and process = executor then also update params bitmap
 	if (process == EXECUTOR && stream == COMMAND) {
-		//wait on pmap_sem
-		my_sem_wait(pmap_sem, "pmap_sem @device_write");
+		//wait on cmd_map_sem
+		my_sem_wait(cmd_map_sem, "cmd_map_sem @device_write");
 		
-		dev_shm_ptr->pmap[0] |= (1 << dev_ix); //turn on changed device bit in pmap[0]
-		dev_shm_ptr->pmap[dev_ix + 1] |= params_to_write; //turn on bits for params that were written in pmap[dev_ix + 1]
+		dev_shm_ptr->cmd_map[0] |= (1 << dev_ix); //turn on changed device bit in cmd_map[0]
+		dev_shm_ptr->cmd_map[dev_ix + 1] |= params_to_write; //turn on bits for params that were written in cmd_map[dev_ix + 1]
 		
-		//release pmap_sem
-		my_sem_post(pmap_sem, "pmap_sem @device_write");
+		//release cmd_map_sem
+		my_sem_post(cmd_map_sem, "cmd_map_sem @device_write");
 	}
 	
 	//release semaphore for appropriate stream and device
@@ -159,19 +175,19 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 /*
  * Prints the current values in the param bitmap
  */
-void print_pmap ()
+void print_cmd_map ()
 {
-	uint32_t pmap[MAX_DEVICES + 1];
-	get_param_bitmap(pmap);
+	uint32_t cmd_map[MAX_DEVICES + 1];
+	get_cmd_map(cmd_map);
 	
 	printf("Changed devices: ");
-	print_bitmap(MAX_DEVICES, pmap[0]);
+	print_bitmap(MAX_DEVICES, cmd_map[0]);
 	
 	printf("Changed params:\n");
 	for (int i = 1; i < 33; i++) {
-		if (pmap[0] & (1 << (i - 1))) {
+		if (cmd_map[0] & (1 << (i - 1))) {
 			printf("\tDevice %d: ", i - 1);
-			print_bitmap(MAX_PARAMS, pmap[i]);
+			print_bitmap(MAX_PARAMS, cmd_map[i]);
 		}
 	}
 }
@@ -352,7 +368,8 @@ void shm_init ()
 	
 	//open all the semaphores
 	catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
-	pmap_sem = my_sem_open(PMAP_MUTEX_NAME, "pmap mutex");
+	cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
+	sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
 	gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
 	rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
@@ -419,7 +436,8 @@ void shm_stop ()
 		my_sem_close(sems[i].command_sem, "command sem");
 	}
 	my_sem_close(catalog_sem, "catalog sem");
-	my_sem_close(pmap_sem, "pmap sem");
+	my_sem_close(cmd_map_sem, "cmd map sem");
+	my_sem_close(sub_map_sem, "sub map sem");
 	my_sem_close(gp_sem, "gamepad_mutex");
 	my_sem_close(rd_sem, "robot_desc_mutex");
 	
@@ -506,18 +524,18 @@ void device_disconnect (int dev_ix)
 	my_sem_wait(sems[dev_ix].data_sem, "data_sem");
 	my_sem_wait(sems[dev_ix].command_sem, "command_sem");
 	
-	//wait on pmap_sem
-	my_sem_wait(pmap_sem, "pmap_sem");
+	//wait on cmd_map_sem
+	my_sem_wait(cmd_map_sem, "cmd_map_sem");
 
 	//update the catalog
 	dev_shm_ptr->catalog &= (~(1 << dev_ix));
 
 	//reset param map values to 0
-	dev_shm_ptr->pmap[0] &= (~(1 << dev_ix));   //reset the changed bit flag in pmap[0]
-	dev_shm_ptr->pmap[dev_ix + 1] = 0;          //turn off all changed bits for the device
+	dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix));   //reset the changed bit flag in cmd_map[0]
+	dev_shm_ptr->cmd_map[dev_ix + 1] = 0;          //turn off all changed bits for the device
 	
-	//release pmap_sem
-	my_sem_post(pmap_sem, "pmap_sem");
+	//release cmd_map_sem
+	my_sem_post(cmd_map_sem, "cmd_map_sem");
 	
 	//release associated upstream and downstream sems
 	my_sem_post(sems[dev_ix].data_sem, "data_sem");
@@ -541,7 +559,6 @@ void device_disconnect (int dev_ix)
  */
 int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
-	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(dev_shm_ptr->catalog & (1 << dev_ix))) {
 		log_printf(ERROR, "no device at dev_ix = %d, read failed", dev_ix);
@@ -559,18 +576,10 @@ int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params
  */
 int device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
-	int dev_ix = -1;
-	
-	//check catalog and dev_shm_ptr->dev_ids to determine if device exists
-	for (int i = 0; i < MAX_DEVICES; i++) {
-		if ((dev_shm_ptr->catalog & (1 << i)) && (dev_shm_ptr->dev_ids[i].uid == dev_uid)) {
-			dev_ix = i;
-			break;
-		}
-	}
+	int dev_ix;
 	
 	//if device doesn't exist, return immediately
-	if (dev_ix == -1) {
+	if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
 		log_printf(ERROR, "no device at dev_uid = %llu, read failed", dev_uid);
 		return -1;
 	}
@@ -613,18 +622,10 @@ int device_write (int dev_ix, process_t process, stream_t stream, uint32_t param
  */
 int device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
-	int dev_ix = -1;
-	
-	//check catalog and dev_shm_ptr->dev_ids to determine if device exists
-	for (int i = 0; i < MAX_DEVICES; i++) {
-		if ((dev_shm_ptr->catalog & (1 << i)) && (dev_shm_ptr->dev_ids[i].uid == dev_uid)) {
-			dev_ix = i;
-			break;
-		}
-	}
+	int dev_ix;
 	
 	//if device doesn't exist, return immediately
-	if (dev_ix == -1) {
+	if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
 		log_printf(ERROR, "no device at dev_uid = %llu, write failed", dev_uid);
 		return -1;
 	}
@@ -632,6 +633,80 @@ int device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint
 	//call the helper to do the actual reading
 	device_write_helper(dev_ix, process, stream, params_to_write, params);
 	return 0;
+}
+
+/*
+ * Send a sub request to dev_handler for a particular device. Takes care of updating the changed bits.
+ * Should only be called by executor and net_handler
+ * Arguments:
+ *    - uint64_t dev_uid: unique 64-bit identifier of the device
+ *    - process_t process: the calling process (will error if not EXECUTOR or NET_HANDLER)
+ *    - uint32_t params_to_sub: bitmap representing params to subscribe to (nonexistent params should have corresponding bits set to 0)
+ * Returns 0 on success, -1 on failure (unrecognized process, or device is not connect in shm)
+ */
+int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_sub)
+{
+	int dev_ix;               //dev_ix that we're operating on
+	uint32_t *curr_sub_map;   //sub map that we're operating on
+	
+	//validate request and obtain dev_ix, sub_map
+	if (process != NET_HANDLER && process != EXECUTOR) {
+		log_printf(ERROR, "calling device_sub_request from process %u", process);
+		return -1;
+	}
+	if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
+		log_printf(ERROR, "no device at dev_uid = %llu, sub request failed", dev_uid);
+		return -1;
+	}
+	curr_sub_map = (process == NET_HANDLER) ? dev_shm_ptr->net_sub_map : dev_shm_ptr->exec_sub_map;
+	
+	//wait on sub_map_sem
+	my_sem_wait(sub_map_sem, "sub_map_sem");
+	
+	//only fill in params_to_sub if it's different from what's already there
+	if (curr_sub_map[dev_ix + 1] != params_to_sub) {
+		curr_sub_map[dev_ix + 1] = params_to_sub;
+		curr_sub_map[0] |= (1 << dev_ix); //turn on corresponding bit
+	}
+	
+	//release sub_map_sem
+	my_sem_post(sub_map_sem, "sub_map_sem");
+	
+	return 0;
+}
+
+/*
+ * Get current subscription requests for all devices. Should only be called by dev_handler
+ * Arguments:
+ *    - uint32_t *sub_map: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
+ * No return value.
+ */
+void get_sub_requests (uint32_t *sub_map)
+{
+	//wait on sub_map_sem
+	my_sem_wait(sub_map_sem, "sub_map_sem");
+	
+	//bitwise or the changes into sub_map[0]; if no changes then return
+	sub_map[0] = dev_shm_ptr->net_sub_map[0] | dev_shm_ptr->exec_sub_map[0];
+	if (sub_map[0] == 0) {
+		my_sem_post(sub_map_sem, "sub_map_sem");
+		return;
+	}
+	
+	//bitwise OR each valid element together into sub_map[i]
+	for (int i = 1; i < MAX_DEVICES + 1; i++) {
+		if (dev_shm_ptr->catalog & (1 << (i - 1))) { //if device exists
+			sub_map[i] = dev_shm_ptr->net_sub_map[i] | dev_shm_ptr->exec_sub_map[i];
+		} else {
+			sub_map[i] = 0;
+		}
+	}
+	
+	//reset the change indicator eleemnts in net_sub_map and exec_sub_map
+	dev_shm_ptr->net_sub_map[0] = dev_shm_ptr->exec_sub_map[0] = 0;
+	
+	//release sub_map_sem
+	my_sem_post(sub_map_sem, "sub_map_sem");
 }
 
 /*
@@ -751,23 +826,23 @@ int gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 }
 
 /*
- * Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
+ * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
  * Blocks on the param bitmap semaphore for obvious reasons
  * Arguments:
  *    - uint32_t *bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
  * No return value.
  */
-void get_param_bitmap (uint32_t *bitmap)
+void get_cmd_map (uint32_t *bitmap)
 {
-	//wait on pmap_sem
-	my_sem_wait(pmap_sem, "pmap_sem");
+	//wait on cmd_map_sem
+	my_sem_wait(cmd_map_sem, "cmd_map_sem");
 	
 	for (int i = 0; i < MAX_DEVICES + 1; i++) {
-		bitmap[i] = dev_shm_ptr->pmap[i];
+		bitmap[i] = dev_shm_ptr->cmd_map[i];
 	}
 	
-	//release pmap_sem
-	my_sem_post(pmap_sem, "pmap_sem");
+	//release cmd_map_sem
+	my_sem_post(cmd_map_sem, "cmd_map_sem");
 }
 
 /*

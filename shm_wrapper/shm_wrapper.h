@@ -19,7 +19,9 @@ typedef enum stream { DATA, COMMAND } stream_t;
 //shared memory has these parts in it
 typedef struct dev_shm {
 	uint32_t catalog;                                   //catalog of valid devices
-	uint32_t pmap[MAX_DEVICES + 1];                     //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
+	uint32_t cmd_map[MAX_DEVICES + 1];                  //bitmap is 17 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
+	uint32_t net_sub_map[MAX_DEVICES + 1];              //bitmap is 17 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
+	uint32_t exec_sub_map[MAX_DEVICES + 1];             //bitmap is 17 32-bit integers (changed devices and changed params in which data executor is subscribed to)
 	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
 	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
 } dev_shm_t;
@@ -44,9 +46,9 @@ typedef struct robot_desc_shm {
 // ******************************************* PRINTING UTILITIES ***************************************** //
 
 /*
- * Prints the current values in the param bitmap
+ * Prints the current values in the command bitmap
  */
-void print_pmap ();
+void print_cmd_map ();
 
 /*
  * Prints the device identification info of the currently attached devices
@@ -152,6 +154,25 @@ int device_write (int dev_ix, process_t process, stream_t stream, uint32_t param
 int device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
 
 /*
+ * Send a sub request to dev_handler for a particular device. Takes care of updating the changed bits.
+ * Should only be called by executor and net_handler
+ * Arguments:
+ *    - uint64_t dev_uid: unique 64-bit identifier of the device
+ *    - process_t process: the calling process (will error if not EXECUTOR or NET_HANDLER)
+ *    - uint32_t params_to_sub: bitmap representing params to subscribe to (nonexistent params should have corresponding bits set to 0)
+ * Returns 0 on success, -1 on failure (unrecognized process, or device is not connect in shm)
+ */
+int device_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_sub);
+
+/*
+ * Get current subscription requests for all devices. Should only be called by dev_handler
+ * Arguments:
+ *    - uint32_t *sub_map: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
+ * No return value.
+ */
+void place_sub_requests (uint32_t *sub_map);
+
+/*
  * Reads the specified robot description field. Blocks on the robot description semaphore.
  * Arguments:
  *    - field: one of the robot_desc_val_t's defined above to read from
@@ -190,13 +211,13 @@ int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
 int gamepad_write (uint32_t pressed_buttons, float *joystick_vals);
 
 /*
- * Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
- * Blocks on the param bitmap semaphore for obvious reasons
+ * Should be called from all processes that want to know current state of the command map (i.e. device handler)
+ * Blocks on the command bitmap semaphore for obvious reasons
  * Arguments:
  *    - uint32_t *bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
  * No return value.
  */
-void get_param_bitmap (uint32_t *bitmap);
+void get_cmd_map (uint32_t *bitmap);
 
 /*
  * Should be called from all processes that want to know device identifiers of all currently connected devices
