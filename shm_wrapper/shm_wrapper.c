@@ -23,12 +23,9 @@ gamepad_shm_t *gp_shm_ptr;     //points to memory-mapped shared memory block for
 robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for robot description
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
-//int gp_val;                    //holds the value of gp_sem at any given time
-//int rd_val;                    //holds the value of rd_sem at any given time
 
 // ******************************************* SEMAPHORE UTILITIES **************************************** //
 
-//a few very useful semaphore operation wrapper utilities
 static void my_sem_wait (sem_t *sem, char *sem_desc)
 {
 	if (sem_wait(sem) == -1) {
@@ -335,7 +332,7 @@ The device handler process is responsible for initializing the catalog and updat
 		called from
 No return value.
 */
-void shm_init (process_t process)
+void shm_init ()
 {
 	int fd_shm; //file descriptor of the memory-mapped shared memory
 	char sname[SNAME_SIZE]; //for holding semaphore names
@@ -404,7 +401,7 @@ Device handler is responsible for marking shared memory block and semaphores for
 		called from
 No return value.
 */
-void shm_stop (process_t process)
+void shm_stop ()
 {
 	char sname[SNAME_SIZE]; //holding semaphore names
 	
@@ -624,61 +621,6 @@ void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uin
 }
 
 /*
-Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
-Blocks on the param bitmap semaphore for obvious reasons
-	- bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
-No return value.
-*/
-void get_param_bitmap (uint32_t *bitmap)
-{
-	//wait on pmap_sem
-	my_sem_wait(pmap_sem, "pmap_sem");
-	
-	for (int i = 0; i < MAX_DEVICES + 1; i++) {
-		bitmap[i] = dev_shm_ptr->pmap[i];
-	}
-	
-	//release pmap_sem
-	my_sem_post(pmap_sem, "pmap_sem");
-}
-
-/*
-Should be called from all processes that want to know device identifiers of all currently connected devices
-Blocks on catalog semaphore for obvious reasons
-	- dev_ids: pointer to array of dev_id_t's to copy the information into
-No return value.
-*/
-void get_device_identifiers (dev_id_t *dev_ids)
-{
-	//wait on catalog_sem
-	my_sem_wait(catalog_sem, "catalog_sem");
-	
-	for (int i = 0; i < MAX_DEVICES; i++) {
-		dev_ids[i] = dev_shm_ptr->dev_ids[i];
-	}
-	
-	//release catalog_sem
-	my_sem_post(catalog_sem, "catalog_sem");
-}
-
-/*
-Should be called from all processes that want to know which dev_ix's are valid
-Blocks on catalog semaphore for obvious reasons
-	- catalog: pointer to 32-bit integer into which the current catalog will be read into
-No return value.
-*/
-void get_catalog (uint32_t *catalog)
-{
-	//wait on catalog_sem
-	my_sem_wait(catalog_sem, "catalog_sem");
-	
-	*catalog = dev_shm_ptr->catalog;
-	
-	//release catalog_sem
-	my_sem_post(catalog_sem, "catalog_sem");
-}
-
-/*
 This function reads the specified field.
 Blocks on the robot description semaphore.
 	- field: one of the robot_desc_val_t's defined above to read from
@@ -699,7 +641,6 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 	
 	return ret;
 }
-
 
 /*
 This function writes the specified value into the specified field.
@@ -787,4 +728,59 @@ void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 	
 	//release gp_sem
 	my_sem_post(gp_sem, "gamepad_mutex");
+}
+
+/*
+Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
+Blocks on the param bitmap semaphore for obvious reasons
+	- bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
+No return value.
+*/
+void get_param_bitmap (uint32_t *bitmap)
+{
+	//wait on pmap_sem
+	my_sem_wait(pmap_sem, "pmap_sem");
+	
+	for (int i = 0; i < MAX_DEVICES + 1; i++) {
+		bitmap[i] = dev_shm_ptr->pmap[i];
+	}
+	
+	//release pmap_sem
+	my_sem_post(pmap_sem, "pmap_sem");
+}
+
+/*
+Should be called from all processes that want to know device identifiers of all currently connected devices
+Blocks on catalog semaphore for obvious reasons
+	- dev_ids: pointer to array of dev_id_t's to copy the information into
+No return value.
+*/
+void get_device_identifiers (dev_id_t *dev_ids)
+{
+	//wait on catalog_sem
+	my_sem_wait(catalog_sem, "catalog_sem");
+	
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		dev_ids[i] = dev_shm_ptr->dev_ids[i];
+	}
+	
+	//release catalog_sem
+	my_sem_post(catalog_sem, "catalog_sem");
+}
+
+/*
+Should be called from all processes that want to know which dev_ix's are valid
+Blocks on catalog semaphore for obvious reasons
+	- catalog: pointer to 32-bit integer into which the current catalog will be read into
+No return value.
+*/
+void get_catalog (uint32_t *catalog)
+{
+	//wait on catalog_sem
+	my_sem_wait(catalog_sem, "catalog_sem");
+	
+	*catalog = dev_shm_ptr->catalog;
+	
+	//release catalog_sem
+	my_sem_post(catalog_sem, "catalog_sem");
 }

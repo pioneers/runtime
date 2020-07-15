@@ -1,18 +1,18 @@
 #include <signal.h>
-#include "shm_wrapper_aux.h"
+#include "shm_wrapper.h"
 
 void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
 	fflush(stdout);
-	shm_aux_stop(NET_HANDLER);
+	shm_stop();
 	logger_stop(NET_HANDLER);
 	exit(0);
 }
 
 int main() {
 	logger_init(NET_HANDLER);
-    shm_aux_init(NET_HANDLER);
+    shm_init();
 	signal(SIGINT, ctrl_c_handler);
     robot_desc_write(GAMEPAD, CONNECTED);
     robot_desc_write(RUN_MODE, AUTO);
@@ -32,10 +32,6 @@ int main() {
 
 	sleep(5);
 	robot_desc_write(RUN_MODE, TELEOP);
-	// sleep(5);
-	// robot_desc_write(RUN_MODE, IDLE);
-	// sleep(3);
-	// robot_desc_write(RUN_MODE, AUTO);
 
 	int size = 30;
 	char mode[size];

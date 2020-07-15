@@ -5,7 +5,7 @@ void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
 	fflush(stdout);
-	shm_stop(DEV_HANDLER);
+	shm_stop();
 	logger_stop(DEV_HANDLER);
 	exit(0);
 }
@@ -16,7 +16,7 @@ int main()
 	param_val_t params_in[MAX_PARAMS];
 	
 	logger_init(DEV_HANDLER);
-	shm_init(DEV_HANDLER);
+	shm_init();
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 
 	//connect as many devices as possible
@@ -33,7 +33,6 @@ int main()
 	print_dev_ids();
 	
 	while (1) {
-
 		sleep(1000);
 	}
 	
