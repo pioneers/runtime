@@ -3,6 +3,8 @@
 // ************************************ PRIVATE TYPEDEFS ****************************************** //
 // The baud rate set on the Arduino
 #define BAUD_RATE 115200
+// The interval (ms) at which we want DEVICE_DATA messages for subscribed params
+#define SUB_INTERVAL 500
 
 /* Struct shared between the three threads so they can communicate with each other
  * relayer thread acts as the "control center" and connects/disconnects to shared memory
@@ -18,9 +20,10 @@ typedef struct msg_relay {
     int file_descriptor;     // Obtained from opening port. Used to close port.
     int shm_dev_idx;         // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     uint8_t start;		     // set by relayer: A flag to tell reader and receiver to start work when set to 1
-    dev_id_t dev_id;         // set by relayer once SubscriptionResponse is received
+    dev_id_t dev_id;         // set by relayer once ACKNOWLEDGEMENT is received
     uint64_t last_received_ping_time; // set by receiver: Timestamp of the most recent PING from the device
     uint64_t last_sent_ping_time;     // set by sender: Timestamp of the last sent PING to the device
+    uint32_t sub_map;        // Bitmap of params currently subscribed to
 } msg_relay_t;
 
 // ************************************ PRIVATE FUNCTIONS ****************************************** //
@@ -36,7 +39,7 @@ void* receiver(void* relay_cast);
 
 // Device communication
 int send_message(msg_relay_t* relay, message_t* msg);
-int receive_message(msg_relay_t* relay, message_t* msg);
+int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout);
 int verify_lowcar(msg_relay_t* relay);
 
 // Serial port opening and closing
@@ -168,6 +171,7 @@ void communicate(uint8_t port_num) {
 	relay->dev_id.uid = -1;
     relay->last_sent_ping_time = 0;
     relay->last_received_ping_time = 0;
+    relay->sub_map = 0;
 	// Open threads for sender, receiver, and relayer
 	pthread_create(&relay->sender, NULL, sender, relay);
 	pthread_create(&relay->receiver, NULL, receiver, relay);
@@ -193,6 +197,7 @@ void* relayer(void* relay_cast) {
     log_printf(DEBUG, "Verifying that /dev/ttyACM%d is lowcar\n", relay->port_num);
 	ret = verify_lowcar(relay);
 	if (ret != 0) {
+        log_printf(INFO, "/dev/ttyACM%d couldn't be verified to be a lowcar device", relay->port_num);
 		relay_clean_up(relay);
 		return NULL;
 	}
@@ -200,26 +205,34 @@ void* relayer(void* relay_cast) {
 	/****** At this point, the device is confirmed to be lowcar! ******/
 
 	// TODO: Connect the lowcar device to shared memory
-	log_printf(DEBUG, "Connecting /dev/ttyACM%d to shared memory\n", relay->port_num);
+	log_printf(DEBUG, "Connecting %s to shared memory\n", get_device_name(relay->dev_id.type));
 	// device_connect(relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid, &relay->shm_dev_idx);
 
 	// Signal the sender and receiver to start work
 	relay->start = 1;
 
+    // Subscribe to all params      TODO: Subscribe to only params requested in shared memory
+    message_t* sub_request = make_subscription_request((uint32_t) -1, SUB_INTERVAL);
+    ret = send_message(relay, sub_request);
+    if (ret != 0) {
+        log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST");
+    }
+    destroy_message(sub_request);
+
 	// If the device disconnects or times out, clean up
-    log_printf(DEBUG, "Relayer monitoring /dev/ttyACM%d\n", relay->port_num);
+    log_printf(DEBUG, "Relayer monitoring %s", get_device_name(relay->dev_id.type));
     char port_name[14];
     sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
 	while (1) {
 		// If Arduino port file doesn't exist, it disconnected
         if (OUTPUT == USB_DEV && access(port_name, F_OK) == -1) {
-            log_printf(INFO, "/dev/ttyACM%d disconnected!\n", relay->port_num);
+            log_printf(INFO, "%s disconnected!", get_device_name(relay->dev_id.type));
             relay_clean_up(relay);
             return NULL;
         }
         /* If it took too long to receive a Ping, the device timed out */
 		if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
-			log_printf(INFO, "/dev/ttyACM%d timed out!\n", relay->port_num);
+			log_printf(INFO, "%s timed out!", get_device_name(relay->dev_id.type));
 			relay_clean_up(relay);
 			return NULL;
 		}
@@ -245,7 +258,7 @@ void relay_clean_up(msg_relay_t* relay) {
 	if (relay->shm_dev_idx != -1) {
 		// device_disconnect(relay->shm_dev_idx)
 	}
-    log_printf(DEBUG, "Cleaned up threads for /dev/ttyACM%d\n", relay->port_num);
+    log_printf(DEBUG, "Cleaned up threads for %s", get_device_name(relay->dev_id.type));
 	free(relay);
 	pthread_cancel(pthread_self());
 }
@@ -259,7 +272,7 @@ void relay_clean_up(msg_relay_t* relay) {
 void* sender(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
     log_printf(DEBUG, "Sender on standby\n");
-	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
+	// Sleep until relay->start == 1, (when relayer gets ACKNOWLEDGEMENT)
 	while (1) {
 		if (relay->start == 1) {
 			break;
@@ -277,7 +290,7 @@ void* sender(void* relay_cast) {
 	param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read
 	message_t* msg; 		// Message to build
 	int ret; 				// Hold the value from send_message()
-    log_printf(DEBUG, "Sender starting work!\n");
+    log_printf(DEBUG, "Sender for %s starting work!", get_device_name(relay->dev_id.type));
 	while (1) {
 		// Get the current param bitmap
 		// get_param_bitmap(pmap);
@@ -288,27 +301,41 @@ void* sender(void* relay_cast) {
 			// Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
 			// device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
+            // TODO: Make sure params are write-able
 			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
 			ret = send_message(relay, msg);
 			if (ret != 0) {
-				log_printf(FATAL, "DeviceWrite transfer failed\n");
+				log_printf(FATAL, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
 			}
 			destroy_message(msg);
 		}
-		pthread_testcancel(); // Cancellation point
 
 		// Send another PING if it's time again
 		if ((millis() - relay->last_sent_ping_time) >= PING_FREQ) {
 			msg = make_ping();
 			ret = send_message(relay, msg);
 			if (ret != 0) {
-				log_printf(FATAL, "Ping transfer failed\n");
+				log_printf(FATAL, "Couldn't send PING to %s", get_device_name(relay->dev_id.type));
 			}
 			// Update the timestamp at which we sent a PING
 			relay->last_sent_ping_time = millis();
 			destroy_message(msg);
 		}
+
+        // TODO: Update subscribed parameters if prompted by shared memory
+        // TODO: Make sure parameters are read-able
+        // if (0) {
+        //     relay->sub_map = -1;
+        //     msg = make_subscription_request(relay->sub_map, SUB_INTERVAL);
+        //     ret = send_message(relay, msg);
+        //     if (ret != 0) {
+        //         log_printf(FATAL, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
+        //     }
+        //     destroy_message(msg);
+        // }
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel(); // Cancellation point
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		usleep(1000);
 	}
 	return NULL;
@@ -322,14 +349,14 @@ void* sender(void* relay_cast) {
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
     log_printf(DEBUG, "Receiver on standby\n");
-	// Sleep until relay->start == 1, which is true when relayer receives a SubscriptionResponse
+	// Sleep until relay->start == 1, (when relayer gets an ACKNOWLEDGEMENT)
 	while (1) {
 		if (relay->start == 1) {
 			break;
 		}
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
-    log_printf(DEBUG, "Receiver starting work!\n");
+    log_printf(DEBUG, "Receiver for %s starting work!", get_device_name(relay->dev_id.type));
 	/* Do work! Continuously read from the device until a complete message can be parsed.
 	 * If it's a PING, update relay->last_received_ping_time
 	 * If it's DEVICE_DATA, write it to shared memory
@@ -339,31 +366,34 @@ void* receiver(void* relay_cast) {
 	// An array of empty parameter values to be populated from DeviceData message payloads and written to shared memory
 	param_val_t* vals = malloc(MAX_PARAMS * sizeof(param_val_t));
 	while (1) {
-		pthread_testcancel(); // Cancellation point
 		// Try to read a message
-		if (receive_message(relay, msg) != 0) {
+		if (receive_message(relay, msg, 0) != 0) {
 			continue;
 		}
 		if (msg->message_id == PING) {
 			// If it's a Ping, take note of it so sender can resolve it
-            log_printf(DEBUG, "Got PING from /dev/ttyACM%d\n", relay->port_num);
+            log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
 			relay->last_received_ping_time = millis();
 		} else if (msg->message_id == DEVICE_DATA) {
-            log_printf(DEBUG, "Got DEVICE_DATA from /dev/ttyACM%d\n", relay->port_num);
+            log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
 			// First, parse the payload into an array of parameter values
 			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
 			// TODO: Now write it to shared memory
 			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
 		} else if (msg->message_id == LOG) {
-            log_printf(INFO, "FROM /dev/ttyACM%d: %s\n", relay->port_num, msg->payload);
+            log_printf(INFO, "[%s]: %s\n", get_device_name(relay->dev_id.type), msg->payload);
 		} else {
-			log_printf(FATAL, "Received a message of unexpected type and dropping it.\n");
+			log_printf(FATAL, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
 		}
 		// Now that the message is taken care of, clear the message
 		msg->message_id = 0x0;
 		// TODO: Maybe empty the payload?
 		msg->payload_length = 0;
 	    msg->max_payload_length = MAX_PAYLOAD_SIZE;
+
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		pthread_testcancel(); // Cancellation point
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	}
 	return NULL;
 }
@@ -403,11 +433,14 @@ int send_message(msg_relay_t* relay, message_t* msg) {
  * This function blocks until it reads a (possibly broken) message
  * relay: The shred relay object
  * msg: The message_t* to be populated with the parsed data (if successful)
+ * timeout: The maximum microseconds to wait until there's something to read
+ *      Set TIMEOUT to 0 if we wish to keep waiting forever
  * return: 0 on successful parse
  *         1 on broken message
  *         2 on incorrect checksum
+ *         3 on timeout
  */
-int receive_message(msg_relay_t* relay, message_t* msg) {
+int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout) {
     int num_bytes_read = 0;
 	// Variable to temporarily hold a read byte
 	uint8_t last_byte_read;
@@ -415,6 +448,15 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 	// Keep reading a byte until we get the delimiter byte
     while (!(num_bytes_read == 1 && last_byte_read == 0x00)) {
         if (OUTPUT == USB_DEV) {
+            // Wait until there's something to read for up to TIMEOUT microseconds \\ https://stackoverflow.com/a/2918709
+            if (timeout > 0) {
+                struct timeval timeout_struct;
+                timeout_struct.tv_sec = 0;
+                timeout_struct.tv_usec = timeout;
+                if (select(relay->file_descriptor + 1, NULL, NULL, NULL, &timeout_struct) == 0) {
+                    return 3;
+                }
+            }
             num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
         } else if (OUTPUT == FILE_DEV) {
             num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
@@ -424,7 +466,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
             log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
             num_bytes_read = 0;
         }
-	usleep(1000);
+	    usleep(1000);
     }
     //log_printf(DEBUG, "Got start of message!\n");
 
@@ -490,12 +532,17 @@ int verify_lowcar(msg_relay_t* relay) {
 	// Try to read an ACKNOWLEDGEMENT, which we expect from a lowcar device that receives a PING
     message_t* ack = make_empty(MAX_PAYLOAD_SIZE);
 	log_printf(DEBUG, "Listening for ACKNOWLEDGEMENT from /dev/ttyACM%d\n", relay->port_num);
-    while (receive_message(relay, ack) != 0) {
+    while (1) {
+        ret = receive_message(relay, ack, TIMEOUT / 1000);
+        if (ret == 0) { // Got message
+            break;
+        } else if (ret == 3) { // Timeout
+            return 2;
+        }
         sleep(1);
     }
     if (ack->message_id != ACKNOWLEDGEMENT) {
-		log_printf(DEBUG, "Message is not an ACKNOWLEDGEMENT\n");
-		log_printf(DEBUG, "Message type is %d \n", ack->message_id);
+		log_printf(DEBUG, "Message is not an ACKNOWLEDGEMENT, but of type %d", ack->message_id);
 		destroy_message(ack);
 		return 2;
 	}
@@ -504,8 +551,8 @@ int verify_lowcar(msg_relay_t* relay) {
 	relay->dev_id.type = *((uint16_t*)(&ack->payload[0]));      // device type is the first 16 bits
 	relay->dev_id.year = ack->payload[2];                    // device year is next 8 bits
 	relay->dev_id.uid  = *((uint64_t*)(&ack->payload[3]));   // device uid is the last 64-bits
-    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X, year 0x%02X, uid %llX!\n", \
-        relay->port_num, relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid);
+    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
+        relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
 	relay->last_received_ping_time = millis();
     destroy_message(ack);
 	return 0;

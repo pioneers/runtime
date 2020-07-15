@@ -27,8 +27,8 @@
 #define PAYLOAD_LENGTH_SIZE 1
 // The size in bytes of the param bitmap in SUBSCRIPTION_REQUEST, DEVICE_WRITE and DEVICE_DATA payloads
 #define BITMAP_SIZE (MAX_PARAMS/8)
-// The size in bytes of the section specifying the delay for SUBSCRIPTION_REQUEST
-#define DELAY_SIZE 2
+// The size in bytes of the section specifying the interval for SUBSCRIPTION_REQUEST
+#define INTERVAL_SIZE 2
 // The size in bytes of the section specifying the device id for ACKNOWLEDGEMENT
 #define DEVICE_ID_SIZE 11
 // The size in bytes of the section specifying the checksum of the message id, the payload length, and the payload itself
@@ -78,14 +78,12 @@ message_t* make_ping();
 
 /*
  * A message to request parameter data from a device at an interval
- * device_id: The device to request data from
- * param_names: An array of the parameter names to request data about
- * len: The length of param_names
- * delay: The number of microseconds to wait between each response
+ * pmap: 32-bit param bitmap indicating which params should be subscribed to
+ * interval: The number of milliseconds to wait between each DEVICE_DATA
  *
- * Payload: 32-bit param bit-mask, 16-bit delay
+ * Payload: 32-bit param bitmap, 16-bit interval
  */
-message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay);
+message_t* make_subscription_request(uint32_t pmap, uint16_t interval);
 
 /*
  * A message to write data to the specified writable parameters of a device
@@ -106,15 +104,6 @@ void destroy_message(message_t* message);
 /******************************************************************************************
  *                          Serializing and Parsing Messages                              *
  ******************************************************************************************/
-
-/*
- * Converts an array of parameter names to a 32-bit mask.
- * device_type: The device that include the specified params
- * params: Array of names for which the bit will be on.
- * len: The length of params
- * return: 32-bit mask. bit i is on if the device's parameter i is in PARAMS. Otherwise bit i is off.
- */
-uint32_t encode_params(uint16_t device_type, char** params, uint8_t len);
 
 /*
  * Calculates the largest length possible of a cobs-encoded msg
@@ -153,8 +142,4 @@ int parse_message(uint8_t data[], message_t* empty_msg);
  */
 void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[]);
 
-/*
- * Potentially added later:
- * decode_params
- */
 #endif

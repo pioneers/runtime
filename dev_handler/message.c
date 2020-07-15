@@ -174,25 +174,23 @@ message_t* make_ping() {
 }
 
 /*
- * Constructs a message given DEVICE_ID, array of param names PARAM_NAMES of length LEN,
- * and a DELAY in milliseconds
- * Note: Payload a 32-bit bit mask followed by the 16-bit delay
- *          --> 48-bit == 6-byte payload
-*/
-message_t* make_subscription_request(dev_id_t* device_id, char* param_names[], uint8_t len, uint16_t delay) {
+ * A message to request parameter data from a device at an interval
+ * pmap: 32-bit param bitmap indicating which params should be subscribed to
+ * interval: The number of milliseconds to wait between each DEVICE_DATA
+ *
+ * Payload: 32-bit param bitmap, 16-bit interval
+ */
+message_t* make_subscription_request(uint32_t pmap, uint16_t interval) {
     message_t* sub_request = malloc(sizeof(message_t));
     sub_request->message_id = SUBSCRIPTION_REQUEST;
-    sub_request->payload = malloc(BITMAP_SIZE + DELAY_SIZE);
+    sub_request->payload = malloc(BITMAP_SIZE + INTERVAL_SIZE);
     sub_request->payload_length = 0;
-    sub_request->max_payload_length = BITMAP_SIZE + DELAY_SIZE;
-    // Fill in 32-bit params mask
-	if (len != 0) {
-		uint32_t mask = encode_params(device_id->type, param_names, len);
-	    int status = 0;
-	    status += append_payload(sub_request, (uint8_t*) &mask, BITMAP_SIZE);
-	    status += append_payload(sub_request, (uint8_t*) &delay, DELAY_SIZE);
-	    return (status == 0) ? sub_request : NULL;
-	}
+    sub_request->max_payload_length = BITMAP_SIZE + INTERVAL_SIZE;
+
+    int status = 0;
+    status += append_payload(sub_request, (uint8_t*) &pmap, BITMAP_SIZE);
+    status += append_payload(sub_request, (uint8_t*) &interval, INTERVAL_SIZE);
+    return (status == 0) ? sub_request : NULL;
 }
 
 /*
@@ -221,6 +219,7 @@ message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_v
         if (((1 << i) & param_bitmap) == 0) {
             continue;
         }
+		// Determine the size of the parameter and append it accordingly
         char* param_type = dev->params[i].type;
         if (strcmp(param_type, "int") == 0) {
             status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int32_t));
@@ -238,62 +237,9 @@ void destroy_message(message_t* message) {
     free(message);
 }
 
-/*
- * Given string array PARAMS of length LEN consisting of params of DEVICE_UID,
- * Generate a bit-mask of 1s (if param is in PARAMS), 0 otherwise
- * Ex: encode_params(0, ["switch2", "switch1"], 2)
- *  Switch2 is param 2, switch1 is param 1
- *  Return 110  (switch2 on, switch1 on, switch0 off)
-*/
-uint32_t encode_params(uint16_t device_type, char** params, uint8_t len) {
-    uint8_t param_nums[len]; // [1, 9, 2] -> [0001, 1001, 0010]
-    device_t* dev = get_device(device_type);
-    int num_params_in_dev = dev->num_params;
-    // Iterate through PARAMS and find its corresponding number in the official list
-    for (int i = 0; i < len; i++) {
-        // Iterate through official list of params to find the param number
-        for (int j = 0; j < num_params_in_dev; j++) {
-            if (strcmp(dev->params[j].name, params[i]) == 0) { // Returns 0 if they're equivalent
-                param_nums[i] = j; // DEVICES[device_type]->params[j].number;
-                break;
-            }
-        }
-    }
-    // Generate mask by OR-ing numbers in param_nums
-    uint32_t mask = 0;
-    for (int i = 0; i < len; i++) {
-        mask = mask | (1 << param_nums[i]);
-    }
-    return mask;
-}
-
-/*
- * Given a device_type and a mask, return an array of param names
- * Encode 1, 9, 2 --> 1^9^2 = 10
- * Decode 10 --> 1, 9, 2
-*/
-/* To be determined; not yet sure how we want to return an array of strings
-char** decode_params(uint16_t device_type, uint32_t mask) {
-    // Iterate through MASK to find the name of the parameter
-    int len = 0;
-    int copy = mask; // 111 --> ["switch0", "switch1", "switch2"]
-    // Count the number of bits that are on (number of params encoded)
-    while (copy != 0) {
-        len += copy & 1;
-        copy >>= 1;
-    }
-    char* param_names[len];
-    int i = 0;
-    // Get the names of the params
-    for (int j = 0; j < 32; j++) {
-        if (mask & (1 << j)) { // If jth bit is on (from the right)
-            param_names[i] = DEVICES[device_type]->params[j].name;
-            i++;
-        }
-    }
-    return param_names;
-}
-*/
+/******************************************************************************************
+ *                          Serializing and Parsing Messages                              *
+ ******************************************************************************************/
 
 int calc_max_cobs_msg_length(message_t* msg){
   int required_packet_length = MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE;
