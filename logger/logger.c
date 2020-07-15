@@ -56,8 +56,14 @@ static void read_config_file ()
 	char important_char;
 	FILE *conf_fd;
 	
-	if ((conf_fd = fopen(CONFIG_FILE, "r")) == NULL) {  //open the config file for reading
-		perror("fopen: logger could not open config file; exiting...");
+	char file_buf[128] = {0};
+	sprintf(file_buf, "%s", __FILE__);
+	char* last = strrchr(file_buf, '/');
+	strcpy(last + 1, CONFIG_FILE);
+
+	if ((conf_fd = fopen(file_buf, "r")) == NULL) {  //open the config file for reading
+		printf("logger could not open config file %s; exiting...", file_buf);
+		perror("fopen");
 		exit(1);
 	}
 	
@@ -142,7 +148,7 @@ static void sigpipe_handler (int signum)
 void logger_init (process_t process)
 {
 	int temp_fd;  //temporary file descriptor for opening files if not exist
-	
+
 	//read in desired logger configurations
 	read_config_file();
 	
