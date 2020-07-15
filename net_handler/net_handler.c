@@ -78,8 +78,7 @@ void sigint_handler (int sig_num)
 	if (robot_desc_read(DAWN) == CONNECTED) {
 		stop_tcp_conn(DAWN);
 	}
-	shm_aux_stop(NET_HANDLER);
-	shm_stop(NET_HANDLER);
+	shm_stop();
 	logger_stop(NET_HANDLER);
 	//sockfd is automatically closed when process terminates
 	exit(0);
@@ -104,8 +103,7 @@ int main ()
 		}
 		return 1;
 	}
-	shm_aux_init(NET_HANDLER);
-	shm_init(NET_HANDLER);
+	shm_init();
 
 	//start UDP connection with Dawn
 	start_udp_conn(); 
