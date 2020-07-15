@@ -46,13 +46,6 @@ sem_t *pmap_sem;                    //semaphore used as a mutex on the param bit
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
 
-static void error (char *msg)
-{
-	perror(msg);
-	log_runtime(ERROR, msg); //send the message to the logger
-	exit(1);
-}
-
 static void generate_sem_name (stream_t stream, int dev_ix, char *name)
 {
 	if (stream == DATA) {
@@ -75,27 +68,21 @@ static void print_bitmap (int num_bits, uint32_t bitmap)
 static void my_sem_wait (sem_t *sem, char *sem_desc)
 {
 	if (sem_wait(sem) == -1) {
-		char msg[64];
-		sprintf(msg, "sem_wait: %s", sem_desc);
-		error(msg);
+		log_printf(ERROR, "sem_wait: %s. %s", sem_desc, strerror(errno));
 	}
 }
 
 static void my_sem_post (sem_t *sem, char *sem_desc)
 {
 	if (sem_post(sem) == -1) {
-		char msg[64];
-		sprintf(msg, "sem_post: %s", sem_desc);
-		error(msg);
+		log_printf(ERROR, "sem_post: %s. %s", sem_desc, strerror(errno));
 	}
 }
 
 static void my_sem_close (sem_t *sem, char *sem_desc)
 {
 	if (sem_close(sem) == -1) {
-		char msg[64];
-		sprintf(msg, "sem_close: %s", sem_desc);
-		error(msg);
+		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
 	}
 }
 
@@ -278,26 +265,31 @@ void shm_init (process_t process)
 		
 		//mutual exclusion semaphore, catalog_mutex with initial value = 0
 		if ((catalog_sem = sem_open(CATALOG_MUTEX_NAME, O_CREAT, 0660, 0)) == SEM_FAILED) {
-			error("sem_open: catalog_mutex@dev_handler");
+			log_printf(FATAL, "sem_open: catalog_mutex@dev_handler: %s", strerror(errno));
+			exit(1);
 		}
 		
 		//mutual exclusion semaphore, pmap_mutex with initial value = 1
 		if ((pmap_sem = sem_open(PMAP_MUTEX_NAME, O_CREAT, 0660, 1)) == SEM_FAILED) {
-			error("sem_open: pmap_mutex@dev_handler");
+			log_printf(FATAL, "sem_open: pmap_mutex@dev_handler: %s", strerror(errno));
+			exit(1);
 		}
 		
 		//create shared memory block; initialize catalog and pmap to all zeros
 		if ((fd_shm = shm_open(SHARED_MEM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
-			error("shm_open: @dev_handler");
+			log_printf(FATAL, "shm_open: @dev_handler: %s", strerror(errno));
+			exit(1);
 		}
 		if (ftruncate(fd_shm, sizeof(shm_t)) == -1) {
-			error("ftruncate: @dev_handler");
+			log_printf(FATAL, "ftruncate: @dev_handler: %s", strerror(errno));
+			exit(1);
 		}
 		if ((shm_ptr = mmap(NULL, sizeof(shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-			error("mmap: @dev_handler");
+			log_printf(FATAL, "mmap: @dev_handler: %s", strerror(errno));
+			exit(1);
 		}
 		if (close(fd_shm) == -1) {
-			error("close: @dev_handler");
+			log_printf(ERROR, "close: @dev_handler: %s", strerror(errno));
 		}
 		shm_ptr->catalog = 0;
 		for (int i = 0; i < MAX_DEVICES + 1; i++) {
@@ -308,11 +300,13 @@ void shm_init (process_t process)
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			generate_sem_name(DATA, i, sname); //get the data name
 			if ((sems[i].data_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
-				error("sem_open: data sem@dev_handler");
+				log_printf(FATAL, "sem_open: data sem for dev_ix %d @dev_handler: %s", i, strerror(errno));
+				exit(1);
 			}
 			generate_sem_name(COMMAND, i, sname); //get the command name
 			if ((sems[i].command_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
-				error("sem_open: command sem@dev_handler");
+				log_printf(FATAL, "sem_open: command sem for dev_ix %d @dev_handler: %s", i, strerror(errno));
+				exit(1);
 			}
 		}
 		
@@ -321,12 +315,14 @@ void shm_init (process_t process)
 	} else {
 		//mutual exclusion semaphore, catalog_mutex
 		if ((catalog_sem = sem_open(CATALOG_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
-			error("sem_open: catalog_mutex@client");
+			log_printf(FATAL, "sem_open: catalog_mutex@client: %s", strerror(errno));
+			exit(1);
 		}
 		
 		//mutual exclusion semaphore, pmap_mutex
 		if ((pmap_sem = sem_open(PMAP_MUTEX_NAME, 0, 0, 0)) == SEM_FAILED) {
-			error("sem_open: pmap_mutex@client");
+			log_printf(ERROR, "sem_open: pmap_mutex@client: %s", strerror(errno));
+			exit(1);
 		}
 		
 		//wait on catalog_sem to ensure shm has been created before opening
@@ -334,24 +330,26 @@ void shm_init (process_t process)
 		
 		//open shared memory block and map to client process virtual memory
 		if ((fd_shm = shm_open(SHARED_MEM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
-			error("shm_open: @client");
+			log_printf(FATAL, "shm_open: @client: %s", strerror(errno));
+			exit(1);
 		}
 		if ((shm_ptr = mmap(NULL, sizeof(shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-			error("mmap: @client");
+			log_printf(FATAL, "mmap: @client: %s", strerror(errno));
+			exit(1);
 		}
 		if (close(fd_shm) == -1) {
-			error("close: @client");
+			log_printf(ERROR, "close: @client: %s", strerror(errno));
 		}
 		
 		//create all the semaphores with initial value 1
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			generate_sem_name(DATA, i, sname); //get the data name
 			if ((sems[i].data_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
-				error("sem_open: data sem@client");
+				log_printf(ERROR, "sem_open: data sem for dev_ix %d @client: %s", i, strerror(errno));
 			}
 			generate_sem_name(COMMAND, i, sname); //get the command name
 			if ((sems[i].command_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) { //no O_CREAT
-				error("sem_open: command sem@client");
+				log_printf(ERROR, "sem_open: command sem for dev_ix %d @client: %s", i, strerror(errno));
 			}
 		}
 		
@@ -374,7 +372,7 @@ void shm_stop (process_t process)
 	
 	//unmap the shared memory block
 	if (munmap(shm_ptr, sizeof(shm_t)) == -1) {
-		(process == DEV_HANDLER) ? error("munmap: @dev_handler") : error("munmap: @client");
+		(process == DEV_HANDLER) ? log_printf(ERROR, "munmap @dev_handler: %s", strerror(errno)) : log_printf(ERROR, "munmap @client: %s", strerror(errno));
 	}
 	
 	//close all the semaphores
@@ -399,26 +397,26 @@ void shm_stop (process_t process)
 	if (process == DEV_HANDLER) {
 		//unlink shared memory block
 		if (shm_unlink(SHARED_MEM_NAME) == -1) {
-			error("shm_unlink");
+			log_printf(ERROR, "shm_unlink @dev_handler: %s", strerror(errno));
 		}
 		
 		//unlink semaphores
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			generate_sem_name(DATA, i, sname);
 			if (sem_unlink((const char *) sname) == -1) {
-				error("sem_unlink: data sem");
+				log_printf(ERROR, "sem_unlink: data_sem for dev_ix %d @dev_handler: %s", i, strerror(errno));
 			}
 			generate_sem_name(COMMAND, i, sname);
 			if (sem_unlink((const char *) sname) == -1) {
-				error("sem_unlink: command sem");
+				log_printf(ERROR, "sem_unlink: command_sem for dev_ix %d @dev_handler: %s", i, strerror(errno));
 			}
 		}
 		
 		if (sem_unlink(CATALOG_MUTEX_NAME) == -1) {
-			error("sem_unlink: catalog_sem");
+			log_printf(ERROR, "sem_unlink: catalog_sem @dev_handler: %s", strerror(errno));
 		}
 		if (sem_unlink(PMAP_MUTEX_NAME) == -1) {
-			error("sem_unlink: pmap_sem");
+			log_printf(ERROR, "sem_unlink: pmap_sem @dev_handler: %s", strerror(errno));
 		}
 	}
 }
@@ -445,7 +443,7 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 		}
 	}
 	if (*dev_ix == MAX_DEVICES) {
-		log_runtime(ERROR, "too many devices, connection unsuccessful");
+		log_printf(ERROR, "too many devices, connection unsuccessful");
 		my_sem_post(catalog_sem, "catalog_sem"); //release the catalog semaphore
 		return;
 	}
@@ -530,9 +528,7 @@ void device_read (int dev_ix, process_t process, stream_t stream, uint32_t param
 	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
-		char msg[64];
-		sprintf(msg, "no device at dev_ix = %d, read failed", dev_ix);
-		log_runtime(DEBUG, msg);
+		log_printf(ERROR, "no device at dev_ix = %d, read failed", dev_ix);
 		return;
 	}
 	
@@ -558,9 +554,7 @@ void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint
 	
 	//if device doesn't exist, return immediately
 	if (dev_ix == -1) {
-		char msg[64];
-		sprintf(msg, "no device at dev_uid = %llu, read failed", dev_uid);
-		log_runtime(DEBUG, msg);
+		log_printf(ERROR, "no device at dev_uid = %llu, read failed", dev_uid);
 		return;
 	}
 	
@@ -586,9 +580,7 @@ void device_write (int dev_ix, process_t process, stream_t stream, uint32_t para
 	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(shm_ptr->catalog & (1 << dev_ix))) {
-		char msg[64];
-		sprintf(msg, "no device at dev_ix = %d, write failed", dev_ix);
-		log_runtime(DEBUG, msg);
+		log_printf(ERROR, "no device at dev_ix = %d, write failed", dev_ix);
 		return;
 	}
 	
@@ -614,9 +606,7 @@ void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uin
 	
 	//if device doesn't exist, return immediately
 	if (dev_ix == -1) {
-		char msg[64];
-		sprintf(msg, "no device at dev_uid = %llu, write failed", dev_uid);
-		log_runtime(DEBUG, msg);
+		log_printf(ERROR, "no device at dev_uid = %llu, write failed", dev_uid);
 		return;
 	}
 	
