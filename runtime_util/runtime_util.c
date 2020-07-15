@@ -205,7 +205,7 @@ device_t DummyDevice = {
         {.name = "SHEEP",       .type = "bool"  , .read = 1, .write = 1},
         {.name = "DUSK",        .type = "int"   , .read = 1, .write = 1},
     }
-}
+};
 
 
 /* An array that holds pointers to the structs of each lowcar device */

@@ -32,9 +32,8 @@ char log_file_path[MAX_CONFIG_LINE_LEN];    //file path to the log file
 
 //used for LOG_NETWORK only
 mode_t fifo_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;   // -rw-rw-rw permission for FIFO
-int fifo_up = 0;                                         //flag that represents if FIFO is up and running
-int fifo_fd = -1;                                        //file descriptor for FIFO
-// char fifo_path[MAX_CONFIG_LINE_LEN] = "/tmp/log-fifo";   //file path to the FIFO pipe for logs
+int fifo_up = 0;      //flag that represents if FIFO is up and running
+int fifo_fd = -1;     //file descriptor for FIFO
 
 // ************************************ HELPER FUNCTIONS ****************************************** //
 
@@ -57,8 +56,14 @@ static void read_config_file ()
 	char important_char;
 	FILE *conf_fd;
 	
-	if ((conf_fd = fopen(CONFIG_FILE, "r")) == NULL) {  //open the config file for reading
-		perror("fopen: logger could not open config file; exiting...");
+	char file_buf[128] = {0};
+	sprintf(file_buf, "%s", __FILE__);
+	char* last = strrchr(file_buf, '/');
+	strcpy(last + 1, CONFIG_FILE);
+
+	if ((conf_fd = fopen(file_buf, "r")) == NULL) {  //open the config file for reading
+		printf("logger could not open config file %s; exiting...", file_buf);
+		perror("fopen");
 		exit(1);
 	}
 	
@@ -137,10 +142,13 @@ static void sigpipe_handler (int signum)
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
+/*
+ * Call function at process start with one of the named processes
+ */
 void logger_init (process_t process)
 {
 	int temp_fd;  //temporary file descriptor for opening files if not exist
-	
+
 	//read in desired logger configurations
 	read_config_file();
 	
@@ -175,19 +183,16 @@ void logger_init (process_t process)
 	}
 	
 	//set the correct process_str for given process
-	if (process == DEV_HANDLER) {
-		sprintf(process_str, "DEV_HANDLER");
-	} else if (process == EXECUTOR) {
-		sprintf(process_str, "EXECUTOR");
-	} else if (process == NET_HANDLER) {
-		sprintf(process_str, "NET_HANDLER");
-	} else if (process == SUPERVISOR) {
-		sprintf(process_str, "SUPERVISOR");
-	} else {
-		sprintf(process_str, "TEST");
-	}	
+	if (process == DEV_HANDLER) { sprintf(process_str, "DEV_HANDLER"); }
+	else if (process == EXECUTOR) { sprintf(process_str, "EXECUTOR"); }
+	else if (process == NET_HANDLER) { sprintf(process_str, "NET_HANDLER"); }
+	else if (process == SUPERVISOR) { sprintf(process_str, "SUPERVISOR"); }
+	else if (process == TEST) { sprintf(process_str, "TEST"); }
 }
 
+/* 
+ * Call before process terminates to clean up logger before exiting
+ */
 void logger_stop ()
 {	
 	//if outputting to stdout, write a newline to stdout
@@ -217,17 +222,32 @@ void logger_stop ()
 	}
 }
 
-void log_runtime (log_level_t level, char *msg)
-{
+/* 
+ * Logs a message at a specified level to the locations specified in config file
+ * Handles format strings (can handle expressions like those in 'printf()')
+ * Arguments:
+ *    - log_level_t level: one of the levels listed in the enum in this file
+ *    - char *format: format string representing message to be formatted
+ *    - ...: additional arguments to be formatted in format string
+ */
+void log_printf (log_level_t level, char *format, ...)
+{	
 	static time_t now;                   //for holding system time
 	static char *time_str;               //for string representation of system time
 	static char final_msg[MAX_LOG_LEN];  //final message to be logged to requested locations
 	static int len;                      //holding lengths of various strings
+	static char msg[MAX_LOG_LEN - 100];  //holds the expanded format string (100 to make room for log header)
+	va_list args;                        //this holds the variable-length argument list
 
 	//don't do anything with this message if less than all set levels
 	if (level < network_level && level < file_level && level < stdout_level) {
 		return;
 	}
+	
+	//expands the format string into msg
+	va_start(args, format);
+	vsprintf(msg, format, args);
+	va_end(args);
 	
 	//build the message and put into final_msg
 	if (level == PYTHON) {
@@ -286,18 +306,4 @@ void log_runtime (log_level_t level, char *msg)
 			}
 		}
 	}
-}
-
-/**
- *	Provides same printing functionality as `printf` but prints instead to the log with the specified log level.
- */
-void log_printf (log_level_t level, char *format, ...)
-{
-	char msg[MAX_LOG_LEN];
-	va_list args; //this holds the variable-length argument list
-	
-	va_start(args, format);
-	vsprintf(msg, format, args); //formats the input message
-	log_runtime(level, msg);     //use log_runtime to write formatted string to log file
-	va_end(args);
 }
