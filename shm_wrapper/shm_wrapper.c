@@ -173,7 +173,7 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 // ************************************ PUBLIC PRINTING UTILITIES ***************************************** //
 
 /*
- * Prints the current values in the param bitmap
+ * Prints the current values in the command bitmap
  */
 void print_cmd_map ()
 {
