@@ -17,8 +17,11 @@ test2: shm_wrapper_test2.c $(FILES)
 process: shm_process.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 
-static: connect_static_devices.c $(FILES)
-	gcc $^ -o static $(LIBS)
+static_dev: static_dev.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
+	
+static_aux: static_aux.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
 
 print: print_shm.c $(FILES)
 	gcc $^ -o $@ $(LIBS)

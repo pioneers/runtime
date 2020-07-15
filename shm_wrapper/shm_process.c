@@ -117,8 +117,8 @@ void sigint_handler (int signum)
 			log_printf(ERROR, "sem_unlink: command_sem for dev_ix %d. %s", i, strerror(errno));
 		}
 	}
-	logger_stop();
 	
+	logger_stop();
 	exit(0);
 }
 

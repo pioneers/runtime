@@ -3,7 +3,7 @@
 
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
-#include <stdint.h>						   //for standard integer types
+#include <stdint.h>                        //for standard integer types
 #include <sys/types.h>                     //for sem_t and other standard system types
 #include <sys/stat.h>                      //for some of the flags that are used (the mode constants)
 #include <fcntl.h>                         //for flags used for opening and closing files (O_* constants)
@@ -65,7 +65,7 @@ The device handler process is responsible for initializing the catalog and updat
 		called from
 No return value.
 */
-void shm_init (process_t process);
+void shm_init ();
 
 /*
 Call this function if process no longer wishes to connect to shared memory wrapper
@@ -75,7 +75,7 @@ Device handler is responsible for marking shared memory block and semaphores for
 		called from
 No return value.
 */
-void shm_stop (process_t process);
+void shm_stop ();
 
 /*
 Should only be called from device handler
@@ -140,30 +140,6 @@ the device that should be written, rather than the device index.
 void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
 
 /*
-Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
-Blocks on the param bitmap semaphore for obvious reasons
-	- bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
-No return value.
-*/
-void get_param_bitmap (uint32_t *bitmap);
-
-/*
-Should be called from all processes that want to know device identifiers of all currently connected devices
-Blocks on catalog semaphore for obvious reasons
-	- dev_ids: pointer to array of dev_id_t's to copy the information into
-No return value.
-*/
-void get_device_identifiers (dev_id_t *dev_ids);
-
-/*
-Should be called from all processes that want to know which dev_ix's are valid
-Blocks on catalog semaphore for obvious reasons
-	- catalog: pointer to 32-bit integer into which the current catalog will be read into
-No return value.
-*/
-void get_catalog (uint32_t *catalog);
-
-/*
 This function reads the specified field.
 Blocks on the robot description semaphore.
 	- field: one of the robot_desc_val_t's defined above to read from
@@ -199,5 +175,28 @@ No return value.
 */
 void gamepad_write (uint32_t pressed_buttons, float *joystick_vals);
 
+/*
+Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
+Blocks on the param bitmap semaphore for obvious reasons
+	- bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
+No return value.
+*/
+void get_param_bitmap (uint32_t *bitmap);
+
+/*
+Should be called from all processes that want to know device identifiers of all currently connected devices
+Blocks on catalog semaphore for obvious reasons
+	- dev_ids: pointer to array of dev_id_t's to copy the information into
+No return value.
+*/
+void get_device_identifiers (dev_id_t *dev_ids);
+
+/*
+Should be called from all processes that want to know which dev_ix's are valid
+Blocks on catalog semaphore for obvious reasons
+	- catalog: pointer to 32-bit integer into which the current catalog will be read into
+No return value.
+*/
+void get_catalog (uint32_t *catalog);
 
 #endif
