@@ -56,14 +56,14 @@ static void read_config_file ()
 	char important_char;
 	FILE *conf_fd;
 	
+	//this logic gets the absolute path of the logger config file
 	char file_buf[128] = {0};
-	sprintf(file_buf, "%s", __FILE__);
-	char* last = strrchr(file_buf, '/');
-	strcpy(last + 1, CONFIG_FILE);
+	sprintf(file_buf, "%s", __FILE__); //__FILE__ is the path of this file on the system
+	char *last = strrchr(file_buf, '/'); //use strrchr to get location of last '/' in path
+	strcpy(last + 1, CONFIG_FILE); //append CONFIG_FILE to that path to get absolute path to logger file
 
 	if ((conf_fd = fopen(file_buf, "r")) == NULL) {  //open the config file for reading
-		printf("logger could not open config file %s; exiting...", file_buf);
-		perror("fopen");
+		fprintf(stderr, "fopen: logger could not open config file %s; exiting... \n%s", file_buf, strerror(errno));
 		exit(1);
 	}
 	
@@ -155,7 +155,10 @@ void logger_init (process_t process)
 	//if we want to log to log file, open it for appending
 	if (OUTPUTS & LOG_FILE) {
 		//call open first with O_CREAT to make sure the log file is created if it doesn't exist
-		temp_fd = open(log_file_path, O_RDWR | O_CREAT, 0666);
+		if ((temp_fd = open(log_file_path, O_RDWR | O_CREAT, 0666)) == -1) {
+			perror("open: logger could not create and/or open log file; exiting...");
+			exit(1);
+		}
 		close(temp_fd);
 		
 		//open with fopen to use stdio functions instead
