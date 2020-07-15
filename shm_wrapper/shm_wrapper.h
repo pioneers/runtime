@@ -53,7 +53,7 @@ void print_cmd_map ();
 /*
  * Prints the device identification info of the currently attached devices
  */
-void print_dev_ids ();	
+void print_dev_ids ();
 
 /*
  * Prints the catalog (i.e. how many and at which indices devices are currently attached)
@@ -162,7 +162,7 @@ int device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint
  *    - uint32_t params_to_sub: bitmap representing params to subscribe to (nonexistent params should have corresponding bits set to 0)
  * Returns 0 on success, -1 on failure (unrecognized process, or device is not connect in shm)
  */
-int device_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_sub);
+int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_sub);
 
 /*
  * Get current subscription requests for all devices. Should only be called by dev_handler
@@ -170,7 +170,7 @@ int device_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_
  *    - uint32_t *sub_map: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
  * No return value.
  */
-void place_sub_requests (uint32_t *sub_map);
+void get_sub_requests (uint32_t *sub_map);
 
 /*
  * Reads the specified robot description field. Blocks on the robot description semaphore.
