@@ -1,23 +1,31 @@
 # Runtime Shared Memory Wrapper
 
-The Runtime Shared Memory Wrapper provides an API for the device handler, network handler, and executor to use to communicate the state of devices to each other, abstracting away the details of the underlying interprocess communication via shared memory. 
+The Runtime Shared Memory Wrapper provides an API for the device handler, network handler, and executor to use to communicate the state of devices, robot state, and gamepad state to each other, abstracting away the details of the underlying interprocess communication via shared memory. 
 
 ## Contents
 
 `shm_wrapper.h` contains the header file that should be included in each of the processes that use the wrapper. Please read the extensive comments in this file for an overview of the wrapper's usage. Source code for the wrapper is found in `shm_wrapper.c`. These files cannot be compiled or run by themselves; rather, they should be included by the other processes that wish to use it and compiled with those processes.
 
+`shm_process.c` is the process that is responsible for creating and unlinking all of the semaphores and shared memory blocks that are used by the other Runtime processes. By giving the job of creating and unlinking the shared memory blocks and semaphores to this simply and thus very robust process, it ensures that even if any Runtime process crashes unexpectedly and `systemd` shuts down the processes in some random order, the shared memory blocks will be unlinked u pon Runtime shutdown, thus preventing segmentation faults or other errors upon Runtime restart. To copmile, run
+```
+make process
+```
+Then do `./process` to run. The process will hang until it receives `SIGINT` (`Ctrl-C`).
+
 `shm_wrapper_test1.c` and `shm_wrapper_test2.c` contain a suite of tests to demonstrate that the wrapper is functioning properly. Run
 ```
 make test1
 make test2
+make process
 ```
-Then run by opening two separate terminal windows and running first `./test1` in one window and then `./test2` in the other. The tests will run automatically to completion and print many status messages and updates to standard output. 
+Then run by opening three separate terminal windows and running first `./process` in one window, then `./test1` in a second window and then `./test2` in the third window. It doesn't matter which of `./test1` or `./test2` you run first. The tests will run automatically to completion and print many status messages and updates to standard output. 
 
-`connect_static_devices.c` is a simple program that is, in some sense, a fake `dev_handler`, in that it creates the shared memory blocks and keeps the blocks open at some static value. This program is necessary if we want to test any other process that uses the shared memory wrapper by itself, without having to start up the full device handler process. Without it, the process we want to test would exit immediately (due to the shared memory not existing). To compile this program, run
+`static_dev.c` and `static_aux.c` are simple programs that are, in some sense, a fake `dev_handler` and a fake `net_handler`, respectively. They attach to the shared memory blocks and continuously write static values to the device shared memory blocks and the robot description + gamepad state shared memory blocks, respectively. These programs are useful if we want to test any other process that uses the shared memory wrapper by itself, without having to start up the corresponding full processes. Running `./process` by itself sets all values in all shared memory blocks to 0, which isn't very interesting if we want to verify that certain processes are working as expected. To run these programs, first run
 ```
-make static
+make static_dev
+make static_aux
 ```
-Then do `./static`. This process will hang forever until it receives `SIGINT` (`Ctrl-C`).
+Then do `./static_dev` or `./static_aux`, depending on which blocks you would like to hold at static values. These processes will run until they receive `SIGINT` (`Ctrl-C`).
 
 `print_shm.c` is another simple program that connects to the shared memory wrapper as the `TEST` process, calls some or all of the printing utility functions in the shared memory wrapper, then disconnects from the shared memory wrapper. It is useful when testing Runtime to view the state of the shared memory wrapper and calling the shared memory wrapper utilities from the processes being tested would be inconvenient. To compile this program, run
 ```
@@ -39,7 +47,7 @@ We use POSIX shared memory (as opposed to the older System V shared memory), bec
 
 The way POSIX shared memory works is that one process first creates the shared memory block of a certain size, and with a predefined name (which is a path in the filesystem). This essentially "creates a file" in the filesystem. Then, the creating process maps the file into certain addresses in its own process space, which allows that process to write to that file simply by writing to locations in its own process space. Now, other processes on the same computer can "open" this newly created "file" and map it to their own process spaces, which results in a situation where writing to this special file from any process updates that file for all processes. When a process is terminated, it needs to ensure that its mappings to the shared memory are closed, and the process which created the shared memory file needs to unlink the name of that file from the file itself, so that the operating system can reclaim that space once there are no more references to that file. If this doesn't to happen, any new attemps to bind the same name to a newly created piece of shared memory will fail.
 
-In the runtime shared memory wrapper, the `dev_handler` is responsible for creating and unlinking. For the auxiliary shared memory wrapper, it is the `net_handler` that is responsible.
+In the runtime shared memory wrapper, the `shm_process` is responsible for creating and unlinking.
 
 For more details and a great example of POSIX shared memory, see this page: https://www.softprayog.in/programming/interprocess-communication-using-posix-shared-memory-in-linux
 
@@ -49,7 +57,7 @@ Shared memory almost always has to be used in conjunction with semaphores, becau
 
 A quick introduction to semaphores: a semaphore is basically a piece of memory owned by the operating system that holds a nonnegative integer. The semaphore is accessible to any process that knows its name. The operating system guarantees that any change to the value of this integer is "atomic", meaning that when a process increments or decrements the value of the semaphore, that value is reflected for all processes that have that semaphore open. It sounds a little pointless, but semaphores are actually very useful. Say, for example, that two processes are sharing some data. When one process tries to modify the data, the other process must not try to modify the data at the same time. It needs to wait until the first process is done updating the data before accessing it. Semaphores help ensure that this happens. You impose the following rule on both processes: if a process wants to modify the data, it needs to first decrement the semaphore before modifying the data; after it has finished modifying the data, it must then increment the semaphore. If you initialize the semaphore with the value of 1 at the start of the program, this ensures that no more than one process will be accessing the data at any given time (because remember that the value of the semaphore cannot be negative).
 
-In the shared memory wrapper, each device that is registered in the shared memory wrapper has two associated semaphores: one for its `DATA` stream (where `dev_handler` writes device data for `executor` to read when executing student code), and another for its `COMMAND` stream (where `executor` writes commands from student code for `dev_handler` to pass to the devices). When any process wants to access the data on a particular stream by calling the shared memory wrapper, the wrapper will automatically acquire the associated semaphore before accessing the data, and release it after the access. There are also two additional semaphores, the `pmap_sem` and `catalog_sem` which are useful for facilitating the fast transfer of commands from `executor` to `dev_handler`, and for connecting and disconnecting devices, respctively.
+In the shared memory wrapper, each device that is registered in the shared memory wrapper has two associated semaphores: one for its `DATA` stream (where `dev_handler` writes device data for `executor` to read when executing student code), and another for its `COMMAND` stream (where `executor` writes commands from student code for `dev_handler` to pass to the devices). When any process wants to access the data on a particular stream by calling the shared memory wrapper, the wrapper will automatically acquire the associated semaphore before accessing the data, and release it after the access. There are also four additional semaphores. The first two, `pmap_sem` and `catalog_sem`, are useful for facilitating the fast transfer of commands from `executor` to `dev_handler`, and for connecting and disconnecting devices, respctively. The second two, `rd_sem` and `gp_sem`, are for access-guarding the robot description shared memory block and the gamepad state shared memory block, respectively. There is also an additional check to make sure that a gamepad is connected before attempting to access the gamepad state.
 
 The fast transfer of commands from `executor` and `dev_handler` is done as follows. There is a param bitmap, which consists of `MAX_DEVICES + 1` elements that are each `MAX_PARAMS` bits long. If every single bit in the entire bitmap is 0, then no parameters on any devices in the system have been requested to change by the `executor`. The bits in the first element of the param bitmap correspond to which devices have had their parameters changed; the bits in each of the other elements of the param bitmap correspond to which params of a particular device have changed. This is best illustrated with an example. 
 Suppose that both `MAX_DEVICES` and `MAX_PARAMS` were 32. Then the param bitmap would be made up of 33 elements, each element being a `uint32_t`. At the beginning, suppose a device connects to the shared memory wrapper and is assigned the index of 0. This device also has 3 parameters, at indices 0, 1, and 2. When no changes are requested on this device, we have the following state (with the least significant bit (the 0th bit) on the right):  

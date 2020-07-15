@@ -33,6 +33,6 @@ cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
         DATA, COMMAND
     void shm_init()
     void shm_stop()
-    void device_read_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
-    void device_write_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
-    void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
+    int device_read_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
+    int device_write_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
+    int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
