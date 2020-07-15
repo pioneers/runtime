@@ -69,6 +69,15 @@ static void generate_sem_name (stream_t stream, int dev_ix, char *name)
 	}
 }
 
+//function for printing bitmap that is NUM_BITS long
+static void print_bitmap (int num_bits, uint32_t bitmap) 
+{
+	for (int i = 0; i < num_bits; i++) {
+		printf("%d", (bitmap & (1 << i)) ? 1 : 0);
+	}
+	printf("\n");
+}
+
 //function that actually reads a value from device shm blocks (does not perform catalog check)
 static void device_read_helper (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
@@ -147,15 +156,9 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 
 // ************************************ PUBLIC PRINTING UTILITIES ***************************************** //
 
-//function for printing bitmap that is NUM_BITS long
-static void print_bitmap (int num_bits, uint32_t bitmap) 
-{
-	for (int i = 0; i < num_bits; i++) {
-		printf("%d", (bitmap & (1 << i)) ? 1 : 0);
-	}
-	printf("\n");
-}
-
+/*
+ * Prints the current values in the param bitmap
+ */
 void print_pmap ()
 {
 	uint32_t pmap[MAX_DEVICES + 1];
@@ -173,6 +176,9 @@ void print_pmap ()
 	}
 }
 
+/*
+ * Prints the device identification info of the currently attached devices
+ */
 void print_dev_ids ()
 {
 	dev_id_t dev_ids[MAX_DEVICES];
@@ -192,6 +198,9 @@ void print_dev_ids ()
 	}
 }
 
+/*
+ * Prints the catalog (i.e. how many and at which indices devices are currently attached)
+ */
 void print_catalog ()
 {
 	uint32_t catalog;
@@ -200,6 +209,9 @@ void print_catalog ()
 	print_bitmap(MAX_DEVICES, catalog);
 }
 
+/*
+ * Prints the params of the specified devices
+ */
 void print_params (uint32_t devices)
 {
 	dev_id_t dev_ids[MAX_DEVICES];
@@ -247,6 +259,9 @@ void print_params (uint32_t devices)
 	}
 }
 
+/*
+ * Prints the current values of the robot description in a human-readable way
+ */
 void print_robot_desc ()
 {
 	//since there's no get_robot_desc function (we don't need it, and hides the implementation from users)
@@ -285,6 +300,9 @@ void print_robot_desc ()
 	my_sem_post(rd_sem, "robot_desc_mutex (in print)");
 }
 
+/*
+ * Prints the current state of the gamepad in a human-readable way
+ */
 void print_gamepad_state ()
 {
 	//since there's no get_gamepad function (we don't need it, and hides the implementation from users)
@@ -321,17 +339,12 @@ void print_gamepad_state ()
 	my_sem_post(gp_sem, "gamepad_mutex (in print)");
 }
 
-
 // ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
 
 /*
-Call this function from every process that wants to use the shared memory wrapper
-Should be called before any other action happens
-The device handler process is responsible for initializing the catalog and updated param bitmap
-	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is being
-		called from
-No return value.
-*/
+ * Call this function from every process that wants to use the shared memory wrapper
+ * No return value (will exit on fatal errors).
+ */
 void shm_init ()
 {
 	int fd_shm; //file descriptor of the memory-mapped shared memory
@@ -394,13 +407,10 @@ void shm_init ()
 }
 
 /*
-Call this function if process no longer wishes to connect to shared memory wrapper
-No other actions will work after this function is called
-Device handler is responsible for marking shared memory block and semaphores for destruction after all detach
-	- process: one of DEV_HANDLER, EXECUTOR, NET_HANDLER to specify which process this function is being
-		called from
-No return value.
-*/
+ * Call this function if process no longer wishes to connect to shared memory wrapper
+ * No other actions will work after this function is called.
+ * No return value.
+ */
 void shm_stop ()
 {
 	//close all the semaphores
@@ -426,15 +436,16 @@ void shm_stop ()
 }
 
 /*
-Should only be called from device handler
-Selects the next available device index and assigns the newly connected device to that location. 
-Turns on the associated bit in the catalog.
-	- dev_type: the type of the device being connected e.g. LIMITSWITCH, LINEFOLLOWER, etc; see device_config.h
-	- dev_year: year of device manufacture
-	- dev_uid: the unique, random 64-bit uid assigned to the device when flashing
-	- dev_ix: the index that the device was assigned will be put here
-No return value.
-*/
+ * Should only be called from device handler
+ * Selects the next available device index and assigns the newly connected device to that location. 
+ * Turns on the associated bit in the catalog.
+ * Arguments: 
+ *    - uin16_t dev_type: the type of the device being connected e.g. LIMITSWITCH, LINEFOLLOWER, etc.
+ *    - uint8_t dev_year: year of device manufacture
+ *    - uint64_t dev_uid: the unique, random 64-bit uid assigned to the device when flashing
+ *    - int *dev_ix: the index that the device was assigned will be put here
+ * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
+ */
 void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *dev_ix)
 {	
 	//wait on catalog_sem
@@ -449,6 +460,7 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 	if (*dev_ix == MAX_DEVICES) {
 		log_printf(ERROR, "too many devices, connection unsuccessful");
 		my_sem_post(catalog_sem, "catalog_sem"); //release the catalog semaphore
+		*dev_ix = -1;
 		return;
 	}
 	
@@ -479,11 +491,12 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
 }
 
 /*
-Should only be called from device handler
-Disconnects a device with a given index by turning off the associated bit in the catalog.
-	- dev_ix: index of device in catalog to be disconnected
-No return value.
-*/
+ * Should only be called from device handler
+ * Disconnects a device with a given index by turning off the associated bit in the catalog.
+ * Arguments
+ *    - int dev_ix: index of device in catalog to be disconnected
+ * No return value.
+ */
 void device_disconnect (int dev_ix)
 {	
 	//wait on catalog_sem
@@ -515,36 +528,36 @@ void device_disconnect (int dev_ix)
 }
 
 /*	
-Should be called from every process wanting to read the device data
-Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
-Grabs either one or two semaphores depending on calling process and stream requested.
-	- dev_ix: device index of the device whose data is being requested
-	- process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
-	- stream: the requested block to read from, one of DATA, COMMAND
-	- params_to_read: bitmap representing which params to be read 
-		(nonexistent params should have corresponding bits set to 0)
-	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
-		device data will be read into the corresponding param_val_t's
-No return value.
-*/
-void device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
+ * Should be called from every process wanting to read the device data
+ * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
+ * Arguments:
+ *    - int dev_ix: device index of the device whose data is being requested
+ *    - process_t process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
+ *    - stream_t stream: the requested block to read from, one of DATA, COMMAND
+ *    - uint32_t params_to_read: bitmap representing which params to be read  (nonexistent params should have corresponding bits set to 0)
+ *    - param_val_t params: pointer to array of param_val_t's that is at least as long as highest requested param number
+ *            device data will be read into the corresponding param_val_t's
+ * Returns 0 on success, -1 on failure (specified device is not connected in shm)
+ */
+int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
 	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(dev_shm_ptr->catalog & (1 << dev_ix))) {
 		log_printf(ERROR, "no device at dev_ix = %d, read failed", dev_ix);
-		return;
+		return -1;
 	}
 	
 	//call the helper to do the actual reading
 	device_read_helper(dev_ix, process, stream, params_to_read, params);
+	return 0;
 }
 
 /*
-This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
-the device that should be read, rather than the device index.
-*/
-void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
+ * This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
+ * the device that should be read, rather than the device index.
+ */
+int device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
 	int dev_ix = -1;
 	
@@ -559,44 +572,46 @@ void device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint
 	//if device doesn't exist, return immediately
 	if (dev_ix == -1) {
 		log_printf(ERROR, "no device at dev_uid = %llu, read failed", dev_uid);
-		return;
+		return -1;
 	}
 	
 	//call the helper to do the actual reading
 	device_read_helper(dev_ix, process, stream, params_to_read, params);
+	return 0;
 }
 
 /*	
-Should be called from every process wanting to write to the device data
-Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
-Grabs either one or two semaphores depending on calling process and stream requested.
-	- dev_ix: device index of the device whose data is being written
-	- process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
-	- stream: the requested block to write to, one of DATA, COMMAND
-	- params_to_write: bitmap representing which params to be written
-		(nonexistent params should have corresponding bits set to 0)
-	- params: pointer to array of param_val_t's that is at least as long as highest requested param number
-		device data will be written into the corresponding param_val_t's
-No return value.
-*/
-void device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
+ * Should be called from every process wanting to write to the device data
+ * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
+ * Grabs either one or two semaphores depending on calling process and stream requested.
+ * Arguments
+ *    - int dev_ix: device index of the device whose data is being written
+ *    - process_t process: the calling process, one of DEV_HANDLER, EXECUTOR, or NET_HANDLER
+ *    - stream_t stream: the requested block to write to, one of DATA, COMMAND
+ *    - uint32_t params_to_read: bitmap representing which params to be written (nonexistent params should have corresponding bits set to 0)
+ *    - param_val_t params: pointer to array of param_val_t's that is at least as long as highest requested param number
+ *            device data will be written into the corresponding param_val_t's
+ * Returns 0 on success, -1 on failure (specified device is not connected in shm)
+ */
+int device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
 	
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(dev_shm_ptr->catalog & (1 << dev_ix))) {
 		log_printf(ERROR, "no device at dev_ix = %d, write failed", dev_ix);
-		return;
+		return -1;
 	}
 	
 	//call the helper to do the actual reading
 	device_write_helper(dev_ix, process, stream, params_to_write, params);
+	return 0;
 }
 
 /*
-This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
-the device that should be written, rather than the device index.
-*/
-void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
+ * This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
+ * the device that should be written, rather than the device index.
+ */
+int device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
 	int dev_ix = -1;
 	
@@ -611,19 +626,20 @@ void device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uin
 	//if device doesn't exist, return immediately
 	if (dev_ix == -1) {
 		log_printf(ERROR, "no device at dev_uid = %llu, write failed", dev_uid);
-		return;
+		return -1;
 	}
 	
 	//call the helper to do the actual reading
 	device_write_helper(dev_ix, process, stream, params_to_write, params);
+	return 0;
 }
 
 /*
-This function reads the specified field.
-Blocks on the robot description semaphore.
-	- field: one of the robot_desc_val_t's defined above to read from
-Returns one of the robot_desc_val_t's defined above that is the current value of that field.
-*/
+ * Reads the specified robot description field. Blocks on the robot description semaphore.
+ * Arguments:
+ *    - field: one of the robot_desc_val_t's defined above to read from
+ * Returns one of the robot_desc_val_t's defined in runtime_util that is the current value of the requested field.
+ */
 robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 {
 	robot_desc_val_t ret;
@@ -641,12 +657,12 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 }
 
 /*
-This function writes the specified value into the specified field.
-Blocks on the robot description semaphore.
-	- field: one of the robot_desc_val_t's defined above to write val to
-	- val: one of the robot_desc_vals defined above to write to the specified field
-No return value.
-*/
+ * Writes the specified value into the specified field. Blocks on the robot description semaphore.
+ * Arguments:
+ *    - robot_desc_field_t field: one of the robot_desc_val_t's defined above to write val to
+ *    - robot_desc_val_t val: one of the robot_desc_vals defined in runtime_util.c to write to the specified field
+ * No return value.
+ */
 void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val)
 {	
 	//wait on rd_sem
@@ -660,13 +676,14 @@ void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val)
 }
 
 /*
-This function reads the current state of the gamepad to the provided pointers.
-Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
-	- pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
-	- joystick_vals: array of 4 floats to which the current joystick states will be read into
-No return value.
-*/
-void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
+ * Reads current state of the gamepad to the provided pointers. 
+ * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+ * Arguments:
+ *    - uint32_t pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
+ *    - float *joystick_vals: array of 4 floats to which the current joystick states will be read into
+ * Returns 0 on success, -1 on failure (if gamepad is not connected)
+ */
+int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
 {
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
@@ -675,7 +692,7 @@ void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
 	if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_printf(ERROR, "tried to read, but no gamepad connected");
 		my_sem_post(rd_sem, "robot_desc_mutex");
-		return;
+		return -1;
 	}
 	
 	//release rd_sem
@@ -691,17 +708,20 @@ void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
 	
 	//release gp_sem
 	my_sem_post(gp_sem, "gamepad_mutex");
+	
+	return 0;
 }
 
 /*
-This function writes the given state of the gamepad to shared memory.
-Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
-	- pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
-		(only the first NUM_GAMEPAD_BUTTONS bits used, since there are NUM_GAMEPAD_BUTTONS buttons)
-	- joystick_vals: array of 4 floats that contain the values to write to the joystick
-No return value.
-*/
-void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
+ * This function writes the given state of the gamepad to shared memory.
+ * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+ * Arguments:
+ *    - uint32_t pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
+            (only the first 17 bits used, since there are 17 buttons)
+ *    - float *joystick_vals: array of 4 floats that contain the values to write to the joystick
+ * Returns 0 on success, -1 on failuire (if gamepad is not connected)
+ */
+int gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 {
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
@@ -710,7 +730,7 @@ void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 	if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_printf(ERROR, "tried to write, but no gamepad connected");
 		my_sem_post(rd_sem, "robot_desc_mutex");
-		return;
+		return -1;
 	}
 	
 	//release rd_sem
@@ -726,14 +746,17 @@ void gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
 	
 	//release gp_sem
 	my_sem_post(gp_sem, "gamepad_mutex");
+	
+	return 0;
 }
 
 /*
-Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
-Blocks on the param bitmap semaphore for obvious reasons
-	- bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
-No return value.
-*/
+ * Should be called from all processes that want to know current state of the param bitmap (i.e. device handler)
+ * Blocks on the param bitmap semaphore for obvious reasons
+ * Arguments:
+ *    - uint32_t *bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
+ * No return value.
+ */
 void get_param_bitmap (uint32_t *bitmap)
 {
 	//wait on pmap_sem
@@ -748,11 +771,12 @@ void get_param_bitmap (uint32_t *bitmap)
 }
 
 /*
-Should be called from all processes that want to know device identifiers of all currently connected devices
-Blocks on catalog semaphore for obvious reasons
-	- dev_ids: pointer to array of dev_id_t's to copy the information into
-No return value.
-*/
+ * Should be called from all processes that want to know device identifiers of all currently connected devices
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - dev_id_t *dev_ids: pointer to array of dev_id_t's to copy the information into
+ * No return value.
+ */
 void get_device_identifiers (dev_id_t *dev_ids)
 {
 	//wait on catalog_sem
@@ -767,11 +791,12 @@ void get_device_identifiers (dev_id_t *dev_ids)
 }
 
 /*
-Should be called from all processes that want to know which dev_ix's are valid
-Blocks on catalog semaphore for obvious reasons
-	- catalog: pointer to 32-bit integer into which the current catalog will be read into
-No return value.
-*/
+ * Should be called from all processes that want to know which dev_ix's are valid
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
+ * No return value.
+ */
 void get_catalog (uint32_t *catalog)
 {
 	//wait on catalog_sem
