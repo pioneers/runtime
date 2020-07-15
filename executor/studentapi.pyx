@@ -82,11 +82,11 @@ cdef class Gamepad:
     Attributes:
         mode: The execution state of the robot.
     """
-    cdef public str mode
+    cdef robot_desc_val_t mode
 
-    def __cinit__(self, mode):
+    def __cinit__(self):
         """Initializes the mode of the robot. """
-        self.mode = mode
+        self.mode = robot_desc_read(RUN_MODE)
 
 
     cpdef get_value(self, str param_name):
@@ -96,7 +96,7 @@ cdef class Gamepad:
         Args:
             param: The name of the parameter to read. Possible values are at https://pioneers.berkeley.edu/software/robot_api.html 
         """
-        if self.mode != 'teleop':
+        if self.mode != TELEOP:
             raise CodeExecutionError(f'Cannot use Gamepad during {self.mode}')
         # Convert Python string to C string
         cdef bytes param = param_name.encode('utf-8')
@@ -136,11 +136,13 @@ cdef class Robot:
     """
     The API for accessing the robot and its devices.
     """
-    cdef public dict running_actions
+    cdef dict running_actions
+    cdef public int start_pos
 
     def __cinit__(self):
         """Initializes the dict of running threads. """
         self.running_actions = {}
+        self.start_pos = robot_desc_read(START_POS)
 
 
     def run(self, action, *args, **kwargs) -> None:
