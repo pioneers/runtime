@@ -403,8 +403,6 @@ No return value.
 */
 void shm_stop ()
 {
-	char sname[SNAME_SIZE]; //holding semaphore names
-	
 	//close all the semaphores
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		my_sem_close(sems[i].data_sem, "data sem");

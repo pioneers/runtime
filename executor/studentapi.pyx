@@ -42,13 +42,11 @@ sys.stderr = OutputRedirect(PYTHON)
 def _init():
     """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
     logger_init(EXECUTOR)
-    shm_init(EXECUTOR)
-    shm_aux_init(EXECUTOR)
+    shm_init()
 
 def _stop():
     """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
-    shm_stop(EXECUTOR)
-    shm_aux_stop(EXECUTOR)
+    shm_stop()
     logger_stop()
 
 
