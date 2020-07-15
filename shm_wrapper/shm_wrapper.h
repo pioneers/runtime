@@ -16,7 +16,32 @@
 //enumerated names for the two associated blocks per device
 typedef enum stream { DATA, COMMAND } stream_t;
 
-// ******************************************* UTILITY FUNCTIONS ****************************************** //
+//shared memory has these parts in it
+typedef struct dev_shm {
+	uint32_t catalog;                                   //catalog of valid devices
+	uint32_t pmap[MAX_DEVICES + 1];                     //param bitmap is 17 32-bit integers (changed devices and changed params of devices)
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
+	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
+} dev_shm_t;
+
+//two mutex semaphores for each device
+typedef struct sems {
+	sem_t *data_sem;        //semaphore on the data stream of a device
+	sem_t *command_sem;     //semaphore on the command stream of a device
+} dual_sem_t;
+
+//shared memory for gamepad
+typedef struct gp_shm {
+	uint32_t buttons;       //bitmap for which buttons are pressed
+	float joysticks[4];     //array to hold joystick positions
+} gamepad_shm_t;
+
+//shared memory for robot description
+typedef struct robot_desc_shm {
+	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
+} robot_desc_shm_t;
+
+// ******************************************* PRINTING UTILITIES ***************************************** //
 
 void print_pmap ();
 
@@ -25,6 +50,10 @@ void print_dev_ids ();
 void print_catalog ();
 
 void print_params (uint32_t devices);
+
+void print_robot_desc ();
+
+void print_gamepad_state ();
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
@@ -133,5 +162,42 @@ Blocks on catalog semaphore for obvious reasons
 No return value.
 */
 void get_catalog (uint32_t *catalog);
+
+/*
+This function reads the specified field.
+Blocks on the robot description semaphore.
+	- field: one of the robot_desc_val_t's defined above to read from
+Returns one of the robot_desc_val_t's defined above that is the current value of that field.
+*/
+robot_desc_val_t robot_desc_read (robot_desc_field_t field);
+
+/*
+This function writes the specified value into the specified field.
+Blocks on the robot description semaphore.
+	- field: one of the robot_desc_val_t's defined above to write val to
+	- val: one of the robot_desc_vals defined above to write to the specified field
+No return value.
+*/
+void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
+
+/*
+This function reads the current state of the gamepad to the provided pointers.
+Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+	- pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
+	- joystick_vals: array of 4 floats to which the current joystick states will be read into
+No return value.
+*/
+void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
+
+/*
+This function writes the given state of the gamepad to shared memory.
+Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+	- pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
+		(only the first 17 bits used, since there are 17 buttons)
+	- joystick_vals: array of 4 floats that contain the values to write to the joystick
+No return value.
+*/
+void gamepad_write (uint32_t pressed_buttons, float *joystick_vals);
+
 
 #endif
