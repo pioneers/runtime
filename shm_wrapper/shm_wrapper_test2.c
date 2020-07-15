@@ -361,6 +361,58 @@ void single_thread_load_test_uid ()
 }
 
 // *************************************************************************************************** //
+
+//sanity gamepad test
+void sanity_gamepad_test ()
+{
+	uint32_t buttons;
+	float joystick_vals[4];
+	
+	sync();
+	
+	printf("Begin sanity gamepad test...\n");
+	
+	for (int i = 0; i < 7; i++) {
+		gamepad_read(&buttons, joystick_vals);
+		printf("buttons = %d\t joystick_vals = (", buttons);
+		for (int j = 0; j < 4; j++) {
+			printf("%f, ", joystick_vals[j]);
+		}
+		printf(")\n");
+		usleep(500000); //sleep for half a second
+	}
+	printf("Done!\n\n");
+}
+
+// *************************************************************************************************** //
+
+//sanity robot description test
+void sanity_robot_desc_test ()
+{
+	int count = 0;
+	robot_desc_val_t curr[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED };
+	robot_desc_val_t prev[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED };
+	
+	sync();
+	
+	printf("Begin sanity robot desc test...\n");
+	
+	while (count < 9) {
+		for (int i = 0; i < NUM_DESC_FIELDS; i++) {
+			curr[i] = robot_desc_read(i);
+			if (curr[i] != prev[i]) {
+				printf("something has changed! new robot description:\n");
+				print_robot_desc();
+				prev[i] = curr[i];
+				count++;
+			}
+		}
+		usleep(100);
+	}
+	printf("Done!\n\n");
+}
+
+// *************************************************************************************************** //
 void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
@@ -372,7 +424,7 @@ void ctrl_c_handler (int sig_num)
 
 int main()
 {	
-	shm_init(EXECUTOR);
+	shm_init();
 	logger_init(EXECUTOR);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
@@ -386,7 +438,11 @@ int main()
 	
 	single_thread_load_test_uid();
 	
-	shm_stop(EXECUTOR);
+	sanity_gamepad_test();
+	
+	sanity_robot_desc_test();
+	
+	shm_stop();
 	logger_stop(EXECUTOR);
 	
 	sleep(2);
