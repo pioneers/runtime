@@ -13,6 +13,9 @@ test1: shm_wrapper_test1.c $(FILES)
 	
 test2: shm_wrapper_test2.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
+	
+process: shm_process.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
 
 static: connect_static_devices.c $(FILES)
 	gcc $^ -o static $(LIBS)
