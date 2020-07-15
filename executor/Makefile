@@ -24,7 +24,7 @@ func: run_python.c
 simple: run_simple_python.c
 	$(cc) run_simple_python.c -o simple $(PY_LIB)
 
-executor: executor.c ../shm_wrapper/shm_wrapper.c ../shm_wrapper_aux/shm_wrapper_aux.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/pbc_gen/text.pb-c.c
+executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/pbc_gen/text.pb-c.c
 	$(cc) $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
 studentapi: studentapi.pyx studentapi.pxd
