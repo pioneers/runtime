@@ -2,6 +2,7 @@
 
 /*
  * Definition of each lowcar device
+ * Note: "int" type is int32_t to be consistent on Raspberry Pi and Arduino
 */
 device_t LimitSwitch = {
   .type = 0,
@@ -33,15 +34,6 @@ device_t Potentiometer = {
     {.name = "pot0"       , .type = "float"   , .read = 1 , .write = 0 },
     {.name = "pot1"       , .type = "float"   , .read = 1 , .write = 0 },
     {.name = "pot2"       , .type = "float"   , .read = 1 , .write = 0 }
-  }
-};
-
-device_t Encoder = {
-  .type = 3,
-  .name = "Encoder",
-  .num_params = 1,
-  .params = {
-    {.name = "rotation"   , .type = "int" , .read = 1 , .write = 0 }
   }
 };
 
@@ -188,11 +180,38 @@ device_t ExampleDevice = {
   }
 };
 
+device_t DummyDevice = {
+    .type = 14,
+    .name = "DummyDevice",
+    .num_params = 16,
+    .params = {
+        // Read-only
+        {.name = "RUNTIME",     .type = "int"   , .read = 1, .write = 0},
+        {.name = "SHEPHERD",    .type = "float" , .read = 1, .write = 0},
+        {.name = "DAWN",        .type = "bool"  , .read = 1, .write = 0},
+        {.name = "DEVOPS",      .type = "int"   , .read = 1, .write = 0},
+        {.name = "ATLAS",       .type = "float" , .read = 1, .write = 0},
+        {.name = "INFRA",       .type = "bool"  , .read = 1, .write = 0},
+        // Write-only
+        {.name = "SENS",        .type = "int"   , .read = 0, .write = 1},
+        {.name = "PDB",         .type = "float" , .read = 0, .write = 1},
+        {.name = "MECH",        .type = "bool"  , .read = 0, .write = 1},
+        {.name = "CPR",         .type = "int"   , .read = 0, .write = 1},
+        {.name = "EDU",         .type = "float" , .read = 0, .write = 1},
+        {.name = "EXEC",        .type = "bool"  , .read = 0, .write = 1},
+        // Read-able and write-able
+        {.name = "PIEF",        .type = "int"   , .read = 1, .write = 1},
+        {.name = "FUNTIME",     .type = "float" , .read = 1, .write = 1},
+        {.name = "SHEEP",       .type = "bool"  , .read = 1, .write = 1},
+        {.name = "DUSK",        .type = "int"   , .read = 1, .write = 1},
+    }
+}
+
 
 /* An array that holds pointers to the structs of each lowcar device */
-device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer, &Encoder, &BatteryBuzzer,
+device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer, NULL, &BatteryBuzzer,
                                      &TeamFlag, NULL, &ServoControl, NULL, NULL,
-                                     &YogiBear, &RFID, &PolarBear, &KoalaBear};
+                                     &YogiBear, &RFID, &PolarBear, &KoalaBear, &DummyDevice};
 
 
 device_t* get_device(uint16_t device_type) {
@@ -212,6 +231,10 @@ uint16_t device_name_to_type(char* dev_name) {
     return -1;
 }
 
+char* get_device_name(uint16_t device_type) {
+    device_t* device = get_device(device_type);
+    return device->name;
+}
 
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);

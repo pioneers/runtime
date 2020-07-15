@@ -9,8 +9,8 @@
 #define MAX_DEVICES 32 //maximum number of connected devices
 #define MAX_PARAMS 32 //maximum number of parameters per connected device
 
-#define NUM_DEVICES 11 		// The number of functional devices
-#define DEVICES_LENGTH 14 	// The largest device type number + 1. Note: DEVICES_LENGTH != NUM_DEVICES because some are NULL (Ex: type 6, 8, 9)
+#define NUM_DEVICES 12 		// The number of functional devices
+#define DEVICES_LENGTH 15 	// The largest device type number + 1. Note: DEVICES_LENGTH != NUM_DEVICES because some are NULL (Ex: type 6, 8, 9)
 
 #define NUM_DESC_FIELDS 5                   //number of fields in the robot description
 
@@ -92,6 +92,9 @@ device_t* get_device(uint16_t device_type);
 
 /* Returns the device type given its device name DEV_NAME */
 uint16_t device_name_to_type(char* dev_name);
+
+/* Returns the device name given its type DEVICE_TYPE */
+char* get_device_name(uint16_t device_type);
 
 /* Return the description of the device type's parameter. */
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name);
