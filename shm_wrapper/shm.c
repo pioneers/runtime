@@ -7,8 +7,9 @@
 
 //names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm_process
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
-#define PMAP_MUTEX_NAME "/pmap-mutex"   //name of semaphore used as a mutex on the param bitmap
-#define DEV_SHM_NAME "/dev-shm"      //name of shared memory block across devices
+#define CMDMAP_MUTEX_NAME "/cmap-mutex" //name of semaphore used as a mutex on the command bitmap
+#define SUBMAP_MUTEX_NAME "/smap-mutex" //name of semaphore used as a mutex on the various subcription bitmaps
+#define DEV_SHM_NAME "/dev-shm"         //name of shared memory block across devices
 
 #define GPAD_SHM_NAME "/gp-shm"         //name of shared memory block for gamepad
 #define ROBOT_DESC_SHM_NAME "/rd-shm"   //name of shared memory block for robot description
@@ -17,19 +18,20 @@
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
-// *********************************** SHM WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
+// *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
 dual_sem_t sems[MAX_DEVICES];  //array of semaphores, two for each possible device (one for data and one for commands)
 dev_shm_t *dev_shm_ptr;        //points to memory-mapped shared memory block for device data and commands
 sem_t *catalog_sem;            //semaphore used as a mutex on the catalog
-sem_t *pmap_sem;               //semaphore used as a mutex on the param bitmap
+sem_t *cmd_map_sem;            //semaphore used as a mutex on the command bitmap
+sem_t *sub_map_sem;            //semaphore used as a mutex on the subscription bitmap
 
 gamepad_shm_t *gp_shm_ptr;     //points to memory-mapped shared memory block for gamepad
 robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for robot description
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
 
-char sname[SNAME_SIZE]; //for holding semaphore names
+char sname[SNAME_SIZE];        //for holding semaphore names
 
 // *********************************** SHM PROCESS FUNCTIONS ************************************************* //
 
@@ -94,7 +96,8 @@ void sigint_handler (int signum)
 	
 	//close all the semaphores
 	my_sem_close(catalog_sem, "catalog sem");
-	my_sem_close(pmap_sem, "pmap sem");
+	my_sem_close(cmd_map_sem, "cmd map sem");
+	my_sem_close(sub_map_sem, "sub map sem");
 	my_sem_close(gp_sem, "gamepad_mutex");
 	my_sem_close(rd_sem, "robot_desc_mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
@@ -104,7 +107,8 @@ void sigint_handler (int signum)
 	
 	//unlink all semaphores
 	my_sem_unlink(CATALOG_MUTEX_NAME, "catalog mutex");
-	my_sem_unlink(PMAP_MUTEX_NAME, "pmap mutex");
+	my_sem_unlink(CMDMAP_MUTEX_NAME, "cmd map mutex");
+	my_sem_unlink(SUBMAP_MUTEX_NAME, "sub map mutex");
 	my_sem_unlink(GP_MUTEX_NAME, "gamepad mutex");
 	my_sem_unlink(RD_MUTEX_NAME, "robot desc mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
@@ -132,7 +136,8 @@ int main ()
 	
 	//create all semaphores with initial value 1
 	catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
-	pmap_sem = my_sem_open(PMAP_MUTEX_NAME, "pmap mutex");
+	cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
+	sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
 	gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
 	rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
@@ -148,7 +153,7 @@ int main ()
 		}
 	}
 	
-	//create device shm block; initialize catalog and pmap to all zeros
+	//create device shm block
 	if ((fd_shm = shm_open(DEV_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
 		log_printf(FATAL, "shm_open: %s", strerror(errno));
 		exit(1);
@@ -202,7 +207,9 @@ int main ()
 	//initialize everything
 	dev_shm_ptr->catalog = 0;
 	for (int i = 0; i < MAX_DEVICES + 1; i++) {
-		dev_shm_ptr->pmap[i] = 0;
+		dev_shm_ptr->cmd_map[i] = 0;
+		dev_shm_ptr->net_sub_map[i] = 0;
+		dev_shm_ptr->exec_sub_map[i] = 0;
 	}
 	gp_shm_ptr->buttons = 0;
 	for (int i = 0; i < 4; i++) {

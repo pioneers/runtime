@@ -14,7 +14,7 @@ test1: shm_wrapper_test1.c $(FILES)
 test2: shm_wrapper_test2.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 	
-process: shm_process.c $(FILES)
+shm: shm.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 
 static_dev: static_dev.c $(FILES)
