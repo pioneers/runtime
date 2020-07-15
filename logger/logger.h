@@ -14,7 +14,7 @@
 #include <signal.h>
 #include "../runtime_util/runtime_util.h"   //(TODO: consider removing relative pathname in include)
 
-#define CONFIG_FILE "/home/pi/c-runtime/logger/logger.config"   //path to logger config file
+#define CONFIG_FILE "logger.config"   //path to logger config file
 
 #define LOG_FIFO "/tmp/log-fifo"   //location of the log FIFO pipe in filesystem
 
