@@ -1,14 +1,3 @@
-/*
-Constructs, encodes, and decodes the appropriate messages asked for by dev_handler.c
-Previously hibikeMessage.py
-
-Linux: json-c:      sudo apt-get install -y libjson-c-dev
-       compile:     gcc -I/usr/include/json-c -L/usr/lib message.c -o message -ljson-c
-       // Note that -ljson-c comes AFTER source files: https://stackoverflow.com/questions/31041272/undefined-reference-error-while-using-json-c
-Mac:
-       compile:     gcc -I/usr/local/include/json-c -L/usr/local/lib/ message.c -o message -ljson-c
-
-*/
 #include "message.h"
 
 /* Prints the byte array DATA of length LEN in hex */
@@ -175,12 +164,22 @@ message_t* make_ping() {
 
 /*
  * A message to request parameter data from a device at an interval
+ * dev_type: The type of device. Used to verify params are write-able
  * pmap: 32-bit param bitmap indicating which params should be subscribed to
  * interval: The number of milliseconds to wait between each DEVICE_DATA
  *
  * Payload: 32-bit param bitmap, 16-bit interval
  */
-message_t* make_subscription_request(uint32_t pmap, uint16_t interval) {
+message_t* make_subscription_request(uint16_t dev_type, uint32_t pmap, uint16_t interval) {
+	device_t* dev = get_device(dev_type);
+	// Don't read from non-existent params
+	pmap &= ((uint32_t) -1) >> (MAX_PARAMS - dev->num_params);	// Set non-existent params to 0
+	// Set non-read-able params to 0
+	for (int i = 0; i < MAX_PARAMS; i++) {
+		if (dev->params[i].read == 0) {
+			pmap &= ~(1 << i);	// Set bit i to 0
+		}
+	}
     message_t* sub_request = malloc(sizeof(message_t));
     sub_request->message_id = SUBSCRIPTION_REQUEST;
     sub_request->payload = malloc(BITMAP_SIZE + INTERVAL_SIZE);
@@ -195,28 +194,34 @@ message_t* make_subscription_request(uint32_t pmap, uint16_t interval) {
 
 /*
  * A message to write data to the specified writable parameters of a device
- * The device is expected to respond with a DeviceData message confirming the new data of the writable parameters.
- * device_id: The id of the device to write data to
- * param_bitmap: The 32-bit param bitmap indicating which parameters will be written to
+ * dev_type: The type of device. Used to verify params are write-able
+ * pmap: The 32-bit param bitmap indicating which parameters will be written to
  * param_values: An array of the parameter values. If i-th bit in the bitmap is on, its value is in the i-th index.
  *
  * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
- * Direction: dev_handler --> device
  */
-message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]) {
+message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param_values[]) {
+	device_t* dev = get_device(dev_type);
+	// Don't write to non-existent params
+	pmap &= ((uint32_t) -1) >> (MAX_PARAMS - dev->num_params);	// Set non-existent params to 0
+	// Set non-write-able params to 0
+	for (int i = 0; i < MAX_PARAMS; i++) {
+		if (dev->params[i].write == 0) {
+			pmap &= ~(1 << i);	// Set bit i to 0
+		}
+	}
+	// Build the message
     message_t* dev_write = malloc(sizeof(message_t));
     dev_write->message_id = DEVICE_WRITE;
     dev_write->payload_length = 0;
-    dev_write->max_payload_length = device_data_payload_size(device_id->type, param_bitmap);
+    dev_write->max_payload_length = device_data_payload_size(dev_type, pmap);
     dev_write->payload = malloc(dev_write->max_payload_length);
     int status = 0;
     // Append the param bitmap
-    status += append_payload(dev_write, (uint8_t*) &param_bitmap, BITMAP_SIZE);
-    // Build the payload with the values
-    device_t* dev = get_device(device_id->type);
+    status += append_payload(dev_write, (uint8_t*) &pmap, BITMAP_SIZE);
     for (int i = 0; i < MAX_PARAMS; i++) {
         // If the parameter is off in the bitmap, skip it
-        if (((1 << i) & param_bitmap) == 0) {
+        if (((1 << i) & pmap) == 0) {
             continue;
         }
 		// Determine the size of the parameter and append it accordingly
@@ -310,6 +315,7 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
     /* Iterate through device's parameters. If bit is off, continue
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
+	printf("%s: ", dev->name);
     for (int i = 0; i < MAX_PARAMS; i++) {
         // If bit is off, parameter is not included in the payload
         if (((1 << i) & bitmap) == 0) {
@@ -317,13 +323,17 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
         }
         if (strcmp(dev->params[i].type, "int") == 0) {
             vals[i].p_i = ((int32_t*) payload_ptr)[0];
+			printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
             payload_ptr += sizeof(int32_t) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
             vals[i].p_f = ((float*) payload_ptr)[0];
+			printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
             payload_ptr += sizeof(float) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "bool") == 0) {
             vals[i].p_b = payload_ptr[0];
+			printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
             payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
         }
     }
+	printf("\n");
 }
