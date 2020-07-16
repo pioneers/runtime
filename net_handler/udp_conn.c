@@ -103,6 +103,7 @@ void* send_device_data(void* args) {
 		}
 		free(dev_data.devices);
 		free(buffer);  // Free buffer with device data protobuf
+		usleep(10000); // Send data at 100 Hz
 	}
 	return NULL;
 }
@@ -201,5 +202,4 @@ void stop_udp_conn ()
 	if(close(socket_fd) != 0) {
 		log_printf(ERROR, "Couldn't close UDP socket properly: %s", strerror(errno));
 	}
-	log_printf(DEBUG, "UDP connection stopped");
 }
