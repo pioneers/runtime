@@ -11,11 +11,11 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h> // strcmp
 #include "../runtime_util/runtime_util.h"
-#include "../shm_wrapper/shm_wrapper.h"
 
 // The size in bytes of the message delimiter
 #define DELIMITER_SIZE 1
@@ -78,22 +78,23 @@ message_t* make_ping();
 
 /*
  * A message to request parameter data from a device at an interval
+ * dev_type: The type of device. Used to verify params are write-able
  * pmap: 32-bit param bitmap indicating which params should be subscribed to
  * interval: The number of milliseconds to wait between each DEVICE_DATA
  *
  * Payload: 32-bit param bitmap, 16-bit interval
  */
-message_t* make_subscription_request(uint32_t pmap, uint16_t interval);
+message_t* make_subscription_request(uint16_t dev_type, uint32_t pmap, uint16_t interval);
 
 /*
  * A message to write data to the specified writable parameters of a device
- * device_id: The id of the device to write data to
- * param_bitmap: The 32-bit param bitmap indicating which parameters will be written to
+ * dev_type: The type of device. Used to verify params are write-able
+ * pmap: The 32-bit param bitmap indicating which parameters will be written to
  * param_values: An array of the parameter values. If i-th bit in the bitmap is on, its value is in the i-th index.
  *
  * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
  */
-message_t* make_device_write(dev_id_t* device_id, uint32_t param_bitmap, param_val_t param_values[]);
+message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param_values[]);
 
 /*
  * Frees the memory allocated for the message struct and its payload.

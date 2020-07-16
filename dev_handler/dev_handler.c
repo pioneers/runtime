@@ -23,7 +23,6 @@ typedef struct msg_relay {
     dev_id_t dev_id;         // set by relayer once ACKNOWLEDGEMENT is received
     uint64_t last_received_ping_time; // set by receiver: Timestamp of the most recent PING from the device
     uint64_t last_sent_ping_time;     // set by sender: Timestamp of the last sent PING to the device
-    uint32_t sub_map;        // Bitmap of params currently subscribed to
 } msg_relay_t;
 
 // ************************************ PRIVATE FUNCTIONS ****************************************** //
@@ -171,7 +170,6 @@ void communicate(uint8_t port_num) {
 	relay->dev_id.uid = -1;
     relay->last_sent_ping_time = 0;
     relay->last_received_ping_time = 0;
-    relay->sub_map = 0;
 	// Open threads for sender, receiver, and relayer
 	pthread_create(&relay->sender, NULL, sender, relay);
 	pthread_create(&relay->receiver, NULL, receiver, relay);
@@ -211,11 +209,23 @@ void* relayer(void* relay_cast) {
 	// Signal the sender and receiver to start work
 	relay->start = 1;
 
-    // Subscribe to all params      TODO: Subscribe to only params requested in shared memory
-    message_t* sub_request = make_subscription_request((uint32_t) -1, SUB_INTERVAL);
+    // TODO: Subscribe to only params requested in shared memory
+    // uint32_t sub_map[MAX_DEVICES + 1];
+    // get_sub_requests(sub_map);
+    // if (sub_map[0] & (1 << relay->shm_dev_idx)) {
+    //     message_t* sub_request = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
+    //     ret = send_message(relay, sub_request);
+    //     if (ret != 0) {
+    //         log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type);
+    //     }
+    //     destroy_message(sub_request);
+    // }
+
+    // Subscribe to all params
+    message_t* sub_request = make_subscription_request(relay->dev_id.type, (uint32_t) -1, SUB_INTERVAL);
     ret = send_message(relay, sub_request);
     if (ret != 0) {
-        log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST");
+        log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
     }
     destroy_message(sub_request);
 
@@ -280,35 +290,40 @@ void* sender(void* relay_cast) {
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
 
-	/* Do work! Continuously read shared memory param bitmap. If it changes,
-	 * Call device_read to get the changed parameters and send them to the device
-	 * Also, send PING at a regular interval, PING_FREQ. */
-	// pmap: Array of thirty-three uint32_t.
-	//       Indices 1-32 are bitmaps indicating which parameters have new values to be written to the device at that index
-	//       Index 0 is a bitmap indicating which devices have new values to be written
-	uint32_t* pmap;
-	param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read
+    // Cancel this thread only where pthread_testcancel()
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+	/* Do work!
+     * Continuously call get_cmd_map(). If bit i in pmap[0] != 0, there are values to write to device i
+     * The bitmap of params that need to be written to are at pmap[1 + i]
+     * Use shared memory device_read() with pmap[1 + i] to get the values to write
+     *
+	 * Send PING at a regular interval, PING_FREQ.
+     *
+     * Continuously call get_sub_requests().
+     * If bit i in sub_map[0] != 0, there is a new SUBSCRIPTION_REQUEST to be sent to device i
+     * The bitmap of params to be subscribed is sub_map[1 + i]
+     */
+	uint32_t pmap[MAX_DEVICES + 1];
+	param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read()
+    uint32_t sub_map[MAX_DEVICES + 1];
 	message_t* msg; 		// Message to build
 	int ret; 				// Hold the value from send_message()
     log_printf(DEBUG, "Sender for %s starting work!", get_device_name(relay->dev_id.type));
 	while (1) {
-		// Get the current param bitmap
-		// get_param_bitmap(pmap);
-		/* If pmap[0] != 0, there are devices that need to be written to.
-		 * This thread is interested in only whether or not THIS device requires being written to.
-		 * If the device's shm_dev_idx bit is on in pmap[0], there are values to be written to the device. */
-		if (relay->shm_dev_idx > 0 && (pmap[0] & (1 << relay->shm_dev_idx))) {
+		// TODO: Write to device if needed
+		/* get_cmd_map(pmap);
+		if (pmap[0] & (1 << relay->shm_dev_idx)) {
 			// Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
-			// device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
+			device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
-            // TODO: Make sure params are write-able
-			msg = make_device_write(&relay->dev_id, pmap[1 + relay->shm_dev_idx], params);
+			msg = make_device_write(relay->dev_id.type, pmap[1 + relay->shm_dev_idx], params);
 			ret = send_message(relay, msg);
 			if (ret != 0) {
 				log_printf(FATAL, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
 			}
 			destroy_message(msg);
-		}
+		} */
 
 		// Send another PING if it's time again
 		if ((millis() - relay->last_sent_ping_time) >= PING_FREQ) {
@@ -322,17 +337,19 @@ void* sender(void* relay_cast) {
 			destroy_message(msg);
 		}
 
-        // TODO: Update subscribed parameters if prompted by shared memory
-        // TODO: Make sure parameters are read-able
-        // if (0) {
-        //     relay->sub_map = -1;
-        //     msg = make_subscription_request(relay->sub_map, SUB_INTERVAL);
-        //     ret = send_message(relay, msg);
-        //     if (ret != 0) {
-        //         log_printf(FATAL, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
-        //     }
-        //     destroy_message(msg);
-        // }
+        // TOOD: Send another SUBSCRIPTION_REQUEST if requested
+        /*
+        get_sub_requests(sub_map);
+        if (sub_map[0] & (1 << relay->shm_dev_idx)) {
+            msg = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
+            ret = send_message(relay, msg);
+            if (ret != 0) {
+                log_printf(FATAL, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
+            }
+            destroy_message(msg);
+        }
+        */
+
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel(); // Cancellation point
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -357,6 +374,10 @@ void* receiver(void* relay_cast) {
 		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
 	}
     log_printf(DEBUG, "Receiver for %s starting work!", get_device_name(relay->dev_id.type));
+
+    // Cancel this thread only where pthread_testcancel()
+    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 	/* Do work! Continuously read from the device until a complete message can be parsed.
 	 * If it's a PING, update relay->last_received_ping_time
 	 * If it's DEVICE_DATA, write it to shared memory
@@ -375,10 +396,10 @@ void* receiver(void* relay_cast) {
             log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
 			relay->last_received_ping_time = millis();
 		} else if (msg->message_id == DEVICE_DATA) {
-            	printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
-		//log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
+            //printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
+		    log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
 			// First, parse the payload into an array of parameter values
-			//parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
+			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
 			// TODO: Now write it to shared memory
 			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
 		} else if (msg->message_id == LOG) {
@@ -454,15 +475,15 @@ int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout) {
 				struct timeval timeout_struct;
 				timeout_struct.tv_sec = timeout;
 				timeout_struct.tv_usec = 0;
-			}
-			fd_set read_set;
-			FD_ZERO(&read_set);
-			FD_SET(relay->file_descriptor, &read_set);
-			if (select(relay->file_descriptor + 1, &read_set, NULL, NULL, &timeout_struct) == 0) {
-				if (!FD_ISSET(relay->file_descriptor, &read_set)) {
-					return 3;
-				}
-			}
+    			fd_set read_set;
+    			FD_ZERO(&read_set);
+    			FD_SET(relay->file_descriptor, &read_set);
+    			if (select(relay->file_descriptor + 1, &read_set, NULL, NULL, &timeout_struct) == 0) {
+    				if (!FD_ISSET(relay->file_descriptor, &read_set)) {
+    					return 3;
+    				}
+    			}
+            }
 			num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
 		} else if (OUTPUT == FILE_DEV) {
 			num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);

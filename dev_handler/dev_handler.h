@@ -5,19 +5,19 @@
 #ifndef DEV_HANDLER_H
 #define DEV_HANDLER_H
 
-#include <pthread.h>
-#include "../runtime_util/runtime_util.h"
-#include <termios.h>  // POSIX terminal control definitions in serialport_init()
 // #include "../shm_wrapper/shm_wrapper.h"
-// #include "string.h" // strcmp
-#include "../logger/logger.h"
 #include "message.h"
-#include <stdio.h> // Print
+#include "../runtime_util/runtime_util.h"
+#include "../logger/logger.h"
+
+#include <pthread.h>
+#include <termios.h>    // POSIX terminal control definitions in serialport_init()
+#include <stdio.h>      // Print
 #include <stdlib.h>
-#include <stdint.h> // ints with specified sizes (uint8_t, uint16_t, etc.)
-#include <signal.h> // Used to handle SIGTERM, SIGINT, SIGKILL
-#include <sys/time.h>   // For timestamps on HeartBeatRequests
-#include <unistd.h> // sleep(int seconds)
+#include <stdint.h>     // ints with specified sizes (uint8_t, uint16_t, etc.)
+#include <signal.h>     // Used to handle SIGTERM, SIGINT, SIGKILL
+#include <sys/time.h>   // For timestamps on PING
+#include <unistd.h>     // sleep(int seconds)
 
 // ************************************ CONFIG ************************************* //
 
