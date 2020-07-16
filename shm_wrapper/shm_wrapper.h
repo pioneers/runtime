@@ -13,8 +13,50 @@
 #include "../logger/logger.h"              //for logger (TODO: consider removing relative pathname in include)
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 
+//names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm.c
+#define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
+#define CMDMAP_MUTEX_NAME "/cmap-mutex" //name of semaphore used as a mutex on the command bitmap
+#define SUBMAP_MUTEX_NAME "/smap-mutex" //name of semaphore used as a mutex on the various subcription bitmaps
+#define DEV_SHM_NAME "/dev-shm"         //name of shared memory block across devices
+
+#define GPAD_SHM_NAME "/gp-shm"         //name of shared memory block for gamepad
+#define ROBOT_DESC_SHM_NAME "/rd-shm"   //name of shared memory block for robot description
+#define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
+#define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
+
+#define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
+
+// *********************************** SHM TYPEDEFS  ****************************************************** //
+
 //enumerated names for the two associated blocks per device
 typedef enum stream { DATA, COMMAND } stream_t;
+
+//shared memory has these parts in it
+typedef struct dev_shm {
+	uint32_t catalog;                                   //catalog of valid devices
+	uint32_t cmd_map[MAX_DEVICES + 1];                  //bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
+	uint32_t net_sub_map[MAX_DEVICES + 1];              //bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
+	uint32_t exec_sub_map[MAX_DEVICES + 1];             //bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
+	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
+} dev_shm_t;
+
+//two mutex semaphores for each device
+typedef struct sems {
+	sem_t *data_sem;        //semaphore on the data stream of a device
+	sem_t *command_sem;     //semaphore on the command stream of a device
+} dual_sem_t;
+
+//shared memory for gamepad
+typedef struct gp_shm {
+	uint32_t buttons;       //bitmap for which buttons are pressed
+	float joysticks[4];     //array to hold joystick positions
+} gamepad_shm_t;
+
+//shared memory for robot description
+typedef struct robot_desc_shm {
+	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
+} robot_desc_shm_t;
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
 
@@ -189,11 +231,11 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
  * Should be called from all processes that want to know current state of the command map (i.e. device handler)
  * Blocks on the command bitmap semaphore for obvious reasons
  * Arguments:
- *    - uint32_t *bitmap: pointer to array of 33 32-bit integers to copy the bitmap into. See the README for a
+ *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into. See the README for a
  *        description for how this bitmap works.
  * No return value.
  */
-void get_cmd_map (uint32_t *bitmap);
+void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1]);
 
 /*
  * Should be called from all processes that want to know device identifiers of all currently connected devices
