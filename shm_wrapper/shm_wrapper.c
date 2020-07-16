@@ -1,50 +1,5 @@
 #include "shm_wrapper.h"
 
-//MAKE SURE YOU COPY-PASTE INTO SHM.C WHENEVER CHANGES ARE MADE TO SHM_WRAPPER.C!
-//shm.c needs a copy of the defined constants, private typedefs, and global variables
-
-//names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm_process
-#define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
-#define CMDMAP_MUTEX_NAME "/cmap-mutex" //name of semaphore used as a mutex on the command bitmap
-#define SUBMAP_MUTEX_NAME "/smap-mutex" //name of semaphore used as a mutex on the various subcription bitmaps
-#define DEV_SHM_NAME "/dev-shm"         //name of shared memory block across devices
-
-#define GPAD_SHM_NAME "/gp-shm"         //name of shared memory block for gamepad
-#define ROBOT_DESC_SHM_NAME "/rd-shm"   //name of shared memory block for robot description
-#define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
-#define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
-
-#define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
-
-// *********************************** PRIVATE TYPEDEFS  ************************************************** //
-
-//shared memory has these parts in it
-typedef struct dev_shm {
-	uint32_t catalog;                                   //catalog of valid devices
-	uint32_t cmd_map[MAX_DEVICES + 1];                  //bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
-	uint32_t net_sub_map[MAX_DEVICES + 1];              //bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
-	uint32_t exec_sub_map[MAX_DEVICES + 1];             //bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
-	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
-	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
-} dev_shm_t;
-
-//two mutex semaphores for each device
-typedef struct sems {
-	sem_t *data_sem;        //semaphore on the data stream of a device
-	sem_t *command_sem;     //semaphore on the command stream of a device
-} dual_sem_t;
-
-//shared memory for gamepad
-typedef struct gp_shm {
-	uint32_t buttons;       //bitmap for which buttons are pressed
-	float joysticks[4];     //array to hold joystick positions
-} gamepad_shm_t;
-
-//shared memory for robot description
-typedef struct robot_desc_shm {
-	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
-} robot_desc_shm_t;
-
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
 dual_sem_t sems[MAX_DEVICES];  //array of semaphores, two for each possible device (one for data and one for commands)
@@ -710,10 +665,10 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 /*
  * Get current subscription requests for all devices. Should only be called by dev_handler
  * Arguments:
- *    - uint32_t *sub_map: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
+ *    - uint32_t sub_map[MAX_DEVICES + 1]: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
  * No return value.
  */
-void get_sub_requests (uint32_t *sub_map)
+void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
 {
 	//wait on sub_map_sem
 	my_sem_wait(sub_map_sem, "sub_map_sem");
@@ -787,10 +742,10 @@ void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val)
  * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
  * Arguments:
  *    - uint32_t pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
- *    - float *joystick_vals: array of 4 floats to which the current joystick states will be read into
+ *    - float joystick_vals[4]: array of 4 floats to which the current joystick states will be read into
  * Returns 0 on success, -1 on failure (if gamepad is not connected)
  */
-int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
+int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4])
 {
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
@@ -825,10 +780,10 @@ int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
  * Arguments:
  *    - uint32_t pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
             (only the first 17 bits used, since there are 17 buttons)
- *    - float *joystick_vals: array of 4 floats that contain the values to write to the joystick
+ *    - float joystick_vals[4]: array of 4 floats that contain the values to write to the joystick
  * Returns 0 on success, -1 on failuire (if gamepad is not connected)
  */
-int gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
+int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 {
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
@@ -861,10 +816,10 @@ int gamepad_write (uint32_t pressed_buttons, float *joystick_vals)
  * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
  * Blocks on the param bitmap semaphore for obvious reasons
  * Arguments:
- *    - uint32_t *bitmap: pointer to array of 17 32-bit integers to copy the bitmap into
+ *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into
  * No return value.
  */
-void get_cmd_map (uint32_t *bitmap)
+void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1])
 {
 	//wait on cmd_map_sem
 	my_sem_wait(cmd_map_sem, "cmd_map_sem");
@@ -881,10 +836,10 @@ void get_cmd_map (uint32_t *bitmap)
  * Should be called from all processes that want to know device identifiers of all currently connected devices
  * Blocks on catalog semaphore for obvious reasons
  * Arguments:
- *    - dev_id_t *dev_ids: pointer to array of dev_id_t's to copy the information into
+ *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
  * No return value.
  */
-void get_device_identifiers (dev_id_t *dev_ids)
+void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES])
 {
 	//wait on catalog_sem
 	my_sem_wait(catalog_sem, "catalog_sem");
