@@ -20,7 +20,7 @@ public:
    * calls device_enable to enable the device
    * dev_id and dev_year are the device type and device year of the device
    */
-  Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000, uint32_t ping_interval = 200);
+  Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 2000, uint32_t ping_interval = 1000);
 
   /* Generic device loop function that wraps all device actions
    * Asks messenger to read any incoming messages and responds appropriately
@@ -72,11 +72,13 @@ public:
    */
   virtual void device_actions ();
 
+protected:
+    Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
+
 private:
   const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
   const static float MIN_SUB_INTERVAL_MS;  // Minimum tolerable subscription delay, in ms
 
-  Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
   StatusLED *led;                   // The LED on the Arduino
   dev_id_t dev_id;                  // dev_id of this device determined when flashing
   uint32_t params;                  // Bitmap of parameters subscribed to by dev handler

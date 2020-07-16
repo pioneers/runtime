@@ -1,25 +1,25 @@
-DummyDevice::#include "DummyDevice.h"
+#include "DummyDevice.h"
 
 typedef enum {
-	RUNTIME = 0;
-	SHEPHERD = 1;
-	DAWN = 2;
-	DEVOPS = 3;
-	ATLAS = 4;
-	INFRA = 5;
-	SENS = 6;
-	PDB = 7;
-	MECH = 8;
-	CPR = 9;
-	EDU = 10;
-	EXEC = 11;
-	PIEF = 12;
-	FUNTIME = 13;
-	SHEEP = 14;
-	DUSK = 15;
+	RUNTIME = 0,
+	SHEPHERD = 1,
+	DAWN = 2,
+	DEVOPS = 3,
+	ATLAS = 4,
+	INFRA = 5,
+	SENS = 6,
+	PDB = 7,
+	MECH = 8,
+	CPR = 9,
+	EDU = 10,
+	EXEC = 11,
+	PIEF = 12,
+	FUNTIME = 13,
+	SHEEP = 14,
+	DUSK = 15,
 } param;
 
-DummyDevice::DummyDevice () : Device (DeviceID::DUMMY_DEVICE, 13)
+DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
 {
 	this->runtime = 1;
 	this->shepherd = 0.1;
@@ -155,7 +155,7 @@ uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_
 }
 
 //writes the appropriate instance variable; this whole function is also a big lol
-uint8_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
+void DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 {
 	switch (param) {
 
@@ -219,12 +219,12 @@ uint8_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 
 void DummyDevice::device_enable()
 {
-	this->msgr->lowcar_printf("DUMMY DEVICE ENABLED");
+	this->msngr->lowcar_printf("DUMMY DEVICE ENABLED");
 }
 
 void DummyDevice::device_disable()
 {
-	this->msgr->lowcar_printf("DUMMY DEVICE DISABLED");
+	this->msngr->lowcar_printf("DUMMY DEVICE DISABLED");
 }
 
 void DummyDevice::device_actions()

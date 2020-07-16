@@ -15,7 +15,7 @@ public:
 	DummyDevice();
 
 	virtual uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len);
-	virtual uint8_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf);
+	virtual void DummyDevice::device_write (uint8_t param, uint8_t *data_buf);
 	virtual void DummyDevice::device_enable();
 	virtual void DummyDevice::device_disable();
 	virtual void DummyDevice::device_actions();
