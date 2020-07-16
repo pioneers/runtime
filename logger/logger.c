@@ -60,7 +60,7 @@ static void read_config_file ()
 	char file_buf[128] = {0};
 	sprintf(file_buf, "%s", __FILE__); //__FILE__ is the path of this file on the system
 	char *last = strrchr(file_buf, '/'); //use strrchr to get location of last '/' in path
-	strcpy(last + 1, CONFIG_FILE); //append CONFIG_FILE to that path to get absolute path to logger file
+	strcpy(last + 1, CONFIG_FILE); //append CONFIG_FILE to that path to get relative path to logger file
 
 	if ((conf_fd = fopen(file_buf, "r")) == NULL) {  //open the config file for reading
 		fprintf(stderr, "fopen: logger could not open config file %s; exiting... \n%s", file_buf, strerror(errno));

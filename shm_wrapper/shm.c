@@ -1,7 +1,8 @@
 #include <signal.h>
 #include "shm_wrapper.h"
 
-//below we re-define all of the global variables and defined constants in shm_wrapper.c
+//MAKE SURE YOU COPY-PASTE THIS FROM SHM_WRAPPER.C WHENEVER CHANGES ARE MADE TO SHM_WRAPPER.C!
+//below we re-define all of the global variables, private typedefs, and defined constants in shm_wrapper.c
 //this is preferred over moving all of these to shm_wrapper.h because doing that would
 //cause some major namespace pollution (no other external process needs to know about these)
 
@@ -18,6 +19,35 @@
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
+// *********************************** PRIVATE TYPEDEFS  ************************************************** //
+
+//shared memory has these parts in it
+typedef struct dev_shm {
+	uint32_t catalog;                                   //catalog of valid devices
+	uint32_t cmd_map[MAX_DEVICES + 1];                  //bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
+	uint32_t net_sub_map[MAX_DEVICES + 1];              //bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
+	uint32_t exec_sub_map[MAX_DEVICES + 1];             //bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
+	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
+} dev_shm_t;
+
+//two mutex semaphores for each device
+typedef struct sems {
+	sem_t *data_sem;        //semaphore on the data stream of a device
+	sem_t *command_sem;     //semaphore on the command stream of a device
+} dual_sem_t;
+
+//shared memory for gamepad
+typedef struct gp_shm {
+	uint32_t buttons;       //bitmap for which buttons are pressed
+	float joysticks[4];     //array to hold joystick positions
+} gamepad_shm_t;
+
+//shared memory for robot description
+typedef struct robot_desc_shm {
+	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
+} robot_desc_shm_t;
+
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
 dual_sem_t sems[MAX_DEVICES];  //array of semaphores, two for each possible device (one for data and one for commands)
@@ -31,9 +61,9 @@ robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
 
-char sname[SNAME_SIZE];        //for holding semaphore names
-
 // *********************************** SHM PROCESS FUNCTIONS ************************************************* //
+
+char sname[SNAME_SIZE];   //being lazy here but this is for holding all the semaphore names
 
 void generate_sem_name (stream_t stream, int dev_ix, char *name)
 {
