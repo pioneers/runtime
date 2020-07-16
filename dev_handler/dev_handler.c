@@ -86,7 +86,7 @@ void poll_connected_devices() {
 	// Poll for newly connected devices and open threads for them
     log_printf(INFO, "Polling now.\n");
 	while (1) {
-        usleep(100000);   // Save CPU usage by sleeping for less than second
+        sleep(1);   // Save CPU usage by sleeping for less than second
 		int8_t port_num = get_new_device();
         if (port_num == -1) {
             continue;
@@ -375,9 +375,10 @@ void* receiver(void* relay_cast) {
             log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
 			relay->last_received_ping_time = millis();
 		} else if (msg->message_id == DEVICE_DATA) {
-            log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
+            	printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
+		//log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
 			// First, parse the payload into an array of parameter values
-			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
+			//parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
 			// TODO: Now write it to shared memory
 			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
 		} else if (msg->message_id == LOG) {
@@ -433,7 +434,7 @@ int send_message(msg_relay_t* relay, message_t* msg) {
  * This function blocks until it reads a (possibly broken) message
  * relay: The shred relay object
  * msg: The message_t* to be populated with the parsed data (if successful)
- * timeout: The maximum microseconds to wait until there's something to read
+ * timeout: The maximum seconds to wait until there's something to read
  *      Set TIMEOUT to 0 if we wish to keep waiting forever
  * return: 0 on successful parse
  *         1 on broken message
@@ -441,75 +442,80 @@ int send_message(msg_relay_t* relay, message_t* msg) {
  *         3 on timeout
  */
 int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout) {
-    int num_bytes_read = 0;
+	int num_bytes_read = 0;
 	// Variable to temporarily hold a read byte
 	uint8_t last_byte_read;
-    int ret;
+	int ret;
 	// Keep reading a byte until we get the delimiter byte
-    while (!(num_bytes_read == 1 && last_byte_read == 0x00)) {
-        if (OUTPUT == USB_DEV) {
-            // Wait until there's something to read for up to TIMEOUT microseconds \\ https://stackoverflow.com/a/2918709
-            if (timeout > 0) {
-                struct timeval timeout_struct;
-                timeout_struct.tv_sec = 0;
-                timeout_struct.tv_usec = timeout;
-                if (select(relay->file_descriptor + 1, NULL, NULL, NULL, &timeout_struct) == 0) {
-                    return 3;
-                }
-            }
-            num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
-        } else if (OUTPUT == FILE_DEV) {
-            num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
-        }
-        // If we were able to read a byte but it wasn't the delimiter
-        if (num_bytes_read == 1 && last_byte_read != 0) {
-            log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
-            num_bytes_read = 0;
-        }
-	    usleep(1000);
-    }
-    //log_printf(DEBUG, "Got start of message!\n");
+	while (!(num_bytes_read == 1 && last_byte_read == 0x00)) {
+		if (OUTPUT == USB_DEV) {
+			// Wait until there's something to read for up to TIMEOUT microseconds \\ https://stackoverflow.com/a/2918709
+			if (timeout > 0) {
+				struct timeval timeout_struct;
+				timeout_struct.tv_sec = timeout;
+				timeout_struct.tv_usec = 0;
+			}
+			fd_set read_set;
+			FD_ZERO(&read_set);
+			FD_SET(relay->file_descriptor, &read_set);
+			if (select(relay->file_descriptor + 1, &read_set, NULL, NULL, &timeout_struct) == 0) {
+				if (!FD_ISSET(relay->file_descriptor, &read_set)) {
+					return 3;
+				}
+			}
+			num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
+		} else if (OUTPUT == FILE_DEV) {
+			num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
+		}
+		// If we were able to read a byte but it wasn't the delimiter
+		if (num_bytes_read == 1 && last_byte_read != 0) {
+			log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
+			num_bytes_read = 0;
+		}
+		usleep(1000);
+	}
+	//log_printf(DEBUG, "Got start of message!\n");
 
-    // Try to read the length of the cobs encoded message (the next byte)
-    uint8_t cobs_len;
-    num_bytes_read = 0;
-    while (num_bytes_read != 1) {
-        if (OUTPUT == USB_DEV) {
-            num_bytes_read = read(relay->file_descriptor, &cobs_len, 1);
-        } else if (OUTPUT == FILE_DEV) {
-            num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
-        }
-    }
-    //log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
+	// Try to read the length of the cobs encoded message (the next byte)
+	uint8_t cobs_len;
+	num_bytes_read = 0;
+	while (num_bytes_read != 1) {
+		if (OUTPUT == USB_DEV) {
+			num_bytes_read = read(relay->file_descriptor, &cobs_len, 1);
+		} else if (OUTPUT == FILE_DEV) {
+			num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
+		}
+	}
+	//log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
 
-    // Allocate buffer to read message into
-    uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
-    data[0] = 0x00;
-    data[1] = cobs_len;
+	// Allocate buffer to read message into
+	uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+	data[0] = 0x00;
+	data[1] = cobs_len;
 
-    // Read the message
-    if (OUTPUT == USB_DEV) {
-        num_bytes_read = read(relay->file_descriptor, &data[2], cobs_len);
-    } else if (OUTPUT == FILE_DEV) {
-        num_bytes_read = fread(&data[2], sizeof(uint8_t), cobs_len, relay->read_file);
-    }
-    if (num_bytes_read != cobs_len) {
-        log_printf(DEBUG, "Couldn't read the full message\n");
-        free(data);
-        return 1;
-    }
+	// Read the message
+	if (OUTPUT == USB_DEV) {
+		num_bytes_read = read(relay->file_descriptor, &data[2], cobs_len);
+	} else if (OUTPUT == FILE_DEV) {
+		num_bytes_read = fread(&data[2], sizeof(uint8_t), cobs_len, relay->read_file);
+	}
+	if (num_bytes_read != cobs_len) {
+		log_printf(DEBUG, "Couldn't read the full message\n");
+		free(data);
+		return 1;
+	}
 
-    //log_printf(DEBUG, "Received %d bytes: ", 2 + cobs_len);
-    //print_bytes(data, 2 + cobs_len);
+	//log_printf(DEBUG, "Received %d bytes: ", 2 + cobs_len);
+	//print_bytes(data, 2 + cobs_len);
 
-    // Parse the message
-    ret = parse_message(data, msg);
-    free(data);
-    if (ret != 0) {
-        log_printf(DEBUG, "Incorrect checksum\n");
-        return 2;
-    }
-    return 0;
+	// Parse the message
+	ret = parse_message(data, msg);
+	free(data);
+	if (ret != 0) {
+		log_printf(DEBUG, "Incorrect checksum\n");
+		return 2;
+	}
+	return 0;
 }
 
 /*
@@ -533,7 +539,7 @@ int verify_lowcar(msg_relay_t* relay) {
     message_t* ack = make_empty(MAX_PAYLOAD_SIZE);
 	log_printf(DEBUG, "Listening for ACKNOWLEDGEMENT from /dev/ttyACM%d\n", relay->port_num);
     while (1) {
-        ret = receive_message(relay, ack, TIMEOUT / 1000);
+        ret = receive_message(relay, ack, (uint16_t) (TIMEOUT / 1000));
         if (ret == 0) { // Got message
             break;
         } else if (ret == 3) { // Timeout
