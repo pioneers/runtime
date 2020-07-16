@@ -1,5 +1,8 @@
 #include "shm_wrapper.h"
 
+//MAKE SURE YOU COPY-PASTE INTO SHM.C WHENEVER CHANGES ARE MADE TO SHM_WRAPPER.C!
+//shm.c needs a copy of the defined constants, private typedefs, and global variables
+
 //names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm_process
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
 #define CMDMAP_MUTEX_NAME "/cmap-mutex" //name of semaphore used as a mutex on the command bitmap
@@ -12,6 +15,35 @@
 #define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
+
+// *********************************** PRIVATE TYPEDEFS  ************************************************** //
+
+//shared memory has these parts in it
+typedef struct dev_shm {
+	uint32_t catalog;                                   //catalog of valid devices
+	uint32_t cmd_map[MAX_DEVICES + 1];                  //bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
+	uint32_t net_sub_map[MAX_DEVICES + 1];              //bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
+	uint32_t exec_sub_map[MAX_DEVICES + 1];             //bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
+	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     //all the device parameter info, data and commands
+	dev_id_t dev_ids[MAX_DEVICES];                      //all the device identification info
+} dev_shm_t;
+
+//two mutex semaphores for each device
+typedef struct sems {
+	sem_t *data_sem;        //semaphore on the data stream of a device
+	sem_t *command_sem;     //semaphore on the command stream of a device
+} dual_sem_t;
+
+//shared memory for gamepad
+typedef struct gp_shm {
+	uint32_t buttons;       //bitmap for which buttons are pressed
+	float joysticks[4];     //array to hold joystick positions
+} gamepad_shm_t;
+
+//shared memory for robot description
+typedef struct robot_desc_shm {
+	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
+} robot_desc_shm_t;
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
@@ -383,7 +415,7 @@ void shm_init ()
 		}
 	}
 	
-	//open shared memory block and map to client process virtual memory
+	//open dev shm block and map to client process virtual memory
 	if ((fd_shm = shm_open(DEV_SHM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
 		log_printf(FATAL, "shm_open dev_shm %s", strerror(errno));
 		exit(1);
@@ -651,7 +683,7 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 	
 	//validate request and obtain dev_ix, sub_map
 	if (process != NET_HANDLER && process != EXECUTOR) {
-		log_printf(ERROR, "calling device_sub_request from process %u", process);
+		log_printf(ERROR, "calling place_sub_request from process %u", process);
 		return -1;
 	}
 	if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {

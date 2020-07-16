@@ -444,7 +444,7 @@ void subscription_test ()
 				place_sub_request(id0, EXECUTOR, 1);
 				break;
 			case 3: //removing a param from subscription
-				place_sub_request(id1, NET_HANDLER, 1);
+				place_sub_request(id2, EXECUTOR, 1);
 				break;
 			case 4: //don't do anything
 				break;
