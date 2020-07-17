@@ -8,21 +8,19 @@
 
 /* Struct shared between the three threads so they can communicate with each other
  * relayer thread acts as the "control center" and connects/disconnects to shared memory
- *  relayer thread also frees memory when device is disconnected
+ * relayer thread also frees memory when device is disconnected
  */
 typedef struct msg_relay {
     pthread_t sender;
     pthread_t receiver;
     pthread_t relayer;
     uint8_t port_num;        // where port is "/dev/ttyACM<port_num>/"
-    FILE* read_file;         // For use with OUTPUT == FILE_DEV
-    FILE* write_file;        // For use with OUTPUT == FILE_DEV
     int file_descriptor;     // Obtained from opening port. Used to close port.
     int shm_dev_idx;         // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
-    uint8_t start;		     // set by relayer: A flag to tell reader and receiver to start work when set to 1
     dev_id_t dev_id;         // set by relayer once ACKNOWLEDGEMENT is received
     uint64_t last_received_ping_time; // set by receiver: Timestamp of the most recent PING from the device
-    uint64_t last_sent_ping_time;     // set by sender: Timestamp of the last sent PING to the device
+    pthread_mutex_t relay_lock;
+    pthread_cond_t start_cond;  // Conditional variable to broadcast to sender and receiver to start work
 } msg_relay_t;
 
 // ************************************ PRIVATE FUNCTIONS ****************************************** //
@@ -38,7 +36,7 @@ void* receiver(void* relay_cast);
 
 // Device communication
 int send_message(msg_relay_t* relay, message_t* msg);
-int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout);
+int receive_message(msg_relay_t* relay, message_t* msg);
 int verify_lowcar(msg_relay_t* relay);
 
 // Serial port opening and closing
@@ -46,7 +44,14 @@ int serialport_init(const char* serialport, int baud);
 int serialport_close(int fd);
 
 // Utility
-int64_t millis();
+uint64_t millis();
+int readn (int fd, void *buf, uint16_t n);
+int writen (int fd, void *buf, uint16_t n);
+
+// ************************************ GLOBAL VARIABLES ****************************************** //
+// Bitmap indicating whether /dev/ttyACM* is used, where * is the *-th bit
+uint32_t used_ports = 0;
+pthread_mutex_t used_ports_lock;
 
 // ************************************ PUBLIC FUNCTIONS ****************************************** //
 
@@ -56,6 +61,11 @@ void init() {
     logger_init(DEV_HANDLER);
 	// Init shared memory
 	// shm_init(DEV_HANDLER);
+    // Initialize lock on global variable USED_PORTS
+    if (pthread_mutex_init(&used_ports_lock, NULL) != 0) {
+        log_printf(ERROR, "Couldn't init USED_PORTS_LOCK");
+        return 1;
+    }
 }
 
 // Free memory and safely stop connections
@@ -73,6 +83,8 @@ void stop() {
 	// shm_stop(DEV_HANDLER);
     // Stop logger
     logger_stop();
+    // Destroy locks
+    pthread_mutex_destroy(&used_ports_lock);
 	exit(0);
 }
 
@@ -97,19 +109,16 @@ void poll_connected_devices() {
 
 // ************************************ POLLING UTILITY ****************************************** //
 
-// Bitmap indicating whether /dev/ttyACM* is used, where * is the *-th bit
-uint32_t used_ports = 0;
-
 /*
  * Returns the number of the port corresponding to the newly connected device
  */
 int8_t get_new_device() {
+    char port_name[14];
     // Check every port
     for (int i = 0; i < MAX_DEVICES; i++) {
-        uint8_t port_unused = ((1 << i) & used_ports) == 0; // Checks if bit i is zero
         // If last time this function was called port i wasn't used
-        if (port_unused) {
-            char port_name[14];
+        pthread_mutex_lock(&used_ports_lock);
+        if (!(used_ports & (1 << i))) { // Check if i-th bit of USED_PORTS is zero
             sprintf(port_name, "/dev/ttyACM%d", i);
             // If that port is being used now (file exists), it's a new device
             if (access(port_name, F_OK) != -1) {
@@ -119,6 +128,7 @@ int8_t get_new_device() {
                 return i;
             }
         }
+        pthread_mutex_unlock(&used_ports_lock);
     }
     return -1;
 }
@@ -149,33 +159,26 @@ void communicate(uint8_t port_num) {
         } else {
             log_printf(DEBUG, "Opened port %s\n", port_name);
         }
-    } else if (OUTPUT == FILE_DEV) {
-        // Open the file to read from
-        relay->read_file = fopen(TO_DEV_HANDLER, "w+");
-        if (relay->read_file == NULL) {
-            log_printf(ERROR, "Couldn't open file to read from\n");
-        }
-        // Open the file to write to
-        relay->write_file = fopen(TO_DEVICE, "w+");
-        if (relay->write_file == NULL) {
-            log_printf(ERROR, "Couldn't open file to write to\n");
-        }
     }
-	// Initialize relay->start as 0, indicating sender and receiver to not start work yet
-	relay->start = 0;
+
 	// Initialize the other relay values
 	relay->shm_dev_idx = -1;
 	relay->dev_id.type = -1;
 	relay->dev_id.year = -1;
 	relay->dev_id.uid = -1;
-    relay->last_sent_ping_time = 0;
     relay->last_received_ping_time = 0;
+    pthread_mutex_init(&relay->relay_lock, NULL);
+    pthread_cond_init(&relay->start_cond, NULL);
+
 	// Open threads for sender, receiver, and relayer
-	pthread_create(&relay->sender, NULL, sender, relay);
-	pthread_create(&relay->receiver, NULL, receiver, relay);
-	pthread_create(&relay->relayer, NULL, relayer, relay);
-    if (OUTPUT == FILE_DEV) {
-        pthread_join(relay->relayer, NULL); // Let the threads do work. USB_DEV doesn't need this
+    if (pthread_create(&relay->sender, NULL, sender, relay) != 0) {
+        log_printf(ERROR, "Couldn't spawn thread for SENDER");
+    }
+    if (pthread_create(&relay->receiver, NULL, receiver, relay) != 0) {
+        log_printf(ERROR, "Couldn't spawn thread for RECEIVER");
+    }
+    if (pthread_create(&relay->relayer, NULL, relayer, relay) != 0) {
+        log_printf(ERROR, "Couldn't spawn thread for RELAYER");
     }
 }
 
@@ -206,8 +209,8 @@ void* relayer(void* relay_cast) {
 	log_printf(DEBUG, "Connecting %s to shared memory\n", get_device_name(relay->dev_id.type));
 	// device_connect(relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid, &relay->shm_dev_idx);
 
-	// Signal the sender and receiver to start work
-	relay->start = 1;
+	// Broadcast to the sender and receiver to start work
+    pthread_cond_broadcast(&relay->start_cond);
 
     // TODO: Subscribe to only params requested in shared memory
     // uint32_t sub_map[MAX_DEVICES + 1];
@@ -241,11 +244,13 @@ void* relayer(void* relay_cast) {
             return NULL;
         }
         /* If it took too long to receive a Ping, the device timed out */
+        pthread_mutex_lock(&relay->relay_lock);
 		if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
 			log_printf(INFO, "%s timed out!", get_device_name(relay->dev_id.type));
 			relay_clean_up(relay);
 			return NULL;
 		}
+        pthread_mutex_unlock(&relay->relay_lock);
 		sleep(1);
 	}
 }
@@ -255,22 +260,31 @@ void* relayer(void* relay_cast) {
  * disconnects from shared memory, and frees the RELAY struct
  */
 void relay_clean_up(msg_relay_t* relay) {
-    if (OUTPUT == USB_DEV) {
-        serialport_close(relay->file_descriptor);
-        used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
-    }
+    serialport_close(relay->file_descriptor);
+    pthread_mutex_lock(&used_ports_lock);
+    used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
+    pthread_mutex_unlock(&used_ports_lock);
+
+    pthread_mutex_destroy(&relay->relay_lock);
+    pthread_cond_destroy(&relay->start_cond);
+
 	// Cancel the sender and receiver threads when ongoing transfers are completed
 	pthread_cancel(relay->sender);
 	pthread_cancel(relay->receiver);
-	// Sleep to ensure that the sender and receiver threads are cancelled before disconnecting from shared memory / freeing relay
-	sleep(1);
+    int ret;
+    if ((ret = pthread_join(relay->sender, NULL)) != 0) {
+        log_printf(ERROR, "pthread_join on relay->sender failed with error code %d", ret);
+    }
+    if ((ret = pthread_join(relay->receiver, NULL)) != 0) {
+        log_printf(ERROR, "pthread_join on relay->receiver failed with error code %d", ret);
+    }
+
 	// Disconnect the device from shared memory if it's connected
 	if (relay->shm_dev_idx != -1) {
 		// device_disconnect(relay->shm_dev_idx)
 	}
     log_printf(DEBUG, "Cleaned up threads for %s", get_device_name(relay->dev_id.type));
 	free(relay);
-	pthread_cancel(pthread_self());
 }
 
 /*
@@ -280,15 +294,13 @@ void relay_clean_up(msg_relay_t* relay) {
  * RELAY_CAST is to be casted as msg_relay_t
  */
 void* sender(void* relay_cast) {
-	msg_relay_t* relay = relay_cast;
+    msg_relay_t* relay = relay_cast;
     log_printf(DEBUG, "Sender on standby\n");
-	// Sleep until relay->start == 1, (when relayer gets ACKNOWLEDGEMENT)
-	while (1) {
-		if (relay->start == 1) {
-			break;
-		}
-		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
-	}
+
+    // Wait until relayer gets an ACKNOWLEDGEMENT
+    pthread_mutex_lock(&relay->relay_lock);
+    pthread_cond_wait(&relay->start_cond, &relay->relay_lock);
+    pthread_mutex_unlock(&relay->relay_lock);
 
     // Cancel this thread only where pthread_testcancel()
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -310,6 +322,7 @@ void* sender(void* relay_cast) {
 	message_t* msg; 		// Message to build
 	int ret; 				// Hold the value from send_message()
     log_printf(DEBUG, "Sender for %s starting work!", get_device_name(relay->dev_id.type));
+    uint64_t last_sent_ping_time = millis();
 	while (1) {
 		// TODO: Write to device if needed
 		/* get_cmd_map(pmap);
@@ -326,14 +339,14 @@ void* sender(void* relay_cast) {
 		} */
 
 		// Send another PING if it's time again
-		if ((millis() - relay->last_sent_ping_time) >= PING_FREQ) {
+		if ((millis() - last_sent_ping_time) >= PING_FREQ) {
 			msg = make_ping();
 			ret = send_message(relay, msg);
 			if (ret != 0) {
 				log_printf(FATAL, "Couldn't send PING to %s", get_device_name(relay->dev_id.type));
 			}
 			// Update the timestamp at which we sent a PING
-			relay->last_sent_ping_time = millis();
+			last_sent_ping_time = millis();
 			destroy_message(msg);
 		}
 
@@ -366,13 +379,12 @@ void* sender(void* relay_cast) {
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
     log_printf(DEBUG, "Receiver on standby\n");
-	// Sleep until relay->start == 1, (when relayer gets an ACKNOWLEDGEMENT)
-	while (1) {
-		if (relay->start == 1) {
-			break;
-		}
-		pthread_testcancel(); // Cancellation point. Relayer may cancel this thread if device timesout
-	}
+
+    // Wait until relayer gets an ACKNOWLEDGEMENT
+    pthread_mutex_lock(&relay->relay_lock);
+    pthread_cond_wait(&relay->start_cond, &relay->relay_lock);
+    pthread_mutex_unlock(&relay->relay_lock);
+
     log_printf(DEBUG, "Receiver for %s starting work!", get_device_name(relay->dev_id.type));
 
     // Cancel this thread only where pthread_testcancel()
@@ -388,13 +400,15 @@ void* receiver(void* relay_cast) {
 	param_val_t* vals = malloc(MAX_PARAMS * sizeof(param_val_t));
 	while (1) {
 		// Try to read a message
-		if (receive_message(relay, msg, 0) != 0) {
+		if (receive_message(relay, msg) != 0) {
 			continue;
 		}
 		if (msg->message_id == PING) {
 			// If it's a Ping, take note of it so sender can resolve it
             log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
+            pthread_mutex_lock(&relay->relay_lock);
 			relay->last_received_ping_time = millis();
+            pthread_mutex_unlock(&relay->relay_lock);
 		} else if (msg->message_id == DEVICE_DATA) {
             //printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
 		    log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
@@ -435,11 +449,7 @@ int send_message(msg_relay_t* relay, message_t* msg) {
 	len = message_to_bytes(msg, data, len);
     int transferred = 0;
     if (OUTPUT == USB_DEV) {
-        transferred = write(relay->file_descriptor, data, len);
-    } else if (OUTPUT == FILE_DEV) {
-        // Write the data buffer to the file
-        transferred = fwrite(data, sizeof(uint8_t), len, relay->write_file);
-        fflush(relay->write_file); // Force write the contents to file
+        transferred = writen(relay->file_descriptor, data, len);
     }
     if (transferred != len) {
         log_printf(FATAL, "Sent only %d out of %d bytes\n", transferred, len);
@@ -462,38 +472,17 @@ int send_message(msg_relay_t* relay, message_t* msg) {
  *         2 on incorrect checksum
  *         3 on timeout
  */
-int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout) {
-	int num_bytes_read = 0;
+int receive_message(msg_relay_t* relay, message_t* msg) {
 	// Variable to temporarily hold a read byte
 	uint8_t last_byte_read;
 	int ret;
 	// Keep reading a byte until we get the delimiter byte
-	while (!(num_bytes_read == 1 && last_byte_read == 0x00)) {
-		if (OUTPUT == USB_DEV) {
-			// Wait until there's something to read for up to TIMEOUT microseconds \\ https://stackoverflow.com/a/2918709
-			if (timeout > 0) {
-				struct timeval timeout_struct;
-				timeout_struct.tv_sec = timeout;
-				timeout_struct.tv_usec = 0;
-    			fd_set read_set;
-    			FD_ZERO(&read_set);
-    			FD_SET(relay->file_descriptor, &read_set);
-    			if (select(relay->file_descriptor + 1, &read_set, NULL, NULL, &timeout_struct) == 0) {
-    				if (!FD_ISSET(relay->file_descriptor, &read_set)) {
-    					return 3;
-    				}
-    			}
-            }
-			num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
-		} else if (OUTPUT == FILE_DEV) {
-			num_bytes_read = fread(&last_byte_read, sizeof(uint8_t), 1, relay->read_file);
-		}
+	while (!last_byte_read == 0x00) {
+		readn(relay->file_descriptor, &last_byte_read, 1);
 		// If we were able to read a byte but it wasn't the delimiter
-		if (num_bytes_read == 1 && last_byte_read != 0) {
+		if (last_byte_read != 0x00) {
 			log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
-			num_bytes_read = 0;
 		}
-		usleep(1000);
 	}
 	//log_printf(DEBUG, "Got start of message!\n");
 
@@ -501,11 +490,7 @@ int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout) {
 	uint8_t cobs_len;
 	num_bytes_read = 0;
 	while (num_bytes_read != 1) {
-		if (OUTPUT == USB_DEV) {
-			num_bytes_read = read(relay->file_descriptor, &cobs_len, 1);
-		} else if (OUTPUT == FILE_DEV) {
-			num_bytes_read = fread(&cobs_len, sizeof(uint8_t), 1, relay->read_file);
-		}
+		num_bytes_read = readn(relay->file_descriptor, &cobs_len, 1);
 	}
 	//log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
 
@@ -516,12 +501,10 @@ int receive_message(msg_relay_t* relay, message_t* msg, uint16_t timeout) {
 
 	// Read the message
 	if (OUTPUT == USB_DEV) {
-		num_bytes_read = read(relay->file_descriptor, &data[2], cobs_len);
-	} else if (OUTPUT == FILE_DEV) {
-		num_bytes_read = fread(&data[2], sizeof(uint8_t), cobs_len, relay->read_file);
+		num_bytes_read = readn(relay->file_descriptor, &data[2], cobs_len);
 	}
 	if (num_bytes_read != cobs_len) {
-		log_printf(DEBUG, "Couldn't read the full message\n");
+		log_printf(DEBUG, "Couldn't read the full message. Read %d out of %d bytes\n", num_bytes_read, cobs_len);
 		free(data);
 		return 1;
 	}
@@ -560,7 +543,7 @@ int verify_lowcar(msg_relay_t* relay) {
     message_t* ack = make_empty(MAX_PAYLOAD_SIZE);
 	log_printf(DEBUG, "Listening for ACKNOWLEDGEMENT from /dev/ttyACM%d\n", relay->port_num);
     while (1) {
-        ret = receive_message(relay, ack, (uint16_t) (TIMEOUT / 1000));
+        ret = receive_message(relay, ack);
         if (ret == 0) { // Got message
             break;
         } else if (ret == 3) { // Timeout
@@ -574,13 +557,27 @@ int verify_lowcar(msg_relay_t* relay) {
 		return 2;
 	}
 
+    // Set serial port options to allow read() to block indefinitely
+    struct termios toptions;
+    if (tcgetattr(fd, &toptions) < 0) { // Get current options
+        log_printf(ERROR, "serialport_init: Couldn't get term attributes");
+        return -1;
+    }
+    toptions.c_cc[VMIN]  = 1;               // read() must read at least a byte before returning
+    // Save changes to TOPTIONS immediately using flag TCSANOW
+    tcsetattr(fd, TCSANOW, &toptions);
+    if(tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
+        log_printf(ERROR, "init_serialport: Couldn't set term attributes");
+        return -1;
+    }
+
 	// We have a lowcar device!
 	relay->dev_id.type = *((uint16_t*)(&ack->payload[0]));      // device type is the first 16 bits
 	relay->dev_id.year = ack->payload[2];                    // device year is next 8 bits
 	relay->dev_id.uid  = *((uint64_t*)(&ack->payload[3]));   // device uid is the last 64-bits
     log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
         relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
-	relay->last_received_ping_time = millis();
+	relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
     destroy_message(ack);
 	return 0;
 }
@@ -597,40 +594,51 @@ int verify_lowcar(msg_relay_t* relay) {
  */
 int serialport_init(const char* serialport, int baud) {
     struct termios toptions;
+    // Open the serialport for reading and writing
     int fd = open(serialport, O_RDWR);
-
     if (fd == -1)  {
         log_printf(ERROR, "serialport_init: Unable to open port");
         return -1;
     }
 
+    // Fill TOPTIONS with the current params for the serialport
     if (tcgetattr(fd, &toptions) < 0) {
         log_printf(ERROR, "serialport_init: Couldn't get term attributes");
         return -1;
     }
+
+    // Set the baudrate of communication to 115200 (same as on Arduino)
     speed_t brate = B115200;
     cfsetispeed(&toptions, brate);
     cfsetospeed(&toptions, brate);
 
     // set toptions: https://linux.die.net/man/3/cfsetspeed
-    toptions.c_cflag &= ~PARENB;
-    toptions.c_cflag &= ~CSTOPB;
-    toptions.c_cflag &= ~CSIZE;
-    toptions.c_cflag |= CS8;
+    // Set serial port config to 8-N-1, which is default for Arduino Serial.begin()
+    toptions.c_cflag &= ~CSIZE;     // Reset character size
+    toptions.c_cflag |= CS8;        // Set character size to 8
+    toptions.c_cflag &= ~PARENB;    // Disable parity generation on output and parity checking for input (N)
+    toptions.c_cflag &= ~CSTOPB;    // Set only one stop bit (1)
 
-    toptions.c_cflag &= ~CRTSCTS;
-    toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
-    toptions.c_iflag &= ~(IXON | IXOFF | IXANY | ICRNL); // turn off s/w flow ctrl
+    // Turn off translating carriage return to newline on input
+    // Without disabling this, all incoming 0x0D (\cr) would be read as 0x0A (\n) instead
+    toptions.c_iflag &= ~ICRNL;
+
+    // TODO: Review these. Consider cfsetraw()
+    toptions.c_cflag &= ~CRTSCTS;                   // Disable RTS/CTS flow control TODO
+    toptions.c_cflag |= CREAD | CLOCAL;             // Enable receiver and ignore modem control lines
+    toptions.c_iflag &= ~(IXON | IXOFF | IXANY);    // Disable XON/XOFF flow control on output and input; TODO
 
     toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
     toptions.c_oflag &= ~OPOST; // make raw
 
+    // Set options for read(fd, buffer, num_bytes_to_read)
     // see: http://unixwiz.net/techtips/termios-vmin-vtime.html
-    toptions.c_cc[VMIN]  = 0;
-    toptions.c_cc[VTIME] = 0;
+    toptions.c_cc[VMIN]  = 0;               // Until receiving ACK, do not block indefinitely (use timeout)
+    toptions.c_cc[VTIME] = TIMEOUT / 100;   // Number of deciseconds to timeout
 
+    // Save changes to TOPTIONS immediately using flag TCSANOW
     tcsetattr(fd, TCSANOW, &toptions);
-    if( tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
+    if(tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
         log_printf(ERROR, "init_serialport: Couldn't set term attributes");
         return -1;
     }
@@ -648,12 +656,80 @@ int serialport_close(int fd) {
 // ************************************ UTILITY ****************************************** //
 
 /* Returns the number of milliseconds since the Unix Epoch */
-int64_t millis() {
+uint64_t millis() {
 	struct timeval time; // Holds the current time in seconds + microsecondsx
 	gettimeofday(&time, NULL);
-	int64_t s1 = (int64_t)(time.tv_sec) * 1000; // Convert seconds to milliseconds
-	int64_t s2 = (time.tv_usec / 1000);			// Convert microseconds to milliseconds
+	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
+	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
 	return s1 + s2;
+}
+
+// TODO: These are copy pasted from net_util.c. Maybe move these into runtime_util.c
+/*
+ * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
+ * Arguments:
+ *    - int fd: file descriptor to read from
+ *    - void *buf: pointer to location to copy read bytes into
+ *    - size_t n: number of bytes to read
+ * Return:
+ *    - > 0: number of bytes read into buf
+ *    - 0: read EOF on fd
+ *    - -1: read errored out
+ */
+int readn (int fd, void *buf, uint16_t n)
+{
+	uint16_t n_remain = n;
+	uint16_t n_read;
+	char *curr = buf;
+
+	while (n_remain > 0) {
+		if ((n_read = read(fd, curr, n_remain)) < 0) {
+			if (errno == EINTR) { //read interrupted by signal; read again
+				n_read = 0;
+			} else {
+				perror("read");
+				log_printf(ERROR, "reading from fd failed");
+				return -1;
+			}
+		} else if (n_read == 0) { //received EOF
+			return 0;
+		}
+		n_remain -= n_read;
+		curr += n_read;
+	}
+	return (n - n_remain);
+}
+
+/*
+ * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
+ * Arguments:
+ *    - int fd: file descriptor to write to
+ *    - void *buf: pointer to location to read from
+ *    - size_t n: number of bytes to write
+ * Return:
+ *    - >= 0: number of bytes written into buf
+ *    - -1: write errored out
+ */
+int writen (int fd, void *buf, uint16_t n)
+{
+	uint16_t n_remain = n;
+	uint16_t n_written;
+	char *curr = buf;
+
+	while (n_remain > 0) {
+		if ((n_written = write(fd, curr, n_remain)) <= 0) {
+			if (n_written < 0 && errno == EINTR) { //write interrupted by signal, write again
+				n_written = 0;
+			} else {
+				perror("write");
+				log_printf(ERROR, "writing to fd failed");
+				return -1;
+			}
+		}
+		n_remain -= n_written;
+		curr += n_written;
+	}
+	return n;
 }
 
 // ************************************ MAIN ****************************************** //
@@ -663,12 +739,7 @@ int main() {
 	signal(SIGINT, stop);
 	init();
     log_printf(INFO, "DEV_HANDLER starting with OUTPUT==%s\n", (OUTPUT == USB_DEV) ? "USB_DEV" : "FILE_DEV");
-    if (OUTPUT == USB_DEV) {
-        // Start polling if OUTPUT == USB
-        poll_connected_devices();
-    } else if (OUTPUT == FILE_DEV) {
-        // Skip polling
-        communicate(-1);
-    }
+    // Start polling if OUTPUT == USB
+    poll_connected_devices();
 	return 0;
 }
