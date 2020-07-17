@@ -43,4 +43,4 @@ RUN pushd executor && make && popd && \
     pushd shm_wrapper && make && popd
 
 # CMD bash
-CMD cd shm_wrapper && ./shm & bash
+CMD nohup setsid ./run.sh && tail -f /dev/null
