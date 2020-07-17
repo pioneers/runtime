@@ -31,13 +31,16 @@ RUN wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.3.3/proto
 
 RUN apt-get autoremove && apt-get clean
 
+# Debug
+RUN apt-get -y install procps htop tmux
+
 WORKDIR /root/runtime
 
 ADD ./ ./
 
 RUN pushd executor && make && popd && \
     pushd net_handler && make && popd && \
-    pushd shm_wrapper && make static && popd
+    pushd shm_wrapper && make && popd
 
 # CMD bash
-CMD cd shm_wrapper && ./static & bash
+CMD cd shm_wrapper && ./shm & bash
