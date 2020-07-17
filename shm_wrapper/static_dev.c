@@ -5,8 +5,9 @@ void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
 	fflush(stdout);
-	shm_stop();
-	logger_stop(DEV_HANDLER);
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		device_disconnect(i);
+	}
 	exit(0);
 }
 

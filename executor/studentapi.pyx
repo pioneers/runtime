@@ -44,35 +44,10 @@ def _init():
     logger_init(EXECUTOR)
     shm_init()
 
-def _stop():
-    """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
-    shm_stop()
-    logger_stop()
-
-
 ## API Objects
 
-class CodeExecutionError(Exception):
-    """
-    An exception that occurred while attempting to execute student code
-
-    `CodeExecutionError` accepts arbitrary data that can be examined or written into logs.
-
-    Example:
-        >>> err = CodeExecutionError('Error', dev_ids=[2, 3])
-        >>> err
-        CodeExecutionError('Error', dev_ids=[2, 3])
-
-    """
-
-    def __init__(self, message='', **context):
-        super().__init__(message)
-        self.context = context
-
-    def __repr__(self):
-        cls_name, (msg, *_) = self.__class__.__name__, self.args
-        kwargs = ', '.join(f'{name}={repr(value)}' for name, value in self.context.items())
-        return f'{cls_name}({repr(msg)} {kwargs})'
+class DeviceError(Exception):
+    """An exception that occurs when the specified device isn't connected to the robot. """
 
 
 cdef class Gamepad:
@@ -97,12 +72,14 @@ cdef class Gamepad:
             param: The name of the parameter to read. Possible values are at https://pioneers.berkeley.edu/software/robot_api.html 
         """
         if self.mode != TELEOP:
-            raise CodeExecutionError(f'Cannot use Gamepad during {self.mode}')
+            raise RuntimeError(f'Cannot use Gamepad during {self.mode}')
         # Convert Python string to C string
         cdef bytes param = param_name.encode('utf-8')
         cdef uint32_t buttons
         cdef float joysticks[4]
-        gamepad_read(&buttons, joysticks)
+        cdef int err = gamepad_read(&buttons, joysticks)
+        if err == -1:
+            raise DeviceError(f"Gamepad isn't connected to Dawn or the robot")
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
@@ -205,7 +182,11 @@ cdef class Robot:
             raise MemoryError("Could not allocate memory to get device value.")
 
         # Read and return parameter
-        device_read_uid(device_uid, EXECUTOR, DATA, 1 << param_idx, param_value)
+        cdef int err = device_read_uid(device_uid, EXECUTOR, DATA, 1 << param_idx, param_value)
+        if err == -1:
+            PyMem_Free(param_value)
+            raise DeviceError(f"Device with type {device_type} and uid {device_uid} isn't connected to the robot")
+
         param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
             ret = param_value[param_idx].p_i
@@ -242,6 +223,9 @@ cdef class Robot:
 
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
+        if not param_value:
+            raise MemoryError("Could not allocate memory to get device value.")
+
         cdef str param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
             param_value[param_idx].p_i = value
@@ -249,6 +233,8 @@ cdef class Robot:
             param_value[param_idx].p_f = value
         elif param_type == 'bool':
             param_value[param_idx].p_b = int(value)
-        device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
+        cdef int err = device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
         PyMem_Free(param_value)
+        if err == -1:
+            raise DeviceError(f"Device with type {device_type} and uid {device_uid} isn't connected to the robot")
 

@@ -24,7 +24,7 @@
 
 //enumerate names of processes
 typedef enum process {
-	DEV_HANDLER, EXECUTOR, NET_HANDLER, SUPERVISOR, TEST
+	DEV_HANDLER, EXECUTOR, NET_HANDLER, SHM, TEST
 } process_t;
 
 //enumerated names for the buttons on the gamepad

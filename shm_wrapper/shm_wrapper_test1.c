@@ -517,10 +517,5 @@ int main()
 	
 	subscription_test();
 	
-	sleep(2);
-	
-	shm_stop();
-	logger_stop(DEV_HANDLER);
-	
 	return 0;
 }

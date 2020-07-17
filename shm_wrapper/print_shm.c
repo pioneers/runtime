@@ -20,6 +20,4 @@ int main (int argc, char *argv[])
 	print_robot_desc();
 	print_gamepad_state();
 	
-	shm_stop();
-	logger_stop(TEST);
 }

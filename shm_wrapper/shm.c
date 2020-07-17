@@ -114,7 +114,7 @@ int main ()
 {
 	//set up
 	signal(SIGINT, sigint_handler);
-	logger_init(SUPERVISOR);
+	logger_init(SHM);
 	
 	int fd_shm;
 	
