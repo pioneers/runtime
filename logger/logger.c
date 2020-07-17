@@ -35,6 +35,8 @@ mode_t fifo_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;   
 int fifo_up = 0;      //flag that represents if FIFO is up and running
 int fifo_fd = -1;     //file descriptor for FIFO
 
+pthread_mutex_t log_mutex; //for ensuring one log gets emitted before processing the next
+
 // ************************************ HELPER FUNCTIONS ****************************************** //
 
 static void set_log_level (log_level_t *level, char *important)
@@ -191,6 +193,8 @@ void logger_init (process_t process)
 	else if (process == NET_HANDLER) { sprintf(process_str, "NET_HANDLER"); }
 	else if (process == SUPERVISOR) { sprintf(process_str, "SUPERVISOR"); }
 	else if (process == TEST) { sprintf(process_str, "TEST"); }
+
+	pthread_mutex_init(&log_mutex, NULL); //initialize the log_mutex
 }
 
 /* 
@@ -223,6 +227,9 @@ void logger_stop ()
 			perror("logger close FIFO failed");
 		}
 	}
+
+	//destroy the log_mutex
+	pthread_mutex_destroy(&log_mutex);
 }
 
 /* 
@@ -234,7 +241,7 @@ void logger_stop ()
  *    - ...: additional arguments to be formatted in format string
  */
 void log_printf (log_level_t level, char *format, ...)
-{	
+{
 	static time_t now;                   //for holding system time
 	static char *time_str;               //for string representation of system time
 	static char final_msg[MAX_LOG_LEN];  //final message to be logged to requested locations
@@ -246,7 +253,10 @@ void log_printf (log_level_t level, char *format, ...)
 	if (level < network_level && level < file_level && level < stdout_level) {
 		return;
 	}
-	
+
+	//lock the mutex around all output functions
+	pthread_mutex_lock(&log_mutex);
+
 	//expands the format string into msg
 	va_start(args, format);
 	vsprintf(msg, format, args);
@@ -265,7 +275,7 @@ void log_printf (log_level_t level, char *format, ...)
 			*(time_str + len - 1) = '\0';
 		}
 		len = strlen(msg);
-		
+
 		//this logic ensures that log messages are separated by exactly one newline (as long as user doesn't put >1 newline)
 		if (*(msg + len - 1) == '\n') {
 			sprintf(final_msg, "%s @ %s\t(%s) %s", log_level_strs[level], process_str, time_str, msg);
@@ -273,7 +283,7 @@ void log_printf (log_level_t level, char *format, ...)
 			sprintf(final_msg, "%s @ %s\t(%s) %s\n", log_level_strs[level], process_str, time_str, msg);
 		}
 	}
-	
+
 	//send final_msg to the desired output locations
 	if ((OUTPUTS & LOG_STDOUT) && (level >= stdout_level)) {
 		printf("%s", final_msg);
@@ -309,4 +319,7 @@ void log_printf (log_level_t level, char *format, ...)
 			}
 		}
 	}
+
+	//release the mutex
+	pthread_mutex_unlock(&log_mutex);
 }

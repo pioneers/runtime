@@ -64,7 +64,7 @@ void init() {
     // Initialize lock on global variable USED_PORTS
     if (pthread_mutex_init(&used_ports_lock, NULL) != 0) {
         log_printf(ERROR, "Couldn't init USED_PORTS_LOCK");
-        return 1;
+	exit(1);
     }
 }
 
@@ -125,6 +125,7 @@ int8_t get_new_device() {
                 log_printf(INFO, "Port /dev/ttyACM%d is new\n", i);
                 // Set the bit to be on
                 used_ports |= (1 << i);
+		pthread_mutex_unlock(&used_ports_lock);
                 return i;
             }
         }
@@ -260,18 +261,12 @@ void* relayer(void* relay_cast) {
  * disconnects from shared memory, and frees the RELAY struct
  */
 void relay_clean_up(msg_relay_t* relay) {
-    serialport_close(relay->file_descriptor);
-    pthread_mutex_lock(&used_ports_lock);
-    used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
-    pthread_mutex_unlock(&used_ports_lock);
-
-    pthread_mutex_destroy(&relay->relay_lock);
-    pthread_cond_destroy(&relay->start_cond);
+	int ret;
 
 	// Cancel the sender and receiver threads when ongoing transfers are completed
 	pthread_cancel(relay->sender);
 	pthread_cancel(relay->receiver);
-    int ret;
+
     if ((ret = pthread_join(relay->sender, NULL)) != 0) {
         log_printf(ERROR, "pthread_join on relay->sender failed with error code %d", ret);
     }
@@ -283,6 +278,17 @@ void relay_clean_up(msg_relay_t* relay) {
 	if (relay->shm_dev_idx != -1) {
 		// device_disconnect(relay->shm_dev_idx)
 	}
+
+	serialport_close(relay->file_descriptor);
+	if (ret = pthread_mutex_lock(&used_ports_lock)) {
+		log_printf(ERROR, "mutex lock failed with code %d", ret);
+	}
+    used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
+    pthread_mutex_unlock(&used_ports_lock);
+
+    pthread_mutex_destroy(&relay->relay_lock);
+    pthread_cond_destroy(&relay->start_cond);
+
     log_printf(DEBUG, "Cleaned up threads for %s", get_device_name(relay->dev_id.type));
 	free(relay);
 }
@@ -410,13 +416,15 @@ void* receiver(void* relay_cast) {
 			relay->last_received_ping_time = millis();
             pthread_mutex_unlock(&relay->relay_lock);
 		} else if (msg->message_id == DEVICE_DATA) {
-            //printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
+            	//printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
 		    log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
 			// First, parse the payload into an array of parameter values
-			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
+			//parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
 			// TODO: Now write it to shared memory
 			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
 		} else if (msg->message_id == LOG) {
+			printf("got log message from lowcar\n");
+			fflush(stdout);
             log_printf(INFO, "[%s]: %s\n", get_device_name(relay->dev_id.type), msg->payload);
 		} else {
 			log_printf(FATAL, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
@@ -474,21 +482,22 @@ int send_message(msg_relay_t* relay, message_t* msg) {
  */
 int receive_message(msg_relay_t* relay, message_t* msg) {
 	// Variable to temporarily hold a read byte
-	uint8_t last_byte_read;
+	uint8_t last_byte_read = 0;;
 	int ret;
 	// Keep reading a byte until we get the delimiter byte
-	while (!last_byte_read == 0x00) {
+	while (1) {
 		readn(relay->file_descriptor, &last_byte_read, 1);
-		// If we were able to read a byte but it wasn't the delimiter
-		if (last_byte_read != 0x00) {
-			log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
+		if (last_byte_read == 0x00) {
+			break;
 		}
+		// If we were able to read a byte but it wasn't the delimiter
+		log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
 	}
 	//log_printf(DEBUG, "Got start of message!\n");
 
 	// Try to read the length of the cobs encoded message (the next byte)
 	uint8_t cobs_len;
-	num_bytes_read = 0;
+	int num_bytes_read = 0;
 	while (num_bytes_read != 1) {
 		num_bytes_read = readn(relay->file_descriptor, &cobs_len, 1);
 	}
@@ -559,14 +568,14 @@ int verify_lowcar(msg_relay_t* relay) {
 
     // Set serial port options to allow read() to block indefinitely
     struct termios toptions;
-    if (tcgetattr(fd, &toptions) < 0) { // Get current options
+    if (tcgetattr(relay->file_descriptor, &toptions) < 0) { // Get current options
         log_printf(ERROR, "serialport_init: Couldn't get term attributes");
         return -1;
     }
     toptions.c_cc[VMIN]  = 1;               // read() must read at least a byte before returning
     // Save changes to TOPTIONS immediately using flag TCSANOW
-    tcsetattr(fd, TCSANOW, &toptions);
-    if(tcsetattr(fd, TCSAFLUSH, &toptions) < 0) {
+    tcsetattr(relay->file_descriptor, TCSANOW, &toptions);
+    if(tcsetattr(relay->file_descriptor, TCSAFLUSH, &toptions) < 0) {
         log_printf(ERROR, "init_serialport: Couldn't set term attributes");
         return -1;
     }
@@ -682,6 +691,8 @@ int readn (int fd, void *buf, uint16_t n)
 	uint16_t n_read;
 	char *curr = buf;
 
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	while (n_remain > 0) {
 		if ((n_read = read(fd, curr, n_remain)) < 0) {
 			if (errno == EINTR) { //read interrupted by signal; read again
@@ -697,6 +708,8 @@ int readn (int fd, void *buf, uint16_t n)
 		n_remain -= n_read;
 		curr += n_read;
 	}
+	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
 	return (n - n_remain);
 }
 
