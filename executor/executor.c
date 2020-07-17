@@ -13,7 +13,6 @@
 #include <time.h>                          // for getting time
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
-#include "../shm_wrapper_aux/shm_wrapper_aux.h" // Shared memory wrapper for robot state
 #include "../logger/logger.h"              // for runtime logger
 
 // Global variables to all functions and threads
@@ -62,10 +61,8 @@ void executor_stop() {
     // Py_XDECREF(pRobot);
     // Py_XDECREF(pModule);
     // Py_FinalizeEx();
-
-    shm_aux_stop(EXECUTOR);
-    log_printf(DEBUG, "Aux SHM stopped");
-    shm_stop(EXECUTOR);
+	
+    shm_stop();
     log_printf(DEBUG, "SHM stopped");
     logger_stop();
     // exit(2);
@@ -81,9 +78,7 @@ void executor_stop() {
 void executor_init(char* student_code) {
     //initialize
 	logger_init(EXECUTOR);
-    shm_aux_init(EXECUTOR);
-    log_printf(DEBUG, "Aux SHM initialized");
-    shm_init(EXECUTOR);
+    shm_init();
     log_printf(DEBUG, "SHM intialized");
     student_module = student_code;
     
@@ -428,7 +423,7 @@ void exit_handler(int signum) {
         kill_subprocess();
     }
     remove(CHALLENGE_SOCKET);
-    shm_aux_stop(SUPERVISOR);
+	shm_stop();
     logger_stop();
     exit(0);
 }
@@ -444,8 +439,8 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, exit_handler);
     logger_init(SUPERVISOR);
     log_printf(DEBUG, "Logger initialized");
-    shm_aux_init(SUPERVISOR);
-    log_printf(DEBUG, "Aux SHM started");
+    shm_init();
+    log_printf(DEBUG, "SHM started");
 
     robot_desc_val_t new_mode = IDLE;
 
