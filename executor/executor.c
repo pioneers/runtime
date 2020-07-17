@@ -51,6 +51,34 @@ char* get_mode_str(robot_desc_val_t mode) {
 
 
 /**
+ *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
+ */
+void reset_params() {
+    uint32_t catalog;
+    dev_id_t dev_ids[MAX_DEVICES];
+    get_catalog(&catalog);
+    get_device_identifiers(dev_ids);
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if (catalog & (1 << i)) { // If device at index i exists
+            device_t* device = get_device(dev_ids[i].type);
+            if(device == NULL) {
+                log_printf(ERROR, "Device at index %d with type %d is invalid\n", i, dev_ids[i].type);
+                continue;
+            }
+            uint32_t reset_params = 0;
+            param_val_t zero_params[MAX_PARAMS] = {0};
+            for(int j = 0; j < device->num_params; j++) {
+                if (device->params[j].write) { 
+                    reset_params |= j;
+                }
+            }
+            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
+        }
+    }
+}
+
+
+/**
  *  Closes all executor processes and exits cleanly.
  */
 void executor_stop() {
@@ -61,7 +89,12 @@ void executor_stop() {
     // Py_XDECREF(pRobot);
     // Py_XDECREF(pModule);
     // Py_FinalizeEx();
-	
+
+    if (mode != CHALLENGE) {
+        log_printf(DEBUG, "CURRENT MODE: %d", mode);
+        reset_params();
+    }
+
     shm_stop();
     log_printf(DEBUG, "SHM stopped");
     logger_stop();
@@ -323,12 +356,6 @@ void run_challenges() {
 }
 
 
-void stop_motors() {
-    
-}
-
-
-
 /**
  *  Handler for killing the child mode subprocess
  */
@@ -405,9 +432,6 @@ void kill_subprocess() {
     if (WIFSIGNALED(status)) {
         log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
     }
-    if (mode != CHALLENGE) {
-        stop_motors();
-    }
     mode = IDLE;
 }
 
@@ -439,6 +463,8 @@ int main(int argc, char* argv[]) {
     log_printf(DEBUG, "Logger initialized");
     shm_init();
     log_printf(DEBUG, "SHM started");
+
+    // shm_init(SUPERVISOR);
 
     robot_desc_val_t new_mode = IDLE;
 

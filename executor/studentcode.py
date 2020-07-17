@@ -29,6 +29,7 @@ def constant_print(msg):
 def autonomous_setup():
     print('Autonomous setup has begun!')
     print(f"Starting position: {Robot.start_pos}")
+    
     # Robot.run(autonomous_actions)
     # Robot.run(set_motor)
     Robot.set_value(MOTOR, 'duty_cycle', 0.2)

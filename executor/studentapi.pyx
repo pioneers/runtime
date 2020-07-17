@@ -137,12 +137,12 @@ cdef class Robot:
     The API for accessing the robot and its devices.
     """
     cdef dict running_actions
-    cdef public int start_pos
+    cdef public str start_pos
 
     def __cinit__(self):
         """Initializes the dict of running threads. """
         self.running_actions = {}
-        self.start_pos = robot_desc_read(START_POS)
+        self.start_pos = 'left' if robot_desc_read(START_POS) == LEFT else 'right'
 
 
     def run(self, action, *args, **kwargs) -> None:
