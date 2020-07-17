@@ -1,4 +1,5 @@
 #include "logger.h"
+#include <stdlib.h>
 
 //bit flags for setting logger output location
 #define LOG_STDOUT (1 << 0)
@@ -27,7 +28,7 @@ char *log_level_strs[] = {                 //strings for holding names of log le
 log_level_t stdout_level = DEBUG, file_level = DEBUG, network_level = DEBUG;         
 
 //used for LOG_FILE only
-FILE *log_fd = NULL;                        //file descriptor of the log file
+FILE *log_file = NULL;                        //file descriptor of the log file
 char log_file_path[MAX_CONFIG_LINE_LEN];    //file path to the log file
 
 //used for LOG_NETWORK only
@@ -140,6 +141,21 @@ static void sigpipe_handler (int signum)
 	fifo_up = 0;
 }
 
+static void open_fifo() {
+	if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
+		if (errno != EEXIST) { //don't show error if mkfifo failed because it already exists
+			perror("mkfifo: logger create FIFO failed");
+		}
+	}
+	if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
+		if (errno != ENXIO) { //don't show error if open failed because net_handler has not opened pipe for reading yet
+			perror("open: logger open FIFO failed");
+		}
+	} else {
+		fifo_up = 1;
+	}
+}
+
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
 /*
@@ -162,7 +178,7 @@ void logger_init (process_t process)
 		close(temp_fd);
 		
 		//open with fopen to use stdio functions instead
-		if ((log_fd = fopen(log_file_path, "a")) == NULL) {  //open the config file for reading
+		if ((log_file = fopen(log_file_path, "a")) == NULL) {  //open the config file for reading
 			perror("fopen: logger could not open log file; exiting...");
 			exit(1);
 		}
@@ -170,18 +186,7 @@ void logger_init (process_t process)
 	
 	//if we want to log to network, create the FIFO pipe if it doesn't exist, and open it for writing
 	if (OUTPUTS & LOG_NETWORK) {
-		if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
-			if (errno != EEXIST) { //don't show error if mkfifo failed because it already exists
-				perror("mkfifo: logger create FIFO failed");
-			}
-		}
-		if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
-			if (errno != ENXIO) { //don't show error if open failed because net_handler has not opened pipe for reading yet
-				perror("open: logger open FIFO failed");
-			}
-		} else {
-			fifo_up = 1;
-		}
+		open_fifo();
 		signal(SIGPIPE, sigpipe_handler);
 	}
 	
@@ -189,8 +194,11 @@ void logger_init (process_t process)
 	if (process == DEV_HANDLER) { sprintf(process_str, "DEV_HANDLER"); }
 	else if (process == EXECUTOR) { sprintf(process_str, "EXECUTOR"); }
 	else if (process == NET_HANDLER) { sprintf(process_str, "NET_HANDLER"); }
-	else if (process == SUPERVISOR) { sprintf(process_str, "SUPERVISOR"); }
+	else if (process == SHM) { sprintf(process_str, "SHM"); }
 	else if (process == TEST) { sprintf(process_str, "TEST"); }
+
+	// Add cleanup handler
+	atexit(logger_stop);
 }
 
 /* 
@@ -198,27 +206,15 @@ void logger_init (process_t process)
  */
 void logger_stop ()
 {	
-	//if outputting to stdout, write a newline to stdout
-	if (OUTPUTS & LOG_STDOUT) {
-		printf("\n");
-	}
-	
-	//if outputting to file, write a new line to log file, then close file descriptor
+	//if outputting to file, close file stream
 	if (OUTPUTS & LOG_FILE) {
-		fprintf(log_fd, "\n");
-		if (fclose(log_fd) != 0) {
+		if (fclose(log_file) != 0) {
 			perror("fclose: log file close failed");
 		}
 	}
 	
-	//if outputting to network, write a newline to pipe, then close file descriptor
+	//if outputting to network, close file descriptor
 	if ((OUTPUTS & LOG_NETWORK) && (fifo_up == 1)) {
-		if (write(fifo_fd, "\n", 1) == -1) {
-			//net_handler crashed or was terminated (sent SIGPIPE which was handled)
-			if (errno != EPIPE) {
-				perror("write: writing to FIFO failed unexpectedly");
-			}
-		}
 		if (close(fifo_fd) != 0) {
 			perror("logger close FIFO failed");
 		}
@@ -280,28 +276,17 @@ void log_printf (log_level_t level, char *format, ...)
 		fflush(stdout);
 	}
 	if ((OUTPUTS & LOG_FILE) && (level >= file_level)) {
-		fprintf(log_fd, "%s", final_msg);
-		fflush(log_fd);
+		fprintf(log_file, "%s", final_msg);
+		fflush(log_file);
 	}
 	if ((OUTPUTS & LOG_NETWORK) && (level >= network_level)) {
 		//if FIFO is not up, try to connect to it
 		if (!fifo_up) {
-			if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
-				if (errno != EEXIST) { //don't show error if mkfifo failed because it already exists
-					perror("mkfifo: logger create FIFO failed");
-				}
-			}
-			if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
-				if (errno != ENXIO) { //don't show error if open failed because net_handler has not opened pipe for reading yet
-					perror("open: logger open FIFO failed");
-				}
-			} else {
-				fifo_up = 1;
-			}
+			open_fifo();
 		}
 		//if FIFO is up, try to write to it; if SIGPIPE then use handler to set fifo_up to 0
 		if (fifo_up) {
-			if (write(fifo_fd, final_msg, strlen(final_msg)) == -1) {
+			if (write(fifo_fd, final_msg, strlen(final_msg) + 1) == -1) {
 				//net_handler crashed or was terminated (sent SIGPIPE which was handled)
 				if (errno != EPIPE) {
 					perror("write: writing to FIFO failed unexpectedly");

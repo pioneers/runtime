@@ -490,10 +490,5 @@ int main()
 	
 	subscription_test();
 	
-	shm_stop();
-	logger_stop(EXECUTOR);
-	
-	sleep(2);
-	
 	return 0;
 }

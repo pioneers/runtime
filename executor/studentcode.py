@@ -39,6 +39,9 @@ def autonomous_setup():
     Robot.run(constant_print, "auton")
     global i
     i = 0
+    # autonomous_actions()
+    Robot.run(autonomous_actions)
+    # time.sleep(10)
 
 def autonomous_main():
     Robot.get_value(MOTOR, 'duty_cycle')
