@@ -2,13 +2,10 @@ os: linux
 arch: arm64 
 dist: bionic # Ubuntu 18
 
-language: python
-python:
-  - "3.6"
-  - "3.7"
-  - "3.8"
+language: c
 
-compiler: gcc
+services:
+  - docker
 
 # require the branch name to be master (note for PRs this is the base branch name)
 branches:
@@ -17,13 +14,9 @@ branches:
 
 
 before_install:
-  - sudo add-apt-repository -y ppa:deadsnakes/ppa
-  - sudo apt-get -q update  
-  - sudo apt-get -y install python3.6-dev python3.7-dev python3.8-dev
+  - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
 
-# Install protobuf, protobuf-c, Cython
-install:
-  - pip3 install Cython
+script:
+  - docker run -i --rm -p 8101:8101/tcp -p 9000:9000/tcp ${DOCKER_USERNAME}/c-runtime:arm32 cd shm_wrapper && ./static_dev &
+  - ls
 
-jobs:
-  include:
