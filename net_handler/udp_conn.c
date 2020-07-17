@@ -89,7 +89,7 @@ void* send_device_data(void* args) {
 		
 		//send data to Dawn
 		err = sendto(socket_fd, buffer, len, 0, (struct sockaddr*) &dawn_addr, addr_len);
-		if (err <= 0 || err != len) {
+		if (err < 0 || err != len) {
 			log_printf(ERROR, "UDP sendto failed. send buffer length %d, actual sent %d: %s", len, err, strerror(errno));
 		}
 
@@ -120,7 +120,7 @@ void* update_gamepad_state(void* args) {
 		if (recvlen == size) {
 			log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
 		}
-		if (recvlen <= 0) {
+		if (recvlen < 0) {
 			log_printf(ERROR, "UDP recvfrom failed: %s", strerror(errno));
 			continue;
 		}

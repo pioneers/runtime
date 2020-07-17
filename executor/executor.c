@@ -51,58 +51,6 @@ char* get_mode_str(robot_desc_val_t mode) {
 
 
 /**
- *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
- */
-void reset_params() {
-    uint32_t catalog;
-    dev_id_t dev_ids[MAX_DEVICES];
-    get_catalog(&catalog);
-    get_device_identifiers(dev_ids);
-    for (int i = 0; i < MAX_DEVICES; i++) {
-        if (catalog & (1 << i)) { // If device at index i exists
-            device_t* device = get_device(dev_ids[i].type);
-            if(device == NULL) {
-                log_printf(ERROR, "Device at index %d with type %d is invalid\n", i, dev_ids[i].type);
-                continue;
-            }
-            uint32_t reset_params = 0;
-            param_val_t zero_params[MAX_PARAMS] = {0};
-            for(int j = 0; j < device->num_params; j++) {
-                if (device->params[j].write) { 
-                    reset_params |= j;
-                }
-            }
-            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
-        }
-    }
-}
-
-
-/**
- *  Closes all executor processes and exits cleanly.
- */
-void executor_stop() {
-	log_printf(DEBUG, "Shutting down executor...");
-    
-    // Py_XDECREF(pAPI);
-    // Py_XDECREF(pGamepad);
-    // Py_XDECREF(pRobot);
-    // Py_XDECREF(pModule);
-    // Py_FinalizeEx();
-
-    if (mode != CHALLENGE) {
-        log_printf(DEBUG, "CURRENT MODE: %d", mode);
-        reset_params();
-    }
-
-    shm_stop();
-    log_printf(DEBUG, "SHM stopped");
-    logger_stop();
-    // exit(2);
-}
-
-
-/**
  *  Initializes the executor process. Must be the first thing called in each child subprocess
  *
  *  Input: 
@@ -110,9 +58,6 @@ void executor_stop() {
  */
 void executor_init(char* student_code) {
     //initialize
-	logger_init(EXECUTOR);
-    shm_init();
-    log_printf(DEBUG, "SHM intialized");
     student_module = student_code;
     
     Py_Initialize();
@@ -172,7 +117,7 @@ void executor_init(char* student_code) {
         log_printf(ERROR, "Could not insert API into student code.");
         exit(1);
     }
-
+    
 }
 
 
@@ -236,8 +181,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
                     ret = 2;
                 }
                 else {
-                    log_printf(DEBUG, "Timed out by supervisor");
-                    ret = 3; // Timed out by supervisor process
+                    ret = 3; // Timed out by parent process
                 }
                 break;
             }
@@ -251,7 +195,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
         if (PyErr_Occurred()) {
             PyErr_Print();
         }
-        log_printf(ERROR, "Cannot find function in student code: %s\n", func_name);
+        log_printf(ERROR, "Cannot find function in student code: %s", func_name);
         ret = 4;
     }
     return ret;
@@ -357,20 +301,41 @@ void run_challenges() {
 
 
 /**
- *  Handler for killing the child mode subprocess
+ *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
  */
-void mode_exit_handler(int signum) {
-    // Cancel the Python thread by sending a TimeoutError
-    PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    log_printf(DEBUG, "Sent exception");
+void reset_params() {
+    uint32_t catalog;
+    dev_id_t dev_ids[MAX_DEVICES];
+    get_catalog(&catalog);
+    get_device_identifiers(dev_ids);
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if (catalog & (1 << i)) { // If device at index i exists
+            device_t* device = get_device(dev_ids[i].type);
+            if(device == NULL) {
+                log_printf(ERROR, "reset_params: device at index %d with type %d is invalid\n", i, dev_ids[i].type);
+                continue;
+            }
+            uint32_t reset_params = 0;
+            param_val_t zero_params[MAX_PARAMS] = {0};
+            for(int j = 0; j < device->num_params; j++) {
+                if (device->params[j].write) { 
+                    reset_params |= j;
+                }
+            }
+            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
+        }
+    }
 }
 
 
 /**
- *  Handler for killing the child challenge subprocess
+ *  Handler for killing the child mode subprocess
  */
-void challenge_exit_handler(int signum) {
-    exit(3);
+void python_exit_handler(int signum) {
+    // Cancel the Python thread by sending a TimeoutError
+    log_printf(DEBUG, "sent exception 0");
+    PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
+    log_printf(DEBUG, "sent exception");
 }
 
 
@@ -385,23 +350,22 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
     }
     else if (pid == 0) {
         // Now in child process
-        atexit(executor_stop); // Always call executor_stop when process dies to free handles to SHM
         signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
         executor_init("studentcode"); // Default name of student code file 
         if (mode == CHALLENGE) {
-            signal(SIGTERM, challenge_exit_handler);
-            signal(SIGALRM, mode_exit_handler);
+            signal(SIGTERM, exit);
+            signal(SIGALRM, python_exit_handler); // Interrupts any running Python function
             alarm(challenge_time); // Set timeout for challenges
             run_challenges();
-            robot_desc_write(RUN_MODE, IDLE); // Will tell supervisor to call kill_subprocess
+            robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
             while (1) {
                 sleep(1); // Wait for process to be exited
             }
         }
         else {
-            signal(SIGTERM, mode_exit_handler);
+            signal(SIGTERM, python_exit_handler);
             run_mode(mode);
-            exit(2);
+            exit(0);
         }
         return pid; // Never reach this statement due to exit, needed to fix compiler warning
     }
@@ -413,15 +377,12 @@ pid_t start_mode_subprocess(robot_desc_val_t mode) {
 
 
 /** 
- *  Kills any running subprocess.
+ *  Kills any running subprocess. Will make the robot go into IDLE mode.
  */
 void kill_subprocess() {
     if (kill(pid, SIGTERM) != 0) {
         log_printf(ERROR, "Kill signal not sent: %s", strerror(errno));
     } 
-    else {
-        log_printf(DEBUG, "Sent kill signal to child process");
-    }
     int status;
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
@@ -432,6 +393,10 @@ void kill_subprocess() {
     if (WIFSIGNALED(status)) {
         log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
     }
+    // Reset parameters if robot was in AUTO or TELEOP. Needed for safety
+    if (mode != CHALLENGE) {
+        reset_params();
+    }
     mode = IDLE;
 }
 
@@ -440,13 +405,11 @@ void kill_subprocess() {
  *  Handler for keyboard interrupts SIGINT (Ctrl + C)
  */
 void exit_handler(int signum) {
-    log_printf(DEBUG, "Shutting down supervisor...");
+    log_printf(DEBUG, "Shutting down executor...");
     if (mode != IDLE) {
         kill_subprocess();
     }
     remove(CHALLENGE_SOCKET);
-	shm_stop();
-    logger_stop();
     exit(0);
 }
 
@@ -459,12 +422,8 @@ void exit_handler(int signum) {
  */
 int main(int argc, char* argv[]) {
     signal(SIGINT, exit_handler);
-    logger_init(SUPERVISOR);
-    log_printf(DEBUG, "Logger initialized");
+    logger_init(EXECUTOR);
     shm_init();
-    log_printf(DEBUG, "SHM started");
-
-    // shm_init(SUPERVISOR);
 
     robot_desc_val_t new_mode = IDLE;
 

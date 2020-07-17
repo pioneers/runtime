@@ -90,6 +90,7 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 	free(send_buf);
 }
 
+
 /* 
  * Send a challenge data message on the TCP connection to the client. Reads packets from the UNIX socket from
  * executor until all messages are read, packages the message, and sends it.
@@ -111,7 +112,7 @@ static void send_challenge_results(int conn_fd, int challenge_fd) {
 		if (readlen == CHALLENGE_LEN) {
 			log_printf(WARN, "challenge_fd: Read length matches size of read buffer %d", readlen);
 		}
-		if (readlen <= 0) { 
+		if (readlen < 0) { 
 			perror("recvfrom");
 			log_printf(ERROR, "Socket recv from challenge_fd failed");
 		}
@@ -165,8 +166,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	//unpack according to message
 	if (msg_type == CHALLENGE_DATA_MSG) {
 		//socket address structure for the UNIX socket to executor for challenge data
-		struct sockaddr_un exec_addr;
-		memset(&exec_addr, 0, sizeof(struct sockaddr_un));
+		struct sockaddr_un exec_addr = {0};
 		exec_addr.sun_family = AF_UNIX;
 		strcpy(exec_addr.sun_path, CHALLENGE_SOCKET);
 		
@@ -183,7 +183,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		for (int i = 0; i < NUM_CHALLENGES; i++) {
 			int input_len = strlen(inputs->payload[i]) + 1;
 			int sendlen = sendto(challenge_fd, inputs->payload[i], input_len, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
-			if (sendlen <= 0 || sendlen != input_len) {
+			if (sendlen < 0 || sendlen != input_len) {
 				perror("sendto");
 				log_printf(ERROR, "Socket send to challenge_fd failed");
 				return -2;
@@ -360,8 +360,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 		log_printf(ERROR, "failed to create challenge socket");
 		return;
 	}
-	struct sockaddr_un my_addr;
-	memset(&my_addr, 0, sizeof(struct sockaddr_un));
+	struct sockaddr_un my_addr = {0};
 	my_addr.sun_family = AF_UNIX;
 	if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, sizeof(sa_family_t)) < 0) {
         log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));

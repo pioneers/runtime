@@ -1,4 +1,5 @@
 #include "shm_wrapper.h"
+#include <stdlib.h>
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
@@ -408,6 +409,8 @@ void shm_init ()
 	if (close(fd_shm) == -1) {
 		log_printf(ERROR, "close: robot_desc_shm. %s", strerror(errno));
 	}
+
+	atexit(shm_stop);
 }
 
 /*

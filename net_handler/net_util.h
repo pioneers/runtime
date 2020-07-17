@@ -14,7 +14,6 @@
 //include other runtime files
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
-#include "../shm_wrapper_aux/shm_wrapper_aux.h"
 #include "../logger/logger.h"
 
 //include compiled protobuf headers
