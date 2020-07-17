@@ -17,6 +17,9 @@ before_install:
   - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
 
 script:
-  - docker run -i --rm -p 8101:8101/tcp -p 9000:9000/tcp ${DOCKER_USERNAME}/c-runtime:arm32 cd shm_wrapper && ./static_dev &
-  - ls
+  - docker run -d -p 8101:8101/tcp -p 9000:9000/tcp ${DOCKER_USERNAME}/c-runtime:arm32 
+  - docker ps
+  - sleep 5
+  - docker exec $(docker ps -n=1 -q) bash -c "cd net_handler && ./tcp_client"
+  - docker exec $(docker ps -n=1 -q) bash -c "cat nohup.out"
 
