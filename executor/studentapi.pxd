@@ -31,14 +31,8 @@ cdef extern from "../logger/logger.h":
 cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
     ctypedef enum stream_t:
         DATA, COMMAND
-    void shm_init(process_t process)
-    void shm_stop(process_t process)
-    void device_read_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
-    void device_write_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
-
-
-cdef extern from "../shm_wrapper_aux/shm_wrapper_aux.h" nogil:
-    void shm_aux_init (process_t process)
-    void shm_aux_stop (process_t process)
-    void gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);
-
+    void shm_init()
+    void shm_stop()
+    int device_read_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
+    int device_write_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
+    int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals);

@@ -75,12 +75,12 @@ void sanity_test()
 
 		device_write(0, EXECUTOR, COMMAND, 2, params_in);
 		
-		print_pmap();
+		print_cmd_map();
 		
 		sleep((unsigned int) ((float) (i + 2)) / 2.0);
 	}
 	
-	print_pmap();
+	print_cmd_map();
 }
 
 // *************************************************************************************************** //
@@ -141,7 +141,7 @@ void single_thread_load_test ()
 		for (int i = 0; i < count; i++) {
 			//wait until previous write has been pulled out by process1
 			while (1) {
-				get_param_bitmap(pmap);
+				get_cmd_map(pmap);
 				if (!pmap[0]) {
 					break;
 				}
@@ -229,7 +229,7 @@ void *write_thread_dtrwt (void *arg)
 	for (int i = 0; i < trials; i++) {
 		(params_in[0].p_i)++;
 		while (1) {
-			get_param_bitmap(pmap);
+			get_cmd_map(pmap);
 			if (!pmap[0]) {
 				break;
 			}
@@ -325,7 +325,7 @@ void single_thread_load_test_uid ()
 		for (int i = 0; i < count; i++) {
 			//wait until previous write has been pulled out by process1
 			while (1) {
-				get_param_bitmap(pmap);
+				get_cmd_map(pmap);
 				if (!pmap[0]) {
 					break;
 				}
@@ -361,6 +361,104 @@ void single_thread_load_test_uid ()
 }
 
 // *************************************************************************************************** //
+
+//sanity gamepad test
+void sanity_gamepad_test ()
+{
+	uint32_t buttons;
+	float joystick_vals[4];
+	
+	sync();
+	
+	printf("Begin sanity gamepad test...\n");
+	
+	for (int i = 0; i < 7; i++) {
+		gamepad_read(&buttons, joystick_vals);
+		printf("buttons = %d\t joystick_vals = (", buttons);
+		for (int j = 0; j < 4; j++) {
+			printf("%f, ", joystick_vals[j]);
+		}
+		printf(")\n");
+		usleep(500000); //sleep for half a second
+	}
+	printf("Done!\n\n");
+}
+
+// *************************************************************************************************** //
+
+//sanity robot description test
+void sanity_robot_desc_test ()
+{
+	int count = 0;
+	robot_desc_val_t curr[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED };
+	robot_desc_val_t prev[6] = { IDLE, DISCONNECTED, DISCONNECTED, CONNECTED };
+	
+	sync();
+	
+	printf("Begin sanity robot desc test...\n");
+	
+	while (count < 9) {
+		for (int i = 0; i < NUM_DESC_FIELDS; i++) {
+			curr[i] = robot_desc_read(i);
+			if (curr[i] != prev[i]) {
+				printf("something has changed! new robot description:\n");
+				print_robot_desc();
+				prev[i] = curr[i];
+				count++;
+			}
+		}
+		usleep(100);
+	}
+	printf("Done!\n\n");
+}
+
+// *************************************************************************************************** //
+
+//check that device subscriptions are working
+void subscription_test ()
+{
+	uint64_t id0, id1, id2;
+	dev_id_t dev_ids[MAX_DEVICES];
+	
+	sync();
+	
+	printf("Begin subscription test...\n");
+	
+	usleep(100000); //put this program out of sync with test1 loop
+	
+	get_device_identifiers(dev_ids);
+	id0 = dev_ids[0].uid;
+	id1 = dev_ids[1].uid;
+	id2 = dev_ids[2].uid;
+	
+	for (int i = 0; i < 5; i++) {
+		switch(i) {
+			case 0: //sanity
+				place_sub_request(id0, EXECUTOR, 1);
+				break;
+			case 1: //different processes
+				place_sub_request(id1, NET_HANDLER, 2);
+				place_sub_request(id2, EXECUTOR, 3);
+				break;
+			case 2: //setting the same subscription
+				place_sub_request(id0, EXECUTOR, 1);
+				break;
+			case 3: //removing a param from subscription
+				place_sub_request(id2, EXECUTOR, 1);
+				break;
+			case 4: //don't do anything
+				break;
+			default:
+				break;			
+		}
+		sleep(1);
+	}
+	
+	printf("Done!\n");
+}
+
+// *************************************************************************************************** //
+
 void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
@@ -372,7 +470,7 @@ void ctrl_c_handler (int sig_num)
 
 int main()
 {	
-	shm_init(EXECUTOR);
+	shm_init();
 	logger_init(EXECUTOR);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
@@ -386,7 +484,13 @@ int main()
 	
 	single_thread_load_test_uid();
 	
-	shm_stop(EXECUTOR);
+	sanity_gamepad_test();
+	
+	sanity_robot_desc_test();
+	
+	subscription_test();
+	
+	shm_stop();
 	logger_stop(EXECUTOR);
 	
 	sleep(2);

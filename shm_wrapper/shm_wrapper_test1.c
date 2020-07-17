@@ -8,9 +8,7 @@
 #include "shm_wrapper.h"
 
 //test process 1 for shm_wrapper. is a dummy device handler.
-//run this one first, then run process2
-//if for some reason you need to quit before the processes terminate (or they're stuck) 
-//you'll need to remove the shm file or change the name in shm_wrapper.c
+//run this one after starting the shm_process
 
 // ************************************* HELPER FUNCTIONS ******************************************** //
 
@@ -65,7 +63,7 @@ void sanity_test ()
 	for (int i = 0; i < 5; i++) {
 		//test to see if anything has changed
 		while (1) {
-			get_param_bitmap(pmap);
+			get_cmd_map(pmap);
 			if (pmap[0] != 0) {
 				break;
 			}
@@ -178,7 +176,7 @@ void single_thread_load_test ()
 		}
 		
 		//if something changed, pull it out
-		get_param_bitmap(pmap);
+		get_cmd_map(pmap);
 		if (pmap[0]) {
 			device_read(0, DEV_HANDLER, COMMAND, pmap[1], params_out);
 		}
@@ -221,7 +219,7 @@ void *read_thread_dtrwt (void *arg)
 		}
 		
 		//if something changed, pull it out and record it
-		get_param_bitmap(pmap);
+		get_cmd_map(pmap);
 		if (pmap[0]) {
 			device_read(0, DEV_HANDLER, COMMAND, pmap[1], params_out);
 			if (prev_val != params_out[0].p_i) {
@@ -342,7 +340,7 @@ void single_thread_load_test_uid ()
 		}
 		
 		//if something changed, pull it out
-		get_param_bitmap(pmap);
+		get_cmd_map(pmap);
 		if (pmap[0]) {
 			device_read_uid(dev_uid, DEV_HANDLER, COMMAND, pmap[1], params_out);
 		}
@@ -357,6 +355,136 @@ void single_thread_load_test_uid ()
 }
 
 // *************************************************************************************************** //
+
+//sanity gamepad test
+void sanity_gamepad_test ()
+{
+	uint32_t buttons;
+	float joystick_vals[4];
+	
+	sync();
+	
+	printf("Begin sanity gamepad test...\n");
+	
+	buttons = 34788240; //push some random buttons
+	joystick_vals[X_LEFT_JOYSTICK] = -0.4854;
+	joystick_vals[Y_LEFT_JOYSTICK] = 0.58989;
+	joystick_vals[X_RIGHT_JOYSTICK] = 0.9898;
+	joystick_vals[Y_RIGHT_JOYSTICK] = -0.776;
+	
+	gamepad_write(buttons, joystick_vals);
+	print_gamepad_state();
+	sleep(1);
+	
+	buttons = 0; //no buttons pushed
+	gamepad_write(buttons, joystick_vals);
+	print_gamepad_state();
+	sleep(1);
+	
+	buttons = 789597848; //push smoe different random buttons
+	joystick_vals[X_LEFT_JOYSTICK] = -0.9489;
+	joystick_vals[Y_LEFT_JOYSTICK] = 0.0;
+	joystick_vals[X_RIGHT_JOYSTICK] = 1.0;
+	joystick_vals[Y_RIGHT_JOYSTICK] = -1.0;
+	
+	gamepad_write(buttons, joystick_vals);
+	print_gamepad_state();
+	sleep(1);
+	
+	buttons = 0;
+	for (int i = 0; i < 4; i++) {
+		joystick_vals[i] = 0.0;
+	}
+	gamepad_write(buttons, joystick_vals);
+	print_gamepad_state();
+	printf("Done!\n\n");
+}
+
+// *************************************************************************************************** //
+
+//sanity robot description test
+void sanity_robot_desc_test ()
+{
+	sync();
+	
+	printf("Begin sanity robot desc test...\n");
+	
+	for (int i = 0; i < 11; i++) {
+		switch (i) {
+			case 0:
+				robot_desc_write(RUN_MODE, AUTO);
+				break;
+			case 1:
+				robot_desc_write(RUN_MODE, TELEOP);
+				break;
+			case 2:
+				robot_desc_write(DAWN, CONNECTED);
+				break;
+			case 3:
+				robot_desc_write(DAWN, DISCONNECTED);
+				break;
+			case 4:
+				robot_desc_write(SHEPHERD, CONNECTED);
+				break;
+			case 5:
+				robot_desc_write(SHEPHERD, DISCONNECTED);
+				break;
+			case 6:
+				robot_desc_write(GAMEPAD, DISCONNECTED);
+				break;
+			case 7:
+				robot_desc_write(GAMEPAD, CONNECTED);
+				break;
+			case 8:
+				robot_desc_write(RUN_MODE, IDLE);
+				break;
+		}
+		usleep(200000); //sleep for 0.2 sec
+	}
+	printf("Done!\n\n");
+}
+
+// *************************************************************************************************** //
+
+//check that device subscriptions are working
+void subscription_test ()
+{
+	uint32_t sub_map[MAX_DEVICES + 1];
+	int dev_ix = -1;
+	
+	sync();
+	
+	printf("Begin subscription test...\n");
+	
+	device_connect(0, 3, 382726112, &dev_ix);
+	device_connect(1, 3, 248742981, &dev_ix);
+	device_connect(2, 3, 893489237, &dev_ix);
+	
+	for (int i = 0; i < 6; i++) {
+		printf("Processing case %d from test2\n", i - 1);
+		get_sub_requests(sub_map);
+		if (sub_map[0] == 0) {
+			printf("No changed subscriptions\n");
+		} else {
+			printf("New subscriptions: \n");
+			for (int j = 0; j < MAX_DEVICES; j++) {
+				if (sub_map[0] & (1 << j)) {
+					printf("\t Device index: %d , params: %u\n", j, sub_map[j + 1]);
+				}
+			}
+		}
+		sleep(1);
+	}
+	
+	device_disconnect(0);
+	device_disconnect(1);
+	device_disconnect(2);
+	
+	printf("Done!\n");
+}
+
+// *************************************************************************************************** //
+
 void ctrl_c_handler (int sig_num)
 {
 	printf("Aborting and cleaning up\n");
@@ -368,7 +496,7 @@ void ctrl_c_handler (int sig_num)
 
 int main()
 {
-	shm_init(DEV_HANDLER);
+	shm_init();
 	logger_init(DEV_HANDLER);
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	
@@ -382,9 +510,16 @@ int main()
 	
 	single_thread_load_test_uid();
 	
+	robot_desc_write(GAMEPAD, CONNECTED);
+	sanity_gamepad_test();
+	
+	sanity_robot_desc_test();
+	
+	subscription_test();
+	
 	sleep(2);
 	
-	shm_stop(DEV_HANDLER);
+	shm_stop();
 	logger_stop(DEV_HANDLER);
 	
 	return 0;
