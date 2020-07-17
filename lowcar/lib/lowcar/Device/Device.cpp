@@ -1,6 +1,6 @@
 #include "Device.h"
 
-const float Device::MAX_SUB_INTERVAL_MS = 250.0;    // maximum tolerable subscription delay, in ms
+const float Device::MAX_SUB_INTERVAL_MS = 500.0;    // maximum tolerable subscription delay, in ms
 const float Device::MIN_SUB_INTERVAL_MS = 40.0;     // minimum tolerable subscription delay, in ms
 
 //Device constructor
@@ -41,13 +41,12 @@ void Device::loop ()
                     this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sending ACK", this->dev_id.type, this->dev_id.uid);
                     this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), &(this->dev_id));
                     this->acknowledged = true;
-                    this->msngr->send_message(MessageID::PING, &(this->curr_msg));
                 }
                 break;
 
             case MessageID::SUBSCRIPTION_REQUEST:
+				this->msngr->lowcar_printf("Got subscription request!");
                 this->params = *((uint32_t *) &(this->curr_msg.payload[0]));    // Update subscribed params
-                // TODO: Verify that subscribed params are readable
                 this->sub_interval = *((uint16_t *) &(this->curr_msg.payload[4]));  // Update the interval at which we send DEVICE_DATA
                 // Make sure sub_interval is within bounds
                 this->sub_interval = min(this->sub_interval, MAX_SUB_INTERVAL_MS);
