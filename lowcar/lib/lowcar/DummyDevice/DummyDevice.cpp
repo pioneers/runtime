@@ -229,13 +229,20 @@ void DummyDevice::device_disable()
 
 void DummyDevice::device_actions()
 {
+	static uint64_t last_update_time = 0;
 	// Simulate read-only params changing
-	this->runtime += 2;
-	this->shepherd += 1.9;
-	this->dawn = !this->dawn;
+	
+	if (millis() - last_update_time > 500) {
 
-	this->devops++;
-	this->atlas += 0.9;
-	this->infra = true;
+		this->runtime += 2;
+		this->shepherd += 1.9;
+		this->dawn = !this->dawn;
+
+		this->devops++;
+		this->atlas += 0.9;
+		this->infra = true;
+		
+		last_update_time = millis();
+	}
 
 }

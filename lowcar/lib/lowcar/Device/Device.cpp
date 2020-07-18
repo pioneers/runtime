@@ -45,7 +45,6 @@ void Device::loop ()
                 break;
 
             case MessageID::SUBSCRIPTION_REQUEST:
-				this->msngr->lowcar_printf("Got subscription request!");
                 this->params = *((uint32_t *) &(this->curr_msg.payload[0]));    // Update subscribed params
                 this->sub_interval = *((uint16_t *) &(this->curr_msg.payload[4]));  // Update the interval at which we send DEVICE_DATA
                 // Make sure sub_interval is within bounds
@@ -75,7 +74,7 @@ void Device::loop ()
      * passed since the last time we sent a DEVICE_DATA
      * If this->sub_interval == 0, don't send DEVICE_DATA */
     if ((this->sub_interval > 0) && (this->curr_time - this->last_sub_time >= this->sub_interval)) {
-        this->last_sub_time = this->curr_time;
+		this->last_sub_time = this->curr_time;
         device_rw_all(&(this->curr_msg), RWMode::READ);
         this->msngr->send_message(MessageID::DEVICE_DATA, &(this->curr_msg));
     }
@@ -93,6 +92,7 @@ void Device::loop ()
     // If it's been too long since we received a PING, disable the device
     if ((this->timeout > 0)  && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_disable();
+		this->acknowledged = false;
     }
 
     device_actions(); //do device-specific actions

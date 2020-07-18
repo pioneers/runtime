@@ -20,7 +20,7 @@ public:
    * calls device_enable to enable the device
    * dev_id and dev_year are the device type and device year of the device
    */
-  Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 2000, uint32_t ping_interval = 1000);
+  Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 2500, uint32_t ping_interval = 1000);
 
   /* Generic device loop function that wraps all device actions
    * Asks messenger to read any incoming messages and responds appropriately
@@ -74,6 +74,7 @@ public:
 
 protected:
     Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
+	bool acknowledged;                // Whether or not we sent an ACKNOWLEDGEMENT
 
 private:
   const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
@@ -89,8 +90,7 @@ private:
   uint64_t last_sent_ping_time;     // Timestamp of last time we sent a PING
   uint64_t last_received_ping_time; // Timestamp of last time we received a PING
   uint64_t curr_time;               // The current time
-  message_t curr_msg;               // current message being processed
-  bool acknowledged;                // Whether or not we sent an ACKNOWLEDGEMENT
+  message_t curr_msg;               // current message being processes
 
   // Read param data into MSG or write data from MSG into the device
   void device_rw_all (message_t *msg, RWMode mode);

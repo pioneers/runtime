@@ -5,7 +5,7 @@
 #ifndef DEV_HANDLER_H
 #define DEV_HANDLER_H
 
-// #include "../shm_wrapper/shm_wrapper.h"
+#include "../shm_wrapper/shm_wrapper.h"
 #include "message.h"
 #include "../runtime_util/runtime_util.h"
 #include "../logger/logger.h"
@@ -56,7 +56,7 @@ void poll_connected_devices();
 
 /* The maximum number of milliseconds to wait between each PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
-#define TIMEOUT 2000
+#define TIMEOUT 2500
 
 /* The number of milliseconds between each PING sent to the device */
 #define PING_FREQ 1000

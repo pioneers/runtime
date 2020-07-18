@@ -38,14 +38,15 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_
 
     /* Build the message
      * All other Message Types (PING, DEVICE_DATA, LOG) should already be built (if needed) */
-     int status = 0;
     if (msg_id == MessageID::ACKNOWLEDGEMENT) {
+		int status = 0;
         status += append_payload(msg, (uint8_t *) &dev_id->type, Messenger::DEV_ID_TYPE_BYTES);
         status += append_payload(msg, (uint8_t *) &dev_id->year, Messenger::DEV_ID_YEAR_BYTES);
         status += append_payload(msg, (uint8_t *) &dev_id->uid, Messenger::DEV_ID_UID_BYTES);
-    }
-    if (status != 0) {
-        return Status::PROCESS_ERROR;
+		
+	    if (status != 0) {
+	        return Status::PROCESS_ERROR;
+	    }
     }
 
     // Serialize the message into byte array
@@ -66,6 +67,7 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_
     // Clear the message for the next send
     msg->message_id = MessageID::NOP;
     msg->payload_length = 0;
+	memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
 
     return (written == Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len) ? Status::SUCCESS : Status::PROCESS_ERROR;
 }
@@ -132,13 +134,10 @@ Status Messenger::read_message (message_t *msg)
 void Messenger::lowcar_printf(char* format, ...) {
   // Double the queue size if it's full
   if (this->num_logs == this->log_queue_max_size) {
-    char **new_queue = (char **) malloc(sizeof(char *) * 2 * this->log_queue_max_size);
-    memcpy(new_queue, this->log_queue, this->log_queue_max_size);
+	this->log_queue = realloc(this->log_queue, sizeof(char *) * 2 * this->log_queue_max_size);
     for (int i = this->log_queue_max_size; i < 2 * this->log_queue_max_size; i++) {
-      new_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
+      this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
     }
-    free(this->log_queue);
-    this->log_queue = new_queue;
     this->log_queue_max_size *= 2;
   }
   // Add the new formatted log to the queue
