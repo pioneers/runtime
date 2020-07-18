@@ -181,6 +181,26 @@ void print_cmd_map ()
 }
 
 /*
+ * Prints the current values in the subscription bitmap
+ */
+void print_sub_map ()
+{
+	uint32_t sub_map[MAX_DEVICES + 1];
+	get_sub_requests(sub_map);
+	
+	printf("Requested devices: ");
+	print_bitmap(MAX_DEVICES, sub_map[0]);
+	
+	printf("Requested params:\n");
+	for (int i = 1; i < 33; i++) {
+		if (sub_map[0] & (1 << (i - 1))) {
+			printf("\tDevice %d: ", i - 1);
+			print_bitmap(MAX_PARAMS, sub_map[i]);
+		}
+	}
+}
+
+/*
  * Prints the device identification info of the currently attached devices
  */
 void print_dev_ids ()
@@ -700,6 +720,65 @@ void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
 }
 
 /*
+ * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
+ * Blocks on the param bitmap semaphore for obvious reasons
+ * Arguments:
+ *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into
+ * No return value.
+ */
+void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1])
+{
+	//wait on cmd_map_sem
+	my_sem_wait(cmd_map_sem, "cmd_map_sem");
+	
+	for (int i = 0; i < MAX_DEVICES + 1; i++) {
+		bitmap[i] = dev_shm_ptr->cmd_map[i];
+	}
+	
+	//release cmd_map_sem
+	my_sem_post(cmd_map_sem, "cmd_map_sem");
+}
+
+/*
+ * Should be called from all processes that want to know device identifiers of all currently connected devices
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
+ * No return value.
+ */
+void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES])
+{
+	//wait on catalog_sem
+	my_sem_wait(catalog_sem, "catalog_sem");
+	
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		dev_ids[i] = dev_shm_ptr->dev_ids[i];
+	}
+	
+	//release catalog_sem
+	my_sem_post(catalog_sem, "catalog_sem");
+}
+
+/*
+ * Should be called from all processes that want to know which dev_ix's are valid
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
+ * No return value.
+ */
+void get_catalog (uint32_t *catalog)
+{
+	//wait on catalog_sem
+	my_sem_wait(catalog_sem, "catalog_sem");
+	
+	*catalog = dev_shm_ptr->catalog;
+	
+	//release catalog_sem
+	my_sem_post(catalog_sem, "catalog_sem");
+}
+
+
+/*
  * Reads the specified robot description field. Blocks on the robot description semaphore.
  * Arguments:
  *    - field: one of the robot_desc_val_t's defined above to read from
@@ -813,62 +892,4 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 	my_sem_post(gp_sem, "gamepad_mutex");
 	
 	return 0;
-}
-
-/*
- * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
- * Blocks on the param bitmap semaphore for obvious reasons
- * Arguments:
- *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into
- * No return value.
- */
-void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1])
-{
-	//wait on cmd_map_sem
-	my_sem_wait(cmd_map_sem, "cmd_map_sem");
-	
-	for (int i = 0; i < MAX_DEVICES + 1; i++) {
-		bitmap[i] = dev_shm_ptr->cmd_map[i];
-	}
-	
-	//release cmd_map_sem
-	my_sem_post(cmd_map_sem, "cmd_map_sem");
-}
-
-/*
- * Should be called from all processes that want to know device identifiers of all currently connected devices
- * Blocks on catalog semaphore for obvious reasons
- * Arguments:
- *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
- * No return value.
- */
-void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES])
-{
-	//wait on catalog_sem
-	my_sem_wait(catalog_sem, "catalog_sem");
-	
-	for (int i = 0; i < MAX_DEVICES; i++) {
-		dev_ids[i] = dev_shm_ptr->dev_ids[i];
-	}
-	
-	//release catalog_sem
-	my_sem_post(catalog_sem, "catalog_sem");
-}
-
-/*
- * Should be called from all processes that want to know which dev_ix's are valid
- * Blocks on catalog semaphore for obvious reasons
- * Arguments:
- *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
- * No return value.
- */
-void get_catalog (uint32_t *catalog)
-{
-	//wait on catalog_sem
-	my_sem_wait(catalog_sem, "catalog_sem");
-	
-	*catalog = dev_shm_ptr->catalog;
-	
-	//release catalog_sem
-	my_sem_post(catalog_sem, "catalog_sem");
 }
