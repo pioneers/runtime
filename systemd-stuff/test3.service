@@ -1,6 +1,6 @@
 [Unit]
 Description=asdf
-BindsTo=test1.service
+BindsTo=test1.service test2.service
 
 [Service]
 ExecStart=/path/to/executable3
