@@ -66,6 +66,11 @@ typedef struct robot_desc_shm {
 void print_cmd_map ();
 
 /*
+ * Prints the current values in the subscription bitmap
+ */
+void print_sub_map ();
+
+/*
  * Prints the device identification info of the currently attached devices
  */
 void print_dev_ids ();
@@ -190,6 +195,34 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1]);
 
 /*
+ * Should be called from all processes that want to know current state of the command map (i.e. device handler)
+ * Blocks on the command bitmap semaphore for obvious reasons
+ * Arguments:
+ *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into. See the README for a
+ *        description for how this bitmap works.
+ * No return value.
+ */
+void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1]);
+
+/*
+ * Should be called from all processes that want to know device identifiers of all currently connected devices
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
+ * No return value.
+ */
+void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES]);
+
+/*
+ * Should be called from all processes that want to know which dev_ix's are valid
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
+ * No return value.
+ */
+void get_catalog (uint32_t *catalog);
+
+/*
  * Reads the specified robot description field. Blocks on the robot description semaphore.
  * Arguments:
  *    - field: one of the robot_desc_val_t's defined above to read from
@@ -226,33 +259,5 @@ int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4]);
  * Returns 0 on success, -1 on failure (if gamepad is not connected)
  */
 int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
-
-/*
- * Should be called from all processes that want to know current state of the command map (i.e. device handler)
- * Blocks on the command bitmap semaphore for obvious reasons
- * Arguments:
- *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into. See the README for a
- *        description for how this bitmap works.
- * No return value.
- */
-void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1]);
-
-/*
- * Should be called from all processes that want to know device identifiers of all currently connected devices
- * Blocks on catalog semaphore for obvious reasons
- * Arguments:
- *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
- * No return value.
- */
-void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES]);
-
-/*
- * Should be called from all processes that want to know which dev_ix's are valid
- * Blocks on catalog semaphore for obvious reasons
- * Arguments:
- *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
- * No return value.
- */
-void get_catalog (uint32_t *catalog);
 
 #endif
