@@ -110,13 +110,11 @@ void shm_stop ();
  * Selects the next available device index and assigns the newly connected device to that location. 
  * Turns on the associated bit in the catalog.
  * Arguments: 
- *    - uin16_t dev_type: the type of the device being connected e.g. LIMITSWITCH, LINEFOLLOWER, etc.
- *    - uint8_t dev_year: year of device manufacture
- *    - uint64_t dev_uid: the unique, random 64-bit uid assigned to the device when flashing
+ *    - dev_id_t dev_id: device identification info for the device being connected (type, year, uid)
  *    - int *dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
-void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *dev_ix);
+void device_connect (dev_id_t dev_id, int *dev_ix);
 
 /*
  * Should only be called from device handler

@@ -60,7 +60,7 @@ void init() {
     // Init logger
     logger_init(DEV_HANDLER);
 	// Init shared memory
-	// shm_init(DEV_HANDLER);
+	shm_init();
     // Initialize lock on global variable USED_PORTS
     if (pthread_mutex_init(&used_ports_lock, NULL) != 0) {
         log_printf(ERROR, "Couldn't init USED_PORTS_LOCK");
@@ -71,16 +71,16 @@ void init() {
 // Free memory and safely stop connections
 void stop() {
     log_printf(INFO, "Ctrl+C pressed. Safely terminating program\n");
-	// TODO: For each tracked lowcar device, disconnect from shared memory
-    // uint32_t connected_devs = 0;
-    // get_catalog(&connected_devs);
-    // for (int i = 0; i < MAX_DEVICES; i++) {
-    //     if ((1 << i) & connected_devs) {
-    //         device_disconnect(i);
-    //     }
-    // }
-	// TODO: Stop shared memory
-	// shm_stop(DEV_HANDLER);
+	// For each tracked lowcar device, disconnect from shared memory
+     uint32_t connected_devs = 0;
+     get_catalog(&connected_devs);
+     for (int i = 0; i < MAX_DEVICES; i++) {
+         if ((1 << i) & connected_devs) {
+             device_disconnect(i);
+         }
+     }
+         //Stop shared memory
+	 shm_stop();
     // Stop logger
     logger_stop();
     // Destroy locks
@@ -206,9 +206,9 @@ void* relayer(void* relay_cast) {
 
 	/****** At this point, the device is confirmed to be lowcar! ******/
 
-	// TODO: Connect the lowcar device to shared memory
+	// Connect the lowcar device to shared memory
 	log_printf(DEBUG, "Connecting %s to shared memory\n", get_device_name(relay->dev_id.type));
-	// device_connect(relay->dev_id.type, relay->dev_id.year, relay->dev_id.uid, &relay->shm_dev_idx);
+	device_connect(relay->dev_id, &relay->shm_dev_idx);
 
 	// Broadcast to the sender and receiver to start work
     pthread_cond_broadcast(&relay->start_cond);
@@ -247,6 +247,7 @@ void* relayer(void* relay_cast) {
         /* If it took too long to receive a Ping, the device timed out */
         pthread_mutex_lock(&relay->relay_lock);
 		if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
+			pthread_mutex_unlock(&relay->relay_lock);
 			log_printf(INFO, "%s timed out!", get_device_name(relay->dev_id.type));
 			relay_clean_up(relay);
 			return NULL;
@@ -276,7 +277,7 @@ void relay_clean_up(msg_relay_t* relay) {
 
 	// Disconnect the device from shared memory if it's connected
 	if (relay->shm_dev_idx != -1) {
-		// device_disconnect(relay->shm_dev_idx)
+		device_disconnect(relay->shm_dev_idx);
 	}
 
 	serialport_close(relay->file_descriptor);
@@ -337,7 +338,7 @@ void* sender(void* relay_cast) {
 			device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
 			msg = make_device_write(relay->dev_id.type, pmap[1 + relay->shm_dev_idx], params);
-			ret = send_message(relay, msg);
+                        ret = send_message(relay, msg);
 			if (ret != 0) {
 				log_printf(FATAL, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
 			}
@@ -361,7 +362,7 @@ void* sender(void* relay_cast) {
         get_sub_requests(sub_map);
         if (sub_map[0] & (1 << relay->shm_dev_idx)) {
             msg = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
-            ret = send_message(relay, msg);
+             ret = send_message(relay, msg);
             if (ret != 0) {
                 log_printf(FATAL, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
             }
@@ -419,22 +420,19 @@ void* receiver(void* relay_cast) {
             	//printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
 		    log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
 			// First, parse the payload into an array of parameter values
-			//parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
-			// TODO: Now write it to shared memory
-			// device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, bitmap, vals);
+			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
+			// Now write it to shared memory
+			device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
 		} else if (msg->message_id == LOG) {
-			printf("got log message from lowcar\n");
-			fflush(stdout);
-            log_printf(INFO, "[%s]: %s\n", get_device_name(relay->dev_id.type), msg->payload);
+            log_printf(INFO, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
 		} else {
 			log_printf(FATAL, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
 		}
 		// Now that the message is taken care of, clear the message
 		msg->message_id = 0x0;
-		// TODO: Maybe empty the payload?
 		msg->payload_length = 0;
 	    msg->max_payload_length = MAX_PAYLOAD_SIZE;
-
+		memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 		pthread_testcancel(); // Cancellation point
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -630,15 +628,17 @@ int serialport_init(const char* serialport, int baud) {
 
     // Turn off translating carriage return to newline on input
     // Without disabling this, all incoming 0x0D (\cr) would be read as 0x0A (\n) instead
-    toptions.c_iflag &= ~ICRNL;
+    //toptions.c_iflag &= ~ICRNL;
 
     // TODO: Review these. Consider cfsetraw()
-    toptions.c_cflag &= ~CRTSCTS;                   // Disable RTS/CTS flow control TODO
-    toptions.c_cflag |= CREAD | CLOCAL;             // Enable receiver and ignore modem control lines
-    toptions.c_iflag &= ~(IXON | IXOFF | IXANY);    // Disable XON/XOFF flow control on output and input; TODO
+    //toptions.c_cflag &= ~CRTSCTS;                   // Disable RTS/CTS flow control TODO
+    //toptions.c_cflag |= CREAD | CLOCAL;             // Enable receiver and ignore modem control lines
+    //toptions.c_iflag &= ~(IXON | IXOFF | IXANY);    // Disable XON/XOFF flow control on output and input; TODO
 
-    toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
-    toptions.c_oflag &= ~OPOST; // make raw
+    //toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
+    //toptions.c_oflag &= ~OPOST; // make raw
+
+    cfmakeraw(&toptions);
 
     // Set options for read(fd, buffer, num_bytes_to_read)
     // see: http://unixwiz.net/techtips/termios-vmin-vtime.html

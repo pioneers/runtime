@@ -311,7 +311,7 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
 void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[]) {
     device_t* dev = get_device(dev_type);
     // Bitmap is stored in the first 32 bits of the payload
-    uint32_t bitmap = ((uint32_t*) dev_data->payload)[0];
+    uint32_t bitmap = *((uint32_t*) dev_data->payload);
     /* Iterate through device's parameters. If bit is off, continue
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
@@ -322,15 +322,15 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
             continue;
         }
         if (strcmp(dev->params[i].type, "int") == 0) {
-            vals[i].p_i = ((int32_t*) payload_ptr)[0];
+            vals[i].p_i = *((int32_t*) payload_ptr);
 			printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
             payload_ptr += sizeof(int32_t) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
-            vals[i].p_f = ((float*) payload_ptr)[0];
+            vals[i].p_f = *((float*) payload_ptr);
 			printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
             payload_ptr += sizeof(float) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "bool") == 0) {
-            vals[i].p_b = payload_ptr[0];
+            vals[i].p_b = *payload_ptr;
 			printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
             payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
         }
