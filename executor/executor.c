@@ -1,5 +1,6 @@
 #define PY_SSIZE_T_CLEAN
-#include <Python.h>                        // For Python's C API
+#include <python3.7/Python.h>                        // For Python's C API
+// #include <Python.h>                        // For Python's C API
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
 #include <sys/types.h>                     //for sem_t and other standard system types
@@ -17,7 +18,6 @@
 
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
-char* student_module;
 PyObject *pModule, *pAPI, *pRobot, *pGamepad;
 robot_desc_val_t mode = IDLE; // current robot mode
 pid_t pid; // pid for mode process
@@ -51,15 +51,41 @@ char* get_mode_str(robot_desc_val_t mode) {
 
 
 /**
+ *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
+ */
+void reset_params() {
+    uint32_t catalog;
+    dev_id_t dev_ids[MAX_DEVICES];
+    get_catalog(&catalog);
+    get_device_identifiers(dev_ids);
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if (catalog & (1 << i)) { // If device at index i exists
+            device_t* device = get_device(dev_ids[i].type);
+            if(device == NULL) {
+                log_printf(ERROR, "reset_params: device at index %d with type %d is invalid\n", i, dev_ids[i].type);
+                continue;
+            }
+            uint32_t reset_params = 0;
+            param_val_t zero_params[MAX_PARAMS] = {0};
+            for(int j = 0; j < device->num_params; j++) {
+                if (device->params[j].write) { 
+                    reset_params |= (1 << j);
+                }
+            }
+            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
+        }
+    }
+}
+
+
+/**
  *  Initializes the executor process. Must be the first thing called in each child subprocess
  *
  *  Input: 
  *      student_code: string representing the name of the student's Python file, without the .py
  */
 void executor_init(char* student_code) {
-    //initialize
-    student_module = student_code;
-    
+    //initialize Python
     Py_Initialize();
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
@@ -103,13 +129,14 @@ void executor_init(char* student_code) {
     Py_DECREF(gamepad_class);
 	
 	//imports the student code
-    pModule = PyImport_ImportModule(student_module);
+    pModule = PyImport_ImportModule(student_code);
     if (pModule == NULL) {
         PyErr_Print();
-        log_printf(ERROR, "Could not import module: %s", student_module);
+        log_printf(ERROR, "Could not import module: %s", student_code);
         exit(1);
     }
     
+    // Insert student API into the student code
     int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
     err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
     if (err != 0) {
@@ -118,6 +145,13 @@ void executor_init(char* student_code) {
         exit(1);
     }
     
+    // Send the device subscription requests to dev_handler
+    PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
+    if (ret == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not make device subscription requests");
+        exit(1);
+    }
 }
 
 
@@ -301,34 +335,6 @@ void run_challenges() {
 
 
 /**
- *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
- */
-void reset_params() {
-    uint32_t catalog;
-    dev_id_t dev_ids[MAX_DEVICES];
-    get_catalog(&catalog);
-    get_device_identifiers(dev_ids);
-    for (int i = 0; i < MAX_DEVICES; i++) {
-        if (catalog & (1 << i)) { // If device at index i exists
-            device_t* device = get_device(dev_ids[i].type);
-            if(device == NULL) {
-                log_printf(ERROR, "reset_params: device at index %d with type %d is invalid\n", i, dev_ids[i].type);
-                continue;
-            }
-            uint32_t reset_params = 0;
-            param_val_t zero_params[MAX_PARAMS] = {0};
-            for(int j = 0; j < device->num_params; j++) {
-                if (device->params[j].write) { 
-                    reset_params |= j;
-                }
-            }
-            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
-        }
-    }
-}
-
-
-/**
  *  Handler for killing the child mode subprocess
  */
 void python_exit_handler(int signum) {
@@ -336,43 +342,6 @@ void python_exit_handler(int signum) {
     log_printf(DEBUG, "sent exception 0");
     PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
     log_printf(DEBUG, "sent exception");
-}
-
-
-/** 
- *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
- */
-pid_t start_mode_subprocess(robot_desc_val_t mode) {
-    pid_t pid = fork();
-    if (pid < 0) {
-        log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
-        return -1;
-    }
-    else if (pid == 0) {
-        // Now in child process
-        signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
-        executor_init("studentcode"); // Default name of student code file 
-        if (mode == CHALLENGE) {
-            signal(SIGTERM, exit);
-            signal(SIGALRM, python_exit_handler); // Interrupts any running Python function
-            alarm(challenge_time); // Set timeout for challenges
-            run_challenges();
-            robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
-            while (1) {
-                sleep(1); // Wait for process to be exited
-            }
-        }
-        else {
-            signal(SIGTERM, python_exit_handler);
-            run_mode(mode);
-            exit(0);
-        }
-        return pid; // Never reach this statement due to exit, needed to fix compiler warning
-    }
-    else {
-        // Now in parent process
-        return pid;
-    }
 }
 
 
@@ -401,6 +370,43 @@ void kill_subprocess() {
 }
 
 
+/** 
+ *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
+ */
+pid_t start_mode_subprocess(robot_desc_val_t mode, char* student_code) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
+        return -1;
+    }
+    else if (pid == 0) {
+        // Now in child process
+        signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
+        executor_init(student_code);
+        if (mode == CHALLENGE) {
+            signal(SIGTERM, exit);
+            signal(SIGALRM, python_exit_handler); // Interrupts any running Python function
+            alarm(challenge_time); // Set timeout for challenges
+            run_challenges();
+            robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
+            while (1) {
+                sleep(1); // Wait for process to be exited
+            }
+        }
+        else {
+            signal(SIGTERM, python_exit_handler);
+            run_mode(mode);
+            exit(0);
+        }
+        return pid; // Never reach this statement due to exit, needed to fix compiler warning
+    }
+    else {
+        // Now in parent process
+        return pid;
+    }
+}
+
+
 /**
  *  Handler for keyboard interrupts SIGINT (Ctrl + C)
  */
@@ -425,7 +431,10 @@ int main(int argc, char* argv[]) {
     logger_init(EXECUTOR);
     shm_init();
 
-    robot_desc_val_t new_mode = IDLE;
+    char* student_code = "studentcode";
+    if (argc > 1) {
+        student_code = argv[1];
+    }
 
     struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
 	//create the socket
@@ -440,6 +449,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+    robot_desc_val_t new_mode = IDLE;
     // Main loop that checks for new run mode in shared memory from the network handler
     while(1) {
         new_mode = robot_desc_read(RUN_MODE);
@@ -450,7 +460,7 @@ int main(int argc, char* argv[]) {
             }
             log_printf(DEBUG, "New mode %d", new_mode);
             if (new_mode != IDLE) {
-                pid = start_mode_subprocess(new_mode);
+                pid = start_mode_subprocess(new_mode, student_code);
                 if (pid != -1) {
                     mode = new_mode;
                 }

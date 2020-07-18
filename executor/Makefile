@@ -27,7 +27,7 @@ simple: run_simple_python.c
 executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
 	$(cc) $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
-studentapi: studentapi.pyx studentapi.pxd
+studentapi: studentapi.pyx runtime.pxd code_parser.pyx
 	$(py) setup.py build_ext -i
 
 test_api: studentapi test_studentapi.py

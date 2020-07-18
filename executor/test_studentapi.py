@@ -1,5 +1,4 @@
 import studentapi
-import code_parser
 
 # Add tests for API
 POLARBEAR = '12_2604648'
@@ -19,12 +18,15 @@ def test_api():
     print(f"New value: {val}")
 
     gamepad = studentapi.Gamepad()
-    print("Button A:", gamepad.get_value('button_a'))
-    print("R bumper:", gamepad.get_value('r_bumper'))
-    print("R X joystick:", gamepad.get_value('joystick_right_x'))
+    try:
+        print("Button A:", gamepad.get_value('button_a'))
+        print("R bumper:", gamepad.get_value('r_bumper'))
+        print("R X joystick:", gamepad.get_value('joystick_right_x'))
+    except NotImplementedError:
+        pass
 
-    print(code_parser.get_all_params("studentcode"))
-
+    print(studentapi.get_all_params("studentcode"))
+    studentapi.make_device_subs('studentcode')
 
 if __name__ == '__main__':
     test_api()

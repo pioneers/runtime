@@ -1,10 +1,14 @@
 # cython: nonecheck=True
 
+# from libc.stdint cimport *
+from runtime cimport *
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 
 import threading
 import sys
 import builtins
+
+include "code_parser.pyx"
 
 """Student API written in Cython. """
 
@@ -47,7 +51,7 @@ def _init():
 ## API Objects
 
 class DeviceError(Exception):
-    """An exception that occurs when the specified device isn't connected to the robot. """
+    """An exception caused by using an invalid device. """
 
 
 cdef class Gamepad:
@@ -57,11 +61,11 @@ cdef class Gamepad:
     Attributes:
         mode: The execution state of the robot.
     """
-    cdef robot_desc_val_t mode
+    cdef bint available
 
     def __cinit__(self):
         """Initializes the mode of the robot. """
-        self.mode = robot_desc_read(RUN_MODE)
+        self.available = robot_desc_read(RUN_MODE) == TELEOP
 
 
     cpdef get_value(self, str param_name):
@@ -71,8 +75,8 @@ cdef class Gamepad:
         Args:
             param: The name of the parameter to read. Possible values are at https://pioneers.berkeley.edu/software/robot_api.html 
         """
-        if self.mode != TELEOP:
-            raise RuntimeError(f'Cannot use Gamepad during {self.mode}')
+        if not self.available:
+            raise NotImplementedError(f'Can only use Gamepad during teleop mode')
         # Convert Python string to C string
         cdef bytes param = param_name.encode('utf-8')
         cdef uint32_t buttons
@@ -90,7 +94,7 @@ cdef class Gamepad:
         for i in range(4):
             if param == joystick_names[i]:
                 return joysticks[i]
-        raise KeyError(f"Invalid gamepad parameter {param_name}")
+        raise DeviceError(f"Invalid gamepad parameter {param_name}")
 
 
 class ThreadWrapper(threading.Thread):
@@ -171,10 +175,18 @@ cdef class Robot:
         cdef uint64_t device_uid = int(splits[1])
 
         # Getting parameter info from the name
-        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        cdef int8_t param_idx = get_param_idx(device_type, param)
+        cdef device_t* device = get_device(device_type)
+        if not device:
+            raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
+        cdef str param_type
+        cdef int8_t param_idx = -1
+        for i in range(device.num_params):
+            if device.params[i].name == param:
+                param_idx = i
+                param_type = device.params[i].type.decode('utf-8')
+                break
         if param_idx == -1:
-            raise KeyError(f"Invalid device parameter {param_name} for device type {device_type}")
+            raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
         # Allocate memory for parameter
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
@@ -185,9 +197,8 @@ cdef class Robot:
         cdef int err = device_read_uid(device_uid, EXECUTOR, DATA, 1 << param_idx, param_value)
         if err == -1:
             PyMem_Free(param_value)
-            raise DeviceError(f"Device with type {device_type} and uid {device_uid} isn't connected to the robot")
+            raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
 
-        param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
             ret = param_value[param_idx].p_i
         elif param_type == 'float':
@@ -215,18 +226,25 @@ cdef class Robot:
         cdef int device_type = int(splits[0])
         cdef uint64_t device_uid = int(splits[1])
 
-        # Reading parameter info from the name
-        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        cdef int8_t param_idx = get_param_idx(device_type, param)
+        # Getting parameter info from the name
+        cdef device_t* device = get_device(device_type)
+        if not device:
+            raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
+        cdef str param_type
+        cdef int8_t param_idx = -1
+        for i in range(device.num_params):
+            if device.params[i].name == param:
+                param_idx = i
+                param_type = device.params[i].type.decode('utf-8')
+                break
         if param_idx == -1:
-            raise KeyError(f"Invalid device parameter {param_name} for device type {device_type}")
+            raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
         if not param_value:
             raise MemoryError("Could not allocate memory to get device value.")
 
-        cdef str param_type = param_desc.type.decode('utf-8')
         if param_type == 'int':
             param_value[param_idx].p_i = value
         elif param_type == 'float':
@@ -236,5 +254,5 @@ cdef class Robot:
         cdef int err = device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
         PyMem_Free(param_value)
         if err == -1:
-            raise DeviceError(f"Device with type {device_type} and uid {device_uid} isn't connected to the robot")
+            raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
 

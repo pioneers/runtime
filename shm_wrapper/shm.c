@@ -106,7 +106,6 @@ void sigint_handler (int signum)
 		}
 	}
 	
-	logger_stop();
 	exit(0);
 }
 
