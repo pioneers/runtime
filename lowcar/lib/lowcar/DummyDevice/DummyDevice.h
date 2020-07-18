@@ -21,27 +21,27 @@ public:
 	virtual void DummyDevice::device_actions();
 
 private:
-	int runtime; //param 0
+	int16_t runtime; //param 0
 	float shepherd;
 	bool dawn;
 
-	int devops; //param 3
+	int16_t devops; //param 3
 	float atlas;
 	bool infra;
 
-	int sens; //param 6
+	int16_t sens; //param 6
 	float pdb;
 	bool mech;
 
-	int cpr; //param 9
+	int16_t cpr; //param 9
 	float edu;
 	bool exec;
 
-	int pief; //param 12
+	int16_t pief; //param 12
 	float funtime;
 	bool sheep;
 
-	int dusk; //param 15
+	int16_t dusk; //param 15
 };
 
 #endif

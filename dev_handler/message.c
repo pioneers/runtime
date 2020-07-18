@@ -13,12 +13,12 @@ void print_bytes(uint8_t* data, int len) {
 
 /*
  * Private utility function to calculate the size of the payload needed
- * for a DeviceWrite/DeviceData message.
+ * for a DEVICE_WRITE message.
  * device_type: The type of device (Ex: 2 for Potentiometer)
  * param_bitmap: 32-bit param bit map. The i-th bit indicates whether param i will be transmitted in the message
  * return: The size of the payload
  */
-static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bitmap) {
+static ssize_t device_write_payload_size(uint16_t device_type, uint32_t param_bitmap) {
     ssize_t result = BITMAP_SIZE;
     device_t* dev = get_device(device_type);
     // Loop through each of the device's parameters and add the size of the parameter
@@ -29,7 +29,7 @@ static ssize_t device_data_payload_size(uint16_t device_type, uint32_t param_bit
         }
         char* type = dev->params[i].type;
         if (strcmp(type, "int") == 0) {
-            result += sizeof(int);
+            result += sizeof(int16_t);
         } else if (strcmp(type, "float") == 0) {
             result += sizeof(float);
         } else {
@@ -214,7 +214,7 @@ message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param
     message_t* dev_write = malloc(sizeof(message_t));
     dev_write->message_id = DEVICE_WRITE;
     dev_write->payload_length = 0;
-    dev_write->max_payload_length = device_data_payload_size(dev_type, pmap);
+    dev_write->max_payload_length = device_write_payload_size(dev_type, pmap);
     dev_write->payload = malloc(dev_write->max_payload_length);
     int status = 0;
     // Append the param bitmap
@@ -227,7 +227,7 @@ message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param
 		// Determine the size of the parameter and append it accordingly
         char* param_type = dev->params[i].type;
         if (strcmp(param_type, "int") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int32_t));
+            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int16_t));
         } else if (strcmp(param_type, "float") == 0) {
             status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_f), sizeof(float));
         } else if (strcmp(param_type, "bool") == 0) { // Boolean
@@ -322,9 +322,9 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
             continue;
         }
         if (strcmp(dev->params[i].type, "int") == 0) {
-            vals[i].p_i = *((int32_t*) payload_ptr);
+            vals[i].p_i = *((int16_t*) payload_ptr);
 			printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
-            payload_ptr += sizeof(int32_t) / sizeof(uint8_t);
+            payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
             vals[i].p_f = *((float*) payload_ptr);
 			printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);

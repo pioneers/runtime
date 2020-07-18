@@ -54,9 +54,9 @@ typedef enum robot_descs {
 
 //hold a single param value
 typedef union {
-	int p_i;       //data if int
-	float p_f;     //data if float
-	uint8_t p_b;   //data if bool
+	int16_t p_i;	//data if int
+	float p_f;		//data if float
+	uint8_t p_b;	//data if bool
 } param_val_t;
 
 //holds the device identification information of a single device
@@ -78,9 +78,9 @@ typedef struct param_desc {
 // A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
   uint16_t type;
-  char* name; //Device name
-  uint8_t num_params; //Number of parameters a device holds
-  param_desc_t params[MAX_PARAMS]; // There are up to 32 possible parameters for a device
+  char* name;						// Device name
+  uint8_t num_params;				// Number of parameters a device holds
+  param_desc_t params[MAX_PARAMS];	// There are up to 32 possible parameters for a device
 } device_t;
 
 
