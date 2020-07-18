@@ -47,59 +47,53 @@ DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
 //retrieves the appropriate instance variable, this whole function is a big lol
 uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len)
 {
-	float *float_buf;
-	bool *bool_buf;
-	int *int_buf;
+	float	*float_buf	= (float *) data_buf;
+	uint8_t *bool_buf	= (uint8_t *) data_buf;	// Convert bool to uint8_t to be consistent on C
+	int16_t *int_buf	= (int16_t *) data_buf;
 
 	switch (param) {
 
 		case RUNTIME:
-			if (data_buf_len < sizeof(int)) {
+			if (data_buf_len < sizeof(int16_t)) {
 				return 0;
 			}
-			int_buf = (int *) data_buf;
 			int_buf[0] = this->runtime;
-			return sizeof(int);
-			break;
+			return sizeof(int16_t);
+
 		case SHEPHERD:
 			if (data_buf_len < sizeof(float)) {
 				return 0;
 			}
-			float_buf = (float *) data_buf;
 			float_buf[0] = this->shepherd;
 			return sizeof(float);
-			break;
+
 		case DAWN:
-			if (data_buf_len < sizeof(bool)) {
+			if (data_buf_len < sizeof(uint8_t)) {
 				return 0;
 			}
-			bool_buf[0] = this->dawn;
-			return sizeof(dawn);
-			break;
+			bool_buf[0] = (uint8_t) (this->dawn ? 1 : 0);
+			return sizeof(uint8_t);
 
 		case DEVOPS:
-			if (data_buf_len < sizeof(int)) {
+			if (data_buf_len < sizeof(int16_t)) {
 				return 0;
 			}
-			int_buf = (int *) data_buf;
-			int_buf[0] = this->runtime;
-			return sizeof(int);
-			break;
+			int_buf[0] = this->devops;
+			return sizeof(int16_t);
+
 		case ATLAS:
 			if (data_buf_len < sizeof(float)) {
 				return 0;
 			}
-			float_buf = (float *) data_buf;
-			float_buf[0] = this->shepherd;
+			float_buf[0] = this->atlas;
 			return sizeof(float);
-			break;
+
 		case INFRA:
-			if (data_buf_len < sizeof(bool)) {
+			if (data_buf_len < sizeof(uint8_t)) {
 				return 0;
 			}
-			bool_buf[0] = this->dawn;
-			return sizeof(dawn);
-			break;
+			bool_buf[0] = (uint8_t) (this->infra ? 1 : 0);
+			return sizeof(uint8_t);
 
 		case SENS:
 			break;
@@ -120,37 +114,32 @@ uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_
 			break;
 
 		case PIEF:
-			if (data_buf_len < sizeof(int)) {
+			if (data_buf_len < sizeof(int16_t)) {
 				return 0;
 			}
-			int_buf = (int *) data_buf;
-			int_buf[0] = this->runtime;
-			return sizeof(int);
-			break;
+			int_buf[0] = this->pief;
+			return sizeof(int16_t);
+
 		case FUNTIME:
 			if (data_buf_len < sizeof(float)) {
 				return 0;
 			}
-			float_buf = (float *) data_buf;
-			float_buf[0] = this->shepherd;
+			float_buf[0] = this->funtime;
 			return sizeof(float);
-			break;
+
 		case SHEEP:
-			if (data_buf_len < sizeof(bool)) {
+			if (data_buf_len < sizeof(uint8_t)) {
 				return 0;
 			}
-			bool_buf[0] = this->dawn;
-			return sizeof(dawn);
-			break;
+			bool_buf[0] = (uint8_t) (this->sheep ? 1 : 0);
+			return sizeof(uint8_t);
 
 		case DUSK:
-			if (data_buf_len < sizeof(int)) {
+			if (data_buf_len < sizeof(int16_t)) {
 				return 0;
 			}
-			int_buf = (int *) data_buf;
-			int_buf[0] = this->runtime;
-			return sizeof(int);
-			break;
+			int_buf[0] = this->dusk;
+			return sizeof(int16_t);
 	}
 }
 
@@ -178,41 +167,43 @@ void DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 			break;
 
 		case SENS:
-			this->sens = ((int *) data_buf)[0];
-			return sizeof(int);
+			this->sens = ((int16_t *) data_buf)[0];
 			break;
+
 		case PDB:
 			this->pdb = ((float *) data_buf)[0];
 			break;
+
 		case MECH:
 			this->mech = ((bool *) data_buf)[0];
 			break;
 
 		case CPR:
-			this->cpr = ((int *) data_buf)[0];
-			return sizeof(int);
+			this->cpr = ((int16_t *) data_buf)[0];
 			break;
+
 		case EDU:
 			this->edu = ((float *) data_buf)[0];
 			break;
+
 		case EXEC:
 			this->exec = ((bool *) data_buf)[0];
 			break;
 
 		case PIEF:
-			this->pief = ((int *) data_buf)[0];
-			return sizeof(int);
+			this->pief = ((int16_t *) data_buf)[0];
 			break;
+
 		case FUNTIME:
 			this->funtime = ((float *) data_buf)[0];
 			break;
+
 		case SHEEP:
 			this->sheep = ((bool *) data_buf)[0];
 			break;
 
 		case DUSK:
-			this->dusk = ((int *) data_buf)[0];
-			return sizeof(int);
+			this->dusk = ((int16_t *) data_buf)[0];
 			break;
 	}
 }
@@ -231,7 +222,7 @@ void DummyDevice::device_actions()
 {
 	static uint64_t last_update_time = 0;
 	// Simulate read-only params changing
-	
+
 	if (millis() - last_update_time > 500) {
 
 		this->runtime += 2;
@@ -241,7 +232,7 @@ void DummyDevice::device_actions()
 		this->devops++;
 		this->atlas += 0.9;
 		this->infra = true;
-		
+
 		last_update_time = millis();
 	}
 
