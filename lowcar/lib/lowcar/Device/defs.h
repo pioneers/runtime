@@ -61,12 +61,6 @@ enum class Status {
   NO_DATA
 };
 
-//useful for specifiying read/write state
-enum class RWMode {
-  READ,
-  WRITE
-};
-
 //decoded lowcar packet
 typedef struct {
   MessageID message_id;

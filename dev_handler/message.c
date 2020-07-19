@@ -287,8 +287,8 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
     uint8_t* decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->max_payload_length + CHECKSUM_SIZE);
     // printf("Cobs len: %d\n", data[1]);
     int ret = cobs_decode(decoded, &data[2], data[1]);
-    // printf("Decoded message: ");
-    // print_bytes(decoded, ret);
+    //printf("Decoded message: ");
+    //print_bytes(decoded, ret);
     msg_to_fill->message_id = decoded[0];
     // printf("INFO: Received message id 0x%X\n", decoded[0]);
     msg_to_fill->payload_length = 0;
@@ -315,7 +315,7 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
     /* Iterate through device's parameters. If bit is off, continue
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
-	printf("%s: ", dev->name);
+	//printf("%s: ", dev->name);
     for (int i = 0; i < MAX_PARAMS; i++) {
         // If bit is off, parameter is not included in the payload
         if (((1 << i) & bitmap) == 0) {
@@ -323,17 +323,17 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
         }
         if (strcmp(dev->params[i].type, "int") == 0) {
             vals[i].p_i = *((int16_t*) payload_ptr);
-			printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
+			//printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
             payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "float") == 0) {
             vals[i].p_f = *((float*) payload_ptr);
-			printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
+			//printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
             payload_ptr += sizeof(float) / sizeof(uint8_t);
         } else if (strcmp(dev->params[i].type, "bool") == 0) {
             vals[i].p_b = *payload_ptr;
-			printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
+			//printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
             payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
         }
     }
-	printf("\n");
+	//printf("\n");
 }

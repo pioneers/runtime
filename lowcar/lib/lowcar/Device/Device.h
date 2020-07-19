@@ -45,14 +45,14 @@ public:
    *
    * return     -   sizeof(<parameter_value>) on success; 0 otherwise
    */
-  virtual uint8_t device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len);
+  virtual size_t device_read (uint8_t param, uint8_t *data_buf);
 
   /* This function is called when the device receives a DEVICE_WRITE message
    * Updates PARAM to new value contained in DATA.
    * param      -   Parameter index (0, 1, 2, 3 ...)
    * data_buf   -   Contains value to write, little-endian
    */
-  virtual void device_write (uint8_t param, uint8_t *data_buf);
+  virtual size_t device_write (uint8_t param, uint8_t *data_buf);
 
   /* This function is called in the Device constructor
    * It should do whatever setup is necessary for the device to operate.
@@ -92,8 +92,9 @@ private:
   uint64_t curr_time;               // The current time
   message_t curr_msg;               // current message being processes
 
-  // Read param data into MSG or write data from MSG into the device
-  void device_rw_all (message_t *msg, RWMode mode);
+  void device_read_params (message_t *msg);
+  
+  void device_write_params (message_t *msg);
 };
 
 #endif

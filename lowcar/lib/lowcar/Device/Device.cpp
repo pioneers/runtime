@@ -8,7 +8,7 @@ Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t 
 {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
-    this->dev_id.uid = 0x123456789ABCDEF; // TODO: Flashing must set this to a random uint64_t
+    this->dev_id.uid = 0xFEDCBA987654321; // TODO: Flashing must set this to a random uint64_t
 
     this->params = 0;         // nothing subscribed to right now
     this->sub_interval = 0;   // 0 acts as flag indicating no subscription
@@ -45,15 +45,15 @@ void Device::loop ()
                 break;
 
             case MessageID::SUBSCRIPTION_REQUEST:
-                this->params = *((uint32_t *) &(this->curr_msg.payload[0]));    // Update subscribed params
-                this->sub_interval = *((uint16_t *) &(this->curr_msg.payload[4]));  // Update the interval at which we send DEVICE_DATA
+                this->params = *((uint32_t *) this->curr_msg.payload);    // Update subscribed params
+                this->sub_interval = *((uint16_t *) (this->curr_msg.payload + PARAM_BITMAP_BYTES));  // Update the interval at which we send DEVICE_DATA
                 // Make sure sub_interval is within bounds
                 this->sub_interval = min(this->sub_interval, MAX_SUB_INTERVAL_MS);
                 this->sub_interval = max(this->sub_interval, MIN_SUB_INTERVAL_MS);
                 break;
 
             case MessageID::DEVICE_WRITE:
-                device_rw_all(&(this->curr_msg), RWMode::WRITE);
+                device_write_params(&(this->curr_msg));
                 break;
 
             // Receiving some other Message
@@ -75,7 +75,7 @@ void Device::loop ()
      * If this->sub_interval == 0, don't send DEVICE_DATA */
     if ((this->sub_interval > 0) && (this->curr_time - this->last_sub_time >= this->sub_interval)) {
 		this->last_sub_time = this->curr_time;
-        device_rw_all(&(this->curr_msg), RWMode::READ);
+        device_read_params(&(this->curr_msg));
         this->msngr->send_message(MessageID::DEVICE_DATA, &(this->curr_msg));
     }
 
@@ -101,15 +101,15 @@ void Device::loop ()
 //************************************************ DEFAULT DEVICE-SPECIFIC METHODS ******************************************* //
 
 //a device uses this function to return data about its state
-uint8_t Device::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len)
+size_t Device::device_read (uint8_t param, uint8_t *data_buf)
 {
   return 0; //by default, we read 0 bytes into buffer
 }
 
 //a device uses this function to change a state
-void Device::device_write (uint8_t param, uint8_t *data_buf)
+size_t Device::device_write (uint8_t param, uint8_t *data_buf)
 {
-  return; //by default, we wrote 0 bytes successfully to device
+  return 0; //by default, we wrote 0 bytes successfully to device
 }
 
 //a device uses this function to enable itself
@@ -141,36 +141,39 @@ void Device::device_actions ()
  *  RWMode::READ    -- Reads specified PARAMS into msg->payload
  *  RWMode::WRITE   -- Writes specified PARAMS from msg->payload into devices
  */
-void Device::device_rw_all (message_t *msg, RWMode mode)
+
+void Device::device_read_params (message_t *msg)
 {
-    uint32_t param_bitmap;
-    if (mode == RWMode::READ) {
-        // Read all subscribed params
-        param_bitmap = this->params;
-
-        msg->message_id = MessageID::DEVICE_DATA;
-
-        // Set beginning of payload to subscribed param bitmap
-        uint32_t* payload_ptr_uint32 = (uint32_t *) msg->payload;
-        *payload_ptr_uint32 = this->params;
-        // *((uint32_t*) msg->payload) = this->params; TODO: Could be used to replace above two lines if valid syntax
-        msg->payload_length = PARAM_BITMAP_BYTES;
-
-    } else if (mode == RWMode::WRITE) {
-        // Param bitmap of parameters to write is at the beginning of the payload
-        param_bitmap = *((uint32_t*) msg->payload);
+    // Clear the message before building device data
+    msg->message_id = MessageID::DEVICE_DATA;
+    msg->payload_length = 0;
+	memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
+	
+    // Read all subscribed params
+    // Set beginning of payload to subscribed param bitmap
+    uint32_t* payload_ptr_uint32 = (uint32_t *) msg->payload;
+    *payload_ptr_uint32 = this->params;
+	
+    // Loop over param_bitmap and attempt to read data for subscribed bits
+	msg->payload_length = PARAM_BITMAP_BYTES;
+    for (uint8_t param_num = 0; (this->params >> param_num) > 0; param_num++) {
+        if (this->params & (1 << param_num)) {
+            msg->payload_length += device_read(param_num, msg->payload + msg->payload_length);
+		}
     }
+	//this->msngr->lowcar_printf("params is %08X", *((uint32_t *)msg->payload));
+}
 
-    // Loop over param_bitmap and attempt to read or write data for requested bits
+void Device::device_write_params (message_t *msg)
+{
+	// Param bitmap of parameters to write is at the beginning of the payload
+    uint32_t param_bitmap = *((uint32_t*) msg->payload);
+
+    // Loop over param_bitmap and attempt to write data for requested bits
+	uint8_t *payload_ptr = msg->payload + PARAM_BITMAP_BYTES;
     for (uint32_t param_num = 0; (param_bitmap >> param_num) > 0; param_num++) {
         if (param_bitmap & (1 << param_num)) {
-            if (mode == RWMode::READ) { // Append the value of the parameter to payload
-                msg->payload_length += device_read((uint8_t) param_num,                     \
-                                                    &(msg->payload[msg->payload_length]),   \
-                                                    (size_t) sizeof(msg->payload) - msg->payload_length);
-            } else if (mode == RWMode::WRITE){ // Write the next parameter to the device
-                device_write((uint8_t) param_num, &(msg->payload[msg->payload_length]));
-            }
-        }
-    }
+			payload_ptr += device_write((uint8_t) param_num, payload_ptr);
+		}
+	}
 }

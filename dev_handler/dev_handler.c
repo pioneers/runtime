@@ -4,7 +4,7 @@
 // The baud rate set on the Arduino
 #define BAUD_RATE 115200
 // The interval (ms) at which we want DEVICE_DATA messages for subscribed params
-#define SUB_INTERVAL 500
+#define SUB_INTERVAL 1
 
 /* Struct shared between the three threads so they can communicate with each other
  * relayer thread acts as the "control center" and connects/disconnects to shared memory
@@ -331,8 +331,8 @@ void* sender(void* relay_cast) {
     log_printf(DEBUG, "Sender for %s starting work!", get_device_name(relay->dev_id.type));
     uint64_t last_sent_ping_time = millis();
 	while (1) {
-		// TODO: Write to device if needed
-		/* get_cmd_map(pmap);
+		// Write to device if needed
+		 get_cmd_map(pmap);
 		if (pmap[0] & (1 << relay->shm_dev_idx)) {
 			// Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
 			device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
@@ -343,7 +343,7 @@ void* sender(void* relay_cast) {
 				log_printf(FATAL, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
 			}
 			destroy_message(msg);
-		} */
+		}
 
 		// Send another PING if it's time again
 		if ((millis() - last_sent_ping_time) >= PING_FREQ) {
@@ -412,13 +412,13 @@ void* receiver(void* relay_cast) {
 		}
 		if (msg->message_id == PING) {
 			// If it's a Ping, take note of it so sender can resolve it
-            log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
+            //log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
             pthread_mutex_lock(&relay->relay_lock);
 			relay->last_received_ping_time = millis();
             pthread_mutex_unlock(&relay->relay_lock);
 		} else if (msg->message_id == DEVICE_DATA) {
             	//printf("Got DEVICE DATA from %s\n", get_device_name(relay->dev_id.type));
-		    log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
+		    //log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
 			// First, parse the payload into an array of parameter values
 			parse_device_data(relay->dev_id.type, msg, vals); // This will overwrite the values in VALS that are indicated in the bitmap
 			// Now write it to shared memory
