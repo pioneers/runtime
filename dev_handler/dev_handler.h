@@ -23,36 +23,13 @@
 
 // The types of output the DEV_HANDLER can communicate with. FILE_DEV is used for `make fake`
 typedef enum { USB_DEV, FILE_DEV } output_type_t;
-
 // Whether DEV_HANDLER should communicate with USB devices over serial or to a fake device over .txt files (for testing)
 #define OUTPUT USB_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
 
 // The file to write to if output == FILE_DEV
 #define TO_DEVICE "to_device.txt"
-
 // The file to read from if output == FILE_DEV
 #define TO_DEV_HANDLER "to_dev_handler.txt"
-
-// ************************************ STARTING/STOPING LIBUSB AND SHARED MEMORY ************************************ //
-
-/*
- * Initializes data structures, libusb, and shared memory
- */
-void init();
-
-/*
- * Frees data structures, stops libusb, and stops shared memory
- */
-void stop();
-
-// ************************************ POLLING FOR DEVICES ************************************ //
-
-/*
- * Detects when devices are connected and disconnected.
- * On lowcar device connect, connect to shared memory and spawn three threads to communicate with the device
- * On lowcar device disconnect, disconnects the device from shared memory.
- */
-void poll_connected_devices();
 
 /* The maximum number of milliseconds to wait between each PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
@@ -60,5 +37,19 @@ void poll_connected_devices();
 
 /* The number of milliseconds between each PING sent to the device */
 #define PING_FREQ 1000
+
+// ************************************ PUBLIC FUNCTIONS ************************************* //
+
+// Initialize logger, shm, and mutexes
+void init();
+
+// Stop logger, stop shm, and destroy mutexes
+void stop();
+
+/*
+ * Detects when devices are connected
+ * On Arduino device connect, connect to shared memory and spawn three threads to communicate with the device
+ */
+void poll_connected_devices();
 
 #endif

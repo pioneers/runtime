@@ -1,13 +1,12 @@
 /**
+ * Serves as a utility API for DEV_HANDLER
  * Functions to build, encode, decode, serialize, and parse messages
  * Each message, when serialized is in the following format:
  * [delimiter][Length of cobs encoded message][Cobs encoded message]
  * The cobs encoded message, when decoded is in the following format:
  * [message id][payload length][payload][checksum]
- * The size of each section are defined as constants in message.c
- *
- * Serves as a utility API for DEV_HANDLER
  */
+ 
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
