@@ -45,7 +45,7 @@ DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
 }
 
 //retrieves the appropriate instance variable, this whole function is a big lol
-uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len)
+size_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf)
 {
 	float	*float_buf	= (float *) data_buf;
 	uint8_t *bool_buf	= (uint8_t *) data_buf;	// Convert bool to uint8_t to be consistent on C
@@ -54,44 +54,26 @@ uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_
 	switch (param) {
 
 		case RUNTIME:
-			if (data_buf_len < sizeof(int16_t)) {
-				return 0;
-			}
 			int_buf[0] = this->runtime;
 			return sizeof(int16_t);
 
 		case SHEPHERD:
-			if (data_buf_len < sizeof(float)) {
-				return 0;
-			}
 			float_buf[0] = this->shepherd;
 			return sizeof(float);
 
 		case DAWN:
-			if (data_buf_len < sizeof(uint8_t)) {
-				return 0;
-			}
 			bool_buf[0] = (uint8_t) (this->dawn ? 1 : 0);
 			return sizeof(uint8_t);
 
 		case DEVOPS:
-			if (data_buf_len < sizeof(int16_t)) {
-				return 0;
-			}
 			int_buf[0] = this->devops;
 			return sizeof(int16_t);
 
 		case ATLAS:
-			if (data_buf_len < sizeof(float)) {
-				return 0;
-			}
 			float_buf[0] = this->atlas;
 			return sizeof(float);
 
 		case INFRA:
-			if (data_buf_len < sizeof(uint8_t)) {
-				return 0;
-			}
 			bool_buf[0] = (uint8_t) (this->infra ? 1 : 0);
 			return sizeof(uint8_t);
 
@@ -114,37 +96,25 @@ uint8_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf, size_t data_
 			break;
 
 		case PIEF:
-			if (data_buf_len < sizeof(int16_t)) {
-				return 0;
-			}
 			int_buf[0] = this->pief;
 			return sizeof(int16_t);
 
 		case FUNTIME:
-			if (data_buf_len < sizeof(float)) {
-				return 0;
-			}
 			float_buf[0] = this->funtime;
 			return sizeof(float);
 
 		case SHEEP:
-			if (data_buf_len < sizeof(uint8_t)) {
-				return 0;
-			}
 			bool_buf[0] = (uint8_t) (this->sheep ? 1 : 0);
 			return sizeof(uint8_t);
 
 		case DUSK:
-			if (data_buf_len < sizeof(int16_t)) {
-				return 0;
-			}
 			int_buf[0] = this->dusk;
 			return sizeof(int16_t);
 	}
 }
 
 //writes the appropriate instance variable; this whole function is also a big lol
-void DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
+size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 {
 	switch (param) {
 
@@ -168,43 +138,43 @@ void DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 
 		case SENS:
 			this->sens = ((int16_t *) data_buf)[0];
-			break;
+			return sizeof(int16_t);
 
 		case PDB:
 			this->pdb = ((float *) data_buf)[0];
-			break;
+			return sizeof(float);
 
 		case MECH:
 			this->mech = ((bool *) data_buf)[0];
-			break;
+			return sizeof(uint8_t);
 
 		case CPR:
 			this->cpr = ((int16_t *) data_buf)[0];
-			break;
+			return sizeof(int16_t);
 
 		case EDU:
 			this->edu = ((float *) data_buf)[0];
-			break;
+			return sizeof(float);
 
 		case EXEC:
 			this->exec = ((bool *) data_buf)[0];
-			break;
+			return sizeof(uint8_t);
 
 		case PIEF:
 			this->pief = ((int16_t *) data_buf)[0];
-			break;
+			return sizeof(int16_t);
 
 		case FUNTIME:
 			this->funtime = ((float *) data_buf)[0];
-			break;
+			return sizeof(float);
 
 		case SHEEP:
 			this->sheep = ((bool *) data_buf)[0];
-			break;
+			return sizeof(uint8_t);
 
 		case DUSK:
 			this->dusk = ((int16_t *) data_buf)[0];
-			break;
+			return sizeof(int16_t);
 	}
 }
 
@@ -232,6 +202,10 @@ void DummyDevice::device_actions()
 		this->devops++;
 		this->atlas += 0.9;
 		this->infra = true;
+		
+		//this->msngr->lowcar_printf("funtime = %f", this->funtime);
+		//this->msngr->lowcar_printf("atlas = %f", this->atlas);
+		//this->msngr->lowcar_printf("pdb = %f", this->pdb);
 
 		last_update_time = millis();
 	}
