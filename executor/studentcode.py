@@ -39,20 +39,21 @@ def autonomous_setup():
     Robot.run(constant_print, "auton")
     global i
     i = 0
-    # autonomous_actions()
-    Robot.run(autonomous_actions)
     # time.sleep(10)
 
 def autonomous_main():
+    # time.sleep(10)
     Robot.get_value(MOTOR, 'duty_cycle')
     global i, start
-    if i % 100000 == 0:
+    if i % 10 == 0:
         print("Iteration:", i, time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
         # Robot.run(wait)
+        Robot.run(constant_print, "auton")
     i += 1
     Robot.set_value(MOTOR, 'current_thresh', .12)
+    
     # while True: pass
     # print("testing whether thread dies", time.time())
     # print('Running autonomous main ...')

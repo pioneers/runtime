@@ -26,7 +26,6 @@ def test_api():
         pass
 
     print(studentapi.get_all_params("studentcode"))
-    studentapi.make_device_subs('studentcode')
 
 if __name__ == '__main__':
     test_api()

@@ -7,6 +7,8 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Free
 import threading
 import sys
 import builtins
+import inspect
+import traceback
 
 include "code_parser.pyx"
 
@@ -28,7 +30,7 @@ def _print(*values, sep=' ', end='\n', file=None, flush=None, level=INFO):
     if file == sys.stdout:
         level = INFO
     elif file == sys.stderr:
-        level = ERROR
+        level = PYTHON
     log_printf(level, string.encode('utf-8'))
 
 class OutputRedirect:
@@ -99,19 +101,25 @@ cdef class Gamepad:
 
 class ThreadWrapper(threading.Thread):
 
-    def __init__(self, action, args, kwargs):
+    def __init__(self, action, robot, args, kwargs):
         super().__init__()
         self.action = action
+        self.robot = robot
         self.args = args
         self.kwargs = kwargs
 
     def run(self):
-        _print(f"Action Thread ID: {self.ident}", level=DEBUG)
+        # source = inspect.getsource(self.action)
+        # lines = source.split('\n')
+        # lines.insert(1, "\trobot_class = Robot; Robot = robot_class()")
+        # print(lines)
+        # exec('\n'.join(lines))
         try:
             self.action(*self.args, **self.kwargs)
-        except TimeoutError:
-            pass
-
+        except Exception as e:
+            traceback.print_exc(file=sys.stderr)
+            self.robot.error_event.set()
+            
 
 cdef class Robot:
     """
@@ -119,11 +127,14 @@ cdef class Robot:
     """
     cdef dict running_actions
     cdef public str start_pos
+    cdef public error_event
+
 
     def __cinit__(self):
         """Initializes the dict of running threads. """
         self.running_actions = {}
         self.start_pos = 'left' if robot_desc_read(START_POS) == LEFT else 'right'
+        self.error_event = threading.Event()
 
 
     def run(self, action, *args, **kwargs) -> None:
@@ -135,12 +146,12 @@ cdef class Robot:
             kwargs: keyword arguments for the Python function
         """
         if self.is_running(action):
-            _print(f"Calling action {action.__name__} when it is still running won't do anything. Use Robot.is_running to check if action is over.", level=WARN)
+            _print(f"Calling action {action.__name__} when it is still running won't do anything. Use Robot.is_running to check if action is over.", level=ERROR)
             return
         if threading.active_count() > MAX_THREADS:
             _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=WARN)
             return
-        thread = ThreadWrapper(action, args, kwargs)
+        thread = ThreadWrapper(action, self, args, kwargs)
         thread.daemon = True
         self.running_actions[action.__name__] = thread
         thread.start()
@@ -173,10 +184,11 @@ cdef class Robot:
         splits = device_id.split('_')
         cdef int device_type = int(splits[0])
         cdef uint64_t device_uid = int(splits[1])
-
+        
         # Getting parameter info from the name
         cdef device_t* device = get_device(device_type)
         if not device:
+            # _print("Got device none: ", device == NULL, f"device type {device_type} device uid {device_uid}")
             raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
         cdef str param_type
         cdef int8_t param_idx = -1
