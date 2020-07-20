@@ -45,13 +45,13 @@ def autonomous_setup():
 
 def autonomous_main():
     # time.sleep(10)
+    # Robot.run(wait)
     Robot.get_value(MOTOR, 'duty_cycle')
     global i, start
-    if i % 100000 == 0:
+    if i % 10000 == 0:
         print("Iteration:", i, time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
-        # Robot.run(wait)
     i += 1
     Robot.set_value(MOTOR, 'current_thresh', .12)
     
