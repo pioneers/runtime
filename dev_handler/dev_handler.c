@@ -1,4 +1,5 @@
 #include "dev_handler.h"
+#include <bits/stdint-uintn.h>
 
 // ************************************ PRIVATE TYPEDEFS ****************************************** //
 // The interval (ms) at which we want DEVICE_DATA messages for subscribed params
@@ -93,9 +94,9 @@ void poll_connected_devices() {
         if (get_new_devices(&connected_devs) > 0) {
             // If bit i of CONNECTED_DEVS is on, then it's a new device
             for (int i = 0; (connected_devs >> i) > 0; i++) {
-                if (connnected_devs & (1 << i)) {
-                    log_printf(INFO, "Starting communication with new device /dev/ttyACM%d\n", port_num);
-                    communicate(port_num);
+                if (connected_devs & (1 << i)) {
+                    log_printf(INFO, "Starting communication with new device /dev/ttyACM%d\n", i);
+                    communicate(i);
                 }
             }
         }
@@ -111,7 +112,7 @@ void poll_connected_devices() {
  * bitmap: Bit i will be turned on if /dev/ttyACM[i] is a newly connected device
  * Return the number of devices that were found
  */
-int get_new_devices(uint32_t* bitmap); {
+int get_new_devices(uint32_t* bitmap) {
     char port_name[14];
     uint8_t num_devices_found = 0;
     // Check every port
@@ -124,7 +125,7 @@ int get_new_devices(uint32_t* bitmap); {
             if (access(port_name, F_OK) != -1) {
                 log_printf(INFO, "Port /dev/ttyACM%d is new\n", i);
                 // Turn bit on in BITMAP
-                bitmap |= (1 << i);
+                *bitmap |= (1 << i);
                 // Mark that we've taken care of this device
                 used_ports |= (1 << i);
                 num_devices_found++;
@@ -221,7 +222,7 @@ void* relayer(void* relay_cast) {
         message_t* sub_request = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
         ret = send_message(relay, sub_request);
         if (ret != 0) {
-            log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type);
+            log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
         }
         destroy_message(sub_request);
     }
@@ -275,7 +276,7 @@ void relay_clean_up(msg_relay_t* relay) {
 
     // Close the device and mark that it disconnected
 	serialport_close(relay->file_descriptor);
-	if (ret = pthread_mutex_lock(&used_ports_lock)) {
+	if ((ret = pthread_mutex_lock(&used_ports_lock))) {
 		log_printf(ERROR, "mutex lock failed with code %d", ret);
 	}
     used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
@@ -565,9 +566,9 @@ int verify_lowcar(msg_relay_t* relay) {
     }
 
 	// We have a lowcar device!
-    memcpy(relay->dev_id.type, &ack->payload[0], 2);
-    memcpy(relay->dev_id.year, &ack->payload[2], 1);
-    memcpy(relay->dev_id.uid , &ack->payload[3], 8);
+    relay->dev_id.type = *(uint16_t*) ack->payload;
+    relay->dev_id.year = *(ack->payload + 2);
+    relay->dev_id.uid = *(uint64_t*) (ack->payload + 3);
     log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
         relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
 	relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout

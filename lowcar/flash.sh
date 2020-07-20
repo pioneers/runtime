@@ -24,8 +24,18 @@
 
 ####################################### GLOBAL VARIABLES ####################################
 
+# fill in SENSOR_TYPES global variable
+SENSOR_TYPES=$(ls devices | awk '{ 
+		for (i=1; i <= NF; i++) {
+			tmp=match($i, /^Device$/)
+			if (!tmp) {
+				print $i
+			}
+		}
+	}'
+)
+
 SENSOR_NAME="empty"       # DummyDevice, YogiBear, etc.
-SENSOR_TYPES="empty"      # list of all sensor names
 DEVICE_PORT="empty"       # port that board is connected on
 DEVICE_FQBN="empty"       # fully qualified board name, ex. arduino:avr:micro
 DEVICE_CORE="empty"       # core for connected board, ex. arduino:avr
@@ -40,7 +50,7 @@ function usage {
 	printf "Usage: ./flash.sh [-cth] [-s UID] sensor_type\n"
 	printf "\t-s: short for \"Set\"; manually set the UID for the device (input taken in hex, do not prefix \"0x\")\n"
 	printf "\t-t: short for \"Test\"; set the UID for the device to \"0x123456789ABCDEF\"\n"
-	printf "\t-c: short for \"Clean\"; removes the \"lowcar/Device\" folder and all symbolic links\n"
+	printf "\t-c: short for \"Clean\"; removes the \"Device\" folder and all symbolic links\n"
 	printf "\t-h: display this help message\n"
 	printf "Valid values for \"sensor type\" are listed below:\n\n"
 	
@@ -75,16 +85,6 @@ function check_sensor {
 
 # parse command-line options
 function parse_opts {
-	# fill in SENSOR_TYPES global variable
-	SENSOR_TYPES=$(ls lib/lowcar | awk '{ 
-		for (i=1; i <= NF; i++) {
-			tmp=match($i, /^Device$/)
-			if (!tmp) {
-				print $i
-			}
-		}
-	}')
-	
 	# process the command-line arguments
 	while getopts "s:cth" opt; do
 		case $opt in
@@ -168,67 +168,54 @@ function get_board_info {
 }
 
 # get the location that we need to symlink our code from so that arduino-cli can find them
-function get_lib_install_dir {
-	# install a library and record the logs of the installation into temp1.txt
-	arduino-cli lib install --log-file temp1.txt MFRC522 > /dev/null
-	arduino-cli lib uninstall MFRC522 > /dev/null
+function get_lib_install_dir {	
 	
-	# read in temp1.txt line by line until we find the "location=user"
-	# the word before that is going to be "dir=LIB_INSTALL_DIR"
-	local prev_word="empty"
-	while read line; do
-		for word in $line; do
-			if [[ $word == "location=user" ]]; then
-				LIB_INSTALL_DIR=$(echo $prev_word | awk -F= '{ print $2 }')
-				printf "\nFound Library Installation Directory: $LIB_INSTALL_DIR\n"
-				rm temp1.txt
-				return 0
-			fi
-			prev_word=$word
-		done
-	done < "temp1.txt"
+	# read in config line by line until we find the "user: LIB_INSTALL_DIR" line	
+	arduino-cli config dump > temp1.txt
 
-	# if we get here, we didn't find the library installation directory
+	while read line; do	
+		if [[ $line == "user"* ]]; then	
+			LIB_INSTALL_DIR=$(echo $line | awk '{ print $2 }')	
+			LIB_INSTALL_DIR="$LIB_INSTALL_DIR/libraries" # append /libraries to it	
+			printf "\nFound Library Installation Directory: $LIB_INSTALL_DIR\n"	
+			return 1
+		fi	
+	done < temp1.txt
+	
+	# if we get here, we didn't find the library installation directory	
 	rm temp1.txt
-	printf "\nERROR: could not find Library Installation Directory\n\n"
-	exit 1
+	printf "\nERROR: could not find Library Installation Directory\n\n"	
+	exit 1	
 }
 
 # create the symbolic links from the library installation directory to our code
 function symlink_libs {
-	local cwd=$(pwd)
 	
-	# first get names of folders to symlink in libs_to_install and lowcar_libs_to_install
+	# first get names of folders to symlink in libs_to_install and devices_libs_to_install
 	local libs_to_install=$(ls lib)
-	local lowcar_libs_to_install=$(ls lib/lowcar)
-	
+	local devices_to_install=$(ls devices)
 	printf "\nCreating symbolic links...\n\n"
 	
 	# process each element in libs_to_install
-	for lib in $libs_to_install; do
-		# skip "lowcar"
-		if [[ $lib == "lowcar" ]]; then
-			continue
-		fi
-		
+	for lib in $libs_to_install; do	
 		# now check if it already exists in LIB_INSTALL_DIR
 		if [[ -L "$LIB_INSTALL_DIR/$lib" ]]; then
 			continue
 		fi
 		
 		printf "Creating symbolic link for $lib\n"
-		ln -s "$cwd/lib/$lib" "$LIB_INSTALL_DIR/$lib"
+		ln -s "$PWD/lib/$lib" "$LIB_INSTALL_DIR/$lib"
 	done
 	
-	# process each element in lowcar_libs_to_install
-	for lib in $lowcar_libs_to_install; do
+	# process each element in devices_to_install
+	for lib in $devices_to_install; do
 		# now check if it already exists in LIB_INSTALL_DIR
 		if [[ -L "$LIB_INSTALL_DIR/$lib" ]]; then
 			continue
 		fi
 		
 		printf "Creating symbolic link for $lib\n"
-		ln -s "$cwd/lib/lowcar/$lib" "$LIB_INSTALL_DIR/$lib"
+		ln -s "$PWD/devices/$lib" "$LIB_INSTALL_DIR/$lib"
 	done
 	
 	printf "\nFinished creating symbolic links to libraries!\n"
@@ -257,42 +244,38 @@ function make_device_ino {
 	printf "Generating Device/Device.ino\n"
 	
 	# generates new Device_template file with UID_INSERTED and DEVICE replaced
-	sed -e "s/UID_INSERTED/$uid/" -e "s/DEVICE/$SENSOR_NAME/" Device_template.cpp > temp2.txt
+	sed -e "s/UID_INSERTED/$uid/" -e "s/DEVICE/$SENSOR_NAME/" Device_template.cpp > temp1.txt
 	
 	# if Device folder doesn't exist, make it
 	if [[ ! -d "Device" ]]; then
 		mkdir Device
 	fi
 	
-	# concatenate temp1.txt and temp2.txt into Device/Device.ino
-	cat temp1.txt temp2.txt > Device/Device.ino
+	# create Device/Device.ino with proper header
+	echo "#include <$SENSOR_NAME.h>" > Device/Device.ino
+	cat temp1.txt >> Device/Device.ino
 	
-	rm temp1.txt temp2.txt
+	rm temp1.txt
 	
 	printf "Ready to attempt compiling!\n"
 }
 
-# removes the lowcar/Device folder and all symbolic links
+# removes the Device folder and all symbolic links
 function clean {
 	# get the location of library install
 	get_lib_install_dir
 	
 	# get the names of libraries to remove
-	local libs_to_clean="$(ls lib) $(ls lib/lowcar)"
+	local libs_to_clean="$(ls lib) $(ls devices)"
 	
-	# remove lowcar/Device if it exists
+	# remove Device if it exists
 	if [[ -d "Device" ]]; then
-		printf "Removing lowcar/Device\n"
+		printf "Removing Device\n"
 		rm -r Device
 	fi
 	
 	# process each element in libs_to_clean
 	for lib in $libs_to_clean; do
-		# skip "lowcar"
-		if [[ $lib == "lowcar" ]]; then
-			continue
-		fi
-		
 		# now check if it already exists in LIB_INSTALL_DIR
 		if [[ -L "$LIB_INSTALL_DIR/$lib" ]]; then
 			printf "Removing symbolic link for $lib\n"
@@ -303,7 +286,6 @@ function clean {
 	
 	printf "Finished cleaning!\n\n"
 	
-	exit 1
 }
 
 ####################################### BEGIN SCRIPT ###################################
@@ -311,9 +293,12 @@ function clean {
 # parse command-line options
 parse_opts $@
 
-# check if CLEAN flag was specified
+# Clean symlinked libraries
+clean
+
+# if CLEAN flag was specified, we are done
 if [[ $CLEAN == 1 ]]; then
-	clean
+	exit 1
 fi
 
 printf "\nAttempting to flash a $SENSOR_NAME!\n\n"
@@ -322,7 +307,7 @@ printf "\nAttempting to flash a $SENSOR_NAME!\n\n"
 arduino-cli config init
 
 # update the core index (see arduino-cli documentation)
-arduino-cli core update-index
+# arduino-cli core update-index
 
 # get the device port, board, fqbn, and core
 get_board_info
@@ -339,7 +324,7 @@ make_device_ino
 
 # compile the code
 printf "\nCompiling code...\n\n"
-if !(arduino-cli compile --fqbn $DEVICE_FQBN Device/Device.ino); then
+if !(arduino-cli compile --fqbn $DEVICE_FQBN Device); then
 	printf "\nERROR: code did not compile correctly\n\n"
 	exit 1
 fi
