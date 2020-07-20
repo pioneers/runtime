@@ -2,13 +2,17 @@ os: linux
 arch: arm64 
 dist: bionic # Ubuntu 18
 
+language: c
+
 services:
   - docker
 
 # require the branch name to be master (note for PRs this is the base branch name)
-branches:
-  only:
-    - master
+# branches:
+#   only:
+#     - master
+
+if: (type = push AND branch = master) OR (type = pull_request)
 
 before_install:
   - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
