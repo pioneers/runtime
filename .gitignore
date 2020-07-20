@@ -25,6 +25,9 @@ studentapi.c
 __pycache__/
 build/
 
+# VS Code
+.vscode
+
 # Prerequisites
 *.d
 

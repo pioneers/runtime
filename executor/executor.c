@@ -136,22 +136,25 @@ void executor_init(char* student_code) {
         exit(1);
     }
     
-    // Insert student API into the student code
-    int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
-    err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
-    if (err != 0) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not insert API into student code.");
-        exit(1);
+    if (mode != CHALLENGE) {
+        // Insert student API into the student code
+        int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
+        err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
+        if (err != 0) {
+            PyErr_Print();
+            log_printf(ERROR, "Could not insert API into student code.");
+            exit(1);
+        }        
+        
+        // Send the device subscription requests to dev_handler
+        PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
+        if (ret == NULL) {
+            PyErr_Print();
+            log_printf(ERROR, "Could not make device subscription requests");
+            exit(1);
+        }
     }
-    
-    // Send the device subscription requests to dev_handler
-    PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
-    if (ret == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not make device subscription requests");
-        exit(1);
-    }
+
 }
 
 
@@ -172,17 +175,17 @@ void executor_init(char* student_code) {
  *
  *  Returns: error code of function
  *      0: Exited cleanly
- *      1: Couldn't set the mode for the Gamepad
+ *      1: Python exception in student actions
  *      2: Python exception while running student code
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** ret_value) {
+uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
     uint8_t ret = 0;
 	
     //retrieve the Python function from the student code
-    PyObject *pFunc = PyObject_GetAttrString(pModule, func_name);
-    PyObject *pValue = NULL;
+    PyObject* pFunc = PyObject_GetAttrString(pModule, func_name);
+    PyObject* pValue = NULL;
     if (pFunc && PyCallable_Check(pFunc)) {
         struct timespec start, end;
         uint64_t time, max_time = 0;
@@ -202,8 +205,12 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
             }
 
             // Set return value
-            if (ret_value != NULL) {
-                *ret_value = pValue;
+            if (py_ret != NULL) {
+                Py_XDECREF(*py_ret); // Decrement previous reference, if it exists
+                *py_ret = pValue;
+            }
+            else {
+                Py_XDECREF(pValue);
             }
 
 			//catch execution error
@@ -219,9 +226,24 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
                 }
                 break;
             }
-            else if (ret_value == NULL) { // Decrement reference if nothing pointing at the value
-                Py_DECREF(pValue);
-            }
+            else{
+                PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
+                if (event == NULL) {
+                    PyErr_Print();
+                    log_printf(ERROR, "Could not get error_event from Robot instance");
+                    exit(2);
+                }
+                PyObject* event_set = PyObject_CallMethod(event, "is_set", NULL);
+                if (event_set == NULL) {
+                    log_printf(DEBUG, "Could not get if error is set from error_event");
+                    exit(2);
+                }
+                if (PyObject_IsTrue(event_set) == 1) {
+                    log_printf(ERROR, "Stopping %s due to error in action", func_name);
+                    ret = 1;
+                    break;
+                }
+            }        
         } while(loop);
         Py_DECREF(pFunc);
     }
@@ -255,12 +277,9 @@ void run_mode(robot_desc_val_t mode) {
     int err = run_py_function(setup_str, &setup_time, 0, NULL, NULL);  // Run setup function once
     if (err == 0) {
         err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
-        if (err != 0 && err != 3) {
-            log_printf(DEBUG, "Return status of %s: %d", main_str, err);
-        }
     }
     else {
-        log_printf(WARN, "Won't run %s due to error in %s", main_str, setup_str);
+        log_printf(WARN, "Won't run %s due to error %d in %s", main_str, err, setup_str);
     }
     return;    
 }
@@ -339,7 +358,7 @@ void run_challenges() {
  */
 void python_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
-    log_printf(DEBUG, "sent exception 0");
+    log_printf(DEBUG, "about to send exception");
     PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
     log_printf(DEBUG, "sent exception");
 }
@@ -349,6 +368,7 @@ void python_exit_handler(int signum) {
  *  Kills any running subprocess. Will make the robot go into IDLE mode.
  */
 void kill_subprocess() {
+    log_printf(DEBUG, "In KILL subprocess");
     if (kill(pid, SIGTERM) != 0) {
         log_printf(ERROR, "Kill signal not sent: %s", strerror(errno));
     } 
@@ -460,9 +480,10 @@ int main(int argc, char* argv[]) {
             }
             log_printf(DEBUG, "New mode %d", new_mode);
             if (new_mode != IDLE) {
+                mode = new_mode;
                 pid = start_mode_subprocess(new_mode, student_code);
-                if (pid != -1) {
-                    mode = new_mode;
+                if (pid == -1) {
+                    mode = IDLE;
                 }
             }
         }

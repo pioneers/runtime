@@ -18,12 +18,6 @@ endif
 
 all: executor studentapi
 
-func: run_python.c
-	$(cc) run_python.c -o func $(PY_LIB)
-
-simple: run_simple_python.c
-	$(cc) run_simple_python.c -o simple $(PY_LIB)
-
 executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
 	$(cc) $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
@@ -34,8 +28,6 @@ test_api: studentapi test_studentapi.py
 	- $(py) test_studentapi.py
 
 clean:
-	rm studentapi.c
-	rm executor
-	rm simple
-	rm func
-	# rm studentapi.cpython-36m-x86_64-linux-gnu.so
+	rm -f studentapi.c
+	rm -f executor
+	rm -f *.so
