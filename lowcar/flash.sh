@@ -47,11 +47,11 @@ CLEAN=0                   # whether or not the clean option was specified
 
 # prints the usage of this flash script
 function usage {
-	printf "Usage: ./flash.sh [-cth] [-s UID] sensor_type\n"
-	printf "\t-s: short for \"Set\"; manually set the UID for the device (input taken in hex, do not prefix \"0x\")\n"
-	printf "\t-t: short for \"Test\"; set the UID for the device to \"0x123456789ABCDEF\"\n"
+	printf "Usage: ./flash.sh [-cht] [-s UID] sensor_type\n"
 	printf "\t-c: short for \"Clean\"; removes the \"Device\" folder and all symbolic links\n"
 	printf "\t-h: display this help message\n"
+	printf "\t-s: short for \"Set\"; manually set the UID for the device (input taken in hex, do not prefix \"0x\")\n"
+	printf "\t-t: short for \"Test\"; set the UID for the device to \"0x123456789ABCDEF\"\n"
 	printf "Valid values for \"sensor type\" are listed below:\n\n"
 	
 	for type in $SENSOR_TYPES; do
@@ -101,7 +101,7 @@ function parse_opts {
 				;;
 			c)
 				# check to make sure user didn't specify more arguments after -c flag
-				if [[ $OPTIND == $# ]]; then
+				if (( $OPTIND <= $# )); then
 					printf "\nERROR: -c flag does not take any arguments\n\n"
 					usage
 				fi
@@ -137,7 +137,7 @@ function get_board_info {
 		DEVICE_PORT=$(echo $line | awk '{ print $1 }')
 		DEVICE_FQBN=$(echo $line | awk '{ 
 				for (i=1; i<=NF; i++) {
-					tmp=match($i, /arduino:(avr|samd):.*/) 
+					tmp=match($i, /arduino:(avr|samd):.*/)
 					if (tmp) {
 						print $i
 					} 
@@ -182,6 +182,7 @@ function get_lib_install_dir {
 }
 
 # create the symbolic links from the library installation directory to our code
+# "$PWD" is set by the system and contains the output of the "pwd" command in the terminal
 function symlink_libs {
 	
 	# first get names of folders to symlink in libs_to_install and devices_libs_to_install
@@ -271,8 +272,7 @@ function clean {
 		
 	done
 	
-	printf "Finished cleaning!\n\n"
-	
+	printf "Finished cleaning!\n\n"	
 }
 
 ####################################### BEGIN SCRIPT ###################################
