@@ -168,28 +168,6 @@ function get_board_info {
 }
 
 # get the location that we need to symlink our code from so that arduino-cli can find them
-# function get_lib_install_dir {
-# 	# get the configuration into temp1.txt
-# 	arduino-cli config dump > temp1.txt
-#
-# 	# read in temp1.txt line by line until we find the "user: LIB_INSTALL_DIR" line
-# 	while read line; do
-# 		if [[ $line == *"user"* ]]; then
-# 			echo $line > temp2.txt
-# 			LIB_INSTALL_DIR=$(awk '{ print $2 }' temp2.txt)
-# 			LIB_INSTALL_DIR="$LIB_INSTALL_DIR/libraries" # append /libraries to it
-# 			rm temp1.txt temp2.txt
-# 			printf "\nFound Library Installation Directory: $LIB_INSTALL_DIR\n"
-# 			return 0
-# 		fi
-# 	done < "temp1.txt"
-#
-# 	# if we get here, we didn't find the library installation directory
-# 	rm temp1.txt
-# 	printf "\nERROR: could not find Library Installation Directory\n\n"
-# 	exit 1
-# }
-
 function get_lib_install_dir {
 	# install a library and record the logs of the installation into temp1.txt
 	arduino-cli lib install --log-file temp1.txt MFRC522 > /dev/null
