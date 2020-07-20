@@ -5,7 +5,6 @@ RUN apt-get -q update
 # Install Python and Cython
 RUN apt-get -y install python3-dev python3-pip && pip3 install Cython
 
-
 # Dependencies for installing protobufs
 WORKDIR /tmp
 SHELL ["/bin/bash", "-c"]
@@ -32,7 +31,7 @@ RUN wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.3.3/proto
 RUN apt-get autoremove && apt-get clean
 
 # Debug
-RUN apt-get -y install procps htop tmux
+RUN apt-get -y install procps htop tmux nano
 
 WORKDIR /root/runtime
 
@@ -42,5 +41,4 @@ RUN pushd executor && make && popd && \
     pushd net_handler && make && popd && \
     pushd shm_wrapper && make && popd
 
-# CMD bash
-CMD nohup setsid ./run.sh && tail -f /dev/null
+CMD ./run.sh
