@@ -16,9 +16,6 @@
 
 ### Above combination will ignore all files without extension, except MakeFiles ###
 
-# ignore the entire lowcar/Device folder
-Device
-
 studentapi.c
 *.pyc
 *.pyo

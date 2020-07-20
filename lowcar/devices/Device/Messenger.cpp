@@ -1,4 +1,5 @@
 #include "Messenger.h"
+#define Serial SERIAL_PORT_USBVIRTUAL
 
 //************************************* MESSENGER CLASS CONSTANTS *********************************** //
 
@@ -134,7 +135,7 @@ Status Messenger::read_message (message_t *msg)
 void Messenger::lowcar_printf(char* format, ...) {
   // Double the queue size if it's full
   if (this->num_logs == this->log_queue_max_size) {
-	this->log_queue = realloc(this->log_queue, sizeof(char *) * 2 * this->log_queue_max_size);
+	this->log_queue = (char**) realloc(this->log_queue, sizeof(char *) * 2 * this->log_queue_max_size);
     for (int i = this->log_queue_max_size; i < 2 * this->log_queue_max_size; i++) {
       this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
     }

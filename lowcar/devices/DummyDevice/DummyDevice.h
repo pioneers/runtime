@@ -14,11 +14,11 @@ public:
 	//construct a Dummy device
 	DummyDevice();
 
-	virtual size_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf);
-	virtual size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf);
-	virtual void DummyDevice::device_enable();
-	virtual void DummyDevice::device_disable();
-	virtual void DummyDevice::device_actions();
+	virtual size_t device_read (uint8_t param, uint8_t *data_buf);
+	virtual size_t device_write (uint8_t param, uint8_t *data_buf);
+	virtual void device_enable();
+	virtual void device_disable();
+	virtual void device_actions();
 
 private:
 	int16_t runtime; //param 0
