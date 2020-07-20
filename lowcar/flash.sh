@@ -122,10 +122,9 @@ function parse_opts {
 
 # obtains the port, fqbn, and core of the attached arduino
 function get_board_info {
-	arduino-cli board list > temp1.txt
 	local line_num=0
 	
-	# read lines from temp1.txt and searches for the attached board
+	# read lines from board list and searches for the attached board
 	while read line; do
 		line_num=$(( line_num + 1 ))
 		
@@ -153,16 +152,13 @@ function get_board_info {
 				} 
 			}')
 		
-		rm temp1.txt
-		
 		printf "\nFound board! \n\t Port = $DEVICE_PORT \n\t FQBN = $DEVICE_FQBN \n\t Core = $DEVICE_CORE\n\n"
 		
 		return 0
 		
-	done < "temp1.txt"
+	done <<< "$(arduino-cli board list)"
 	
 	# if we go through the entire output of arduino-cli board list, then no suitable board attached
-	rm temp1.txt
 	printf "\nERROR: no board attached\n\n"
 	exit 1
 }
@@ -171,8 +167,6 @@ function get_board_info {
 function get_lib_install_dir {	
 	
 	# read in config line by line until we find the "user: LIB_INSTALL_DIR" line	
-	arduino-cli config dump > temp1.txt
-
 	while read line; do	
 		if [[ $line == "user"* ]]; then	
 			LIB_INSTALL_DIR=$(echo $line | awk '{ print $2 }')	
@@ -180,10 +174,9 @@ function get_lib_install_dir {
 			printf "\nFound Library Installation Directory: $LIB_INSTALL_DIR\n"	
 			return 1
 		fi	
-	done < temp1.txt
+	done <<< "$(arduino-cli config dump)"
 	
 	# if we get here, we didn't find the library installation directory	
-	rm temp1.txt
 	printf "\nERROR: could not find Library Installation Directory\n\n"	
 	exit 1	
 }
@@ -238,13 +231,8 @@ function make_device_ino {
 		uid="$(echo $uid | tr -d '[:space:]')"
 	fi
 	
-	echo "#include <$SENSOR_NAME.h>" > temp1.txt
-	
 	printf "UID for this device is $uid\n"
 	printf "Generating Device/Device.ino\n"
-	
-	# generates new Device_template file with UID_INSERTED and DEVICE replaced
-	sed -e "s/UID_INSERTED/$uid/" -e "s/DEVICE/$SENSOR_NAME/" Device_template.cpp > temp1.txt
 	
 	# if Device folder doesn't exist, make it
 	if [[ ! -d "Device" ]]; then
@@ -253,10 +241,9 @@ function make_device_ino {
 	
 	# create Device/Device.ino with proper header
 	echo "#include <$SENSOR_NAME.h>" > Device/Device.ino
-	cat temp1.txt >> Device/Device.ino
-	
-	rm temp1.txt
-	
+	# generates new Device_template file with UID_INSERTED and DEVICE replaced and appends to existing Device.ino
+	sed -e "s/UID_INSERTED/$uid/" -e "s/DEVICE/$SENSOR_NAME/" Device_template.cpp >> Device/Device.ino
+		
 	printf "Ready to attempt compiling!\n"
 }
 

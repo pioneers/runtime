@@ -1,5 +1,4 @@
 #include "dev_handler.h"
-#include <bits/stdint-uintn.h>
 
 // ************************************ PRIVATE TYPEDEFS ****************************************** //
 // The interval (ms) at which we want DEVICE_DATA messages for subscribed params
