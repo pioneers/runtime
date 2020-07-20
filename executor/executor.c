@@ -25,9 +25,11 @@ int challenge_fd;  // challenge socket
 
 // Timings for all modes
 struct timespec setup_time = { 2, 0 };    // Max time allowed for setup functions
-#define freq 10.0 // Minimum number of times per second the main loop should run
-struct timespec main_interval = { 0, (long) ((1.0 / freq) * 1e9) };
-int challenge_time = 5; // Max allowed time for running challenges in seconds
+#define min_freq 10.0 // Minimum number of times per second the main loop should run
+struct timespec main_interval = { 0, (long) ((1.0 / min_freq) * 1e9) };
+#define max_freq 10000.0 // Maximum number of times per second the Python function should run
+uint64_t min_time = (1.0 / max_freq) * 1e9; // Minimum time in nanoseconds that the Python function should take
+int challenge_time = 5; // Max allowed time for running all challenges in seconds
 
 char* challenge_names[NUM_CHALLENGES] = {"reverse_digits", "list_prime_factors"};
 
@@ -204,6 +206,10 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
             time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
             if (timeout != NULL && time > max_time) {
                 log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", func_name, (long) (max_time / 1e6));
+            }
+            //if the time the Python function took was smaller than min_time, sleep to slow down execution
+            if (time < min_time) {
+                usleep((min_time - time) / 1000);
             }
 
             // Set return value
@@ -454,7 +460,7 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         student_code = argv[1];
     }
-
+    log_printf(DEBUG, "Min time %llu", min_time);
     struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
 	//create the socket
 	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
