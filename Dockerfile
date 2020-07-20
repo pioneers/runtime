@@ -30,6 +30,7 @@ RUN wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.3.3/proto
 
 RUN apt-get autoremove && apt-get clean
 
+# Install arduino-cli
 ENV arduino_folder arduino_cli
 RUN wget https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_ARMv7.tar.gz -O ${arduino_folder}.tar.gz && \
     mkdir ${arduino_folder} && tar xzf ${arduino_folder}.tar.gz -C ${arduino_folder} && \
@@ -38,15 +39,16 @@ RUN wget https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_ARMv7
     rm -r ${arduino_folder} && \
     arduino-cli core update-index
 
-# Debug
+# Debug packages
 RUN apt-get -y install procps htop tmux nano
 
 WORKDIR /root/runtime
 
+# Adds all files in the repo that are not in .dockerignore
 ADD ./ ./
 
-RUN pushd executor && make && popd && \
-    pushd net_handler && make && popd && \
-    pushd shm_wrapper && make && popd
+# Build Runtime processes
+RUN ./build.sh
 
+# Set run.sh as command that runs with docker run
 CMD ./run.sh
