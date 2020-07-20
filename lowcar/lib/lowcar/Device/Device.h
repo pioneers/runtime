@@ -21,6 +21,10 @@ public:
    * dev_id and dev_year are the device type and device year of the device
    */
   Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 2500, uint32_t ping_interval = 1000);
+  
+  /* Sets the UID of the Device
+   */
+  void set_uid (uint64_t uid);
 
   /* Generic device loop function that wraps all device actions
    * Asks messenger to read any incoming messages and responds appropriately

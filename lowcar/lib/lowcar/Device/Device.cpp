@@ -8,7 +8,7 @@ Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t 
 {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
-    this->dev_id.uid = 0xFEDCBA987654321; // TODO: Flashing must set this to a random uint64_t
+	this->dev_id.uid = 0; //sets a temporary value
 
     this->params = 0;         // nothing subscribed to right now
     this->sub_interval = 0;   // 0 acts as flag indicating no subscription
@@ -22,6 +22,12 @@ Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t 
     device_enable(); //call device's enable function
 
     this->last_sub_time = this->last_sent_ping_time = this->last_received_ping_time = this->curr_time = millis();
+}
+
+//Sets the UID
+void Device::set_uid (uint64_t uid)
+{
+	this->dev_id.uid = uid;
 }
 
 //universal loop function
