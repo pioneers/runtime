@@ -89,6 +89,19 @@ void executor_init(char* student_code) {
     Py_Initialize();
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
+
+    //imports the student code
+    pModule = PyImport_ImportModule(student_code);
+    if (pModule == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not import student code file: %s", student_code);
+        exit(1);
+    }
+
+    // CHALLENGE mode doesn't need the robot API
+    if (mode == CHALLENGE) {
+        return;
+    }
 	
 	//imports the Cython student API
     pAPI = PyImport_ImportModule(api_module);
@@ -97,7 +110,7 @@ void executor_init(char* student_code) {
         log_printf(ERROR, "Could not import API module");
         exit(1);
     }
-	
+
 	//checks to make sure there is a Robot class, then instantiates it
     PyObject* robot_class = PyObject_GetAttrString(pAPI, "Robot");
     if (robot_class == NULL) {
@@ -128,33 +141,22 @@ void executor_init(char* student_code) {
     }
     Py_DECREF(gamepad_class);
 	
-	//imports the student code
-    pModule = PyImport_ImportModule(student_code);
-    if (pModule == NULL) {
+    // Insert student API into the student code
+    int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
+    err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
+    if (err != 0) {
         PyErr_Print();
-        log_printf(ERROR, "Could not import module: %s", student_code);
+        log_printf(ERROR, "Could not insert API into student code.");
+        exit(1);
+    }        
+    
+    // Send the device subscription requests to dev_handler
+    PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
+    if (ret == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not make device subscription requests");
         exit(1);
     }
-    
-    if (mode != CHALLENGE) {
-        // Insert student API into the student code
-        int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
-        err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
-        if (err != 0) {
-            PyErr_Print();
-            log_printf(ERROR, "Could not insert API into student code.");
-            exit(1);
-        }        
-        
-        // Send the device subscription requests to dev_handler
-        PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
-        if (ret == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Could not make device subscription requests");
-            exit(1);
-        }
-    }
-
 }
 
 
@@ -226,7 +228,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
                 }
                 break;
             }
-            else{
+            else if (mode != CHALLENGE) {
                 PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
                 if (event == NULL) {
                     PyErr_Print();
@@ -393,7 +395,7 @@ void kill_subprocess() {
 /** 
  *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
  */
-pid_t start_mode_subprocess(robot_desc_val_t mode, char* student_code) {
+pid_t start_mode_subprocess(char* student_code) {
     pid_t pid = fork();
     if (pid < 0) {
         log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
@@ -409,15 +411,12 @@ pid_t start_mode_subprocess(robot_desc_val_t mode, char* student_code) {
             alarm(challenge_time); // Set timeout for challenges
             run_challenges();
             robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
-            while (1) {
-                sleep(1); // Wait for process to be exited
-            }
         }
         else {
             signal(SIGTERM, python_exit_handler);
             run_mode(mode);
-            exit(0);
         }
+        exit(0);
         return pid; // Never reach this statement due to exit, needed to fix compiler warning
     }
     else {
@@ -481,7 +480,7 @@ int main(int argc, char* argv[]) {
             log_printf(DEBUG, "New mode %d", new_mode);
             if (new_mode != IDLE) {
                 mode = new_mode;
-                pid = start_mode_subprocess(new_mode, student_code);
+                pid = start_mode_subprocess(student_code);
                 if (pid == -1) {
                     mode = IDLE;
                 }

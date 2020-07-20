@@ -6,7 +6,7 @@ sourcefiles = [
     "../logger/logger.c",
     "../shm_wrapper/shm_wrapper.c",
     "../runtime_util/runtime_util.c",
-    "studentapi.pyx",
+    "studentapi.pyx"
 ]
 
 if sys.platform == 'linux':

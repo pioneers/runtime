@@ -31,7 +31,7 @@ int main()
 			params_in[j].p_f = (float)(j * i * MAX_DEVICES * 3.14159);
 			params_in[j].p_b = (i % 2 == 0) ? 0 : 1;
 		}
-		device_write(i, DEV_HANDLER, DATA, 4294967295, params_in);
+		device_write(dev_ix, DEV_HANDLER, DATA, 4294967295, params_in);
 	}
 	print_dev_ids();
 	
