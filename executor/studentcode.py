@@ -19,6 +19,8 @@ def set_motor():
     Robot.set_value(MOTOR, 'duty_cycle', 0)
     time.sleep(2)
     print("after second sleep")
+    while True:
+        Robot.set_value(MOTOR, 'pid_vel_kp', 0.237)
 
 def constant_print(msg):
     while True:
@@ -45,12 +47,11 @@ def autonomous_main():
     # time.sleep(10)
     Robot.get_value(MOTOR, 'duty_cycle')
     global i, start
-    if i % 10 == 0:
+    if i % 100000 == 0:
         print("Iteration:", i, time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
         # Robot.run(wait)
-        Robot.run(constant_print, "auton")
     i += 1
     Robot.set_value(MOTOR, 'current_thresh', .12)
     
