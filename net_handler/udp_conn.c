@@ -162,8 +162,7 @@ void start_udp_conn ()
 	}
 	
 	//bind the socket to any valid IP address on the raspi and specified port
-	struct sockaddr_in my_addr;    //for holding IP addresses (IPv4)
-	memset(&my_addr, 0, sizeof(struct sockaddr_in));
+	struct sockaddr_in my_addr = {0};    //for holding IP addresses (IPv4)
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	my_addr.sin_port = htons(RASPI_UDP_PORT);

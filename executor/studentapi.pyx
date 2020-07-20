@@ -109,11 +109,6 @@ class ThreadWrapper(threading.Thread):
         self.kwargs = kwargs
 
     def run(self):
-        # source = inspect.getsource(self.action)
-        # lines = source.split('\n')
-        # lines.insert(1, "\trobot_class = Robot; Robot = robot_class()")
-        # print(lines)
-        # exec('\n'.join(lines))
         try:
             self.action(*self.args, **self.kwargs)
         except Exception as e:
