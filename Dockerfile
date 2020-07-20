@@ -30,6 +30,14 @@ RUN wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.3.3/proto
 
 RUN apt-get autoremove && apt-get clean
 
+ENV arduino_folder arduino_cli
+RUN wget https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_ARMv7.tar.gz -O ${arduino_folder}.tar.gz && \
+    mkdir ${arduino_folder} && tar xzf ${arduino_folder}.tar.gz -C ${arduino_folder} && \
+    rm ${arduino_folder}.tar.gz && \
+    mv ${arduino_folder}/arduino-cli /usr/bin/ && \
+    rm -r ${arduino_folder} && \
+    arduino-cli core update-index
+
 # Debug
 RUN apt-get -y install procps htop tmux nano
 
