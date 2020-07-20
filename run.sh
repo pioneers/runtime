@@ -7,3 +7,4 @@ sleep 1
 cd net_handler && ./net_handler &
 sleep 1
 cd executor && ./executor &
+wait
