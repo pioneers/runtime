@@ -14,13 +14,13 @@ void ctrl_LEDs() {
 
 //decides when the red LED is on
 void ctrl_RED() {
-	bool redOn = false;
+	uint8_t redOn = FALSE;
 
 	//if(readVel() < 0 || !isMotorEnabled()) {
 	//	redOn = true;
 	//}
 
-	if(redOn) {
+	if (redOn) {
 		digitalWrite(LED_RED, HIGH);
 	} else {
 		digitalWrite(LED_RED, LOW);
@@ -29,13 +29,13 @@ void ctrl_RED() {
 
 //decides when the yellow LED is on
 void ctrl_YELLOW() {
-	bool yellowOn = false;
+	uint8_t yellowOn = FALSE;
 
 	//if(read_limit_state() == 2 || read_limit_state() == 3 || !isMotorEnabled()) { //limit state number
 	//	yellowOn = true;
 	//}
 
-	if(yellowOn) {
+	if (yellowOn) {
 		digitalWrite(LED_YELLOW, HIGH);
 	} else {
 		digitalWrite(LED_YELLOW, LOW);
@@ -44,13 +44,13 @@ void ctrl_YELLOW() {
 
 //decides when the green LED is on
 void ctrl_GREEN() {
-	bool greenOn = false;
+	uint8_t greenOn = FALSE;
 
 	//if(readVel() > 0 || !isMotorEnabled()) {
 	//	greenOn = true;
 	//}
 
-	if(greenOn) {
+	if (greenOn) {
 		digitalWrite(LED_GREEN, HIGH);
 	} else {
 		digitalWrite(LED_GREEN, LOW);

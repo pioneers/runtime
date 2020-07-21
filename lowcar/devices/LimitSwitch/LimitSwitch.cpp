@@ -9,16 +9,11 @@ LimitSwitch::LimitSwitch () : Device (DeviceID::LIMIT_SWITCH, 0)
 	;
 }
 
-uint8_t LimitSwitch::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len)
+size_t LimitSwitch::device_read (uint8_t param, uint8_t *data_buf)
 {
-	//if not enough space to read something, or undefined parameter
-	if (data_buf_len < sizeof(uint8_t) || param >= LimitSwitch::NUM_SWITCHES) {
-    	return 0;
-  	}
-
 	//put pin value into data_buf and return the state of the switch
-  	data_buf[0] = digitalRead(this->pins[param]) == HIGH;
-	return sizeof(bool);
+  	data_buf[0] = (digitalRead(this->pins[param]) == HIGH);
+	return sizeof(uint8_t);
 }
 
 void LimitSwitch::device_enable ()

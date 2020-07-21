@@ -44,7 +44,7 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_
         status += append_payload(msg, (uint8_t *) &dev_id->type, Messenger::DEV_ID_TYPE_BYTES);
         status += append_payload(msg, (uint8_t *) &dev_id->year, Messenger::DEV_ID_YEAR_BYTES);
         status += append_payload(msg, (uint8_t *) &dev_id->uid, Messenger::DEV_ID_UID_BYTES);
-		
+
 	    if (status != 0) {
 	        return Status::PROCESS_ERROR;
 	    }
@@ -151,6 +151,19 @@ void Messenger::lowcar_printf(char* format, ...) {
 }
 
 /**
+ *  Workaround to queue a log with a float value
+ *  Using lowcar_printf() on a float causes the character "?"
+ *  to print instead of the real value
+ *  Sends a log with the string: "<name>: <val>"
+ *  Where val is displayed up to the thousandths place
+ */
+void Messenger::lowcar_print_float(char *name, float val) {
+    int whole_val = (int) val;  // Part of val to the left of the decimal point
+    int thousandths = (int) ((val - whole_val) * 1000); // The 3 digits to the right of the decimal point
+    this->lowcar_printf("%s: %d.%03d", name, whole_val, thousandths);
+}
+
+/**
  *  Sends strings in the log queue to DEV_HANDLER and clears the queue
  */
 void Messenger::lowcar_flush() {
@@ -158,12 +171,12 @@ void Messenger::lowcar_flush() {
   if (this->num_logs == 0) {
       return;
   }
-  
+
   message_t log;
   // For each log, send a new message
   for (int i = 0; i < this->num_logs; i++) {
     log.payload_length = strlen(this->log_queue[i]) + 1; // Null terminator character
-    
+
     // Copy string into payload
     memcpy((char*) log.payload, this->log_queue[i], (size_t) log.payload_length);
     this->send_message(MessageID::LOG, &log);

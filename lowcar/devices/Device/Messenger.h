@@ -30,8 +30,9 @@ public:
   Status read_message (message_t *msg);
 
   // Logging
-  void lowcar_printf(char* format, ...);
-  void lowcar_flush();
+  void lowcar_printf(char* format, ...);            // Queues a log. Same usage as printf()
+  void lowcar_print_float(char *name, float val);   // Workaround to print a float value
+  void lowcar_flush();                              // Sends queued logs over serial
 
 private:
   //protocol constants

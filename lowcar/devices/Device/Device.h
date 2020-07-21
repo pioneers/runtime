@@ -21,7 +21,7 @@ public:
    * dev_id and dev_year are the device type and device year of the device
    */
   Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 2500, uint32_t ping_interval = 1000);
-  
+
   /* Sets the UID of the Device
    */
   void set_uid (uint64_t uid);
@@ -52,9 +52,11 @@ public:
   virtual size_t device_read (uint8_t param, uint8_t *data_buf);
 
   /* This function is called when the device receives a DEVICE_WRITE message
-   * Updates PARAM to new value contained in DATA.
+   * Updates PARAM to new value contained in DATA_BUF.
    * param      -   Parameter index (0, 1, 2, 3 ...)
    * data_buf   -   Contains value to write, little-endian
+   *
+   * return     -   sizeof(<parameter_value>) on success; 0 otherwise
    */
   virtual size_t device_write (uint8_t param, uint8_t *data_buf);
 
@@ -78,7 +80,7 @@ public:
 
 protected:
     Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
-	bool acknowledged;                // Whether or not we sent an ACKNOWLEDGEMENT
+	uint8_t enabled;
 
 private:
   const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
@@ -96,8 +98,10 @@ private:
   uint64_t curr_time;               // The current time
   message_t curr_msg;               // current message being processes
 
+  //Builds a DEVICE_DATA message by reading all subscribed params
   void device_read_params (message_t *msg);
-  
+
+  //Writes to device parameters using input MSG of type DEVICE_WRITE
   void device_write_params (message_t *msg);
 };
 

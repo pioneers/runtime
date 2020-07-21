@@ -14,7 +14,7 @@ Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t 
     this->sub_interval = 0;   // 0 acts as flag indicating no subscription
     this->timeout = timeout;
     this->ping_interval = ping_interval;
-    this->acknowledged = false;
+    this->enabled = FALSE;
 
     this->msngr = new Messenger();
     this->led = new StatusLED();
@@ -43,10 +43,10 @@ void Device::loop ()
             case MessageID::PING:
                 this->last_received_ping_time = this->curr_time;
                 // If this is the first PING received, send an ACKNOWLEDGEMENT
-                if (!this->acknowledged) {
+                if (!this->enabled) {
                     this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sending ACK", this->dev_id.type, this->dev_id.uid);
                     this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), &(this->dev_id));
-                    this->acknowledged = true;
+                    this->enabled = TRUE;
                 }
                 break;
 
@@ -72,7 +72,7 @@ void Device::loop ()
     }
 
     // If we still haven't gotten our first PING yet, keep waiting for it
-    if (!(this->acknowledged)) {
+    if (!(this->enabled)) {
         return;
     }
 
@@ -98,7 +98,7 @@ void Device::loop ()
     // If it's been too long since we received a PING, disable the device
     if ((this->timeout > 0)  && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_disable();
-		this->acknowledged = false;
+		this->enabled = FALSE;
     }
 
     device_actions(); //do device-specific actions
@@ -138,28 +138,18 @@ void Device::device_actions ()
 
 //*************************************************** HELPER METHODS ***************************************************//
 
-/**
- *  Helper function for building outgoing DEVICE_DATA or processing received DEVICE_WRITE
- *  msg:    DEVICE_DATA to be built OR DEVICE_WRITE to process
- *  mode:   Whether to read or write
- *
- *  Depending on specified MODE, either
- *  RWMode::READ    -- Reads specified PARAMS into msg->payload
- *  RWMode::WRITE   -- Writes specified PARAMS from msg->payload into devices
- */
-
 void Device::device_read_params (message_t *msg)
 {
     // Clear the message before building device data
     msg->message_id = MessageID::DEVICE_DATA;
     msg->payload_length = 0;
 	memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
-	
+
     // Read all subscribed params
     // Set beginning of payload to subscribed param bitmap
     uint32_t* payload_ptr_uint32 = (uint32_t *) msg->payload;
     *payload_ptr_uint32 = this->params;
-	
+
     // Loop over param_bitmap and attempt to read data for subscribed bits
 	msg->payload_length = PARAM_BITMAP_BYTES;
     for (uint8_t param_num = 0; (this->params >> param_num) > 0; param_num++) {
@@ -172,6 +162,10 @@ void Device::device_read_params (message_t *msg)
 
 void Device::device_write_params (message_t *msg)
 {
+    if (msg->message_id != MessageID::DEVICE_WRITE) {
+        return;
+    }
+
 	// Param bitmap of parameters to write is at the beginning of the payload
     uint32_t param_bitmap = *((uint32_t*) msg->payload);
 

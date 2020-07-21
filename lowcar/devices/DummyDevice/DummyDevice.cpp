@@ -23,23 +23,23 @@ DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
 {
 	this->runtime = 1;
 	this->shepherd = 0.1;
-	this->dawn = true;
+	this->dawn = TRUE;
 
 	this->devops = 1;
 	this->atlas = 0.1;
-	this->infra = true;
+	this->infra = TRUE;
 
 	this->sens = 0;
 	this->pdb = -0.1;
-	this->mech = false;
+	this->mech = FALSE;
 
 	this->cpr = 0;
 	this->edu = 0.0;
-	this->exec = false;
+	this->exec = FALSE;
 
 	this->pief = 0;
 	this->funtime = -0.1;
-	this->sheep = false;
+	this->sheep = FALSE;
 
 	this->dusk = 0;
 }
@@ -48,34 +48,33 @@ DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
 size_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf)
 {
 	float	*float_buf	= (float *) data_buf;
-	uint8_t *bool_buf	= (uint8_t *) data_buf;	// Convert bool to uint8_t to be consistent on C
 	int16_t *int_buf	= (int16_t *) data_buf;
 
 	switch (param) {
 
 		case RUNTIME:
 			int_buf[0] = this->runtime;
-			return sizeof(int16_t);
+			return sizeof(this->runtime);
 
 		case SHEPHERD:
 			float_buf[0] = this->shepherd;
-			return sizeof(float);
+			return sizeof(this->shepherd);
 
 		case DAWN:
-			bool_buf[0] = (uint8_t) (this->dawn ? 1 : 0);
-			return sizeof(uint8_t);
+			data_buf[0] = this->dawn;
+			return sizeof(this->dawn);
 
 		case DEVOPS:
 			int_buf[0] = this->devops;
-			return sizeof(int16_t);
+			return sizeof(this->devops);
 
 		case ATLAS:
 			float_buf[0] = this->atlas;
-			return sizeof(float);
+			return sizeof(this->atlas);
 
 		case INFRA:
-			bool_buf[0] = (uint8_t) (this->infra ? 1 : 0);
-			return sizeof(uint8_t);
+			data_buf[0] = this->infra;
+			return sizeof(this->infra);
 
 		case SENS:
 			break;
@@ -97,19 +96,19 @@ size_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf)
 
 		case PIEF:
 			int_buf[0] = this->pief;
-			return sizeof(int16_t);
+			return sizeof(this->pief);
 
 		case FUNTIME:
 			float_buf[0] = this->funtime;
-			return sizeof(float);
+			return sizeof(this->funtime);
 
 		case SHEEP:
-			bool_buf[0] = (uint8_t) (this->sheep ? 1 : 0);
-			return sizeof(uint8_t);
+			data_buf[0] = this->sheep;
+			return sizeof(this->sheep);
 
 		case DUSK:
 			int_buf[0] = this->dusk;
-			return sizeof(int16_t);
+			return sizeof(this->dusk);
 	}
 }
 
@@ -138,43 +137,43 @@ size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 
 		case SENS:
 			this->sens = ((int16_t *) data_buf)[0];
-			return sizeof(int16_t);
+			return sizeof(this->sens);
 
 		case PDB:
 			this->pdb = ((float *) data_buf)[0];
-			return sizeof(float);
+			return sizeof(this->pdb);
 
 		case MECH:
-			this->mech = ((bool *) data_buf)[0];
-			return sizeof(uint8_t);
+			this->mech = data_buf[0];
+			return sizeof(this->mech);
 
 		case CPR:
 			this->cpr = ((int16_t *) data_buf)[0];
-			return sizeof(int16_t);
+			return sizeof(this->cpr);
 
 		case EDU:
 			this->edu = ((float *) data_buf)[0];
-			return sizeof(float);
+			return sizeof(this->edu);
 
 		case EXEC:
-			this->exec = ((bool *) data_buf)[0];
-			return sizeof(uint8_t);
+			this->exec = data_buf[0];
+			return sizeof(this->exec);
 
 		case PIEF:
 			this->pief = ((int16_t *) data_buf)[0];
-			return sizeof(int16_t);
+			return sizeof(this->pief);
 
 		case FUNTIME:
 			this->funtime = ((float *) data_buf)[0];
-			return sizeof(float);
+			return sizeof(this->funtime);
 
 		case SHEEP:
-			this->sheep = ((bool *) data_buf)[0];
-			return sizeof(uint8_t);
+			this->sheep = data_buf[0];
+			return sizeof(this->sheep);
 
 		case DUSK:
 			this->dusk = ((int16_t *) data_buf)[0];
-			return sizeof(int16_t);
+			return sizeof(this->dusk);
 	}
 }
 
@@ -201,11 +200,11 @@ void DummyDevice::device_actions()
 
 		this->devops++;
 		this->atlas += 0.9;
-		this->infra = true;
-		
-		//this->msngr->lowcar_printf("funtime = %f", this->funtime);
-		//this->msngr->lowcar_printf("atlas = %f", this->atlas);
-		//this->msngr->lowcar_printf("pdb = %f", this->pdb);
+		this->infra = TRUE;
+
+		//this->msngr->lowcar_print_float("funtime", this->funtime);
+		//this->msngr->lowcar_print_float("atlas", this->atlas);
+		//this->msngr->lowcar_print_float("pdb", this->pdb);
 
 		last_update_time = millis();
 	}

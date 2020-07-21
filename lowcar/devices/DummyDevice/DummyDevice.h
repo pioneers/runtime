@@ -23,23 +23,23 @@ public:
 private:
 	int16_t runtime; //param 0
 	float shepherd;
-	bool dawn;
+	uint8_t dawn;
 
 	int16_t devops; //param 3
 	float atlas;
-	bool infra;
+	uint8_t infra;
 
 	int16_t sens; //param 6
 	float pdb;
-	bool mech;
+	uint8_t mech;
 
 	int16_t cpr; //param 9
 	float edu;
-	bool exec;
+	uint8_t exec;
 
 	int16_t pief; //param 12
 	float funtime;
-	bool sheep;
+	uint8_t sheep;
 
 	int16_t dusk; //param 15
 };
