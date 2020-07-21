@@ -112,13 +112,13 @@ typedef struct device {
 
 // *************************** DEVICE UTILITY FUNCTIONS ************************** //
 
-/* Returns a pointer to the device given its DEVICE_TYPE */
+/* Returns a pointer to the device given its DEVICE_TYPE or NULL if the device doesn't exist. */
 device_t* get_device(uint16_t device_type);
 
 /* Returns the device type given its device name DEV_NAME */
 uint16_t device_name_to_type(char* dev_name);
 
-/* Returns the device name given its type DEVICE_TYPE */
+/* Returns the device name given its type DEVICE_TYPE or NULL if the device doesn't exist. */
 char* get_device_name(uint16_t device_type);
 
 /* Return the description of the device type's parameter. */

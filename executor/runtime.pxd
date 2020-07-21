@@ -15,9 +15,11 @@ cdef extern from "../runtime_util/runtime_util.h":
         int p_i
         float p_f
         uint8_t p_b
+    ctypedef enum param_type_t:
+        INT, FLOAT, BOOL
     ctypedef struct param_desc_t:
         char* name
-        char* type
+        param_type_t type
     ctypedef enum robot_desc_field_t:
         GAMEPAD, START_POS, RUN_MODE
     ctypedef enum robot_desc_val_t:

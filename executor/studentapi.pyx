@@ -101,10 +101,10 @@ cdef class Gamepad:
 
 class ThreadWrapper(threading.Thread):
 
-    def __init__(self, action, robot, args, kwargs):
+    def __init__(self, action, error_event, args, kwargs):
         super().__init__()
         self.action = action
-        self.robot = robot
+        self.error_event = error_event
         self.args = args
         self.kwargs = kwargs
 
@@ -113,7 +113,7 @@ class ThreadWrapper(threading.Thread):
             self.action(*self.args, **self.kwargs)
         except Exception as e:
             traceback.print_exc(file=sys.stderr)
-            self.robot.error_event.set()
+            self.error_event.set()
             
 
 cdef class Robot:
@@ -146,7 +146,7 @@ cdef class Robot:
         if threading.active_count() > MAX_THREADS:
             _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=WARN)
             return
-        thread = ThreadWrapper(action, self, args, kwargs)
+        thread = ThreadWrapper(action, self.error_event, args, kwargs)
         thread.daemon = True
         self.running_actions[action.__name__] = thread
         thread.start()
@@ -185,12 +185,12 @@ cdef class Robot:
         if not device:
             # _print("Got device none: ", device == NULL, f"device type {device_type} device uid {device_uid}")
             raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
-        cdef str param_type
+        cdef param_type_t param_type
         cdef int8_t param_idx = -1
         for i in range(device.num_params):
             if device.params[i].name == param:
                 param_idx = i
-                param_type = device.params[i].type.decode('utf-8')
+                param_type = device.params[i].type
                 break
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
@@ -206,11 +206,11 @@ cdef class Robot:
             PyMem_Free(param_value)
             raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
 
-        if param_type == 'int':
+        if param_type == INT:
             ret = param_value[param_idx].p_i
-        elif param_type == 'float':
+        elif param_type == FLOAT:
             ret = param_value[param_idx].p_f
-        elif param_type == 'bool':
+        elif param_type == BOOL:
             ret = bool(param_value[param_idx].p_b)
         PyMem_Free(param_value)
         return ret
@@ -237,12 +237,12 @@ cdef class Robot:
         cdef device_t* device = get_device(device_type)
         if not device:
             raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
-        cdef str param_type
+        cdef param_type_t param_type
         cdef int8_t param_idx = -1
         for i in range(device.num_params):
             if device.params[i].name == param:
                 param_idx = i
-                param_type = device.params[i].type.decode('utf-8')
+                param_type = device.params[i].type
                 break
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
@@ -252,11 +252,11 @@ cdef class Robot:
         if not param_value:
             raise MemoryError("Could not allocate memory to get device value.")
 
-        if param_type == 'int':
+        if param_type == INT:
             param_value[param_idx].p_i = value
-        elif param_type == 'float':
+        elif param_type == FLOAT:
             param_value[param_idx].p_f = value
-        elif param_type == 'bool':
+        elif param_type == BOOL:
             param_value[param_idx].p_b = int(value)
         cdef int err = device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
         PyMem_Free(param_value)
