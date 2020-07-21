@@ -29,24 +29,27 @@ cpdef void make_device_subs(str code_file):
 
 def get_all_params(code_file):
     code = importlib.import_module(code_file)
+    # Finds all global variables in student code
     var = [n for n in dir(code) if not n.startswith("_")]
     mod = sys.modules[__name__]
+    # Sets them in current global namespace
     for v in var:
         setattr(mod, v, getattr(code, v))
     param_dict = defaultdict(set)
     with open(f"{code_file}.py", "r") as f:
         for i, line in enumerate(f):
-            if "Robot.set_value" in line or "Robot.get_value" in line:
-                line = line.lstrip()
-                comment = line.find("#")
-                if comment != -1:
-                    line = line[:comment]
-                matches = [re.search("Robot.set_value\((.*)\)", line), re.search("Robot.get_value\((.*)\)", line)]
-                for res in matches:
-                    if res:
-                        try:
-                            params = re.split("\s?[,\(\)]\s?", res[1])
-                            param_dict[eval(params[0])].add(eval(params[1]))
-                        except Exception as e:
-                            log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
+            line = line.lstrip() # Remove whitespace
+            comment = line.find("#")
+            if comment != -1:
+                line = line[:comment] # Remove commented lines
+            # Find exact functions
+            matches = [re.search(r"Robot.set_value\((.*)\)", line), re.search(r"Robot.get_value\((.*)\)", line)]
+            for res in matches:
+                if res:
+                    try:
+                        # Find parameters by splitting by comma
+                        params = re.split(r"\s?[,\(\)]\s?", res[1])
+                        param_dict[eval(params[0])].add(eval(params[1]))
+                    except Exception as e:
+                        log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
     return param_dict
