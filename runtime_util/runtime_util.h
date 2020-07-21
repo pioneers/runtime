@@ -1,8 +1,11 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <stdio.h>	// perror()
 #include <stdint.h>
 #include <string.h>  // strcmp
+#include <errno.h>
+#include <unistd.h>	// read() and write()
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
@@ -50,34 +53,12 @@ typedef enum robot_descs {
 	RUN_MODE, DAWN, SHEPHERD, GAMEPAD, START_POS
 } robot_desc_field_t;
 
-//enumerated names of device types
-//TODO: Consider changing dev_id_t.type to use this uint8_t enum
-/*
-typedef enum dev_type {
-	LIMIT_SWITCH = 0,
-	LINE_FOLLOWER = 1,
-	POTENTIOMETER = 2,
-	ENCODER = 3,
-	BATTERY_BUZZER = 4,
-	TEAM_FLAG = 5,
-	// GRIZZLY = 6,
-	SERVO_CONTROL = 7,
-	// LINEAR_ACTUATOR = 8,
-	// COLOR_SENSOR = 9,
-	YOGI_BEAR = 10,
-	RFID = 11,
-	POLAR_BEAR = 12,
-	KOALA_BEAR = 13
-	// DISTANCE_SENSOR = 16
-	// METAL_DETECTOR = 17
-} dev_type_t; */
-
 //enumerated names for the data types device parameters can be
 typedef enum param_type {
 	INT, FLOAT, BOOL
 } param_type_t;
 
-// ******************************* CUSTOM STRUCTS ************************** //
+// ************************** CUSTOM STRUCTS ************************** //
 
 //hold a single param value. One-to-one mapping to param_val_t enum
 typedef union {
@@ -88,7 +69,7 @@ typedef union {
 
 //holds the device identification information of a single device
 typedef struct dev_id {
-	uint16_t type;
+	uint8_t type;
 	uint8_t year;
 	uint64_t uid;
 } dev_id_t;
@@ -103,34 +84,60 @@ typedef struct param_desc {
 
 // A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
-  uint16_t type;					// The type of device
+  uint8_t type;						// The type of device
   char* name;						// Device name (ex: "LimitSwitch")
   uint8_t num_params; 				// Number of params the device has
   param_desc_t params[MAX_PARAMS];	// Description of each parameter
 } device_t;
 
-
 // *************************** DEVICE UTILITY FUNCTIONS ************************** //
 
 /* Returns a pointer to the device given its DEVICE_TYPE or NULL if the device doesn't exist. */
-device_t* get_device(uint16_t device_type);
+device_t* get_device(uint8_t dev_type);
 
 /* Returns the device type given its device name DEV_NAME */
-uint16_t device_name_to_type(char* dev_name);
+uint8_t device_name_to_type(char* dev_name);
 
 /* Returns the device name given its type DEVICE_TYPE or NULL if the device doesn't exist. */
-char* get_device_name(uint16_t device_type);
+char* get_device_name(uint8_t dev_type);
 
 /* Return the description of the device type's parameter. */
-param_desc_t* get_param_desc(uint16_t dev_type, char* param_name);
+param_desc_t* get_param_desc(uint8_t dev_type, char* param_name);
 
 /* Get the param id of PARAM_NAME for the device DEV_TYPE */
-int8_t get_param_idx(uint16_t dev_type, char* param_name);
+int8_t get_param_idx(uint8_t dev_type, char* param_name);
 
 /* Get array of strings, each representing the name of a button */
 char** get_button_names();
 
 /* Get array of strings, each representing the name of a joystick */
 char** get_joystick_names();
+
+// *************************** READ/WRITE TO FILE DESCRIPTOR ************************** //
+
+/*
+ * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
+ * Arguments:
+ *    - int fd: file descriptor to read from
+ *    - void *buf: pointer to location to copy read bytes into
+ *    - size_t n: number of bytes to read
+ * Return:
+ *    - > 0: number of bytes read into buf
+ *    - 0: read EOF on fd
+ *    - -1: read errored out
+ */
+int readn (int fd, void *buf, uint16_t n);
+
+/*
+ * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
+ * Arguments:
+ *    - int fd: file descriptor to write to
+ *    - void *buf: pointer to location to read from
+ *    - size_t n: number of bytes to write
+ * Return:
+ *    - >= 0: number of bytes written into buf
+ *    - -1: write errored out
+ */
+int writen (int fd, void *buf, uint16_t n);
 
 #endif
