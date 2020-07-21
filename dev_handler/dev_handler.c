@@ -414,7 +414,7 @@ void* receiver(void* relay_cast) {
 			// Write it to shared memory
 			device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
 		} else if (msg->message_id == LOG) {
-            log_printf(INFO, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
+            log_printf(DEBUG, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
 		} else {
 			log_printf(FATAL, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
 		}

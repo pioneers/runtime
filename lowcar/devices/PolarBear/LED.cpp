@@ -1,5 +1,4 @@
 #include "LED.h"
-#include "Arduino.h"
 
 #define LED_RED		2
 #define LED_YELLOW	3

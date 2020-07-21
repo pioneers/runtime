@@ -49,15 +49,22 @@ CLEAN=0                   # whether or not the clean option was specified
 function usage {
 	printf "Usage: ./flash.sh [-cht] [-s UID] sensor_type\n"
 	printf "\t-c: short for \"Clean\"; removes the \"Device\" folder and all symbolic links\n"
-	printf "\t-h: display this help message\n"
+	printf "\t-h: short for \"Help\": displays this help message\n"
 	printf "\t-s: short for \"Set\"; manually set the UID for the device (input taken in hex, do not prefix \"0x\")\n"
-	printf "\t-t: short for \"Test\"; set the UID for the device to \"0x123456789ABCDEF\"\n"
+	printf "\t-t: short for \"Test\"; set the UID for the device to \"0x123456789ABCDEF\"\n\n"
+	printf "Examples:\n"
+	printf "\tTo flash a DummyDevice: ./flash.sh DummyDevice\n"
+	printf "\tTo flash a DummyDevice specifying the UID \"ABCDEF\": ./flash.sh -s ABCDEF DummyDevice\n"
+	printf "\tTo flash a DummyDevice with the test UID \"123456789ABCDEF\": ./flash.sh -t DummyDevice\n"
+	printf "\tTo clean up directories without flashing anything: ./flash.sh -c\n\n"
 	printf "Valid values for \"sensor type\" are listed below:\n\n"
 	
 	for type in $SENSOR_TYPES; do
 		printf "\t$type\n"
 	done
 	printf "\n"
+	
+	printf "Remember that you need to install arduino-cli first before you can use this flash script!\n\n"
 	exit 1
 }
 
@@ -277,6 +284,13 @@ function clean {
 
 ####################################### BEGIN SCRIPT ###################################
 
+# check if arduino-cli is installed
+if [[ $(which arduino-cli) == "" ]]; then
+	printf "\nERROR: Could not find arduino-cli. Please install arduino-cli\n\n"
+	usage
+	exit 1
+fi
+
 # parse command-line options
 parse_opts $@
 
@@ -294,7 +308,7 @@ printf "\nAttempting to flash a $SENSOR_NAME!\n\n"
 arduino-cli config init
 
 # update the core index (see arduino-cli documentation)
-# arduino-cli core update-index
+arduino-cli core update-index
 
 # get the device port, board, fqbn, and core
 get_board_info

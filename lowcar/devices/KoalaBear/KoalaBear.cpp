@@ -57,7 +57,7 @@ typedef enum {
 
 //*********************************** MAIN KOALABEAR CODE ***********************************//
 
-KoalaBear::KoalaBear () : Device (DeviceID::KOALA_BEAR, 13), //,  encdr(encoder0PinA, encoder0PinB), pid(0.0, 0.0, 0.0, 0.0, (double) millis(), encdr)
+KoalaBear::KoalaBear () : Device (DeviceType::KOALA_BEAR, 13) //,  encdr(encoder0PinA, encoder0PinB), pid(0.0, 0.0, 0.0, 0.0, (double) millis(), encdr)
 {
 	this->desired_speeds = (float *) calloc(2, sizeof(float));	// "duty_cycle"
 

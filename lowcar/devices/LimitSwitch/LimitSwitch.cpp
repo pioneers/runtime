@@ -4,7 +4,7 @@ const int LimitSwitch::NUM_SWITCHES = 3; //number of switches on a limit switch 
 const uint8_t LimitSwitch::pins[] = {(const uint8_t) Analog::IO0, (const uint8_t) Analog::IO1, (const uint8_t) Analog::IO2};
 
 //default constructor simply specifies DeviceID and year to generic constructor
-LimitSwitch::LimitSwitch () : Device (DeviceID::LIMIT_SWITCH, 0)
+LimitSwitch::LimitSwitch () : Device (DeviceType::LIMIT_SWITCH, 0)
 {
 	;
 }

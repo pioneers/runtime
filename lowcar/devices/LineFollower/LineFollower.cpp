@@ -5,7 +5,7 @@ const int LineFollower::NUM_PINS = 3; //number of pins used for I/O for LineFoll
 const uint8_t LineFollower::pins[] = {(const uint8_t) Analog::IO0, (const uint8_t) Analog::IO1, (const uint8_t) Analog::IO2};
 
 //default constructor simply specifies DeviceID and year to generic constructor
-LineFollower::LineFollower () : Device (DeviceID::LINE_FOLLOWER, 1)
+LineFollower::LineFollower () : Device (DeviceType::LINE_FOLLOWER, 1)
 {
 	;
 }

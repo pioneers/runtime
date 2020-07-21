@@ -4,7 +4,7 @@
 // default constructor simply specifies DeviceID and and year to generic constructor
 // initalizes helper class objects and pre-existing variables
 BatteryBuzzer::BatteryBuzzer () :
-  	Device (DeviceID:: BATTERY_BUZZER, 1),
+  	Device (DeviceType:: BATTERY_BUZZER, 1),
   	disp(SevenSeg(A, B, C, D, E, G, H))
 {
 	v_cell1 = 0;  // param
