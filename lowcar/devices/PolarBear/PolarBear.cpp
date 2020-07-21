@@ -6,7 +6,7 @@ typedef enum {
     DEADBAND = 2
   } param;
 
-PolarBear::PolarBear () : Device (DeviceID::POLAR_BEAR, 2)
+PolarBear::PolarBear () : Device (DeviceType::POLAR_BEAR, 2)
 {
 	this->duty_cycle = 0;
 	this->deadband = 0.05;
@@ -46,7 +46,7 @@ size_t PolarBear::device_write (uint8_t param, uint8_t *data_buf)
 		case DUTY_CYCLE:
             // Change duty_cycle only if abs(input) is greater than deadband
             int abs_input = float_buf[0] * sign(float_buf[0]);
-            if (abs_input > this->deadBand) {
+            if (abs_input > this->deadband) {
                 this->duty_cycle = float_buf[0];
             } else {
                 this->duty_cycle = 0;
@@ -57,8 +57,8 @@ size_t PolarBear::device_write (uint8_t param, uint8_t *data_buf)
 			break;
 
 		case DEADBAND:
-			this->deadBand = float_buf[0];
-			return sizeof(this->deadBand);
+			this->deadband = float_buf[0];
+			return sizeof(this->deadband);
 
 		default:
 			return 0;

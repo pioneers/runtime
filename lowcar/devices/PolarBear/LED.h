@@ -1,6 +1,9 @@
 #ifndef LED_H
 #define LED_H
 
+#include "Arduino.h"
+#include "defs.h"
+
 //function prototypes
 void ctrl_LEDs();
 void ctrl_RED();

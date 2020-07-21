@@ -5,7 +5,7 @@ const int RFID::SS_PIN = 10;
 
 //default constructor simply specifies DeviceID and year to generic constructor and initializes variables
 //initializes the msfrc22 object in the initializer list
-RFID::RFID () : Device (DeviceID::RFID, 1), tag_detector (RFID::SS_PIN, RFID::RST_PIN)
+RFID::RFID () : Device (DeviceType::RFID, 1), tag_detector (RFID::SS_PIN, RFID::RST_PIN)
 {
 	this->id_upper = 0;
 	this->id_lower = 0;
@@ -20,7 +20,7 @@ size_t RFID::device_read (uint8_t param, uint8_t *data_buf)
 			((int16_t *)data_buf)[0] = this->id_upper;
 			return sizeof(this->id_upper);
 
-		case RFID_PARAM::ID_LOWER:
+		case RFID_Param::ID_LOWER:
 			((int16_t *)data_buf)[0] = this->id_lower;
 			return sizeof(this->id_lower);
 

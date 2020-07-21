@@ -13,7 +13,7 @@ Servo servos[2] = { *servo0, *servo1 };
 
 //runs default Device constructor and then disables all servos at start
 //initializes this->servos[] to contain references to the two Servo objects in initializer list
-ServoControl::ServoControl() : Device(DeviceID::SERVO_CONTROL, 1) //, servo0(), servo1() //, servos{ *servo0, *servo1 }
+ServoControl::ServoControl() : Device(DeviceType::SERVO_CONTROL, 1) //, servo0(), servo1() //, servos{ *servo0, *servo1 }
 {
 	this->positions = new float[NUM_SERVOS];
 	for (int i = 0; i < ServoControl::NUM_SERVOS; i++) {
