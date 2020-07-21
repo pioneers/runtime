@@ -55,7 +55,7 @@ typedef struct gp_shm {
 
 //shared memory for robot description
 typedef struct robot_desc_shm {
-	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
+	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t)
 } robot_desc_shm_t;
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
@@ -112,16 +112,16 @@ void shm_stop ();
 
 /*
  * Should only be called from device handler
- * Selects the next available device index and assigns the newly connected device to that location. 
+ * Selects the next available device index and assigns the newly connected device to that location.
  * Turns on the associated bit in the catalog.
- * Arguments: 
- *    - uin16_t dev_type: the type of the device being connected e.g. LIMITSWITCH, LINEFOLLOWER, etc.
+ * Arguments:
+ *    - uint8_t dev_type: the type of the device being connected e.g. LIMITSWITCH, LINEFOLLOWER, etc.
  *    - uint8_t dev_year: year of device manufacture
  *    - uint64_t dev_uid: the unique, random 64-bit uid assigned to the device when flashing
  *    - int *dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
-void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *dev_ix);
+void device_connect (uint8_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *dev_ix);
 
 /*
  * Should only be called from device handler
@@ -132,7 +132,7 @@ void device_connect (uint16_t dev_type, uint8_t dev_year, uint64_t dev_uid, int 
  */
 void device_disconnect (int dev_ix);
 
-/*	
+/*
  * Should be called from every process wanting to read the device data
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Arguments:
@@ -152,7 +152,7 @@ int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params
  */
 int device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
 
-/*	
+/*
  * Should be called from every process wanting to write to the device data
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Grabs either one or two semaphores depending on calling process and stream requested.
@@ -240,7 +240,7 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field);
 void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
 
 /*
- * Reads current state of the gamepad to the provided pointers. 
+ * Reads current state of the gamepad to the provided pointers.
  * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
  * Arguments:
  *    - uint32_t pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into

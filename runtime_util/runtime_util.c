@@ -146,45 +146,21 @@ device_t KoalaBear = {
   .num_params = 16,
   .params = {
       {.name = "duty_cycle_a"		, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kp_a"			  , .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_ki_a"			  , .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kd_a"			  , .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "enc_a"				  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kp_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_ki_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kd_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "enc_a"				, .type = FLOAT	, .read = 1 , .write = 1  },
       {.name = "deadband_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_a", .type = BOOL  , .read = 1 , .write = 1  },
+      {.name = "motor_enabled_a"    , .type = BOOL  , .read = 1 , .write = 1  },
       {.name = "drive_mode_a"		, .type = INT   , .read = 1 , .write = 1  },
       {.name = "duty_cycle_b"		, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kp_b"			  , .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_ki_b"			  , .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kd_b"			  , .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "enc_b"				  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kp_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_ki_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kd_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "enc_b"				, .type = FLOAT	, .read = 1 , .write = 1  },
       {.name = "deadband_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_b", .type = BOOL	, .read = 1 , .write = 1  },
-      {.name = "drive_mode_b"		, .type = INT	  , .read = 1 , .write = 1  }
-  }
-};
-
-device_t ExampleDevice = {
-  .type = 65535,
-  .name = "ExampleDevice",
-  .num_params = 16,
-  .params = {
-    {.name = "kumiko"     , .type = BOOL  , .read = 1 , .write = 1  },
-    {.name = "hazuki"     , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "sapphire"   , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "reina"      , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "asuka"      , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "haruka"     , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "kaori"      , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "natsuki"    , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "yuko"       , .type = INT   , .read = 1 , .write = 1  },
-    {.name = "mizore"     , .type = FLOAT , .read = 1 , .write = 1  },
-    {.name = "nozomi"     , .type = FLOAT , .read = 1 , .write = 1  },
-    {.name = "shuichi"    , .type = INT   , .read = 1 , .write = 0  },
-    {.name = "takuya"     , .type = INT   , .read = 0 , .write = 1  },
-    {.name = "riko"       , .type = INT   , .read = 1 , .write = 0  },
-    {.name = "aoi"        , .type = INT   , .read = 0 , .write = 1  },
-    {.name = "noboru"     , .type = FLOAT , .read = 1 , .write = 0  }
+      {.name = "motor_enabled_b"    , .type = BOOL	, .read = 1 , .write = 1  },
+      {.name = "drive_mode_b"		, .type = INT	, .read = 1 , .write = 1  }
   }
 };
 
@@ -194,14 +170,14 @@ device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer
                                      &YogiBear, &RFID, &PolarBear, &KoalaBear};
 
 
-device_t* get_device(uint16_t device_type) {
-    if (0 <= device_type && device_type < DEVICES_LENGTH) {
-       return DEVICES[device_type];
+device_t* get_device(uint8_t dev_type) {
+    if (0 <= dev_type && dev_type < DEVICES_LENGTH) {
+       return DEVICES[dev_type];
     }
     return NULL;
 }
 
-uint16_t device_name_to_type(char* dev_name) {
+uint8_t device_name_to_type(char* dev_name) {
     for (int i = 0; i < DEVICES_LENGTH; i++) {
         if (DEVICES[i] != NULL && strcmp(DEVICES[i]->name, dev_name) == 0) {
             return i;
@@ -210,15 +186,15 @@ uint16_t device_name_to_type(char* dev_name) {
     return -1;
 }
 
-char* get_device_name(uint16_t device_type) {
-    device_t* device = get_device(device_type);
+char* get_device_name(uint8_t dev_type) {
+    device_t* device = get_device(dev_type);
     if (device == NULL) {
         return NULL;
     }
     return device->name;
 }
 
-param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
+param_desc_t* get_param_desc(uint8_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);
     if (device == NULL) {
         return NULL;
@@ -231,7 +207,7 @@ param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     return NULL;
 }
 
-int8_t get_param_idx(uint16_t dev_type, char* param_name) {
+int8_t get_param_idx(uint8_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);
     if (device == NULL) {
         return -1;
@@ -258,4 +234,69 @@ char** get_button_names() {
 
 char** get_joystick_names() {
     return JOYSTICK_NAMES;
+}
+
+/*
+ * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
+ * Arguments:
+ *    - int fd: file descriptor to read from
+ *    - void *buf: pointer to location to copy read bytes into
+ *    - size_t n: number of bytes to read
+ * Return:
+ *    - > 0: number of bytes read into buf
+ *    - 0: read EOF on fd
+ *    - -1: read errored out
+ */
+int readn (int fd, void *buf, uint16_t n)
+{
+	uint16_t n_remain = n;
+	uint16_t n_read;
+	char *curr = buf;
+
+	while (n_remain > 0) {
+		if ((n_read = read(fd, curr, n_remain)) < 0) {
+			if (errno == EINTR) { //read interrupted by signal; read again
+				n_read = 0;
+			} else {
+				perror("read");
+				return -1;
+			}
+		} else if (n_read == 0) { //received EOF
+			return 0;
+		}
+		n_remain -= n_read;
+		curr += n_read;
+	}
+	return (n - n_remain);
+}
+
+/*
+ * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
+ * Arguments:
+ *    - int fd: file descriptor to write to
+ *    - void *buf: pointer to location to read from
+ *    - size_t n: number of bytes to write
+ * Return:
+ *    - >= 0: number of bytes written into buf
+ *    - -1: write errored out
+ */
+int writen (int fd, void *buf, uint16_t n)
+{
+	uint16_t n_remain = n;
+	uint16_t n_written;
+	char *curr = buf;
+
+	while (n_remain > 0) {
+		if ((n_written = write(fd, curr, n_remain)) <= 0) {
+			if (n_written < 0 && errno == EINTR) { //write interrupted by signal, write again
+				n_written = 0;
+			} else {
+				perror("write");
+				return -1;
+			}
+		}
+		n_remain -= n_written;
+		curr += n_written;
+	}
+	return n;
 }
