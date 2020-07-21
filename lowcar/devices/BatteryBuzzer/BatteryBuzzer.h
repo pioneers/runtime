@@ -14,13 +14,13 @@ const int numOfDigits = 4;
 class BatteryBuzzer : public Device
 {
 public:
-	bool triple_calibration;
+	uint8_t triple_calibration;
 	int buzzer;
 
 	BatteryBuzzer ();
 
 	//overriden functions from Device class; see descriptions in Device.h
-	virtual uint8_t device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len);
+	virtual size_t device_read (uint8_t param, uint8_t *data_buf);
 	virtual void device_enable ();
 	virtual void device_actions ();
 
@@ -37,22 +37,22 @@ private:
 	/* Safety component */
 
 	void handle_safety();
-	bool is_unsafe();
-	void buzz(bool should_buzz);
+	uint8_t is_unsafe();
+	void buzz(uint8_t should_buzz);
 
-	bool unsafe_status;
+	uint8_t unsafe_status;
 
 	const float min_cell = 3.3;
 	const float end_undervolt = 3.6; // Exceed this value to remove my undervolt condition.
-	bool under_volt;
+	uint8_t under_volt;
 
 	const float max_cell = 4.4;
 
 	const float d_cell = 0.3; // Max voltage difference between cells.
 	const float end_d_cell = 0.1; //imbalance must be less than this before i'm happy again.
-	bool imbalance;
+	uint8_t imbalance;
 
-	bool compute_safety();
+	uint8_t compute_safety();
 
 	/* VoltageSense component */
 
@@ -69,8 +69,8 @@ private:
 	float get_calib (uint8_t index);
 	void set_calib (uint8_t index, float value);
 
-	bool get_triple_calibration();
-	void set_triple_calibration(bool triple_cal);
+	uint8_t get_triple_calibration();
+	void set_triple_calibration(uint8_t triple_cal);
 
 	float v_cell1;  // param 3
 	float v_cell2;  // param 4
@@ -100,7 +100,7 @@ private:
 
 	/* BatteryBuzzer component */
 
-	bool is_calibrated ();
+	uint8_t is_calibrated ();
 
 };
 

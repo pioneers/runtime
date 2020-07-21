@@ -20,13 +20,12 @@ public:
 
 private:
 	float* desired_speeds;
-	uint8_t* drivemodes;
-	bool* enabled;
 	float* deadbands;
+	uint8_t* pid_enabled;
 	LEDKoala* led;
 	int prev_led_time;
 	int curr_led_mtr;
-	
+
 	int sign (float x);
 	void drive (float target, uint8_t mtr);
 	void write_current_lim ();

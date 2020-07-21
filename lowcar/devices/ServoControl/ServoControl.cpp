@@ -26,11 +26,8 @@ ServoControl::ServoControl() : Device(DeviceID::SERVO_CONTROL, 1) //, servo0(), 
 
 //Reads value in positions associated with servo at param to buffer
 //Returns size of float if successful and 0 otherwise
-uint8_t ServoControl::device_read (uint8_t param, uint8_t *data_buf, size_t data_buf_len)
+size_t ServoControl::device_read (uint8_t param, uint8_t *data_buf)
 {
-	if (data_buf_len < sizeof(float)) {
-		return 0;
-	}
 	float *float_buf = (float *) data_buf;
 	float_buf[0] = this->positions[param];
 	return sizeof(float);
@@ -40,13 +37,13 @@ uint8_t ServoControl::device_read (uint8_t param, uint8_t *data_buf, size_t data
 //Updates value in positions array to value
 //Updates pulse width associated with specified servo
 //Returns size of bytes written if successful and 0 otherwise
-uint32_t ServoControl::device_write (uint8_t param, uint8_t *data_buf)
+size_t ServoControl::device_write (uint8_t param, uint8_t *data_buf)
 {
 	float value = ((float *) data_buf)[0];
 	if (value < -1 || value > 1) {
 		return 0;
 	}
-	
+
 	//if servo isn't attached yet, attach the pin to the servo object
 	if (!servos[param].attached()) {
 		servos[param].attach(this->pins[param]);

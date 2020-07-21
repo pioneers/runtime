@@ -1,9 +1,8 @@
 #include "runtime_util.h"
 
 /*
- * Definition of each lowcar device
- * Note: "int" type is int32_t to be consistent on Raspberry Pi and Arduino
-*/
+ * Definition of each lowcar device and their params
+ */
 device_t LimitSwitch = {
   .type = 0,
   .name = "LimitSwitch",
@@ -78,52 +77,6 @@ device_t ServoControl = {
   }
 };
 
-device_t KoalaBear = {
-  .type = 13,
-  .name = "KoalaBear",
-  .num_params = 16,
-  .params = {
-      {.name = "duty_cycle_a"		, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "duty_cycle_b"		, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "pid_ki_a"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "pid_kd_a"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "enc_a"				, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "deadband_a"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_a"	, .type = "bool"    , .read = 1 , .write = 1  },
-      {.name = "drive_mode_a"		, .type = "int"		, .read = 1 , .write = 1  },
-      {.name = "pid_kp_a"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "pid_kp_b"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "pid_ki_b"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "pid_kd_b"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "enc_b"				, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "deadband_b"			, .type = "float"	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_b"	, .type = "bool"	, .read = 1 , .write = 1  },
-      {.name = "drive_mode_b"		, .type = "int"		, .read = 1 , .write = 1  }
-  }
-};
-
-device_t PolarBear = {
-  .type = 12,
-  .name = "PolarBear",
-  .num_params = 14,
-  .params = {
-    {.name = "duty_cycle"          , .type = "float"    , .read = 1 , .write = 1  },
-    {.name = "pid_pos_setpoint"    , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_pos_kp"          , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_pos_ki"          , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_pos_kd"          , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_setpoint"    , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_kp"          , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_ki"          , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_kd"          , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "current_thresh"      , .type = "float"    , .read = 0 , .write = 1  },
-    {.name = "enc_pos"             , .type = "float"    , .read = 1 , .write = 1  },
-    {.name = "enc_vel"             , .type = "float"    , .read = 1 , .write = 0  },
-    {.name = "motor_current"       , .type = "float"    , .read = 1 , .write = 0  },
-    {.name = "deadband"            , .type = "float"    , .read = 1 , .write = 1  }
-  }
-};
-
 device_t YogiBear = {
   .type = 10,
   .name = "YogiBear",
@@ -151,8 +104,45 @@ device_t RFID = {
   .name = "RFID",
   .num_params = 2,
   .params = {
-    {.name = "id"           , .type = "int"     , .read = 1 , .write = 0  },
-    {.name = "detect_tag"   , .type = "int"     , .read = 1 , .write = 0  }
+    {.name = "id_upper"     , .type = "int"     , .read = 1 , .write = 0  },
+    {.name = "id_lower"     , .type = "int"     , .read = 1 , .write = 0  },
+    {.name = "tag_detect"   , .type = "int"     , .read = 1 , .write = 0  }
+  }
+};
+
+device_t PolarBear = {
+  .type = 12,
+  .name = "PolarBear",
+  .num_params = 3,
+  .params = {
+    {.name = "duty_cycle"          , .type = "float"    , .read = 1 , .write = 1  },
+    {.name = "motor_current"       , .type = "float"    , .read = 1 , .write = 0  },
+    {.name = "deadband"            , .type = "float"    , .read = 1 , .write = 1  }
+  }
+};
+
+device_t KoalaBear = {
+  .type = 13,
+  .name = "KoalaBear",
+  .num_params = 16,
+  .params = {
+      {.name = "duty_cycle_a"		, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "deadband_a"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "current_a"          , .type = "float"   , .read = 1 , .write = 1  },
+      {.name = "pid_enabled_a"	    , .type = "bool"    , .read = 1 , .write = 1  },
+      {.name = "pid_kp_a"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "pid_ki_a"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "pid_kd_a"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "enc_a"				, .type = "float"	, .read = 1 , .write = 1  },
+      // Same params as above except for motor b
+      {.name = "duty_cycle_b"		, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "deadband_b"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "current_b"          , .type = "float"   , .read = 1 , .write = 1  },
+      {.name = "pid_enabled_b"	    , .type = "bool"    , .read = 1 , .write = 1  },
+      {.name = "pid_kp_b"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "pid_ki_b"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "pid_kd_b"			, .type = "float"	, .read = 1 , .write = 1  },
+      {.name = "enc_b"				, .type = "float"	, .read = 1 , .write = 1  },
   }
 };
 
@@ -213,14 +203,12 @@ device_t* DEVICES[DEVICES_LENGTH] = {&LimitSwitch, &LineFollower, &Potentiometer
                                      &TeamFlag, NULL, &ServoControl, NULL, NULL,
                                      &YogiBear, &RFID, &PolarBear, &KoalaBear, &DummyDevice};
 
-
 device_t* get_device(uint16_t device_type) {
     if (0 <= device_type && device_type < DEVICES_LENGTH) {
        return DEVICES[device_type];
     }
     return NULL;
 }
-
 
 uint16_t device_name_to_type(char* dev_name) {
     for (int i = 0; i < DEVICES_LENGTH; i++) {
@@ -249,7 +237,6 @@ param_desc_t* get_param_desc(uint16_t dev_type, char* param_name) {
     return NULL;
 }
 
-
 int8_t get_param_idx(uint16_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);
     if (device == NULL) {
@@ -262,7 +249,6 @@ int8_t get_param_idx(uint16_t dev_type, char* param_name) {
     }
     return -1;
 }
-
 
 char* BUTTON_NAMES[] = {
     "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
