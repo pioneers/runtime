@@ -119,7 +119,7 @@ device_t* get_device(uint16_t device_type);
 uint16_t device_name_to_type(char* dev_name);
 
 /* Returns the device name given its type DEVICE_TYPE */
-char* get_device_name(uint16_t device_type)
+char* get_device_name(uint16_t device_type);
 
 /* Return the description of the device type's parameter. */
 param_desc_t* get_param_desc(uint16_t dev_type, char* param_name);

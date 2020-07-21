@@ -261,22 +261,17 @@ void print_params (uint32_t devices)
 				
 				//print all params for the device for that stream
 				for (int j = 0; j < device->num_params; j++) {
-					float val;
-					char *param_type = device->params[j].type;
-					if (strcmp(param_type, "int") == 0) {
-						val = dev_shm_ptr->params[s][i][j].p_i;
+					switch (device->params[j].type) {
+						case INT:
+							printf("\t\tparam_idx = %d, name = %s, value = %d\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_i);
+							break;
+						case FLOAT:
+							printf("\t\tparam_idx = %d, name = %s, value = %s\n", j, device->params[j].name, (dev_shm_ptr->params[s][i][j].p_b) ? "True" : "False");
+							break;
+						case BOOL:
+							printf("\t\tparam_idx = %d, name = %s, value = %f\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_f);
+							break;
 					}
-					else if (strcmp(param_type, "float") == 0) {
-						val = dev_shm_ptr->params[s][i][j].p_f;
-					}
-					else if (strcmp(param_type, "bool") == 0) {
-						val = dev_shm_ptr->params[s][i][j].p_b;
-					}
-					else {
-						printf("Invalid parameter type %s\n", param_type);
-						continue;
-					}
-					printf("\t\tparam_idx = %d, name = %s, type = %s, value = %f\n", j, device->params[j].name, param_type, val);
 				}
 			}
 		}
