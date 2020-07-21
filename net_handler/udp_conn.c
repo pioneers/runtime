@@ -66,17 +66,19 @@ void* send_device_data(void* args) {
 				Param* param = device->params[j];
 				param__init(param);
 				param->name = device_info->params[j].name;
-				if(strcmp(device_info->params[j].type, "int") == 0) {
-					param->val_case = PARAM__VAL_IVAL;
-					param->ival = param_data[j].p_i;
-				}
-				else if (strcmp(device_info->params[j].type, "float") == 0) {
-					param->val_case = PARAM__VAL_FVAL;
-					param->fval = param_data[j].p_f;
-				}
-				else if(strcmp(device_info->params[j].type, "bool") == 0) {
-					param->val_case = PARAM__VAL_BVAL;
-					param->bval = param_data[j].p_b;
+				switch (device_info->params[j].type) {
+					case INT:
+						param->val_case = PARAM__VAL_IVAL;
+						param->ival = param_data[j].p_i;
+						break;
+					case FLOAT:
+						param->val_case = PARAM__VAL_FVAL;
+						param->fval = param_data[j].p_f;
+						break;
+					case BOOL:
+						param->val_case = PARAM__VAL_BVAL;
+						param->bval = param_data[j].p_b;
+						break;
 				}
 			}
 			dev_idx++;
