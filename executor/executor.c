@@ -224,8 +224,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
 
 			//catch execution error
             if (pValue == NULL) {
-                PyObject* error = PyErr_Occurred();
-                if (!PyErr_GivenExceptionMatches(error, PyExc_TimeoutError)) {
+                if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
                     PyErr_Print();
                     log_printf(ERROR, "Python function %s call failed", func_name);
                     ret = 2;
@@ -245,11 +244,17 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
                 }
                 PyObject* event_set = PyObject_CallMethod(event, "is_set", NULL);
                 if (event_set == NULL) {
-                    // This might print during normal cancellation
-                    log_printf(DEBUG, "Could not get if error is set from error_event");
-                    exit(2);
+                    if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
+                        PyErr_Print();
+                        log_printf(DEBUG, "Could not get if error is set from error_event");
+                        exit(2);
+                    }
+                    else {
+                        ret = 3; // Timed out by parent process
+                    }
+                    break;
                 }
-                if (PyObject_IsTrue(event_set) == 1) {
+                else if (PyObject_IsTrue(event_set) == 1) {
                     log_printf(ERROR, "Stopping %s due to error in action", func_name);
                     ret = 1;
                     break;

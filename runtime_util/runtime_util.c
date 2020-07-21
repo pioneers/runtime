@@ -124,15 +124,15 @@ device_t PolarBear = {
   .num_params = 14,
   .params = {
     {.name = "duty_cycle"          , .type = FLOAT    , .read = 1 , .write = 1  },
-    {.name = "pid_pos_setpoint"    , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_pos_kp"          , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_pos_ki"          , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_pos_kd"          , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_setpoint"    , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_kp"          , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_ki"          , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "pid_vel_kd"          , .type = FLOAT    , .read = 0 , .write = 1  },
-    {.name = "current_thresh"      , .type = FLOAT    , .read = 0 , .write = 1  },
+    {.name = "pid_pos_setpoint"    , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_pos_kp"          , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_pos_ki"          , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_pos_kd"          , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_vel_setpoint"    , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_vel_kp"          , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_vel_ki"          , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "pid_vel_kd"          , .type = FLOAT    , .read = 1 , .write = 1  },
+    {.name = "current_thresh"      , .type = FLOAT    , .read = 1 , .write = 1  },
     {.name = "enc_pos"             , .type = FLOAT    , .read = 1 , .write = 1  },
     {.name = "enc_vel"             , .type = FLOAT    , .read = 1 , .write = 0  },
     {.name = "motor_current"       , .type = FLOAT    , .read = 1 , .write = 0  },
@@ -146,21 +146,21 @@ device_t KoalaBear = {
   .num_params = 16,
   .params = {
       {.name = "duty_cycle_a"		, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "duty_cycle_b"		, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_ki_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kd_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "enc_a"				, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kp_a"			  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_ki_a"			  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kd_a"			  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "enc_a"				  , .type = FLOAT	, .read = 1 , .write = 1  },
       {.name = "deadband_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_a"	, .type = BOOL  , .read = 1 , .write = 1  },
+      {.name = "motor_enabled_a", .type = BOOL  , .read = 1 , .write = 1  },
       {.name = "drive_mode_a"		, .type = INT   , .read = 1 , .write = 1  },
-      {.name = "pid_kp_a"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kp_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_ki_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "pid_kd_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "enc_b"				, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "duty_cycle_b"		, .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kp_b"			  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_ki_b"			  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "pid_kd_b"			  , .type = FLOAT	, .read = 1 , .write = 1  },
+      {.name = "enc_b"				  , .type = FLOAT	, .read = 1 , .write = 1  },
       {.name = "deadband_b"			, .type = FLOAT	, .read = 1 , .write = 1  },
-      {.name = "motor_enabled_b"	, .type = BOOL	, .read = 1 , .write = 1  },
-      {.name = "drive_mode_b"		, .type = INT	, .read = 1 , .write = 1  }
+      {.name = "motor_enabled_b", .type = BOOL	, .read = 1 , .write = 1  },
+      {.name = "drive_mode_b"		, .type = INT	  , .read = 1 , .write = 1  }
   }
 };
 
@@ -212,6 +212,9 @@ uint16_t device_name_to_type(char* dev_name) {
 
 char* get_device_name(uint16_t device_type) {
     device_t* device = get_device(device_type);
+    if (device == NULL) {
+        return NULL;
+    }
     return device->name;
 }
 
