@@ -216,7 +216,7 @@ void print_dev_ids ()
 	} else {
 		for (int i = 0; i < MAX_DEVICES; i++) {
 			if (catalog & (1 << i)) {
-				printf("dev_ix = %d: type = %d, year = %d, uid = %lu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+				printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 			}
 		}
 	}
@@ -252,7 +252,7 @@ void print_params (uint32_t devices)
 				printf("Device at index %d with type %d is invalid\n", i, dev_ids[i].type);
 				continue;
 			}
-			printf("dev_ix = %d: name = %s, type = %d, year = %d, uid = %lu\n", i, device->name, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+			printf("dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu\n", i, device->name, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 
 			for (int s = 0; s < 2; s++) {
 				//print out the stream header
