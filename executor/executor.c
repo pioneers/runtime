@@ -68,8 +68,9 @@ void reset_params() {
                 continue;
             }
             uint32_t reset_params = 0;
-            param_val_t zero_params[MAX_PARAMS] = {0};
+            param_val_t zero_params[MAX_PARAMS] = {0}; // By default we reset to 0
             for(int j = 0; j < device->num_params; j++) {
+                // Only reset parameters that are writeable
                 if (device->params[j].write) { 
                     reset_params |= (1 << j);
                 }
@@ -207,7 +208,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
             if (timeout != NULL && time > max_time) {
                 log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", func_name, (long) (max_time / 1e6));
             }
-            //if the time the Python function took was smaller than min_time, sleep to slow down execution
+            //if the time the Python function took was less than min_time, sleep to slow down execution
             if (time < min_time) {
                 usleep((min_time - time) / 1000);
             }
@@ -235,6 +236,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
                 break;
             }
             else if (mode != CHALLENGE) {
+                // Need to check if error occurred in action thread
                 PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
                 if (event == NULL) {
                     PyErr_Print();
@@ -243,6 +245,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
                 }
                 PyObject* event_set = PyObject_CallMethod(event, "is_set", NULL);
                 if (event_set == NULL) {
+                    // This might print during normal cancellation
                     log_printf(DEBUG, "Could not get if error is set from error_event");
                     exit(2);
                 }
@@ -303,6 +306,7 @@ void run_challenges() {
     char send_buf[NUM_CHALLENGES][CHALLENGE_LEN];
  
     for (int i = 0; i < NUM_CHALLENGES; i++) {
+        // Receive challenge inputs from net_handler
         int recvlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, (struct sockaddr*) &address, &addrlen);
         if (recvlen == CHALLENGE_LEN) {
             log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
@@ -312,6 +316,7 @@ void run_challenges() {
             log_printf(ERROR, "Socket read from challenge_fd failed");
             return;
         }
+        // Convert input C string to C long then Python tuple args
         long input = strtol(read_buf, NULL, 10);
         log_printf(DEBUG, "received inputs for %d: %ld", i, input);
         PyObject* arg = Py_BuildValue("(l)", input);
@@ -320,6 +325,7 @@ void run_challenges() {
             log_printf(ERROR, "Couldn't decode input string into Python long for challenge %s", challenge_names[i]);
             continue;
         }
+        // Run the challenge
         PyObject* ret = NULL;
         if (run_py_function(challenge_names[i], NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
             strcpy(send_buf[i], "Timed out");
@@ -332,6 +338,7 @@ void run_challenges() {
             break;
         }
         Py_DECREF(arg);
+        // Convert challenge output to Python string then C string
         PyObject* ret_string = PyObject_Str(ret);
         Py_XDECREF(ret);
         if (ret_string == NULL) {
@@ -345,8 +352,8 @@ void run_challenges() {
         if (ret_len >= CHALLENGE_LEN) {
             log_printf(ERROR, "Size of return string from challenge %d %s is greater than allocated %d", i, challenge_names[i], CHALLENGE_LEN);
         }
-        strncpy(send_buf[i], c_ret, CHALLENGE_LEN);
-        memset(read_buf, 0 , CHALLENGE_LEN);
+        strncpy(send_buf[i], c_ret, CHALLENGE_LEN); // Need to copy since pointer data is reset each iteration
+        memset(read_buf, 0 , CHALLENGE_LEN); // Need to reset read buffer for next read
     }
 
     // Send all results back to net handler
