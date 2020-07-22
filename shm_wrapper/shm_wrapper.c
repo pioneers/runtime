@@ -536,13 +536,15 @@ void device_disconnect (int dev_ix)
 	//update the catalog
 	dev_shm_ptr->catalog &= (~(1 << dev_ix));
 
-	//reset bitmap values to 0
+	//reset cmd bitmap values to 0
 	dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix));   //reset the changed bit flag in cmd_map[0]
 	dev_shm_ptr->cmd_map[dev_ix + 1] = 0;          //turn off all changed bits for the device
 
-	dev_shm_ptr->exec_sub_map[0] |= 1 << dev_ix;
-	dev_shm_ptr->exec_sub_map[dev_ix + 1] = -1;
+	// reset executor subscriptions to off
+	dev_shm_ptr->exec_sub_map[0] |= ~(1 << dev_ix);
+	dev_shm_ptr->exec_sub_map[dev_ix + 1] = 0;
 
+	// reset net_handler subscriptions to on
 	dev_shm_ptr->net_sub_map[0] |= 1 << dev_ix;
 	dev_shm_ptr->net_sub_map[dev_ix + 1] = -1;
 
