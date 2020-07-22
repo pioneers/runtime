@@ -10,12 +10,17 @@ services:
 # requires that commit is for a PR or is on master branch
 if: (type = pull_request) OR (type = push AND branch = master)
 
-# DOCKER_USERNAME is defined as a repository secret environment variable on travis-ci.org
-before_install:
-  - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
+install: skip
 
+# DOCKER_USERNAME is defined as a repository secret environment variable on travis-ci.org
+before_script:
+  - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
+  - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32 sleep 5m  # Runs the docker container as detached
+
+# -p 8101:8101/tcp -p 9000:9000/udp 
 script:
-  - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32 # -p 8101:8101/tcp -p 9000:9000/udp          # Runs the docker container as detached
-  - sleep 5 # Wait for Runtime to boot up
-  - docker exec -t $(docker ps -q) bash -c "cd net_handler && ./tcp_client 1; ./udp_client"  # Run both test clients in separate bash process
-  - docker kill -s INT $(docker ps -q) # Sends SIGINT to stop Runtime which stops Docker container
+  - docker cp . $(docker ps -q):/root/runtime/ # Copy the newest code into the image
+  - docker exec -d $(docker ps -q) bash -c "./build.sh && ./run.sh" # Build and run with latest code
+  - sleep 30 # Wait for Runtime to build and run boot up, not best method
+  - docker exec -t $(docker ps -q) bash -c "cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
+  - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
