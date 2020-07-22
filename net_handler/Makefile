@@ -13,7 +13,7 @@ ifeq ($(UNAME), Darwin)
 LIBS=-Wall
 endif
 
-all: gen_proto net_handler udp_client tcp_client proto_tests
+all: gen_proto net_handler udp_client tcp_client
 
 gen_proto: $(wildcard protos/*.proto)
 	cd protos && protoc-c --c_out ../$(GEN_FOLDER) *.proto

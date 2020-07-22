@@ -19,7 +19,6 @@ int listening_socket_setup (int *sockfd)
 	if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("socket");
 		log_printf(ERROR, "failed to create listening socket");
-		logger_stop(NET_HANDLER);
 		return 1;
 	} else {
 		log_printf(DEBUG, "socket: successfully created listening socket");
@@ -41,7 +40,6 @@ int listening_socket_setup (int *sockfd)
 	if ((bind(*sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in))) != 0) {
 		perror("bind");
 		log_printf(ERROR, "failed to bind listening socket to raspi port");
-		logger_stop(NET_HANDLER);
 		close(*sockfd);
 		return 1;
 	} else {
@@ -52,7 +50,6 @@ int listening_socket_setup (int *sockfd)
 	if ((listen(*sockfd, 2)) != 0) {
 		perror("listen");
 		log_printf(ERROR, "failed to set listening socket to listen mode");
-		logger_stop(NET_HANDLER);
 		close(*sockfd);
 		return 1;
 	} else {
@@ -94,7 +91,6 @@ int main ()
 	logger_init(NET_HANDLER);
 	signal(SIGINT, sigint_handler);
 	if (listening_socket_setup(&sockfd) != 0) {
-		logger_stop(NET_HANDLER);
 		if (sockfd != -1) {
 			close(sockfd);
 		}
