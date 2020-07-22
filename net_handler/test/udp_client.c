@@ -1,11 +1,4 @@
-#include <stdio.h>       //for i/o
-#include <stdlib.h>      //for exit
-#include <string.h>      //for memset
-#include <arpa/inet.h>   //for inet_addr, bind, listen, accept, socket types
-#include <unistd.h>      //for read, write, close
-
 #include "../net_util.h"
-#include "../../runtime_util/runtime_util.h"
 
 float data[4] = {.012, 13.1, -.13, .30};
 
