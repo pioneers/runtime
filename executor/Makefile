@@ -8,34 +8,26 @@ PY_LIB=-l$(py)m
 
 UNAME=$(shell uname)
 ifeq ($(UNAME), Linux)
-LIBS=-pthread -lrt -export-dynamic -lprotobuf-c
+LIBS=-pthread -lrt -export-dynamic -fPIC
 #-rdynamic or -export-dynamic to make it dynamically linked
 endif
 ifeq ($(UNAME), Darwin)
-LIBS=-export-dynamic -lprotobuf-c
+LIBS=-export-dynamic
 endif
 
 
 all: executor studentapi
 
-func: run_python.c
-	$(cc) run_python.c -o func $(PY_LIB)
-
-simple: run_simple_python.c
-	$(cc) run_simple_python.c -o simple $(PY_LIB)
-
-executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/pbc_gen/text.pb-c.c
+executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
 	$(cc) $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
-studentapi: studentapi.pyx studentapi.pxd
+studentapi: studentapi.pyx runtime.pxd code_parser.pyx
 	$(py) setup.py build_ext -i
 
 test_api: studentapi test_studentapi.py
 	- $(py) test_studentapi.py
 
 clean:
-	rm studentapi.c
-	rm executor
-	rm simple
-	rm func
-	# rm studentapi.cpython-36m-x86_64-linux-gnu.so
+	rm -f studentapi.c
+	rm -f executor
+	rm -f *.so

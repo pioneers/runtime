@@ -17,13 +17,15 @@ def test_api():
     val = robot.get_value(POLARBEAR, 'pid_vel_setpoint')
     print(f"New value: {val}")
 
-    gamepad = studentapi.Gamepad("teleop")
-    print("Button A:", gamepad.get_value('button_a'))
-    print("R bumper:", gamepad.get_value('r_bumper'))
-    print("R X joystick:", gamepad.get_value('joystick_right_x'))
-    gamepad.mode = 'auto'
-    studentapi._stop()
-    print('all done')
+    gamepad = studentapi.Gamepad()
+    try:
+        print("Button A:", gamepad.get_value('button_a'))
+        print("R bumper:", gamepad.get_value('r_bumper'))
+        print("R X joystick:", gamepad.get_value('joystick_right_x'))
+    except NotImplementedError:
+        pass
+
+    print(studentapi.get_all_params("studentcode"))
 
 if __name__ == '__main__':
     test_api()

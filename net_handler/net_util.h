@@ -14,7 +14,6 @@
 //include other runtime files
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
-#include "../shm_wrapper_aux/shm_wrapper_aux.h"
 #include "../logger/logger.h"
 
 //include compiled protobuf headers
@@ -45,38 +44,13 @@ typedef enum net_msg {
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //
 
 /*
- * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
- * Arguments:
- *    - int fd: file descriptor to read from
- *    - void *buf: pointer to location to copy read bytes into
- *    - size_t n: number of bytes to read
- * Return:
- *    - > 0: number of bytes read into buf
- *    - 0: read EOF on fd
- *    - -1: read errored out
- */
-int readn (int fd, void *buf, uint16_t n);
-
-/*
- * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
- * Arguments:
- *    - int fd: file descriptor to write to
- *    - void *buf: pointer to location to read from
- *    - size_t n: number of bytes to write
- * Return:
- *    - >= 0: number of bytes written into buf
- *    - -1: write errored out
- */
-int writen (int fd, void *buf, uint16_t n);
-
-/*
  * Prepares a buffer of uint8_t for receiving a packed protobuf message of the specified type and length.
  * Also converts the specified length of message from unsigned to uint16_t and returns it in the third argument.
  * Returns the prepared buffer containing the message type in the first element and the length in the second and third elements.
  * The prepared buffer must be freed by the caller.
  * Arguments:
  *    - net_msg_t msg_type: one of the message types defined in net_util.h
- *    - unsigned len_pb: length of the serialized bytes returned by the protobuf function *__get_packed_size() 
+ *    - unsigned len_pb: length of the serialized bytes returned by the protobuf function *__get_packed_size()
  *    - uint16_t *len_pb_uint16: upon successful return, will hold the given len_pb as a uint16_t (useful for pointer arithmetic)
  * Return:
  *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space

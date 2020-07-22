@@ -1,10 +1,16 @@
 # cython: nonecheck=True
 
+# from libc.stdint cimport *
+from runtime cimport *
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 
 import threading
 import sys
 import builtins
+import inspect
+import traceback
+
+include "code_parser.pyx"
 
 """Student API written in Cython. """
 
@@ -24,7 +30,7 @@ def _print(*values, sep=' ', end='\n', file=None, flush=None, level=INFO):
     if file == sys.stdout:
         level = INFO
     elif file == sys.stderr:
-        level = ERROR
+        level = PYTHON
     log_printf(level, string.encode('utf-8'))
 
 class OutputRedirect:
@@ -44,35 +50,10 @@ def _init():
     logger_init(EXECUTOR)
     shm_init()
 
-def _stop():
-    """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
-    shm_stop()
-    logger_stop()
-
-
 ## API Objects
 
-class CodeExecutionError(Exception):
-    """
-    An exception that occurred while attempting to execute student code
-
-    `CodeExecutionError` accepts arbitrary data that can be examined or written into logs.
-
-    Example:
-        >>> err = CodeExecutionError('Error', dev_ids=[2, 3])
-        >>> err
-        CodeExecutionError('Error', dev_ids=[2, 3])
-
-    """
-
-    def __init__(self, message='', **context):
-        super().__init__(message)
-        self.context = context
-
-    def __repr__(self):
-        cls_name, (msg, *_) = self.__class__.__name__, self.args
-        kwargs = ', '.join(f'{name}={repr(value)}' for name, value in self.context.items())
-        return f'{cls_name}({repr(msg)} {kwargs})'
+class DeviceError(Exception):
+    """An exception caused by using an invalid device. """
 
 
 cdef class Gamepad:
@@ -82,11 +63,11 @@ cdef class Gamepad:
     Attributes:
         mode: The execution state of the robot.
     """
-    cdef public str mode
+    cdef bint available
 
-    def __cinit__(self, mode):
+    def __cinit__(self):
         """Initializes the mode of the robot. """
-        self.mode = mode
+        self.available = robot_desc_read(RUN_MODE) == TELEOP
 
 
     cpdef get_value(self, str param_name):
@@ -96,13 +77,15 @@ cdef class Gamepad:
         Args:
             param: The name of the parameter to read. Possible values are at https://pioneers.berkeley.edu/software/robot_api.html 
         """
-        if self.mode != 'teleop':
-            raise CodeExecutionError(f'Cannot use Gamepad during {self.mode}')
+        if not self.available:
+            raise NotImplementedError(f'Can only use Gamepad during teleop mode')
         # Convert Python string to C string
         cdef bytes param = param_name.encode('utf-8')
         cdef uint32_t buttons
         cdef float joysticks[4]
-        gamepad_read(&buttons, joysticks)
+        cdef int err = gamepad_read(&buttons, joysticks)
+        if err == -1:
+            raise DeviceError(f"Gamepad isn't connected to Dawn or the robot")
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
@@ -113,36 +96,40 @@ cdef class Gamepad:
         for i in range(4):
             if param == joystick_names[i]:
                 return joysticks[i]
-        raise KeyError(f"Invalid gamepad parameter {param_name}")
+        raise DeviceError(f"Invalid gamepad parameter {param_name}")
 
 
 class ThreadWrapper(threading.Thread):
 
-    def __init__(self, action, args, kwargs):
+    def __init__(self, action, error_event, args, kwargs):
         super().__init__()
         self.action = action
+        self.error_event = error_event
         self.args = args
         self.kwargs = kwargs
 
     def run(self):
-        _print(f"Action Thread ID: {self.ident}", level=DEBUG)
         try:
             self.action(*self.args, **self.kwargs)
-        except TimeoutError:
-            pass
         except Exception as e:
-            raise
-
+            traceback.print_exc(file=sys.stderr)
+            self.error_event.set()
+            
 
 cdef class Robot:
     """
     The API for accessing the robot and its devices.
     """
-    cdef public dict running_actions
+    cdef dict running_actions
+    cdef public str start_pos
+    cdef public error_event
+
 
     def __cinit__(self):
         """Initializes the dict of running threads. """
         self.running_actions = {}
+        self.start_pos = 'left' if robot_desc_read(START_POS) == LEFT else 'right'
+        self.error_event = threading.Event()
 
 
     def run(self, action, *args, **kwargs) -> None:
@@ -154,12 +141,12 @@ cdef class Robot:
             kwargs: keyword arguments for the Python function
         """
         if self.is_running(action):
-            _print(f"Calling action {action.__name__} when it is still running won't do anything. Use Robot.is_running to check if action is over.", level=WARN)
+            _print(f"Calling action {action.__name__} when it is still running won't do anything. Use Robot.is_running to check if action is over.", level=ERROR)
             return
         if threading.active_count() > MAX_THREADS:
             _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=WARN)
             return
-        thread = ThreadWrapper(action, args, kwargs)
+        thread = ThreadWrapper(action, self.error_event, args, kwargs)
         thread.daemon = True
         self.running_actions[action.__name__] = thread
         thread.start()
@@ -192,12 +179,21 @@ cdef class Robot:
         splits = device_id.split('_')
         cdef int device_type = int(splits[0])
         cdef uint64_t device_uid = int(splits[1])
-
+        
         # Getting parameter info from the name
-        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        cdef int8_t param_idx = get_param_idx(device_type, param)
+        cdef device_t* device = get_device(device_type)
+        if not device:
+            # _print("Got device none: ", device == NULL, f"device type {device_type} device uid {device_uid}")
+            raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
+        cdef param_type_t param_type
+        cdef int8_t param_idx = -1
+        for i in range(device.num_params):
+            if device.params[i].name == param:
+                param_idx = i
+                param_type = device.params[i].type
+                break
         if param_idx == -1:
-            raise KeyError(f"Invalid device parameter {param_name} for device type {device_type}")
+            raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
         # Allocate memory for parameter
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
@@ -205,13 +201,16 @@ cdef class Robot:
             raise MemoryError("Could not allocate memory to get device value.")
 
         # Read and return parameter
-        device_read_uid(device_uid, EXECUTOR, DATA, 1 << param_idx, param_value)
-        param_type = param_desc.type.decode('utf-8')
-        if param_type == 'int':
+        cdef int err = device_read_uid(device_uid, EXECUTOR, DATA, 1 << param_idx, param_value)
+        if err == -1:
+            PyMem_Free(param_value)
+            raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
+
+        if param_type == INT:
             ret = param_value[param_idx].p_i
-        elif param_type == 'float':
+        elif param_type == FLOAT:
             ret = param_value[param_idx].p_f
-        elif param_type == 'bool':
+        elif param_type == BOOL:
             ret = bool(param_value[param_idx].p_b)
         PyMem_Free(param_value)
         return ret
@@ -234,21 +233,33 @@ cdef class Robot:
         cdef int device_type = int(splits[0])
         cdef uint64_t device_uid = int(splits[1])
 
-        # Reading parameter info from the name
-        cdef param_desc_t* param_desc = get_param_desc(device_type, param)
-        cdef int8_t param_idx = get_param_idx(device_type, param)
+        # Getting parameter info from the name
+        cdef device_t* device = get_device(device_type)
+        if not device:
+            raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
+        cdef param_type_t param_type
+        cdef int8_t param_idx = -1
+        for i in range(device.num_params):
+            if device.params[i].name == param:
+                param_idx = i
+                param_type = device.params[i].type
+                break
         if param_idx == -1:
-            raise KeyError(f"Invalid device parameter {param_name} for device type {device_type}")
+            raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
-        cdef str param_type = param_desc.type.decode('utf-8')
-        if param_type == 'int':
+        if not param_value:
+            raise MemoryError("Could not allocate memory to get device value.")
+
+        if param_type == INT:
             param_value[param_idx].p_i = value
-        elif param_type == 'float':
+        elif param_type == FLOAT:
             param_value[param_idx].p_f = value
-        elif param_type == 'bool':
+        elif param_type == BOOL:
             param_value[param_idx].p_b = int(value)
-        device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
+        cdef int err = device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
         PyMem_Free(param_value)
+        if err == -1:
+            raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
 

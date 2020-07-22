@@ -1,0 +1,8 @@
+.git*
+.dockerignore
+.travis.yml
+*.out
+*.log
+Dockerfile
+.vscode
+*.md

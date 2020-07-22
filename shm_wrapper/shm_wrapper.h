@@ -55,7 +55,7 @@ typedef struct gp_shm {
 
 //shared memory for robot description
 typedef struct robot_desc_shm {
-	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t) 
+	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t)
 } robot_desc_shm_t;
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
@@ -64,6 +64,11 @@ typedef struct robot_desc_shm {
  * Prints the current values in the command bitmap
  */
 void print_cmd_map ();
+
+/*
+ * Prints the current values in the subscription bitmap
+ */
+void print_sub_map ();
 
 /*
  * Prints the device identification info of the currently attached devices
@@ -107,9 +112,9 @@ void shm_stop ();
 
 /*
  * Should only be called from device handler
- * Selects the next available device index and assigns the newly connected device to that location. 
+ * Selects the next available device index and assigns the newly connected device to that location.
  * Turns on the associated bit in the catalog.
- * Arguments: 
+ * Arguments:
  *    - dev_id_t dev_id: device identification info for the device being connected (type, year, uid)
  *    - int *dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
@@ -125,7 +130,7 @@ void device_connect (dev_id_t dev_id, int *dev_ix);
  */
 void device_disconnect (int dev_ix);
 
-/*	
+/*
  * Should be called from every process wanting to read the device data
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Arguments:
@@ -145,7 +150,7 @@ int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params
  */
 int device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
 
-/*	
+/*
  * Should be called from every process wanting to write to the device data
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Grabs either one or two semaphores depending on calling process and stream requested.
@@ -188,44 +193,6 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1]);
 
 /*
- * Reads the specified robot description field. Blocks on the robot description semaphore.
- * Arguments:
- *    - field: one of the robot_desc_val_t's defined above to read from
- * Returns one of the robot_desc_val_t's defined in runtime_util that is the current value of the requested field.
- */
-robot_desc_val_t robot_desc_read (robot_desc_field_t field);
-
-/*
- * Writes the specified value into the specified field. Blocks on the robot description semaphore.
- * Arguments:
- *    - robot_desc_field_t field: one of the robot_desc_val_t's defined above to write val to
- *    - robot_desc_val_t val: one of the robot_desc_vals defined in runtime_util.c to write to the specified field
- * No return value.
- */
-void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
-
-/*
- * Reads current state of the gamepad to the provided pointers. 
- * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
- * Arguments:
- *    - uint32_t pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
- *    - float joystick_vals[4]: array of 4 floats to which the current joystick states will be read into
- * Returns 0 on success, -1 on failure (if gamepad is not connected)
- */
-int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4]);
-
-/*
- * This function writes the given state of the gamepad to shared memory.
- * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
- * Arguments:
- *    - uint32_t pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
-            (only the first 17 bits used, since there are 17 buttons)
- *    - float joystick_vals[4]: array of 4 floats that contain the values to write to the joystick
- * Returns 0 on success, -1 on failure (if gamepad is not connected)
- */
-int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
-
-/*
  * Should be called from all processes that want to know current state of the command map (i.e. device handler)
  * Blocks on the command bitmap semaphore for obvious reasons
  * Arguments:
@@ -252,5 +219,43 @@ void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES]);
  * No return value.
  */
 void get_catalog (uint32_t *catalog);
+
+/*
+ * Reads the specified robot description field. Blocks on the robot description semaphore.
+ * Arguments:
+ *    - field: one of the robot_desc_val_t's defined above to read from
+ * Returns one of the robot_desc_val_t's defined in runtime_util that is the current value of the requested field.
+ */
+robot_desc_val_t robot_desc_read (robot_desc_field_t field);
+
+/*
+ * Writes the specified value into the specified field. Blocks on the robot description semaphore.
+ * Arguments:
+ *    - robot_desc_field_t field: one of the robot_desc_val_t's defined above to write val to
+ *    - robot_desc_val_t val: one of the robot_desc_vals defined in runtime_util.c to write to the specified field
+ * No return value.
+ */
+void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val);
+
+/*
+ * Reads current state of the gamepad to the provided pointers.
+ * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+ * Arguments:
+ *    - uint32_t pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
+ *    - float joystick_vals[4]: array of 4 floats to which the current joystick states will be read into
+ * Returns 0 on success, -1 on failure (if gamepad is not connected)
+ */
+int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4]);
+
+/*
+ * This function writes the given state of the gamepad to shared memory.
+ * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
+ * Arguments:
+ *    - uint32_t pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
+            (only the first 17 bits used, since there are 17 buttons)
+ *    - float joystick_vals[4]: array of 4 floats that contain the values to write to the joystick
+ * Returns 0 on success, -1 on failure (if gamepad is not connected)
+ */
+int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
 
 #endif

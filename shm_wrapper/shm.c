@@ -106,7 +106,6 @@ void sigint_handler (int signum)
 		}
 	}
 	
-	logger_stop();
 	exit(0);
 }
 
@@ -114,7 +113,7 @@ int main ()
 {
 	//set up
 	signal(SIGINT, sigint_handler);
-	logger_init(SUPERVISOR);
+	logger_init(SHM);
 	
 	int fd_shm;
 	
