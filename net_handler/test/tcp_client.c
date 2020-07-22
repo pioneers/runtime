@@ -148,7 +148,7 @@ int main (int argc, char* argv[])
 			else if (strcmp(mode_str, "idle\n") == 0) {
 				mode.mode = MODE__IDLE;
 			}
-			else if (strcmp(mode_str, "sub\n") == 0) {
+			else if (strcmp(mode_str, "off\n") == 0) {
 				// Send DEVICE DATA subscription
 				DevData dev_data = DEV_DATA__INIT;
 				dev_data.n_devices = 1;
@@ -175,7 +175,7 @@ int main (int argc, char* argv[])
 				free(send_buf);
 				continue;
 			}
-			else if (strcmp(mode_str, "all\n") == 0) {
+			else if (strcmp(mode_str, "on\n") == 0) {
 				DevData dev_data = DEV_DATA__INIT;
 				dev_data.n_devices = 1;
 				dev_data.devices = malloc(sizeof(Device*) * dev_data.n_devices);
@@ -190,8 +190,8 @@ int main (int argc, char* argv[])
 				for (int i = 0; i < device->n_params; i++) {
 					device->params[i] = malloc(sizeof(Param));
 					param__init(device->params[i]);
-					device->params[i]->ival = 1;
-					device->params[i]->val_case = PARAM__VAL_IVAL;
+					device->params[i]->bval = 1;
+					device->params[i]->val_case = PARAM__VAL_BVAL;
 				}
 				printf("Turning Polarbear on\n");
 				len_pb = dev_data__get_packed_size(&dev_data);

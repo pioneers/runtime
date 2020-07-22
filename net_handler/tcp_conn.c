@@ -1,4 +1,5 @@
 #include "tcp_conn.h"
+#include "pbc_gen/device.pb-c.h"
 
 //used for creating and cleaning up TCP connection
 typedef struct {
@@ -263,9 +264,9 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 			}
 			uint32_t requests = 0;
 			for (int j = 0; j < req_device->n_params; j++) {
-				if (req_device->params[i]->val_case == PARAM__VAL_IVAL) {
+				if (req_device->params[i]->val_case == PARAM__VAL_BVAL) {
 					// log_printf(DEBUG, "Received device subscription for %s param %s", act_device->name, act_device->params[j].name);
-					requests |= (req_device->params[j]->ival << j);
+					requests |= (req_device->params[j]->bval << j);
 				}
 			}
 			int err = place_sub_request(req_device->uid, NET_HANDLER, requests);

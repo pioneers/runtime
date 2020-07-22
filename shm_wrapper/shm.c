@@ -192,7 +192,7 @@ int main ()
 	for (int i = 0; i < MAX_DEVICES + 1; i++) {
 		dev_shm_ptr->cmd_map[i] = 0;
 		dev_shm_ptr->net_sub_map[i] = -1;
-		dev_shm_ptr->exec_sub_map[i] = -1;
+		dev_shm_ptr->exec_sub_map[i] = 0;
 	}
 	gp_shm_ptr->buttons = 0;
 	for (int i = 0; i < 4; i++) {
