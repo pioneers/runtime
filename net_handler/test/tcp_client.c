@@ -167,7 +167,33 @@ int main (int argc, char* argv[])
 					device->params[i]->ival = 0;
 					device->params[i]->val_case = PARAM__VAL_IVAL;
 				}
-				printf("Made the dev_data msg\n");
+				printf("Turning Polarbear off\n");
+				len_pb = dev_data__get_packed_size(&dev_data);
+				send_buf = make_buf(DEVICE_DATA_MSG, len_pb);
+				dev_data__pack(&dev_data, send_buf + 3);
+				writen(sockfd, send_buf, len_pb + 3);
+				free(send_buf);
+				continue;
+			}
+			else if (strcmp(mode_str, "all\n") == 0) {
+				DevData dev_data = DEV_DATA__INIT;
+				dev_data.n_devices = 1;
+				dev_data.devices = malloc(sizeof(Device*) * dev_data.n_devices);
+				dev_data.devices[0] = malloc(sizeof(Device));
+				Device* device = dev_data.devices[0];
+				device__init(device);
+				device_t* polarbear = get_device(12);
+				device->n_params = polarbear->num_params;
+				device->type = 12;
+				device->uid = 2604648;
+				device->params = malloc(sizeof(Param*) * device->n_params);
+				for (int i = 0; i < device->n_params; i++) {
+					device->params[i] = malloc(sizeof(Param));
+					param__init(device->params[i]);
+					device->params[i]->ival = 1;
+					device->params[i]->val_case = PARAM__VAL_IVAL;
+				}
+				printf("Turning Polarbear on\n");
 				len_pb = dev_data__get_packed_size(&dev_data);
 				send_buf = make_buf(DEVICE_DATA_MSG, len_pb);
 				dev_data__pack(&dev_data, send_buf + 3);
