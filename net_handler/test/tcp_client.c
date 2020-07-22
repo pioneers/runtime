@@ -1,4 +1,5 @@
 #include "../net_util.h"
+#include "../../runtime_util/runtime_util.h"
 
 int sockfd = -1;
 
@@ -10,7 +11,7 @@ void sigint_handler (int signum)
 	exit(0);
 }
 
-int main ()
+int main (int argc, char* argv[])
 {
 	struct sockaddr_in serv_addr, cli_addr;
 	
@@ -126,6 +127,9 @@ int main ()
 			else if (msg_type == CHALLENGE_DATA_MSG) {
 				for (int i = 0; i < msg->n_payload; i++) {
 					printf("Challenge %d result: %s\n", i, msg->payload[i]);
+				}
+				if (argc > 1) {
+					return 0;
 				}
 			}
 			// Free allocated memory

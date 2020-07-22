@@ -1,4 +1,5 @@
 #include "shm_wrapper.h"
+#include <stdlib.h>
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
@@ -59,7 +60,7 @@ static void generate_sem_name (stream_t stream, int dev_ix, char *name)
 }
 
 //function for printing bitmap that is NUM_BITS long
-static void print_bitmap (int num_bits, uint32_t bitmap) 
+static void print_bitmap (int num_bits, uint32_t bitmap)
 {
 	for (int i = 0; i < num_bits; i++) {
 		printf("%d", (bitmap & (1 << i)) ? 1 : 0);
@@ -71,7 +72,7 @@ static void print_bitmap (int num_bits, uint32_t bitmap)
 static int get_dev_ix_from_uid (uint64_t dev_uid)
 {
 	int dev_ix = -1;
-	
+
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		if ((dev_shm_ptr->catalog & (1 << i)) && (dev_shm_ptr->dev_ids[i].uid == dev_uid)) {
 			dev_ix = i;
@@ -103,10 +104,10 @@ static void device_read_helper (int dev_ix, process_t process, stream_t stream, 
 	if (process == DEV_HANDLER && stream == COMMAND) {
 		//wait on cmd_map_sem
 		my_sem_wait(cmd_map_sem, "cmd_map_sem @device_read");
-	
+
 		dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix)); //turn off changed device bit in cmd_map[0]
 		dev_shm_ptr->cmd_map[dev_ix + 1] &= (~params_to_read); //turn off bits for params that were changed and then read in cmd_map[dev_ix + 1]
-	
+
 		//release cmd_map_sem
 		my_sem_post(cmd_map_sem, "cmd_map_sem @device_read");
 	}
@@ -128,27 +129,27 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 	} else {
 		my_sem_wait(sems[dev_ix].command_sem, "command sem @device_write");
 	}
-	
+
 	//write all requested params
 	for (int i = 0; i < MAX_PARAMS; i++) {
 		if (params_to_write & (1 << i)) {
 			dev_shm_ptr->params[stream][dev_ix][i] = params[i];
 		}
 	}
-	
+
 	//turn on flag if executor is sending a command to the device
 	//if stream = downstream and process = executor then also update params bitmap
 	if (process == EXECUTOR && stream == COMMAND) {
 		//wait on cmd_map_sem
 		my_sem_wait(cmd_map_sem, "cmd_map_sem @device_write");
-		
+
 		dev_shm_ptr->cmd_map[0] |= (1 << dev_ix); //turn on changed device bit in cmd_map[0]
 		dev_shm_ptr->cmd_map[dev_ix + 1] |= params_to_write; //turn on bits for params that were written in cmd_map[dev_ix + 1]
-		
+
 		//release cmd_map_sem
 		my_sem_post(cmd_map_sem, "cmd_map_sem @device_write");
 	}
-	
+
 	//release semaphore for appropriate stream and device
 	if (stream == DATA) {
 		my_sem_post(sems[dev_ix].data_sem, "data sem @device_write");
@@ -166,15 +167,35 @@ void print_cmd_map ()
 {
 	uint32_t cmd_map[MAX_DEVICES + 1];
 	get_cmd_map(cmd_map);
-	
+
 	printf("Changed devices: ");
 	print_bitmap(MAX_DEVICES, cmd_map[0]);
-	
+
 	printf("Changed params:\n");
 	for (int i = 1; i < 33; i++) {
 		if (cmd_map[0] & (1 << (i - 1))) {
 			printf("\tDevice %d: ", i - 1);
 			print_bitmap(MAX_PARAMS, cmd_map[i]);
+		}
+	}
+}
+
+/*
+ * Prints the current values in the subscription bitmap
+ */
+void print_sub_map ()
+{
+	uint32_t sub_map[MAX_DEVICES + 1];
+	get_sub_requests(sub_map);
+
+	printf("Requested devices: ");
+	print_bitmap(MAX_DEVICES, sub_map[0]);
+
+	printf("Requested params:\n");
+	for (int i = 1; i < 33; i++) {
+		if (sub_map[0] & (1 << (i - 1))) {
+			printf("\tDevice %d: ", i - 1);
+			print_bitmap(MAX_PARAMS, sub_map[i]);
 		}
 	}
 }
@@ -186,10 +207,10 @@ void print_dev_ids ()
 {
 	dev_id_t dev_ids[MAX_DEVICES];
 	uint32_t catalog;
-	
+
 	get_device_identifiers(dev_ids);
 	get_catalog(&catalog);
-	
+
 	if (catalog == 0) {
 		printf("no connected devices\n");
 	} else {
@@ -207,7 +228,7 @@ void print_dev_ids ()
 void print_catalog ()
 {
 	uint32_t catalog;
-	
+
 	get_catalog(&catalog);
 	print_bitmap(MAX_DEVICES, catalog);
 }
@@ -220,10 +241,10 @@ void print_params (uint32_t devices)
 	dev_id_t dev_ids[MAX_DEVICES];
 	uint32_t catalog;
 	device_t *device;
-	
+
 	get_device_identifiers(dev_ids);
 	get_catalog(&catalog);
-	
+
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		if ((catalog & (1 << i)) && (devices & (1 << i))) {
 			device = get_device(dev_ids[i].type);
@@ -232,30 +253,25 @@ void print_params (uint32_t devices)
 				continue;
 			}
 			printf("dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu\n", i, device->name, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
-			
+
 			for (int s = 0; s < 2; s++) {
 				//print out the stream header
 				if (s == 0) { printf("\tDATA stream:\n"); }
 				else if (s == 1) { printf("\tCOMMAND stream:\n"); }
-				
+
 				//print all params for the device for that stream
 				for (int j = 0; j < device->num_params; j++) {
-					float val;
-					char *param_type = device->params[j].type;
-					if (strcmp(param_type, "int") == 0) {
-						val = dev_shm_ptr->params[s][i][j].p_i;
+					switch (device->params[j].type) {
+						case INT:
+							printf("\t\tparam_idx = %d, name = %s, value = %d\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_i);
+							break;
+						case FLOAT:
+							printf("\t\tparam_idx = %d, name = %s, value = %s\n", j, device->params[j].name, (dev_shm_ptr->params[s][i][j].p_b) ? "True" : "False");
+							break;
+						case BOOL:
+							printf("\t\tparam_idx = %d, name = %s, value = %f\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_f);
+							break;
 					}
-					else if (strcmp(param_type, "float") == 0) {
-						val = dev_shm_ptr->params[s][i][j].p_f;
-					}
-					else if (strcmp(param_type, "bool") == 0) {
-						val = dev_shm_ptr->params[s][i][j].p_b;
-					}
-					else {
-						printf("Invalid parameter type %s\n", param_type);
-						continue;
-					}
-					printf("\t\tparam_idx = %d, name = %s, type = %s, value = %f\n", j, device->params[j].name, param_type, val);
 				}
 			}
 		}
@@ -269,15 +285,15 @@ void print_robot_desc ()
 {
 	//since there's no get_robot_desc function (we don't need it, and hides the implementation from users)
 	//we need to acquire the semaphore for the print
-	
+
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex (in print)");
-	
+
 	printf("Current Robot Description:\n");
 	for (int i = 0; i < NUM_DESC_FIELDS; i++) {
 		switch (i) {
 			case RUN_MODE:
-				printf("\tRUN_MODE = %s\n", (rd_shm_ptr->fields[RUN_MODE] == IDLE) ? "IDLE" : 
+				printf("\tRUN_MODE = %s\n", (rd_shm_ptr->fields[RUN_MODE] == IDLE) ? "IDLE" :
 					((rd_shm_ptr->fields[RUN_MODE] == AUTO) ? "AUTO" : ((rd_shm_ptr->fields[RUN_MODE] == TELEOP) ? "TELEOP" : "CHALLENGE")));
 				break;
 			case DAWN:
@@ -298,7 +314,7 @@ void print_robot_desc ()
 	}
 	printf("\n");
 	fflush(stdout);
-	
+
 	//release rd_sem
 	my_sem_post(rd_sem, "robot_desc_mutex (in print)");
 }
@@ -310,7 +326,7 @@ void print_gamepad_state ()
 {
 	//since there's no get_gamepad function (we don't need it, and hides the implementation from users)
 	//we need to acquire the semaphore for the print
-	
+
 	//oof string arrays for printing
 	char *button_names[NUM_GAMEPAD_BUTTONS] = {
 		"A_BUTTON", "B_BUTTON", "X_BUTTON", "Y_BUTTON", "L_BUMPER", "R_BUMPER", "L_TRIGGER", "R_TRIGGER",
@@ -319,10 +335,10 @@ void print_gamepad_state ()
 	char *joystick_names[4] = {
 		"X_LEFT_JOYSTICK", "Y_LEFT_JOYSTICK", "X_RIGHT_JOYSTICK", "Y_RIGHT_JOYSTICK"
 	};
-	
+
 	//wait on gp_sem
 	my_sem_wait(gp_sem, "gamepad_mutex (in print)");
-	
+
 	//only print pushed buttons (so we don't print out 22 lines of output each time we all this function)
 	printf("Current Gamepad State:\n\tPushed Buttons:\n");
 	for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
@@ -337,7 +353,7 @@ void print_gamepad_state ()
 	}
 	printf("\n");
 	fflush(stdout);
-	
+
 	//release rd_sem
 	my_sem_post(gp_sem, "gamepad_mutex (in print)");
 }
@@ -352,7 +368,7 @@ void shm_init ()
 {
 	int fd_shm; //file descriptor of the memory-mapped shared memory
 	char sname[SNAME_SIZE]; //for holding semaphore names
-	
+
 	//open all the semaphores
 	catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
 	cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
@@ -369,7 +385,7 @@ void shm_init ()
 			log_printf(ERROR, "sem_open: command sem for dev_ix %d: %s", i, strerror(errno));
 		}
 	}
-	
+
 	//open dev shm block and map to client process virtual memory
 	if ((fd_shm = shm_open(DEV_SHM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
 		log_printf(FATAL, "shm_open dev_shm %s", strerror(errno));
@@ -382,7 +398,7 @@ void shm_init ()
 	if (close(fd_shm) == -1) {
 		log_printf(ERROR, "close dev_shm %s", strerror(errno));
 	}
-	
+
 	//open gamepad shm block and map to client process virtual memory
 	if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
 		log_printf(FATAL, "shm_open: gamepad_shm. %s", strerror(errno));
@@ -395,7 +411,7 @@ void shm_init ()
 	if (close(fd_shm) == -1) {
 		log_printf(ERROR, "close: gamepad_shm. %s", strerror(errno));
 	}
-	
+
 	//open robot desc shm block and map to client process virtual memory
 	if ((fd_shm = shm_open(ROBOT_DESC_SHM_NAME, O_RDWR, 0)) == -1) { //no O_CREAT
 		log_printf(FATAL, "shm_open: robot_desc_shm. %s", strerror(errno));
@@ -408,6 +424,8 @@ void shm_init ()
 	if (close(fd_shm) == -1) {
 		log_printf(ERROR, "close: robot_desc_shm. %s", strerror(errno));
 	}
+
+	atexit(shm_stop);
 }
 
 /*
@@ -427,7 +445,7 @@ void shm_stop ()
 	my_sem_close(sub_map_sem, "sub map sem");
 	my_sem_close(gp_sem, "gamepad_mutex");
 	my_sem_close(rd_sem, "robot_desc_mutex");
-	
+
 	//unmap all shared memory blocks
 	if (munmap(dev_shm_ptr, sizeof(dev_shm_t)) == -1) {
 		log_printf(ERROR, "munmap: dev_shm. %s", strerror(errno));
@@ -442,18 +460,18 @@ void shm_stop ()
 
 /*
  * Should only be called from device handler
- * Selects the next available device index and assigns the newly connected device to that location. 
+ * Selects the next available device index and assigns the newly connected device to that location.
  * Turns on the associated bit in the catalog.
- * Arguments: 
+ * Arguments:
  *    - dev_id_t dev_id: device identification info for the device being connected (type, year, uid)
  *    - int *dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
 void device_connect (dev_id_t dev_id, int *dev_ix)
-{	
+{
 	//wait on catalog_sem
 	my_sem_wait(catalog_sem, "catalog_sem");
-	
+
 	//find a valid dev_ix
 	for (*dev_ix = 0; *dev_ix < MAX_DEVICES; (*dev_ix)++) {
 		if (!(dev_shm_ptr->catalog & (1 << *dev_ix))) { //if the spot at dev_ix is free
@@ -466,16 +484,16 @@ void device_connect (dev_id_t dev_id, int *dev_ix)
 		*dev_ix = -1;
 		return;
 	}
-	
+
 	//wait on associated data and command sems
 	my_sem_wait(sems[*dev_ix].data_sem, "data_sem");
 	my_sem_wait(sems[*dev_ix].command_sem, "command_sem");
-	
+
 	//fill in dev_id for that device with provided values
 	dev_shm_ptr->dev_ids[*dev_ix].type = dev_id.type;
 	dev_shm_ptr->dev_ids[*dev_ix].year = dev_id.year;
 	dev_shm_ptr->dev_ids[*dev_ix].uid = dev_id.uid;
-	
+
 	//update the catalog
 	dev_shm_ptr->catalog |= (1 << *dev_ix);
 
@@ -484,11 +502,11 @@ void device_connect (dev_id_t dev_id, int *dev_ix)
 		dev_shm_ptr->params[DATA][*dev_ix][i] = (const param_val_t) {0};
 		dev_shm_ptr->params[COMMAND][*dev_ix][i] = (const param_val_t) {0};
 	}
-	
+
 	//release associated data and command sems
 	my_sem_post(sems[*dev_ix].data_sem, "data_sem");
 	my_sem_post(sems[*dev_ix].command_sem, "command_sem");
-	
+
 	//release catalog_sem
 	my_sem_post(catalog_sem, "catalog_sem");
 }
@@ -501,14 +519,14 @@ void device_connect (dev_id_t dev_id, int *dev_ix)
  * No return value.
  */
 void device_disconnect (int dev_ix)
-{	
+{
 	//wait on catalog_sem
 	my_sem_wait(catalog_sem, "catalog_sem");
-	
+
 	//wait on associated data and command sems
 	my_sem_wait(sems[dev_ix].data_sem, "data_sem");
 	my_sem_wait(sems[dev_ix].command_sem, "command_sem");
-	
+
 	//wait on cmd_map_sem
 	my_sem_wait(cmd_map_sem, "cmd_map_sem");
 
@@ -518,19 +536,19 @@ void device_disconnect (int dev_ix)
 	//reset param map values to 0
 	dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix));   //reset the changed bit flag in cmd_map[0]
 	dev_shm_ptr->cmd_map[dev_ix + 1] = 0;          //turn off all changed bits for the device
-	
+
 	//release cmd_map_sem
 	my_sem_post(cmd_map_sem, "cmd_map_sem");
-	
+
 	//release associated upstream and downstream sems
 	my_sem_post(sems[dev_ix].data_sem, "data_sem");
 	my_sem_post(sems[dev_ix].command_sem, "command_sem");
-	
+
 	//release catalog_sem
 	my_sem_post(catalog_sem, "catalog_sem");
 }
 
-/*	
+/*
  * Should be called from every process wanting to read the device data
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Arguments:
@@ -549,7 +567,7 @@ int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params
 		log_printf(ERROR, "no device at dev_ix = %d, read failed", dev_ix);
 		return -1;
 	}
-	
+
 	//call the helper to do the actual reading
 	device_read_helper(dev_ix, process, stream, params_to_read, params);
 	return 0;
@@ -562,19 +580,19 @@ int device_read (int dev_ix, process_t process, stream_t stream, uint32_t params
 int device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
 {
 	int dev_ix;
-	
+
 	//if device doesn't exist, return immediately
 	if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
 		log_printf(ERROR, "no device at dev_uid = %llu, read failed", dev_uid);
 		return -1;
 	}
-	
+
 	//call the helper to do the actual reading
 	device_read_helper(dev_ix, process, stream, params_to_read, params);
 	return 0;
 }
 
-/*	
+/*
  * Should be called from every process wanting to write to the device data
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Grabs either one or two semaphores depending on calling process and stream requested.
@@ -589,13 +607,13 @@ int device_read_uid (uint64_t dev_uid, process_t process, stream_t stream, uint3
  */
 int device_write (int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
-	
+
 	//check catalog to see if dev_ix is valid, if not then return immediately
 	if (!(dev_shm_ptr->catalog & (1 << dev_ix))) {
 		log_printf(ERROR, "no device at dev_ix = %d, write failed", dev_ix);
 		return -1;
 	}
-	
+
 	//call the helper to do the actual reading
 	device_write_helper(dev_ix, process, stream, params_to_write, params);
 	return 0;
@@ -608,13 +626,13 @@ int device_write (int dev_ix, process_t process, stream_t stream, uint32_t param
 int device_write_uid (uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
 {
 	int dev_ix;
-	
+
 	//if device doesn't exist, return immediately
 	if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
 		log_printf(ERROR, "no device at dev_uid = %llu, write failed", dev_uid);
 		return -1;
 	}
-	
+
 	//call the helper to do the actual reading
 	device_write_helper(dev_ix, process, stream, params_to_write, params);
 	return 0;
@@ -633,7 +651,7 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 {
 	int dev_ix;               //dev_ix that we're operating on
 	uint32_t *curr_sub_map;   //sub map that we're operating on
-	
+
 	//validate request and obtain dev_ix, sub_map
 	if (process != NET_HANDLER && process != EXECUTOR) {
 		log_printf(ERROR, "calling place_sub_request from process %u", process);
@@ -644,19 +662,19 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 		return -1;
 	}
 	curr_sub_map = (process == NET_HANDLER) ? dev_shm_ptr->net_sub_map : dev_shm_ptr->exec_sub_map;
-	
+
 	//wait on sub_map_sem
 	my_sem_wait(sub_map_sem, "sub_map_sem");
-	
+
 	//only fill in params_to_sub if it's different from what's already there
 	if (curr_sub_map[dev_ix + 1] != params_to_sub) {
 		curr_sub_map[dev_ix + 1] = params_to_sub;
 		curr_sub_map[0] |= (1 << dev_ix); //turn on corresponding bit
 	}
-	
+
 	//release sub_map_sem
 	my_sem_post(sub_map_sem, "sub_map_sem");
-	
+
 	return 0;
 }
 
@@ -670,14 +688,14 @@ void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
 {
 	//wait on sub_map_sem
 	my_sem_wait(sub_map_sem, "sub_map_sem");
-	
+
 	//bitwise or the changes into sub_map[0]; if no changes then return
 	sub_map[0] = dev_shm_ptr->net_sub_map[0] | dev_shm_ptr->exec_sub_map[0];
 	if (sub_map[0] == 0) {
 		my_sem_post(sub_map_sem, "sub_map_sem");
 		return;
 	}
-	
+
 	//bitwise OR each valid element together into sub_map[i]
 	for (int i = 1; i < MAX_DEVICES + 1; i++) {
 		if (dev_shm_ptr->catalog & (1 << (i - 1))) { //if device exists
@@ -686,13 +704,72 @@ void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
 			sub_map[i] = 0;
 		}
 	}
-	
+
 	//reset the change indicator eleemnts in net_sub_map and exec_sub_map
 	dev_shm_ptr->net_sub_map[0] = dev_shm_ptr->exec_sub_map[0] = 0;
-	
+
 	//release sub_map_sem
 	my_sem_post(sub_map_sem, "sub_map_sem");
 }
+
+/*
+ * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
+ * Blocks on the param bitmap semaphore for obvious reasons
+ * Arguments:
+ *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into
+ * No return value.
+ */
+void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1])
+{
+	//wait on cmd_map_sem
+	my_sem_wait(cmd_map_sem, "cmd_map_sem");
+
+	for (int i = 0; i < MAX_DEVICES + 1; i++) {
+		bitmap[i] = dev_shm_ptr->cmd_map[i];
+	}
+
+	//release cmd_map_sem
+	my_sem_post(cmd_map_sem, "cmd_map_sem");
+}
+
+/*
+ * Should be called from all processes that want to know device identifiers of all currently connected devices
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
+ * No return value.
+ */
+void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES])
+{
+	//wait on catalog_sem
+	my_sem_wait(catalog_sem, "catalog_sem");
+
+	for (int i = 0; i < MAX_DEVICES; i++) {
+		dev_ids[i] = dev_shm_ptr->dev_ids[i];
+	}
+
+	//release catalog_sem
+	my_sem_post(catalog_sem, "catalog_sem");
+}
+
+/*
+ * Should be called from all processes that want to know which dev_ix's are valid
+ * Blocks on catalog semaphore for obvious reasons
+ * Arguments:
+ *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
+ * No return value.
+ */
+void get_catalog (uint32_t *catalog)
+{
+	//wait on catalog_sem
+	my_sem_wait(catalog_sem, "catalog_sem");
+
+	*catalog = dev_shm_ptr->catalog;
+
+	//release catalog_sem
+	my_sem_post(catalog_sem, "catalog_sem");
+}
+
 
 /*
  * Reads the specified robot description field. Blocks on the robot description semaphore.
@@ -703,16 +780,16 @@ void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
 robot_desc_val_t robot_desc_read (robot_desc_field_t field)
 {
 	robot_desc_val_t ret;
-	
+
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
-	
+
 	//read the value out, and turn off the appropriate element
 	ret = rd_shm_ptr->fields[field];
-	
+
 	//release rd_sem
 	my_sem_post(rd_sem, "robot_desc_mutex");
-	
+
 	return ret;
 }
 
@@ -724,19 +801,19 @@ robot_desc_val_t robot_desc_read (robot_desc_field_t field)
  * No return value.
  */
 void robot_desc_write (robot_desc_field_t field, robot_desc_val_t val)
-{	
+{
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
-	
+
 	//write the val into the field, and set appropriate pending element to 1
 	rd_shm_ptr->fields[field] = val;
-	
+
 	//release rd_sem
 	my_sem_post(rd_sem, "robot_desc_mutex");
 }
 
 /*
- * Reads current state of the gamepad to the provided pointers. 
+ * Reads current state of the gamepad to the provided pointers.
  * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
  * Arguments:
  *    - uint32_t pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
@@ -747,28 +824,28 @@ int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4])
 {
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
-	
+
 	//if no gamepad connected, then release rd_sem and return
 	if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_printf(ERROR, "tried to read, but no gamepad connected");
 		my_sem_post(rd_sem, "robot_desc_mutex");
 		return -1;
 	}
-	
+
 	//release rd_sem
 	my_sem_post(rd_sem, "robot_desc_mutex");
-	
+
 	//wait on gp_sem
 	my_sem_wait(gp_sem, "gamepad_mutex");
-	
+
 	*pressed_buttons = gp_shm_ptr->buttons;
 	for (int i = 0; i < 4; i++) {
 		joystick_vals[i] = gp_shm_ptr->joysticks[i];
 	}
-	
+
 	//release gp_sem
 	my_sem_post(gp_sem, "gamepad_mutex");
-	
+
 	return 0;
 }
 
@@ -785,86 +862,27 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 {
 	//wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
-	
+
 	//if no gamepad connected, then release rd_sem and return
 	if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
 		log_printf(ERROR, "tried to write, but no gamepad connected");
 		my_sem_post(rd_sem, "robot_desc_mutex");
 		return -1;
 	}
-	
+
 	//release rd_sem
 	my_sem_post(rd_sem, "robot_desc_mutex");
-	
+
 	//wait on gp_sem
 	my_sem_wait(gp_sem, "gamepad_mutex");
-	
+
 	gp_shm_ptr->buttons = pressed_buttons;
 	for (int i = 0; i < 4; i++) {
 		gp_shm_ptr->joysticks[i] = joystick_vals[i];
 	}
-	
+
 	//release gp_sem
 	my_sem_post(gp_sem, "gamepad_mutex");
-	
+
 	return 0;
 }
-
-/*
- * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
- * Blocks on the param bitmap semaphore for obvious reasons
- * Arguments:
- *    - uint32_t bitmap[MAX_DEVICES + 1]: pointer to array of 33 32-bit integers to copy the bitmap into
- * No return value.
- */
-void get_cmd_map (uint32_t bitmap[MAX_DEVICES + 1])
-{
-	//wait on cmd_map_sem
-	my_sem_wait(cmd_map_sem, "cmd_map_sem");
-	
-	for (int i = 0; i < MAX_DEVICES + 1; i++) {
-		bitmap[i] = dev_shm_ptr->cmd_map[i];
-	}
-	
-	//release cmd_map_sem
-	my_sem_post(cmd_map_sem, "cmd_map_sem");
-}
-
-/*
- * Should be called from all processes that want to know device identifiers of all currently connected devices
- * Blocks on catalog semaphore for obvious reasons
- * Arguments:
- *    - dev_id_t dev_ids[MAX_DEVICES]: pointer to array of dev_id_t's to copy the information into
- * No return value.
- */
-void get_device_identifiers (dev_id_t dev_ids[MAX_DEVICES])
-{
-	//wait on catalog_sem
-	my_sem_wait(catalog_sem, "catalog_sem");
-	
-	for (int i = 0; i < MAX_DEVICES; i++) {
-		dev_ids[i] = dev_shm_ptr->dev_ids[i];
-	}
-	
-	//release catalog_sem
-	my_sem_post(catalog_sem, "catalog_sem");
-}
-
-/*
- * Should be called from all processes that want to know which dev_ix's are valid
- * Blocks on catalog semaphore for obvious reasons
- * Arguments:
- *    - catalog: pointer to 32-bit integer into which the current catalog will be read into
- * No return value.
- */
-void get_catalog (uint32_t *catalog)
-{
-	//wait on catalog_sem
-	my_sem_wait(catalog_sem, "catalog_sem");
-	
-	*catalog = dev_shm_ptr->catalog;
-	
-	//release catalog_sem
-	my_sem_post(catalog_sem, "catalog_sem");
-}
-

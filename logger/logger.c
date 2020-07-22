@@ -24,10 +24,10 @@ char *log_level_strs[] = {                 //strings for holding names of log le
 	"FATAL"
 };
 //for holding the requested log levels for the three output locations (all default to DEBUG)
-log_level_t stdout_level = DEBUG, file_level = DEBUG, network_level = DEBUG;         
+log_level_t stdout_level = DEBUG, file_level = DEBUG, network_level = DEBUG;
 
 //used for LOG_FILE only
-FILE *log_fd = NULL;                        //file descriptor of the log file
+FILE *log_file = NULL;                      //file descriptor of the log file
 char log_file_path[MAX_CONFIG_LINE_LEN];    //file path to the log file
 
 //used for LOG_NETWORK only
@@ -42,13 +42,29 @@ pthread_mutex_t log_mutex; //for ensuring one log gets emitted before processing
 static void set_log_level (log_level_t *level, char *important)
 {
 	important[strlen(important)] = '\0'; //overwrite the newline at the end
-	
+
 	//set level to the contents of important
-	if (strcmp(important, "DEBUG") == 0) { *level = DEBUG; } 
+	if (strcmp(important, "DEBUG") == 0) { *level = DEBUG; }
 	else if (strcmp(important, "INFO") == 0) { *level = INFO; }
 	else if (strcmp(important, "WARN") == 0) { *level = WARN; }
 	else if (strcmp(important, "ERROR") == 0) { *level = ERROR; }
 	else if (strcmp(important, "FATAL") == 0) { *level = FATAL; }
+}
+
+static void open_fifo()
+{
+	if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
+		if (errno != EEXIST) { //don't show error if mkfifo failed because it already exists
+			perror("mkfifo: logger create FIFO failed");
+		}
+	}
+	if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
+		if (errno != ENXIO) { //don't show error if open failed because net_handler has not opened pipe for reading yet
+			perror("open: logger open FIFO failed");
+		}
+	} else {
+		fifo_up = 1;
+	}
 }
 
 static void read_config_file ()
@@ -57,7 +73,7 @@ static void read_config_file ()
 	char not_important[128], important[128];  //for holding information read from the file
 	char important_char;
 	FILE *conf_fd;
-	
+
 	//this logic gets the absolute path of the logger config file
 	char file_buf[128] = {0};
 	sprintf(file_buf, "%s", __FILE__); //__FILE__ is the path of this file on the system
@@ -68,7 +84,7 @@ static void read_config_file ()
 		fprintf(stderr, "fopen: logger could not open config file %s; exiting... \n%s", file_buf, strerror(errno));
 		exit(1);
 	}
-	
+
 	for (int i = 0; i < NUM_CONFIGS; i++) {
 		//read until the next line read is not a comment or a blank line
 		while (1)  {
@@ -90,7 +106,7 @@ static void read_config_file ()
 			}
 			break;
 		}
-		
+
 		//get the configuration parameter in nextline sequentially
 		switch (i) {
 			case 0:
@@ -132,7 +148,7 @@ static void read_config_file ()
 				fprintf(stderr, "unknown configuration line: %s\n", nextline);
 		}
 	}
-	
+
 	//close the file descriptor for config file
 	fclose(conf_fd);
 }
@@ -153,7 +169,7 @@ void logger_init (process_t process)
 
 	//read in desired logger configurations
 	read_config_file();
-	
+
 	//if we want to log to log file, open it for appending
 	if (OUTPUTS & LOG_FILE) {
 		//call open first with O_CREAT to make sure the log file is created if it doesn't exist
@@ -162,67 +178,46 @@ void logger_init (process_t process)
 			exit(1);
 		}
 		close(temp_fd);
-		
+
 		//open with fopen to use stdio functions instead
-		if ((log_fd = fopen(log_file_path, "a")) == NULL) {  //open the config file for reading
+		if ((log_file = fopen(log_file_path, "a")) == NULL) {  //open the config file for reading
 			perror("fopen: logger could not open log file; exiting...");
 			exit(1);
 		}
 	}
-	
+
 	//if we want to log to network, create the FIFO pipe if it doesn't exist, and open it for writing
 	if (OUTPUTS & LOG_NETWORK) {
-		if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
-			if (errno != EEXIST) { //don't show error if mkfifo failed because it already exists
-				perror("mkfifo: logger create FIFO failed");
-			}
-		}
-		if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
-			if (errno != ENXIO) { //don't show error if open failed because net_handler has not opened pipe for reading yet
-				perror("open: logger open FIFO failed");
-			}
-		} else {
-			fifo_up = 1;
-		}
+		open_fifo();
 		signal(SIGPIPE, sigpipe_handler);
 	}
-	
+
 	//set the correct process_str for given process
 	if (process == DEV_HANDLER) { sprintf(process_str, "DEV_HANDLER"); }
 	else if (process == EXECUTOR) { sprintf(process_str, "EXECUTOR"); }
 	else if (process == NET_HANDLER) { sprintf(process_str, "NET_HANDLER"); }
-	else if (process == SUPERVISOR) { sprintf(process_str, "SUPERVISOR"); }
+	else if (process == SHM) { sprintf(process_str, "SHM"); }
 	else if (process == TEST) { sprintf(process_str, "TEST"); }
 
 	pthread_mutex_init(&log_mutex, NULL); //initialize the log_mutex
+	// Add cleanup handler
+	atexit(logger_stop);
 }
 
-/* 
+/*
  * Call before process terminates to clean up logger before exiting
  */
 void logger_stop ()
-{	
-	//if outputting to stdout, write a newline to stdout
-	if (OUTPUTS & LOG_STDOUT) {
-		printf("\n");
-	}
-	
-	//if outputting to file, write a new line to log file, then close file descriptor
+{
+	//if outputting to file, close file stream
 	if (OUTPUTS & LOG_FILE) {
-		fprintf(log_fd, "\n");
-		if (fclose(log_fd) != 0) {
+		if (fclose(log_file) != 0) {
 			perror("fclose: log file close failed");
 		}
 	}
-	
-	//if outputting to network, write a newline to pipe, then close file descriptor
+
+	//if outputting to network, close file descriptor
 	if ((OUTPUTS & LOG_NETWORK) && (fifo_up == 1)) {
-		if (write(fifo_fd, "\n", 1) == -1) {
-			//net_handler crashed or was terminated (sent SIGPIPE which was handled)
-			if (errno != EPIPE) {
-				perror("write: writing to FIFO failed unexpectedly");
-			}
-		}
 		if (close(fifo_fd) != 0) {
 			perror("logger close FIFO failed");
 		}
@@ -232,7 +227,7 @@ void logger_stop ()
 	pthread_mutex_destroy(&log_mutex);
 }
 
-/* 
+/*
  * Logs a message at a specified level to the locations specified in config file
  * Handles format strings (can handle expressions like those in 'printf()')
  * Arguments:
@@ -261,7 +256,7 @@ void log_printf (log_level_t level, char *format, ...)
 	va_start(args, format);
 	vsprintf(msg, format, args);
 	va_end(args);
-	
+
 	//build the message and put into final_msg
 	if (level == PYTHON) {
 		//print the raw message for PYTHON level
@@ -290,24 +285,13 @@ void log_printf (log_level_t level, char *format, ...)
 		fflush(stdout);
 	}
 	if ((OUTPUTS & LOG_FILE) && (level >= file_level)) {
-		fprintf(log_fd, "%s", final_msg);
-		fflush(log_fd);
+		fprintf(log_file, "%s", final_msg);
+		fflush(log_file);
 	}
 	if ((OUTPUTS & LOG_NETWORK) && (level >= network_level)) {
 		//if FIFO is not up, try to connect to it
 		if (!fifo_up) {
-			if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
-				if (errno != EEXIST) { //don't show error if mkfifo failed because it already exists
-					perror("mkfifo: logger create FIFO failed");
-				}
-			}
-			if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
-				if (errno != ENXIO) { //don't show error if open failed because net_handler has not opened pipe for reading yet
-					perror("open: logger open FIFO failed");
-				}
-			} else {
-				fifo_up = 1;
-			}
+			open_fifo();
 		}
 		//if FIFO is up, try to write to it; if SIGPIPE then use handler to set fifo_up to 0
 		if (fifo_up) {

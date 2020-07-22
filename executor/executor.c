@@ -1,5 +1,6 @@
 #define PY_SSIZE_T_CLEAN
-#include <Python.h>                        // For Python's C API
+#include <python3.7/Python.h>                        // For Python's C API
+// #include <Python.h>                        // For Python's C API
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
 #include <sys/types.h>                     //for sem_t and other standard system types
@@ -17,7 +18,6 @@
 
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
-char* student_module;
 PyObject *pModule, *pAPI, *pRobot, *pGamepad;
 robot_desc_val_t mode = IDLE; // current robot mode
 pid_t pid; // pid for mode process
@@ -25,9 +25,11 @@ int challenge_fd;  // challenge socket
 
 // Timings for all modes
 struct timespec setup_time = { 2, 0 };    // Max time allowed for setup functions
-#define freq 10.0 // Minimum number of times per second the main loop should run
-struct timespec main_interval = { 0, (long) ((1.0 / freq) * 1e9) };
-int challenge_time = 5; // Max allowed time for running challenges in seconds
+#define min_freq 10.0 // Minimum number of times per second the main loop should run
+struct timespec main_interval = { 0, (long) ((1.0 / min_freq) * 1e9) };
+#define max_freq 10000.0 // Maximum number of times per second the Python function should run
+uint64_t min_time = (1.0 / max_freq) * 1e9; // Minimum time in nanoseconds that the Python function should take
+int challenge_time = 5; // Max allowed time for running all challenges in seconds
 
 char* challenge_names[NUM_CHALLENGES] = {"reverse_digits", "list_prime_factors"};
 
@@ -51,21 +53,31 @@ char* get_mode_str(robot_desc_val_t mode) {
 
 
 /**
- *  Closes all executor processes and exits cleanly.
+ *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
  */
-void executor_stop() {
-	log_printf(DEBUG, "Shutting down executor...");
-    
-    // Py_XDECREF(pAPI);
-    // Py_XDECREF(pGamepad);
-    // Py_XDECREF(pRobot);
-    // Py_XDECREF(pModule);
-    // Py_FinalizeEx();
-	
-    shm_stop();
-    log_printf(DEBUG, "SHM stopped");
-    logger_stop();
-    // exit(2);
+void reset_params() {
+    uint32_t catalog;
+    dev_id_t dev_ids[MAX_DEVICES];
+    get_catalog(&catalog);
+    get_device_identifiers(dev_ids);
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if (catalog & (1 << i)) { // If device at index i exists
+            device_t* device = get_device(dev_ids[i].type);
+            if(device == NULL) {
+                log_printf(ERROR, "reset_params: device at index %d with type %d is invalid\n", i, dev_ids[i].type);
+                continue;
+            }
+            uint32_t reset_params = 0;
+            param_val_t zero_params[MAX_PARAMS] = {0}; // By default we reset to 0
+            for(int j = 0; j < device->num_params; j++) {
+                // Only reset parameters that are writeable
+                if (device->params[j].write) { 
+                    reset_params |= (1 << j);
+                }
+            }
+            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
+        }
+    }
 }
 
 
@@ -76,15 +88,23 @@ void executor_stop() {
  *      student_code: string representing the name of the student's Python file, without the .py
  */
 void executor_init(char* student_code) {
-    //initialize
-	logger_init(EXECUTOR);
-    shm_init();
-    log_printf(DEBUG, "SHM intialized");
-    student_module = student_code;
-    
+    //initialize Python
     Py_Initialize();
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
+
+    //imports the student code
+    pModule = PyImport_ImportModule(student_code);
+    if (pModule == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not import student code file: %s", student_code);
+        exit(1);
+    }
+
+    // CHALLENGE mode doesn't need the robot API
+    if (mode == CHALLENGE) {
+        return;
+    }
 	
 	//imports the Cython student API
     pAPI = PyImport_ImportModule(api_module);
@@ -93,7 +113,7 @@ void executor_init(char* student_code) {
         log_printf(ERROR, "Could not import API module");
         exit(1);
     }
-	
+
 	//checks to make sure there is a Robot class, then instantiates it
     PyObject* robot_class = PyObject_GetAttrString(pAPI, "Robot");
     if (robot_class == NULL) {
@@ -116,7 +136,7 @@ void executor_init(char* student_code) {
         log_printf(ERROR, "Could not find Gamepad class");
         exit(1);
     }
-    pGamepad = PyObject_CallFunction(gamepad_class, "s", "idle");
+    pGamepad = PyObject_CallObject(gamepad_class, NULL);
     if (pGamepad == NULL) {
         PyErr_Print();
         log_printf(ERROR, "Could not instantiate Gamepad");
@@ -124,22 +144,22 @@ void executor_init(char* student_code) {
     }
     Py_DECREF(gamepad_class);
 	
-	//imports the student code
-    pModule = PyImport_ImportModule(student_module);
-    if (pModule == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not import module: %s", student_module);
-        exit(1);
-    }
-    
+    // Insert student API into the student code
     int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
     err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
     if (err != 0) {
         PyErr_Print();
         log_printf(ERROR, "Could not insert API into student code.");
         exit(1);
+    }        
+    
+    // Send the device subscription requests to dev_handler
+    PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
+    if (ret == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not make device subscription requests");
+        exit(1);
     }
-
 }
 
 
@@ -160,27 +180,17 @@ void executor_init(char* student_code) {
  *
  *  Returns: error code of function
  *      0: Exited cleanly
- *      1: Couldn't set the mode for the Gamepad
+ *      1: Python exception in student actions
  *      2: Python exception while running student code
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, int loop, PyObject* args, PyObject** ret_value) {
+uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
     uint8_t ret = 0;
 	
-	//assign the run mode to the Gamepad object
-    PyObject *pMode = PyUnicode_FromString(mode);
-    int err = PyObject_SetAttrString(pGamepad, "mode", pMode);
-    Py_DECREF(pMode);
-    if (err != 0) {
-        PyErr_Print();
-        log_printf(ERROR, "Couldn't assign mode for Gamepad while trying to run %s", func_name);
-        return 1;
-    }
-	
     //retrieve the Python function from the student code
-    PyObject *pFunc = PyObject_GetAttrString(pModule, func_name);
-    PyObject *pValue = NULL;
+    PyObject* pFunc = PyObject_GetAttrString(pModule, func_name);
+    PyObject* pValue = NULL;
     if (pFunc && PyCallable_Check(pFunc)) {
         struct timespec start, end;
         uint64_t time, max_time = 0;
@@ -198,29 +208,58 @@ uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, i
             if (timeout != NULL && time > max_time) {
                 log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", func_name, (long) (max_time / 1e6));
             }
+            //if the time the Python function took was less than min_time, sleep to slow down execution
+            if (time < min_time) {
+                usleep((min_time - time) / 1000);
+            }
 
             // Set return value
-            if (ret_value != NULL) {
-                *ret_value = pValue;
+            if (py_ret != NULL) {
+                Py_XDECREF(*py_ret); // Decrement previous reference, if it exists
+                *py_ret = pValue;
+            }
+            else {
+                Py_XDECREF(pValue);
             }
 
 			//catch execution error
             if (pValue == NULL) {
-                PyObject* error = PyErr_Occurred();
-                if (!PyErr_GivenExceptionMatches(error, PyExc_TimeoutError)) {
+                if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
                     PyErr_Print();
                     log_printf(ERROR, "Python function %s call failed", func_name);
                     ret = 2;
                 }
                 else {
-                    log_printf(DEBUG, "Timed out by supervisor");
-                    ret = 3; // Timed out by supervisor process
+                    ret = 3; // Timed out by parent process
                 }
                 break;
             }
-            else if (ret_value == NULL) { // Decrement reference if nothing pointing at the value
-                Py_DECREF(pValue);
-            }
+            else if (mode != CHALLENGE) {
+                // Need to check if error occurred in action thread
+                PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
+                if (event == NULL) {
+                    PyErr_Print();
+                    log_printf(ERROR, "Could not get error_event from Robot instance");
+                    exit(2);
+                }
+                PyObject* event_set = PyObject_CallMethod(event, "is_set", NULL);
+                if (event_set == NULL) {
+                    if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
+                        PyErr_Print();
+                        log_printf(DEBUG, "Could not get if error is set from error_event");
+                        exit(2);
+                    }
+                    else {
+                        ret = 3; // Timed out by parent process
+                    }
+                    break;
+                }
+                else if (PyObject_IsTrue(event_set) == 1) {
+                    log_printf(ERROR, "Stopping %s due to error in action", func_name);
+                    ret = 1;
+                    break;
+                }
+            }        
         } while(loop);
         Py_DECREF(pFunc);
     }
@@ -228,7 +267,7 @@ uint8_t run_py_function(char* func_name, char* mode, struct timespec* timeout, i
         if (PyErr_Occurred()) {
             PyErr_Print();
         }
-        log_printf(ERROR, "Cannot find function in student code: %s\n", func_name);
+        log_printf(ERROR, "Cannot find function in student code: %s", func_name);
         ret = 4;
     }
     return ret;
@@ -251,15 +290,12 @@ void run_mode(robot_desc_val_t mode) {
     sprintf(setup_str, "%s_setup", mode_str);
     sprintf(main_str, "%s_main", mode_str);
 	
-    int err = run_py_function(setup_str, mode_str, &setup_time, 0, NULL, NULL);  // Run setup function once
+    int err = run_py_function(setup_str, &setup_time, 0, NULL, NULL);  // Run setup function once
     if (err == 0) {
-        err = run_py_function(main_str, mode_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
-        if (err != 0) {
-            log_printf(DEBUG, "Return status of %s: %d", main_str, err);
-        }
+        err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
     }
     else {
-        log_printf(WARN, "Won't run %s due to error in %s", main_str, setup_str);
+        log_printf(WARN, "Won't run %s due to error %d in %s", main_str, err, setup_str);
     }
     return;    
 }
@@ -275,6 +311,7 @@ void run_challenges() {
     char send_buf[NUM_CHALLENGES][CHALLENGE_LEN];
  
     for (int i = 0; i < NUM_CHALLENGES; i++) {
+        // Receive challenge inputs from net_handler
         int recvlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, (struct sockaddr*) &address, &addrlen);
         if (recvlen == CHALLENGE_LEN) {
             log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
@@ -284,6 +321,7 @@ void run_challenges() {
             log_printf(ERROR, "Socket read from challenge_fd failed");
             return;
         }
+        // Convert input C string to C long then Python tuple args
         long input = strtol(read_buf, NULL, 10);
         log_printf(DEBUG, "received inputs for %d: %ld", i, input);
         PyObject* arg = Py_BuildValue("(l)", input);
@@ -292,8 +330,9 @@ void run_challenges() {
             log_printf(ERROR, "Couldn't decode input string into Python long for challenge %s", challenge_names[i]);
             continue;
         }
+        // Run the challenge
         PyObject* ret = NULL;
-        if (run_py_function(challenge_names[i], "challenge", NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
+        if (run_py_function(challenge_names[i], NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
             strcpy(send_buf[i], "Timed out");
             for (int j = i+1; j < NUM_CHALLENGES; j++) {
                 // Read rest of inputs to clear the challenge socket
@@ -304,11 +343,12 @@ void run_challenges() {
             break;
         }
         Py_DECREF(arg);
+        // Convert challenge output to Python string then C string
         PyObject* ret_string = PyObject_Str(ret);
         Py_XDECREF(ret);
         if (ret_string == NULL) {
             PyErr_Print();
-            log_printf(ERROR, "Couldn't decode return value into Python string for challenge %s", challenge_names[i]);
+            log_printf(ERROR, "Couldn't convert return value to Python string for challenge %s", challenge_names[i]);
             continue;
         }
         int ret_len;
@@ -317,8 +357,8 @@ void run_challenges() {
         if (ret_len >= CHALLENGE_LEN) {
             log_printf(ERROR, "Size of return string from challenge %d %s is greater than allocated %d", i, challenge_names[i], CHALLENGE_LEN);
         }
-        strncpy(send_buf[i], c_ret, CHALLENGE_LEN);
-        memset(read_buf, 0 , CHALLENGE_LEN);
+        strncpy(send_buf[i], c_ret, CHALLENGE_LEN); // Need to copy since pointer data is reset each iteration
+        memset(read_buf, 0 , CHALLENGE_LEN); // Need to reset read buffer for next read
     }
 
     // Send all results back to net handler
@@ -333,73 +373,25 @@ void run_challenges() {
 }
 
 
-
 /**
  *  Handler for killing the child mode subprocess
  */
-void mode_exit_handler(int signum) {
+void python_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
+    log_printf(DEBUG, "about to send exception");
     PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    log_printf(DEBUG, "Sent exception");
-}
-
-
-/**
- *  Handler for killing the child challenge subprocess
- */
-void challenge_exit_handler(int signum) {
-    exit(3);
+    log_printf(DEBUG, "sent exception");
 }
 
 
 /** 
- *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
- */
-pid_t start_mode_subprocess(robot_desc_val_t mode) {
-    pid_t pid = fork();
-    if (pid < 0) {
-        log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
-        return -1;
-    }
-    else if (pid == 0) {
-        // Now in child process
-        atexit(executor_stop); // Always call executor_stop when process dies to free handles to SHM
-        signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
-        executor_init("studentcode"); // Default name of student code file 
-        if (mode == CHALLENGE) {
-            signal(SIGTERM, challenge_exit_handler);
-            signal(SIGALRM, mode_exit_handler);
-            alarm(challenge_time); // Set timeout for challenges
-            run_challenges();
-            robot_desc_write(RUN_MODE, IDLE); // Will tell supervisor to call kill_subprocess
-            while (1) {
-                sleep(1); // Wait for process to be exited
-            }
-        }
-        else {
-            signal(SIGTERM, mode_exit_handler);
-            run_mode(mode);
-            exit(2);
-        }
-        return pid; // Never reach this statement due to exit, needed to fix compiler warning
-    }
-    else {
-        // Now in parent process
-        return pid;
-    }
-}
-
-
-/** 
- *  Kills any running subprocess.
+ *  Kills any running subprocess. Will make the robot go into IDLE mode.
  */
 void kill_subprocess() {
+    log_printf(DEBUG, "In KILL subprocess");
     if (kill(pid, SIGTERM) != 0) {
         log_printf(ERROR, "Kill signal not sent: %s", strerror(errno));
     } 
-    else {
-        log_printf(DEBUG, "Sent kill signal to child process");
-    }
     int status;
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
@@ -410,7 +402,45 @@ void kill_subprocess() {
     if (WIFSIGNALED(status)) {
         log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
     }
+    // Reset parameters if robot was in AUTO or TELEOP. Needed for safety
+    if (mode != CHALLENGE) {
+        reset_params();
+    }
     mode = IDLE;
+}
+
+
+/** 
+ *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
+ */
+pid_t start_mode_subprocess(char* student_code) {
+    pid_t pid = fork();
+    if (pid < 0) {
+        log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
+        return -1;
+    }
+    else if (pid == 0) {
+        // Now in child process
+        signal(SIGINT, SIG_IGN); // Disable Ctrl+C for child process
+        executor_init(student_code);
+        if (mode == CHALLENGE) {
+            signal(SIGTERM, exit);
+            signal(SIGALRM, python_exit_handler); // Interrupts any running Python function
+            alarm(challenge_time); // Set timeout for challenges
+            run_challenges();
+            robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
+        }
+        else {
+            signal(SIGTERM, python_exit_handler);
+            run_mode(mode);
+        }
+        exit(0);
+        return pid; // Never reach this statement due to exit, needed to fix compiler warning
+    }
+    else {
+        // Now in parent process
+        return pid;
+    }
 }
 
 
@@ -418,13 +448,10 @@ void kill_subprocess() {
  *  Handler for keyboard interrupts SIGINT (Ctrl + C)
  */
 void exit_handler(int signum) {
-    log_printf(DEBUG, "Shutting down supervisor...");
+    log_printf(DEBUG, "Shutting down executor...");
     if (mode != IDLE) {
         kill_subprocess();
     }
-    remove(CHALLENGE_SOCKET);
-	shm_stop();
-    logger_stop();
     exit(0);
 }
 
@@ -437,13 +464,15 @@ void exit_handler(int signum) {
  */
 int main(int argc, char* argv[]) {
     signal(SIGINT, exit_handler);
-    logger_init(SUPERVISOR);
-    log_printf(DEBUG, "Logger initialized");
+    logger_init(EXECUTOR);
     shm_init();
-    log_printf(DEBUG, "SHM started");
 
-    robot_desc_val_t new_mode = IDLE;
-
+    char* student_code = "studentcode";
+    if (argc > 1) {
+        student_code = argv[1];
+    }
+    log_printf(DEBUG, "Min time %llu", min_time);
+    remove(CHALLENGE_SOCKET); // Always remove any old challenge socket
     struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
 	//create the socket
 	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
@@ -457,6 +486,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+    robot_desc_val_t new_mode = IDLE;
     // Main loop that checks for new run mode in shared memory from the network handler
     while(1) {
         new_mode = robot_desc_read(RUN_MODE);
@@ -467,9 +497,10 @@ int main(int argc, char* argv[]) {
             }
             log_printf(DEBUG, "New mode %d", new_mode);
             if (new_mode != IDLE) {
-                pid = start_mode_subprocess(new_mode);
-                if (pid != -1) {
-                    mode = new_mode;
+                mode = new_mode;
+                pid = start_mode_subprocess(student_code);
+                if (pid == -1) {
+                    mode = IDLE;
                 }
             }
         }

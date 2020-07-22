@@ -66,17 +66,19 @@ void* send_device_data(void* args) {
 				Param* param = device->params[j];
 				param__init(param);
 				param->name = device_info->params[j].name;
-				if(strcmp(device_info->params[j].type, "int") == 0) {
-					param->val_case = PARAM__VAL_IVAL;
-					param->ival = param_data[j].p_i;
-				}
-				else if (strcmp(device_info->params[j].type, "float") == 0) {
-					param->val_case = PARAM__VAL_FVAL;
-					param->fval = param_data[j].p_f;
-				}
-				else if(strcmp(device_info->params[j].type, "bool") == 0) {
-					param->val_case = PARAM__VAL_BVAL;
-					param->bval = param_data[j].p_b;
+				switch (device_info->params[j].type) {
+					case INT:
+						param->val_case = PARAM__VAL_IVAL;
+						param->ival = param_data[j].p_i;
+						break;
+					case FLOAT:
+						param->val_case = PARAM__VAL_FVAL;
+						param->fval = param_data[j].p_f;
+						break;
+					case BOOL:
+						param->val_case = PARAM__VAL_BVAL;
+						param->bval = param_data[j].p_b;
+						break;
 				}
 			}
 			dev_idx++;
@@ -89,7 +91,7 @@ void* send_device_data(void* args) {
 		
 		//send data to Dawn
 		err = sendto(socket_fd, buffer, len, 0, (struct sockaddr*) &dawn_addr, addr_len);
-		if (err <= 0 || err != len) {
+		if (err < 0 || err != len) {
 			log_printf(ERROR, "UDP sendto failed. send buffer length %d, actual sent %d: %s", len, err, strerror(errno));
 		}
 
@@ -103,6 +105,7 @@ void* send_device_data(void* args) {
 		}
 		free(dev_data.devices);
 		free(buffer);  // Free buffer with device data protobuf
+		usleep(10000); // Send data at 100 Hz
 	}
 	return NULL;
 }
@@ -119,7 +122,7 @@ void* update_gamepad_state(void* args) {
 		if (recvlen == size) {
 			log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
 		}
-		if (recvlen <= 0) {
+		if (recvlen < 0) {
 			log_printf(ERROR, "UDP recvfrom failed: %s", strerror(errno));
 			continue;
 		}
@@ -161,8 +164,7 @@ void start_udp_conn ()
 	}
 	
 	//bind the socket to any valid IP address on the raspi and specified port
-	struct sockaddr_in my_addr;    //for holding IP addresses (IPv4)
-	memset(&my_addr, 0, sizeof(struct sockaddr_in));
+	struct sockaddr_in my_addr = {0};    //for holding IP addresses (IPv4)
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	my_addr.sin_port = htons(RASPI_UDP_PORT);
@@ -201,5 +203,4 @@ void stop_udp_conn ()
 	if(close(socket_fd) != 0) {
 		log_printf(ERROR, "Couldn't close UDP socket properly: %s", strerror(errno));
 	}
-	log_printf(DEBUG, "UDP connection stopped");
 }

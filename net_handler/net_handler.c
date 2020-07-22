@@ -13,7 +13,7 @@
 */
 int listening_socket_setup (int *sockfd)
 {
-	struct sockaddr_in serv_addr;
+	struct sockaddr_in serv_addr = {0}; //initialize everything to 0
 		
 	//create socket
 	if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -33,7 +33,6 @@ int listening_socket_setup (int *sockfd)
 	}
 	
 	//set the elements of serv_addr
-	memset(&serv_addr, '\0', sizeof(struct sockaddr_in));  //initialize everything to 0
 	serv_addr.sin_family = AF_INET;                        //use IPv4
 	serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);         //use any IP interface on raspi
 	serv_addr.sin_port = htons(RASPI_PORT);                //assign a port number
@@ -78,9 +77,7 @@ void sigint_handler (int sig_num)
 	if (robot_desc_read(DAWN) == CONNECTED) {
 		stop_tcp_conn(DAWN);
 	}
-	shm_stop();
-	logger_stop(NET_HANDLER);
-	//sockfd is automatically closed when process terminates
+	//sockfd and connfd are automatically closed when process terminates
 	exit(0);
 }
 
@@ -126,10 +123,10 @@ int main ()
 		}
 		
 		//if the incoming request is shepherd or dawn, start the appropriate threads
-		if (client_id == 0 && cli_addr.sin_family == AF_INET && cli_addr.sin_port == htons(SHEPHERD_PORT) && robot_desc_read(SHEPHERD) == DISCONNECTED) {
+		if (client_id == 0 && cli_addr.sin_family == AF_INET && robot_desc_read(SHEPHERD) == DISCONNECTED) {
 			log_printf(DEBUG, "Starting Shepherd connection");
 			start_tcp_conn(SHEPHERD, connfd, 0);
-		} else if (client_id == 1 && cli_addr.sin_family == AF_INET && cli_addr.sin_port == htons(DAWN_PORT) && robot_desc_read(DAWN) == DISCONNECTED) {
+		} else if (client_id == 1 && cli_addr.sin_family == AF_INET && robot_desc_read(DAWN) == DISCONNECTED) {
 			log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
 		} else {

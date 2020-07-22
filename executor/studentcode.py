@@ -19,6 +19,8 @@ def set_motor():
     Robot.set_value(MOTOR, 'duty_cycle', 0)
     time.sleep(2)
     print("after second sleep")
+    while True:
+        Robot.set_value(MOTOR, 'pid_vel_kp', 0.237)
 
 def constant_print(msg):
     while True:
@@ -28,6 +30,8 @@ def constant_print(msg):
 
 def autonomous_setup():
     print('Autonomous setup has begun!')
+    print(f"Starting position: {Robot.start_pos}")
+    
     # Robot.run(autonomous_actions)
     # Robot.run(set_motor)
     Robot.set_value(MOTOR, 'duty_cycle', 0.2)
@@ -35,19 +39,22 @@ def autonomous_setup():
     start = time.time()
     Robot.run(set_motor)
     Robot.run(constant_print, "auton")
-
-i = 0
+    global i
+    i = 0
+    # time.sleep(10)
 
 def autonomous_main():
+    # time.sleep(10)
+    # Robot.run(wait)
     Robot.get_value(MOTOR, 'duty_cycle')
     global i, start
-    if i % 100000 == 0:
+    if i % 10000 == 0:
         print("Iteration:", i, time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
-        # Robot.run(wait)
     i += 1
     Robot.set_value(MOTOR, 'current_thresh', .12)
+    
     # while True: pass
     # print("testing whether thread dies", time.time())
     # print('Running autonomous main ...')

@@ -5,6 +5,7 @@
 #include <unistd.h>      //for read, write, close
 
 #include "../net_util.h"
+#include "../../runtime_util/runtime_util.h"
 
 float data[4] = {.012, 13.1, -.13, .30};
 
