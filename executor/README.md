@@ -5,7 +5,24 @@ This folder includes the processes to understand the student API and execute the
 ## Building
 
 ### Dependencies:
-This program will only work on Linux and MacOS systems. You need to have Python with version `>= 3.6`. The only Python package needed is `Cython` which can be installed with `python3 -m pip install Cython`. You also need to have `gcc` installed to compile the C code.
+This program will only work on Linux systems. You need to have `gcc` installed to compile the C code.
+
+For the Python code, you need Python with version `>= 3.6` and with the `Python.h` development header. You also need to have `pip` installed. This can be done with
+
+    sudo apt-get install python3-dev
+    sudo apt-get install python3-pip
+
+To then install the only third-party Python dependency, do
+
+    python3 -m pip install Cython
+
+Runtime also uses the following language-supported Python libraries to implement the Student API:
+
+* `threading`: used for creating threads that run student-defined actions
+* `sys`: used for redirecting Python errors to the Runtime `logger`
+* `builtins`: used to change the built-in Python `print` function and redirect it to the Runtime `logger`
+* `importlib`: used by the code parser to import the student code dynamically
+* `re`: used by the code parser to parse the student code with regex
 
 ### Steps:
 First, ensure that for whatever `python3.x` version you are using, there is a corresponding command line tool `python3.x-config`. On Linux, this can be installed by doing `sudo apt install python3.x-dev` with the `x` appropriately substituted with your version number. Then in the Makefile, change the `py` flag under the comment with the version of Python you are using.

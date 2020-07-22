@@ -129,7 +129,7 @@ int main (int argc, char* argv[])
 					printf("Challenge %d result: %s\n", i, msg->payload[i]);
 				}
 				if (argc > 1) {
-					return 1;
+					return 0;
 				}
 			}
 			// Free allocated memory
