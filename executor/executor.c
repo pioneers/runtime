@@ -452,7 +452,6 @@ void exit_handler(int signum) {
     if (mode != IDLE) {
         kill_subprocess();
     }
-    remove(CHALLENGE_SOCKET);
     exit(0);
 }
 
@@ -473,6 +472,7 @@ int main(int argc, char* argv[]) {
         student_code = argv[1];
     }
     log_printf(DEBUG, "Min time %llu", min_time);
+    remove(CHALLENGE_SOCKET); // Always remove any old challenge socket
     struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
 	//create the socket
 	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
