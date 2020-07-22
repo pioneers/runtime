@@ -18,7 +18,7 @@ int main (int argc, char *argv[])
 	
 	print_params(devices);
 	print_cmd_map();
-	print_sub_map();
+	print_sub_map(EXECUTOR);
 	print_robot_desc();
 	print_gamepad_state();
 	

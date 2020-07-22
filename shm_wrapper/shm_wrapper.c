@@ -1,4 +1,5 @@
 #include "shm_wrapper.h"
+#include <stdint.h>
 #include <stdlib.h>
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
@@ -181,12 +182,12 @@ void print_cmd_map ()
 }
 
 /*
- * Prints the current values in the subscription bitmap
+ * Prints the current values in the subscription bitmap for the corresponding process.
  */
-void print_sub_map ()
+void print_sub_map (process_t process)
 {
 	uint32_t sub_map[MAX_DEVICES + 1];
-	get_sub_requests(sub_map);
+	get_sub_requests(sub_map, process);
 
 	printf("Requested devices: ");
 	print_bitmap(MAX_DEVICES, sub_map[0]);
@@ -535,9 +536,15 @@ void device_disconnect (int dev_ix)
 	//update the catalog
 	dev_shm_ptr->catalog &= (~(1 << dev_ix));
 
-	//reset param map values to 0
+	//reset bitmap values to 0
 	dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix));   //reset the changed bit flag in cmd_map[0]
 	dev_shm_ptr->cmd_map[dev_ix + 1] = 0;          //turn off all changed bits for the device
+
+	dev_shm_ptr->exec_sub_map[0] |= 1 << dev_ix;
+	dev_shm_ptr->exec_sub_map[dev_ix + 1] = -1;
+
+	dev_shm_ptr->net_sub_map[0] |= 1 << dev_ix;
+	dev_shm_ptr->net_sub_map[dev_ix + 1] = -1;
 
 	//release cmd_map_sem
 	my_sem_post(cmd_map_sem, "cmd_map_sem");
@@ -667,7 +674,8 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
 
 	//wait on sub_map_sem
 	my_sem_wait(sub_map_sem, "sub_map_sem");
-
+	// log_printf(DEBUG, "Current dev idx for uid %llu: %d. Params to sub %u, current sub %u", dev_uid, dev_ix, params_to_sub, curr_sub_map[dev_ix + 1]);
+	
 	//only fill in params_to_sub if it's different from what's already there
 	if (curr_sub_map[dev_ix + 1] != params_to_sub) {
 		curr_sub_map[dev_ix + 1] = params_to_sub;
@@ -686,14 +694,23 @@ int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_s
  *    - uint32_t sub_map[MAX_DEVICES + 1]: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
  * No return value.
  */
-void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
+void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1], process_t process)
 {
 	//wait on sub_map_sem
 	my_sem_wait(sub_map_sem, "sub_map_sem");
 
 	//bitwise or the changes into sub_map[0]; if no changes then return
-	sub_map[0] = dev_shm_ptr->net_sub_map[0] | dev_shm_ptr->exec_sub_map[0];
-	if (sub_map[0] == 0) {
+	if (process == NET_HANDLER) {
+		sub_map[0] = dev_shm_ptr->net_sub_map[0];
+	}
+	else if (process == EXECUTOR) {
+		sub_map[0] = dev_shm_ptr->exec_sub_map[0];
+	}
+	else {
+		sub_map[0] = dev_shm_ptr->net_sub_map[0] | dev_shm_ptr->exec_sub_map[0];
+	}
+
+	if (sub_map[0] == 0 && process == DEV_HANDLER) {
 		my_sem_post(sub_map_sem, "sub_map_sem");
 		return;
 	}
@@ -701,18 +718,31 @@ void get_sub_requests (uint32_t sub_map[MAX_DEVICES + 1])
 	//bitwise OR each valid element together into sub_map[i]
 	for (int i = 1; i < MAX_DEVICES + 1; i++) {
 		if (dev_shm_ptr->catalog & (1 << (i - 1))) { //if device exists
-			sub_map[i] = dev_shm_ptr->net_sub_map[i] | dev_shm_ptr->exec_sub_map[i];
-		} else {
+			if (process == NET_HANDLER) {
+				sub_map[i] = dev_shm_ptr->net_sub_map[i];
+			}
+			else if (process == EXECUTOR) {
+				sub_map[i] = dev_shm_ptr->exec_sub_map[i];
+			}
+			else {
+				sub_map[i] = dev_shm_ptr->net_sub_map[i] | dev_shm_ptr->exec_sub_map[i];
+			}
+		} 
+		else {
+			sub_map[0] &= ~(1 << (i - 1));
 			sub_map[i] = 0;
 		}
 	}
 
-	//reset the change indicator eleemnts in net_sub_map and exec_sub_map
-	dev_shm_ptr->net_sub_map[0] = dev_shm_ptr->exec_sub_map[0] = 0;
+	if (process == DEV_HANDLER) {
+		//reset the change indicator eleemnts in net_sub_map and exec_sub_map
+		dev_shm_ptr->net_sub_map[0] = dev_shm_ptr->exec_sub_map[0] = 0;
+	}
 
 	//release sub_map_sem
 	my_sem_post(sub_map_sem, "sub_map_sem");
 }
+
 
 /*
  * Should be called from all processes that want to know current state of the command bitmap (i.e. device handler)
