@@ -25,9 +25,9 @@ script:
   - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
 
 deploy:
+  provider: script
   skip_cleanup: true
-  - provider: script
-    script: travis_wait bash docker/build_and_push.sh
-    on:
-      branch: master
-      condition: $TRAVIS_EVENT_TYPE = push
+  script: travis_wait bash docker/build_and_push.sh
+  on:
+    branch: master
+    condition: $TRAVIS_EVENT_TYPE = push
