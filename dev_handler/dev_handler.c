@@ -43,6 +43,7 @@ int serialport_close(int fd);
 
 // Utility
 uint64_t millis();
+void cleanup_handler(void *args);
 
 // ************************************ GLOBAL VARIABLES ****************************************** //
 // Bitmap indicating whether /dev/ttyACM* is used, where * is the *-th bit
@@ -195,6 +196,7 @@ void* relayer(void* relay_cast) {
 	ret = verify_lowcar(relay);
 	if (ret != 0) {
         log_printf(DEBUG, "/dev/ttyACM%d couldn't be verified to be a lowcar device", relay->port_num);
+	log_printf(ERROR, "A non-PiE device was recently plugged in. Please unplug immediately");
 		relay_clean_up(relay);
 		return NULL;
 	}
@@ -251,11 +253,9 @@ void* relayer(void* relay_cast) {
  */
 void relay_clean_up(msg_relay_t* relay) {
 	int ret;
-
 	// Cancel the sender and receiver threads when ongoing transfers are completed
 	pthread_cancel(relay->sender);
 	pthread_cancel(relay->receiver);
-
     if ((ret = pthread_join(relay->sender, NULL)) != 0) {
         log_printf(ERROR, "pthread_join on relay->sender failed with error code %d", ret);
     }
@@ -272,7 +272,6 @@ void relay_clean_up(msg_relay_t* relay) {
      * 2) If not lowcar device, we want to minimize time spent on multiple attempts to receive an ACK
      */
     sleep(TIMEOUT / 1000);
-
     // Close the device and mark that it disconnected
 	serialport_close(relay->file_descriptor);
 	if ((ret = pthread_mutex_lock(&used_ports_lock))) {
@@ -280,10 +279,8 @@ void relay_clean_up(msg_relay_t* relay) {
 	}
     used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
     pthread_mutex_unlock(&used_ports_lock);
-
     pthread_mutex_destroy(&relay->relay_lock);
     pthread_cond_destroy(&relay->start_cond);
-
     log_printf(DEBUG, "Cleaned up threads for %s", get_device_name(relay->dev_id.type));
 	free(relay);
 }
@@ -298,8 +295,9 @@ void* sender(void* relay_cast) {
 
     // Wait until relayer gets an ACKNOWLEDGEMENT
     pthread_mutex_lock(&relay->relay_lock);
+    pthread_cleanup_push(&cleanup_handler, (void *)relay);
     pthread_cond_wait(&relay->start_cond, &relay->relay_lock);
-    pthread_mutex_unlock(&relay->relay_lock);
+    pthread_cleanup_pop(1);
 
     // Cancel this thread only where pthread_testcancel()
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -379,8 +377,9 @@ void* receiver(void* relay_cast) {
 
     // Wait until relayer gets an ACKNOWLEDGEMENT
     pthread_mutex_lock(&relay->relay_lock);
+    pthread_cleanup_push(&cleanup_handler, (void *)relay);
     pthread_cond_wait(&relay->start_cond, &relay->relay_lock);
-    pthread_mutex_unlock(&relay->relay_lock);
+    pthread_cleanup_pop(1);
 
     log_printf(DEBUG, "Receiver for %s starting work!", get_device_name(relay->dev_id.type));
 
@@ -662,6 +661,12 @@ uint64_t millis() {
 	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
 	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
 	return s1 + s2;
+}
+
+void cleanup_handler (void *args)
+{
+    msg_relay_t *relay = (msg_relay_t *)args;
+    pthread_mutex_unlock(&relay->relay_lock);
 }
 
 // ************************************ MAIN ****************************************** //
