@@ -14,71 +14,74 @@ void* send_device_data(void* args) {
 	while(dawn_addr.sin_family == 0) {
 		sleep(1);
 	}
-	log_printf(DEBUG, "UDP messages received");
+	
+	uint32_t sub_map[MAX_DEVICES + 1];
+	dev_id_t dev_ids[MAX_DEVICES];
+	int valid_dev_idxs[MAX_DEVICES];
+	uint32_t catalog;
+
 	while (1) {
 		DevData dev_data = DEV_DATA__INIT;
-		dev_id_t dev_ids[MAX_DEVICES];
-		int valid_dev_idxs[MAX_DEVICES];
-		uint32_t catalog;
+
 		//get information
 		get_catalog(&catalog);
+		get_sub_requests(sub_map, NET_HANDLER);
 		get_device_identifiers(dev_ids);
 
 		//calculate num_devices, get valid device indices
 		int num_devices = 0;
-		for (int i = 0, j = 0; i < MAX_DEVICES; i++) {
+		for (int i = 0; i < MAX_DEVICES; i++) {
 			if (catalog & (1 << i)) {
+				valid_dev_idxs[num_devices] = i;
 				num_devices++;
-				valid_dev_idxs[j++] = i;
 			}
 		}
 		dev_data.devices = malloc(num_devices * sizeof(Device *));
-		// log_printf(DEBUG, "Number of devices found: %d", num_devices);
+
 		//populate dev_data.device[i]
 		int dev_idx = 0;
 		for (int i = 0; i < num_devices; i++) {
 			int idx = valid_dev_idxs[i];
 			device_t* device_info = get_device(dev_ids[idx].type);
 			if (device_info == NULL) {
-				// log_printf(WARN, "Device %d in SHM is invalid", idx);
+				log_printf(ERROR, "Device %d in SHM with type %d is invalid", idx, dev_ids[idx].type);
 				continue;
 			}
 
-			dev_data.devices[dev_idx] = malloc(sizeof(Device));
-			Device* device = dev_data.devices[dev_idx];
+			Device* device = malloc(sizeof(Device));
 			device__init(device);
-			// log_printf(DEBUG, "initialized device %d", dev_idx);
+			dev_data.devices[dev_idx] = device;
 			device->type = dev_ids[idx].type;
 			device->uid = dev_ids[idx].uid;
 			device->name = device_info->name;
 
-			device->n_params = device_info->num_params;
+			device->n_params = 0;
 			param_val_t param_data[MAX_PARAMS];
-			uint32_t params_to_read = 0;
-			for (int k = 0; k < device->n_params; k++)
-				params_to_read |= (1 << k);
-			device_read_uid(device->uid, NET_HANDLER, DATA, params_to_read, param_data);
+			device_read_uid(device->uid, NET_HANDLER, DATA, sub_map[idx + 1], param_data);
 
-			device->params = malloc(device->n_params * sizeof(Param*));
+			device->params = malloc(device_info->num_params * sizeof(Param*));
 			//populate device parameters
-			for (int j = 0; j < device->n_params; j++) {
-				device->params[j] = malloc(sizeof(Param));
-				Param* param = device->params[j];
-				param__init(param);
-				param->name = device_info->params[j].name;
-				switch (device_info->params[j].type) {
-					case INT:
-						param->val_case = PARAM__VAL_IVAL;
-						param->ival = param_data[j].p_i;
-						break;
-					case FLOAT:
-						param->val_case = PARAM__VAL_FVAL;
-						param->fval = param_data[j].p_f;
-						break;
-					case BOOL:
-						param->val_case = PARAM__VAL_BVAL;
-						param->bval = param_data[j].p_b;
-						break;
+			for (int j = 0; j < device_info->num_params; j++) {
+				if (sub_map[idx + 1] & (1 << j)) {
+					Param* param = malloc(sizeof(Param));
+					param__init(param);
+					param->name = device_info->params[j].name;
+					switch (device_info->params[j].type) {
+						case INT:
+							param->val_case = PARAM__VAL_IVAL;
+							param->ival = param_data[j].p_i;
+							break;
+						case FLOAT:
+							param->val_case = PARAM__VAL_FVAL;
+							param->fval = param_data[j].p_f;
+							break;
+						case BOOL:
+							param->val_case = PARAM__VAL_BVAL;
+							param->bval = param_data[j].p_b;
+							break;
+					}
+					device->params[device->n_params] = param;
+					device->n_params++;
 				}
 			}
 			dev_idx++;

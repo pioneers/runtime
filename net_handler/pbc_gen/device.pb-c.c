@@ -249,7 +249,7 @@ static const ProtobufCFieldDescriptor device__field_descriptors[4] =
     "type",
     3,
     PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_INT32,
+    PROTOBUF_C_TYPE_UINT32,
     0,   /* quantifier_offset */
     offsetof(Device, type),
     NULL,

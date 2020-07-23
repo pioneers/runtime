@@ -1,4 +1,5 @@
 #include "tcp_conn.h"
+#include "pbc_gen/device.pb-c.h"
 
 //used for creating and cleaning up TCP connection
 typedef struct {
@@ -254,7 +255,25 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 			log_printf(ERROR, "Cannot unpack dev_data msg");
 			return -2;
 		}
-		log_printf(WARN, "Received device data msg which has no implementation");
+		for (int i = 0; i < dev_data_msg->n_devices; i++) {
+			Device* req_device = dev_data_msg->devices[i];
+			device_t* act_device = get_device(req_device->type);
+			if (act_device == NULL) {
+				log_printf(ERROR, "Invalid device subscription: device type %d is invalid", req_device->type);
+				continue;
+			}
+			uint32_t requests = 0;
+			for (int j = 0; j < req_device->n_params; j++) {
+				if (req_device->params[i]->val_case == PARAM__VAL_BVAL) {
+					// log_printf(DEBUG, "Received device subscription for %s param %s", act_device->name, act_device->params[j].name);
+					requests |= (req_device->params[j]->bval << j);
+				}
+			}
+			int err = place_sub_request(req_device->uid, NET_HANDLER, requests);
+			if (err == -1) {
+				log_printf(ERROR, "Invalid device subscription: device uid %llu is invalid", req_device->uid);
+			}
+		}
 		//TODO: tell UDP suite to only send parts of data, not implemented by Dawn yet
 		
 		dev_data__free_unpacked(dev_data_msg, NULL);

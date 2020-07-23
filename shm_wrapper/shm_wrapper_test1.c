@@ -465,7 +465,7 @@ void subscription_test ()
 	
 	for (int i = 0; i < 6; i++) {
 		printf("Processing case %d from test2\n", i - 1);
-		get_sub_requests(sub_map);
+		get_sub_requests(sub_map, DEV_HANDLER);
 		if (sub_map[0] == 0) {
 			printf("No changed subscriptions\n");
 		} else {

@@ -60,7 +60,7 @@ struct  _Device
   ProtobufCMessage base;
   char *name;
   uint64_t uid;
-  int32_t type;
+  uint32_t type;
   /*
    *each device has some number of params
    */
