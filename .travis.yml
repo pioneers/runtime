@@ -15,7 +15,6 @@ install: skip
 # DOCKER_USERNAME is defined as a repository secret environment variable on travis-ci.org
 before_script:
   - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
-  # - DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
   - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32 sleep 5m  # Runs the docker container as detached
 
 script:
@@ -25,14 +24,10 @@ script:
   - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
   - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
 
-
-# Trying Docker automatic build instead
-# before_deploy:
-#   - docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-
-# deploy:
-#   - provider: script
-#     script: docker push ${DOCKER_USERNAME}/c-runtime:arm32
-#     on:
-#       branch: master
-#       condition: type = push
+deploy:
+  skip_cleanup: true
+  - provider: script
+    script: travis_wait bash docker/build_and_push.sh
+    on:
+      branch: master
+      condition: $TRAVIS_EVENT_TYPE = push
