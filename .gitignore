@@ -12,6 +12,7 @@
 
 # Unignore Dockerfile
 !Dockerfile
+!pre_build
 
 ### Above combination will ignore all files without extension, except MakeFiles ###
 
