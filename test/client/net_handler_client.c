@@ -4,31 +4,11 @@
 pid_t nh_pid;          //holds the pid of the net_handler process
 pthread_t dump_tid;    //holds the thread id of the output dumper thread
 
-int nh_stdout_fd = -1;      //holds file descriptor of net handler process stdin
 int nh_tcp_shep_fd = -1;    //holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;    //holds file descriptor for TCP Dawn socket
 int nh_udp_fd = -1;         //holds file descriptor for UDP Dawn socket
 
-// ************************************* FUNCITON DEFINITONS ************************** //
-
-//dumps output from net handler stdout to this process's standard out
-static void *output_dump (void *args)
-{
-	char buf[MAX_LOG_LEN];
-	FILE *fd;
-	if ((fd = fdopen(nh_stdout_fd, "r")) == NULL) {
-		printf("fdopen: could not read stdout as FILE *: %s\n", strerror(errno));
-	}
-	
-	while (1) {
-		//if fgets errors out, it's because the thread was canceled
-		if (fgets(buf, MAX_LOG_LEN, fd) == NULL) {
-			return NULL;
-		}
-		printf("%s", buf);
-	}
-	return NULL;
-}
+// ************************************* HELPER FUNCTIONS ************************************** //
 
 static int connect_tcp (uint8_t client)
 {
@@ -36,7 +16,7 @@ static int connect_tcp (uint8_t client)
 	int sockfd;
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("socket: failed to create listening socket: %s\n", strerror(errno));
-        stop_net_handler();
+		stop_net_handler();
 		exit(1);
 	}
 
@@ -55,7 +35,7 @@ static int connect_tcp (uint8_t client)
 	if ((bind(sockfd, (struct sockaddr *)&cli_addr, sizeof(struct sockaddr_in))) != 0) {
 		printf("bind: failed to bind listening socket to client port: %s\n", strerror(errno));
 		close(sockfd);
-        stop_net_handler();
+		stop_net_handler();
 		exit(1);
 	}
 	
@@ -65,12 +45,11 @@ static int connect_tcp (uint8_t client)
 	serv_addr.sin_port = htons(RASPI_PORT);                   //want to connect to raspi port
 	serv_addr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
 	
-	
 	//connect to the server
-	if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {
+	if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in)) != 0) {
 		printf("connect: failed to connect to socket: %s\n", strerror(errno));
 		close(sockfd);
-        stop_net_handler();
+		stop_net_handler();
 		exit(1);
 	}
 	
@@ -80,60 +59,178 @@ static int connect_tcp (uint8_t client)
 	return sockfd;
 }
 
-void usage ()
+static void recv_udp_data (int udp_fd)
 {
-	printf("Usage: ./net_handler_cli TEST to run in test mode (runs in CLI mode by default)\n");
-}
-
-void start_net_handler (struct sockaddr_in *udp_servaddr)
-{
-	int fd[2]; //for holding file descriptor pair from pipe
+	int max_size = 4096;
+	uint8_t msg[max_size];
+	struct sockaddr_in recvaddr;
+	socklen_t addrlen = sizeof(recvaddr);
+	int recv_size;
 	
-	//create the pipe to capture net_handler's output
-	if (pipe(fd) < 0) {
-		printf("pipe: %s\n", strerror(errno));
+	//receive message from udp socket
+	if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
+		printf("recvfrom: %s\n", strerror(errno));
+	}
+	printf("Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
+	printf("Received data size %d\n", recv_size);
+	DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
+	if (dev_data == NULL) {
+		printf("Error unpacking incoming message\n");
 	}
 	
+	// display the message's fields.
+	printf("Received:\n");
+	for (int i = 0; i < dev_data->n_devices; i++) {
+		printf("Device No. %d: ", i);
+		printf("\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+		printf("\tParams:\n");
+		for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
+			printf("\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
+			switch (dev_data->devices[i]->params[j]->val_case) {
+				case (PARAM__VAL_FVAL):
+					printf("FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
+					break;
+				case (PARAM__VAL_IVAL):
+					printf("INT with value %d\n", dev_data->devices[i]->params[j]->ival);
+					break;
+				case (PARAM__VAL_BVAL):
+					printf("BOOL with value %d\n", dev_data->devices[i]->params[j]->bval);
+					break;
+				default:
+					printf("ERROR: no param value");
+					break;
+			}
+		}
+	}
+	
+	// Free the unpacked message
+	dev_data__free_unpacked(dev_data, NULL);
+	fflush(stdout);
+}
+
+static int recv_tcp_data (int client, int tcp_fd)
+{
+	//variables to read messages into
+	Text* msg;
+	net_msg_t msg_type;
+	uint8_t *buf;
+	uint16_t len;
+	char client_str[16];
+	if (client == SHEPHERD_CLIENT) {
+		strcpy(client_str, "SHEPHERD");
+	} else {
+		strcpy(client_str, "DAWN");
+	}
+
+	printf("From %s:\n", client_str);
+	//parse message
+	if (parse_msg(tcp_fd, &msg_type, &len, &buf) == 0) {
+		printf("Net handler disconnected\n");
+		return -1;
+	}
+	
+	//unpack the message
+	if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+		printf("Error unpacking incoming message from %s\n", client_str);
+	}
+	
+	//print the incoming message
+	if (msg_type == LOG_MSG) {
+		for (int i = 0; i < msg->n_payload; i++) {
+			printf("%s", msg->payload[i]);
+		}
+	} else if (msg_type == CHALLENGE_DATA_MSG) {
+		for (int i = 0; i < msg->n_payload; i++) {
+			printf("Challenge %d result: %s\n", i, msg->payload[i]);
+		}
+	}
+	fflush(stdout);
+	
+	//free allocated memory
+	free(buf);
+	text__free_unpacked(msg, NULL);
+	
+	return 0;
+}
+
+//dumps output from net handler stdout to this process's standard out
+static void *output_dump (void *args)
+{
+	fd_set read_set;
+	int maxfd = (nh_tcp_dawn_fd > nh_tcp_shep_fd) ? nh_tcp_dawn_fd : nh_tcp_shep_fd;
+	maxfd = (nh_udp_fd > maxfd) ? nh_udp_fd : maxfd;
+	maxfd++;
+	
+	//wait for net handler to create some output, then print that output to stdout of this process
+	while (1) {
+		//set up the read_set argument to selct()
+		FD_ZERO(&read_set);
+		FD_SET(nh_tcp_shep_fd, &read_set);
+		FD_SET(nh_tcp_dawn_fd, &read_set);
+		FD_SET(nh_udp_fd, &read_set);
+		
+		//prepare to accept cancellation requests over the select
+		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+		
+		//wait for something to happen
+		if (select(maxfd, &read_set, NULL, NULL, NULL) < 0) {
+			printf("select: output dump: %s\n", strerror(errno));
+		}
+		
+		//deny all cancellation requests until the next loop
+		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+
+		//print stuff from whichever file descriptors are ready for reading...
+		if (FD_ISSET(nh_tcp_shep_fd, &read_set)) {
+			if (recv_tcp_data(SHEPHERD_CLIENT, nh_tcp_shep_fd) == -1) {
+				return NULL;
+			}
+		}
+		if (FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
+			if (recv_tcp_data(DAWN_CLIENT, nh_tcp_dawn_fd) == -1) {
+				return NULL;
+			}
+		}
+		if (FD_ISSET(nh_udp_fd, &read_set)) {
+			recv_udp_data(nh_udp_fd);
+		}
+	}
+	return NULL;
+}
+
+// ************************************* NET HANDLER CLIENT FUNCTIONS ************************** //
+
+void start_net_handler (struct sockaddr_in *udp_servaddr)
+{	
 	//fork net_handler process
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
-	} else if (nh_pid > 0) { //parent
-		close(fd[1]); //close write end
-		nh_stdout_fd = fd[0];
-	} else { //child
-		close(fd[0]); //close read end
-		//attaches the write end of the pipe to standard out
-		if (fd[1] != STDOUT_FILENO) {
-			if (dup2(fd[1], STDOUT_FILENO) != STDOUT_FILENO) {
-				printf("dup2 stdin: %s\n", strerror(errno));
-			}
-			close(fd[1]); //don't need this after dup2
-		}
+	} else if (nh_pid == 0) { //child
+		//exec the actual net_handler process
 		if (execlp("../../net_handler/net_handler", "net_handler", (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
-	}
-	
-	sleep(1); //allows net_handler to set itself up
-	
-	//Connect to the raspi networking ports to catch network output
-	nh_tcp_shep_fd = connect_tcp(SHEPHERD_CLIENT);
-	nh_tcp_dawn_fd = connect_tcp(DAWN_CLIENT);
-	
-    if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        printf("socket creation failed...\n"); 
-        stop_net_handler();
-		exit(1);
-    }
-	//set the UDP server address
-    memset(udp_servaddr, 0, sizeof(struct sockaddr_in));
-    udp_servaddr->sin_family = AF_INET; 
-    udp_servaddr->sin_addr.s_addr = inet_addr(RASPI_ADDR); 
-    udp_servaddr->sin_port = htons(RASPI_UDP_PORT);
-	
-	//start the thread that is dumping output from net_handler to stdout of this process
-	if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
-		printf("pthread_create: output dump\n");
+	} else { //parent
+		sleep(1); //allows net_handler to set itself up
+
+		//Connect to the raspi networking ports to catch network output
+		nh_tcp_dawn_fd = connect_tcp(DAWN_CLIENT);
+		nh_tcp_shep_fd = connect_tcp(SHEPHERD_CLIENT);
+		if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+			printf("socket: UDP socket creation failed...\n"); 
+			stop_net_handler();
+			exit(1);
+		}
+		//set the UDP server address
+		memset(udp_servaddr, 0, sizeof(struct sockaddr_in));
+		udp_servaddr->sin_family = AF_INET; 
+		udp_servaddr->sin_addr.s_addr = inet_addr(RASPI_ADDR); 
+		udp_servaddr->sin_port = htons(RASPI_UDP_PORT);
+
+		//start the thread that is dumping output from net_handler to stdout of this process
+		if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
+			printf("pthread_create: output dump\n");
+		}
 	}
 }
 
@@ -147,20 +244,6 @@ void stop_net_handler ()
 		printf("waitpid: %s\n", strerror(errno));
 	}
 	
-	//close all the file descriptors
-	if (nh_stdout_fd == -1) {
-		close(nh_stdout_fd);
-	}
-	if (nh_tcp_shep_fd == -1) {
-		close(nh_tcp_shep_fd);
-	}
-	if (nh_tcp_dawn_fd == -1) {
-		close(nh_tcp_dawn_fd);
-	}
-	if (nh_udp_fd == -1) {
-		close(nh_udp_fd);
-	}
-	
 	//stop the output dump thread
 	if (pthread_cancel(dump_tid) != 0) {
 		printf("pthread_cancel: output dump\n");
@@ -168,4 +251,36 @@ void stop_net_handler ()
 	if (pthread_join(dump_tid, NULL) != 0) {
 		printf("pthread_join: output dump\n");
 	}
+	
+	//close all the file descriptors
+	if (nh_tcp_shep_fd != -1) {
+		close(nh_tcp_shep_fd);
+	}
+	if (nh_tcp_dawn_fd != -1) {
+		close(nh_tcp_dawn_fd);
+	}
+	if (nh_udp_fd != -1) {
+		close(nh_udp_fd);
+	}
+}	
+	
+
+void send_run_mode (int client, int mode)
+{
+	
+}
+
+void send_start_pos (int client, int pos)
+{
+	
+}
+
+void send_challenge_data (int client, char **data)
+{
+	
+}
+
+void send_device_data (dev_data_t *data)
+{
+	
 }
