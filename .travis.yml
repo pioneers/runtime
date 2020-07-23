@@ -14,8 +14,8 @@ install: skip
 
 # DOCKER_USERNAME is defined as a repository secret environment variable on travis-ci.org
 before_script:
-  - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
-  - docker build --cache-from ${DOCKER_USERNAME}/c-runtime:arm32 -t ${DOCKER_USERNAME}/c-runtime:arm32 -f docker/Dockerfile .
+  # - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
+  - DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
   - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32  # Runs the docker container as detached
 
 # -p 8101:8101/tcp -p 9000:9000/udp 
