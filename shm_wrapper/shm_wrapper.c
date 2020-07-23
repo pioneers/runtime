@@ -267,10 +267,10 @@ void print_params (uint32_t devices)
 							printf("\t\tparam_idx = %d, name = %s, value = %d\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_i);
 							break;
 						case FLOAT:
-							printf("\t\tparam_idx = %d, name = %s, value = %s\n", j, device->params[j].name, (dev_shm_ptr->params[s][i][j].p_b) ? "True" : "False");
+							printf("\t\tparam_idx = %d, name = %s, value = %f\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_f);
 							break;
 						case BOOL:
-							printf("\t\tparam_idx = %d, name = %s, value = %f\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_f);
+							printf("\t\tparam_idx = %d, name = %s, value = %s\n", j, device->params[j].name, (dev_shm_ptr->params[s][i][j].p_b) ? "True" : "False");
 							break;
 					}
 				}
@@ -916,3 +916,4 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 
 	return 0;
 }
+
