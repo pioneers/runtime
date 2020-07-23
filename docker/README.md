@@ -19,13 +19,13 @@ To install Docker, go here https://docs.docker.com/get-docker/.
 
 ## Pulling
 
-To get the image to emulate a Raspberry Pi, do `docker pull avsurfer123/c-runtime:arm32`
+To get the image to emulate a Raspberry Pi, do `docker pull avsurfer123/c-runtime:arm32`.
 
 ## Building
 
 To build your own image instead of using the one on Docker Hub, do 
     
-    DOCKER_BUILDKIT=1 docker build --pull --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
+    DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
 
 ## Pushing
 
