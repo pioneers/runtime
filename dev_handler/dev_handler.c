@@ -212,7 +212,7 @@ void* relayer(void* relay_cast) {
 
     // Subscribe to params requested in shared memory
     uint32_t sub_map[MAX_DEVICES + 1];
-    get_sub_requests(sub_map);
+    get_sub_requests(sub_map, DEV_HANDLER);
     if (sub_map[0] & (1 << relay->shm_dev_idx)) { // If bit is on in sub_map[0], there's a pending SUBSCRIPTION_REQUEST
         message_t* sub_request = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
         ret = send_message(relay, sub_request);
@@ -348,7 +348,7 @@ void* sender(void* relay_cast) {
 		}
 
         // Send another SUBSCRIPTION_REQUEST if requested
-        get_sub_requests(sub_map);
+        get_sub_requests(sub_map, DEV_HANDLER);
         if (sub_map[0] & (1 << relay->shm_dev_idx)) {
             msg = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
             ret = send_message(relay, msg);
