@@ -24,10 +24,14 @@ script:
   - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
   - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
 
+before_deploy:
+  # - docker pull arm32v7/debian:buster
+  - docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+  - DOCKER_BUILDKIT=1 travis_wait docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
+
 deploy:
   provider: script
-  skip_cleanup: true
-  script: travis_wait bash docker/build_and_push.sh
+  script: docker push ${DOCKER_USERNAME}/c-runtime:arm32
   on:
     branch: master
-    condition: $TRAVIS_EVENT_TYPE = push
+  edge: true
