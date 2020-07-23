@@ -1,14 +1,3 @@
-//This is a CLI for net_handler, which prompts user for input to send to net_handler via
-//raspi TCP / UDP ports and routes outputs from raspi TCP / UDP ports to this process's standard output
-//when used in "CLI" mode, outputs prompt text to standard out; when used in "Test" mode, outputs no
-//prompt text to standard out (only output from net_handler)
-
-//requires shared memory process to be running, and net_handler already be compiled and placed in its folder
-
-//TODO: figure out how to initialize the logger from a specified config file instead of the default one in the system
-//(maybe a bash script from the main test process to temporarily rename the log file in the system, write the one to use for tests,
-//and when the test is done, remove the one used for tests and rename the existing log file back to what it was before the tests)
-
 #include "../client/net_handler_client.h"
 
 #define MAX_CMD_LEN 32
@@ -17,12 +6,93 @@
 
 void prompt_run_mode()
 {
+	int client = SHEPHERD_CLIENT;
+	int mode = IDLE_MODE;
+	char nextcmd[MAX_CMD_LEN];
 	
+	//get client to send as
+	while (1) {
+		printf("Send as DAWN or SHEPHERD: ");
+		fgets(nextcmd, MAX_CMD_LEN, stdin);
+		if (strcmp(nextcmd, "dawn\n") == 0) {
+			client = DAWN_CLIENT;
+			break;
+		} else if (strcmp(nextcmd, "shepherd\n") == 0) {
+			client = SHEPHERD_CLIENT;
+			break;
+		} else if (strcmp(nextcmd, "abort\n") == 0) {
+			return;
+		} else {
+			printf("Invalid response to prompt: %s", nextcmd);
+		}
+	}
+	
+	//get mode to send
+	while (1) {
+		printf("Send mode IDLE, AUTO, or TELEOP: ");
+		fgets(nextcmd, MAX_CMD_LEN, stdin);
+		if (strcmp(nextcmd, "idle\n") == 0) {
+			mode = IDLE_MODE;
+			break;
+		} else if (strcmp(nextcmd, "auto\n") == 0) {
+			mode = AUTO_MODE;
+			break;
+		} else if (strcmp(nextcmd, "teleop\n") == 0) {
+			mode = TELEOP_MODE;
+			break;
+		} else if (strcmp(nextcmd, "abort\n") == 0) {
+			return;
+		} else {
+			printf("Invalid response to prompt: %s", nextcmd);
+		}
+	}
+	
+	//send
+	printf("Sending Run Mode message!\n\n");
+	send_run_mode(client, mode);
 }
 
 void prompt_start_pos()
 {
+	int client = SHEPHERD_CLIENT;
+	int pos = LEFT_POS;
+	char nextcmd[MAX_CMD_LEN];
 	
+	//get client to send as
+	while (1) {
+		printf("Send as DAWN or SHEPHERD: ");
+		fgets(nextcmd, MAX_CMD_LEN, stdin);
+		if (strcmp(nextcmd, "dawn\n") == 0) {
+			client = DAWN_CLIENT;
+			break;
+		} else if (strcmp(nextcmd, "shepherd\n") == 0) {
+			client = SHEPHERD_CLIENT;
+			break;
+		} else if (strcmp(nextcmd, "abort\n") == 0) {
+			return;
+		} else {
+			printf("Invalid response to prompt: %s", nextcmd);
+		}
+	}
+	
+	//get pos to send
+	while (1) {
+		printf("Send pos LEFT or RIGHT: ");
+		fgets(nextcmd, MAX_CMD_LEN, stdin);
+		if (strcmp(nextcmd, "left\n") == 0) {
+			pos = LEFT_POS;
+			break;
+		} else if (strcmp(nextcmd, "right\n") == 0) {
+			pos = RIGHT_POS;
+			break;
+		} else {
+			printf("Invalid response to prompt: %s", nextcmd);
+		}
+	}
+	
+	//send
+	printf("Sending Start Pos message!\n\n");
+	send_start_pos(client, pos);
 }
 
 void prompt_challenge_data()
@@ -37,20 +107,28 @@ void prompt_device_data()
 
 void display_help()
 {
-	
+	printf("This is the main menu. Type one of the following commands to send a message to net_handler.\n");
+	printf("Once you type one of the commands and hit \"enter\", follow on-screen instructions.\n");
+	printf("At any point while following the instructions, type \"abort\" to go back to this main menu.\n");
+	printf("All commands should be typed in all lower case (including when being prompted to send messages)\n");
+	printf("\trun mode           send a Run Mode message\n");
+	printf("\tstart pos          send a Start Pos message\n");
+	printf("\tchallenge data     send a Challenge Data message\n");
+	printf("\tdevice data        send a Device Data message (send a subscription request)\n");
+	printf("\thelp               display this help text\n");
+	printf("\tstop               exit the Net Handler CLI\n");
 }
 
 // ********************************** MAIN PROCESS ****************************************** //
 
 void sigint_handler (int signum)
 {
-	printf("Stopping net handler CLI...\n");
-	stop_net_handler();	
-	printf("Done!\n");
+	stop_net_handler();
+	remove(CHALLENGE_SOCKET);
 	exit(0);
 }
 
-int main (int argc, char **argv)
+int main ()
 {
 	struct sockaddr_in udp_servaddr; //for holding server address of UDP connection with raspi
 	char nextcmd[MAX_CMD_LEN]; //to hold nextline
@@ -58,16 +136,17 @@ int main (int argc, char **argv)
 	
 	signal(SIGINT, sigint_handler);
 	
-	printf("Starting net handler CLI...\n");
+	printf("Starting Net Handler CLI...\n");
 	fflush(stdout);
 	
 	//start the net handler and connect all of its output locations to file descriptors in this process
 	start_net_handler(&udp_servaddr);
 	
-	sleep(1); //any logs will be extracted and printed during this sleep, before asking for first command
-	
 	//command-line loop which prompts user for commands to send to net_handler
 	while (!stop) {
+		//all awaiting logs from previous command will be extracted from socket and printed during this sleep before prompting for next command
+		sleep(1);
+		
 		//get the next command
 		printf("> ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
@@ -87,10 +166,11 @@ int main (int argc, char **argv)
 			display_help();
 		} else {
 			printf("Invalid command %s", nextcmd);
+			display_help();
 		}
 	}
 	
-	printf("Stopping net handler CLI...\n");
+	printf("Stopping Net Handler CLI...\n");
 	
 	stop_net_handler();
 	
