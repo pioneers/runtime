@@ -31,7 +31,7 @@ script:
 
 before_deploy:
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+  # - docker run --rm --privileged multiarch/qemu-user-static:register --reset
   # - docker buildx create --use
   # - travis_wait docker buildx build --push --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
   - docker pull arm32v7/debian:buster
