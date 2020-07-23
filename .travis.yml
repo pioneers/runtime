@@ -10,10 +10,15 @@ services:
 # requires that commit is for a PR or is on master branch
 if: (type = pull_request) OR (type = push AND branch = master)
 
+env:
+  - DOCKER_CLI_EXPERIMENTAL=enabled
+
 install: skip
 
 # DOCKER_USERNAME is defined as a repository secret environment variable on travis-ci.org
 before_script:
+  - docker info
+  - docker version
   - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
   - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32 sleep 5m  # Runs the docker container as detached
 
@@ -25,8 +30,11 @@ script:
   - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
 
 before_deploy:
-  # - docker pull arm32v7/debian:buster
-  - docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker run --rm --privileged multiarch/qemu-user-static:register --reset
+  # - docker buildx create --use
+  # - travis_wait docker buildx build --push --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
+  - docker pull arm32v7/debian:buster
   - DOCKER_BUILDKIT=1 travis_wait docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
 
 deploy:
