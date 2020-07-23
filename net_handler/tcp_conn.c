@@ -374,17 +374,25 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	pthread_t* tid = (client == DAWN) ? &dawn_tid : &shepherd_tid;
 
 	// open challenge socket to read and write
+	struct sockaddr_un my_addr;
 	if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
 		log_printf(ERROR, "failed to create challenge socket");
 		return;
 	}
-	struct sockaddr_un my_addr = {0};
+	//set up the challenge socket
+	memset(&my_addr, 0, sizeof(struct sockaddr_un));
 	my_addr.sun_family = AF_UNIX;
-	if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, sizeof(sa_family_t)) < 0) {
-        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
-		close(args->challenge_fd);
-		return;
+	strcpy(my_addr.sun_path, CHALLENGE_SOCKET);
+	
+	//bind it if it doesn't exist on the system already
+	if (access(CHALLENGE_SOCKET, F_OK) == -1) {
+		int my_addr_len = offsetof(struct sockaddr_un, sun_path) + strlen(my_addr.sun_path);
+		if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, my_addr_len) < 0) {
+	        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
+			close(args->challenge_fd);
+			return;
+		}
 	}
 
 	//Open FIFO pipe for logs
