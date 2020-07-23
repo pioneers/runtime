@@ -144,9 +144,6 @@ int main ()
 	
 	//command-line loop which prompts user for commands to send to net_handler
 	while (!stop) {
-		//all awaiting logs from previous command will be extracted from socket and printed during this sleep before prompting for next command
-		sleep(1);
-		
 		//get the next command
 		printf("> ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);

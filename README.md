@@ -103,7 +103,7 @@ Assuming you've built the code, do `./run.sh`
 
 ## Authors
 
-The first version of `c-runtime` was written in the summer of 2020 (when we all had lots of time.... fuck covid) nearly entirely by four people (all class of 2022):
+The first version of `c-runtime` was written in the summer of 2020 (when we all had lots of time.... fuck covid and trump) nearly entirely by four people (all class of 2022):
 
 * Ben Liao
 * Ashwin Vangipuram
