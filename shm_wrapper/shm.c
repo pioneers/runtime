@@ -14,6 +14,9 @@ robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
 
+custom_shm_t *custom_shm_ptr;  // points to shared memory block for custom data specified by executor
+sem_t *custom_sem;			   //semaphore used as a mutex on the custom data
+
 // *********************************** SHM PROCESS FUNCTIONS ************************************************* //
 
 char sname[SNAME_SIZE];   //being lazy here but this is for holding all the semaphore names
@@ -186,6 +189,23 @@ int main ()
 	if (close(fd_shm) == -1) {
 		log_printf(ERROR, "close robot_desc_shm: %s", strerror(errno));
 	}
+
+	//create custom shm block
+	if ((fd_shm = shm_open(CUSTOM_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
+		log_printf(FATAL, "shm_open custom_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if (ftruncate(fd_shm, sizeof(custom_shm_t)) == -1) {
+		log_printf(FATAL, "ftruncate custom_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if ((custom_shm_ptr = mmap(NULL, sizeof(custom_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
+		log_printf(FATAL, "mmap custom_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if (close(fd_shm) == -1) {
+		log_printf(ERROR, "close custom_shm: %s", strerror(errno));
+	}
 	
 	//initialize everything
 	dev_shm_ptr->catalog = 0;
@@ -203,6 +223,8 @@ int main ()
 	rd_shm_ptr->fields[SHEPHERD] = DISCONNECTED;
 	rd_shm_ptr->fields[GAMEPAD] = DISCONNECTED;
 	rd_shm_ptr->fields[START_POS] = LEFT;
+
+	custom_shm_ptr->num_params = 0;
 	
 	//now we just stall and wait
 	while (1) {

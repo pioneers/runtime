@@ -12,7 +12,7 @@ cdef extern from "../runtime_util/runtime_util.h":
         uint8_t num_params
         param_desc_t* params
     ctypedef union param_val_t:
-        int p_i
+        int16_t p_i
         float p_f
         uint8_t p_b
     ctypedef enum param_type_t:
