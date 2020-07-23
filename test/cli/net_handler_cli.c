@@ -13,9 +13,40 @@
 
 #define MAX_CMD_LEN 32
 
+// ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
+
+void prompt_run_mode()
+{
+	
+}
+
+void prompt_start_pos()
+{
+	
+}
+
+void prompt_challenge_data()
+{
+	
+}
+
+void prompt_device_data()
+{
+	
+}
+
+void display_help()
+{
+	
+}
+
+// ********************************** MAIN PROCESS ****************************************** //
+
 void sigint_handler (int signum)
 {
+	printf("Stopping net handler CLI...\n");
 	stop_net_handler();	
+	printf("Done!\n");
 	exit(0);
 }
 
@@ -27,19 +58,43 @@ int main (int argc, char **argv)
 	
 	signal(SIGINT, sigint_handler);
 	
+	printf("Starting net handler CLI...\n");
+	fflush(stdout);
+	
 	//start the net handler and connect all of its output locations to file descriptors in this process
 	start_net_handler(&udp_servaddr);
+	
+	sleep(1); //any logs will be extracted and printed during this sleep, before asking for first command
 	
 	//command-line loop which prompts user for commands to send to net_handler
 	while (!stop) {
 		//get the next command
+		printf("> ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
+		
+		//compare input string against the available commands
 		if (strcmp(nextcmd, "stop\n") == 0) {
 			stop = 1;
+		} else if (strcmp(nextcmd, "run mode\n") == 0) {
+			prompt_run_mode();
+		} else if (strcmp(nextcmd, "start pos\n") == 0) {
+			prompt_start_pos();
+		} else if (strcmp(nextcmd, "challenge data\n") == 0) {
+			prompt_challenge_data();
+		} else if (strcmp(nextcmd, "device data\n") == 0) {
+			prompt_device_data();
+		} else if (strcmp(nextcmd, "help\n") == 0) {
+			display_help();
+		} else {
+			printf("Invalid command %s", nextcmd);
 		}
 	}
 	
+	printf("Stopping net handler CLI...\n");
+	
 	stop_net_handler();
+	
+	printf("Done!\n");
 	
 	return 0;
 }
