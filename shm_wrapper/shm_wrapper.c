@@ -491,6 +491,7 @@ void device_connect (uint8_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *
 	//wait on associated data and command sems
 	my_sem_wait(sems[*dev_ix].data_sem, "data_sem");
 	my_sem_wait(sems[*dev_ix].command_sem, "command_sem");
+	my_sem_wait(sub_map_sem, "sub_map_sem");
 
 	//fill in dev_id for that device with provided values
 	dev_shm_ptr->dev_ids[*dev_ix].type = dev_type;
@@ -506,6 +507,15 @@ void device_connect (uint8_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *
 		dev_shm_ptr->params[COMMAND][*dev_ix][i] = (const param_val_t) {0};
 	}
 
+	// reset executor subscriptions to off
+	dev_shm_ptr->exec_sub_map[0] &= ~(1 << *dev_ix);
+	dev_shm_ptr->exec_sub_map[*dev_ix + 1] = 0;
+
+	// reset net_handler subscriptions to on
+	dev_shm_ptr->net_sub_map[0] |= 1 << *dev_ix;
+	dev_shm_ptr->net_sub_map[*dev_ix + 1] = -1;
+
+	my_sem_post(sub_map_sem, "sub_map_sem");
 	//release associated data and command sems
 	my_sem_post(sems[*dev_ix].data_sem, "data_sem");
 	my_sem_post(sems[*dev_ix].command_sem, "command_sem");
@@ -529,8 +539,6 @@ void device_disconnect (int dev_ix)
 	//wait on associated data and command sems
 	my_sem_wait(sems[dev_ix].data_sem, "data_sem");
 	my_sem_wait(sems[dev_ix].command_sem, "command_sem");
-
-	//wait on cmd_map_sem
 	my_sem_wait(cmd_map_sem, "cmd_map_sem");
 
 	//update the catalog
@@ -540,17 +548,7 @@ void device_disconnect (int dev_ix)
 	dev_shm_ptr->cmd_map[0] &= (~(1 << dev_ix));   //reset the changed bit flag in cmd_map[0]
 	dev_shm_ptr->cmd_map[dev_ix + 1] = 0;          //turn off all changed bits for the device
 
-	// reset executor subscriptions to off
-	dev_shm_ptr->exec_sub_map[0] |= ~(1 << dev_ix);
-	dev_shm_ptr->exec_sub_map[dev_ix + 1] = 0;
-
-	// reset net_handler subscriptions to on
-	dev_shm_ptr->net_sub_map[0] |= 1 << dev_ix;
-	dev_shm_ptr->net_sub_map[dev_ix + 1] = -1;
-
-	//release cmd_map_sem
 	my_sem_post(cmd_map_sem, "cmd_map_sem");
-
 	//release associated upstream and downstream sems
 	my_sem_post(sems[dev_ix].data_sem, "data_sem");
 	my_sem_post(sems[dev_ix].command_sem, "command_sem");
