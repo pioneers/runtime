@@ -42,7 +42,6 @@ int serialport_open(const char* port_name);
 int serialport_close(int fd);
 
 // Utility
-uint64_t millis();
 void cleanup_handler(void *args);
 
 // ************************************ GLOBAL VARIABLES ****************************************** //
@@ -89,7 +88,7 @@ void poll_connected_devices() {
             // If bit i of CONNECTED_DEVS is on, then it's a new device
             for (int i = 0; (connected_devs >> i) > 0; i++) {
                 if (connected_devs & (1 << i)) {
-                    log_printf(INFO, "Starting communication with new device /dev/ttyACM%d\n", i);
+                    log_printf(DEBUG, "Starting communication with new device /dev/ttyACM%d\n", i);
                     communicate(i);
                 }
             }
@@ -117,7 +116,7 @@ int get_new_devices(uint32_t* bitmap) {
             sprintf(port_name, "/dev/ttyACM%d", i);
             // If that port currently connected (file exists), it's a new device
             if (access(port_name, F_OK) != -1) {
-                log_printf(INFO, "Port /dev/ttyACM%d is new\n", i);
+                log_printf(DEBUG, "Port /dev/ttyACM%d is new\n", i);
                 // Turn bit on in BITMAP
                 *bitmap |= (1 << i);
                 // Mark that we've taken care of this device
@@ -196,7 +195,7 @@ void* relayer(void* relay_cast) {
 	ret = verify_lowcar(relay);
 	if (ret != 0) {
         log_printf(DEBUG, "/dev/ttyACM%d couldn't be verified to be a lowcar device", relay->port_num);
-	log_printf(ERROR, "A non-PiE device was recently plugged in. Please unplug immediately");
+        log_printf(ERROR, "A non-PiE device was recently plugged in. Please unplug immediately");
 		relay_clean_up(relay);
 		return NULL;
 	}
@@ -217,7 +216,7 @@ void* relayer(void* relay_cast) {
         message_t* sub_request = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
         ret = send_message(relay, sub_request);
         if (ret != 0) {
-            log_printf(FATAL, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
+            log_printf(WARN, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
         }
         destroy_message(sub_request);
     }
@@ -237,7 +236,7 @@ void* relayer(void* relay_cast) {
         pthread_mutex_lock(&relay->relay_lock);
 		if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
 			pthread_mutex_unlock(&relay->relay_lock);
-			log_printf(INFO, "%s timed out!", get_device_name(relay->dev_id.type));
+			log_printf(WARN, "%s timed out!", get_device_name(relay->dev_id.type));
 			relay_clean_up(relay);
 			return NULL;
 		}
@@ -275,7 +274,7 @@ void relay_clean_up(msg_relay_t* relay) {
     // Close the device and mark that it disconnected
 	serialport_close(relay->file_descriptor);
 	if ((ret = pthread_mutex_lock(&used_ports_lock))) {
-		log_printf(ERROR, "mutex lock failed with code %d", ret);
+		log_printf(ERROR, "used_ports_lock mutex lock failed with code %d", ret);
 	}
     used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
     pthread_mutex_unlock(&used_ports_lock);
@@ -291,7 +290,7 @@ void relay_clean_up(msg_relay_t* relay) {
  */
 void* sender(void* relay_cast) {
     msg_relay_t* relay = relay_cast;
-    log_printf(DEBUG, "Sender on standby\n");
+    log_printf(DEBUG, "Sender on standby for /dev/ttyACM%d\n", relay->port_num);
 
     // Wait until relayer gets an ACKNOWLEDGEMENT
     pthread_mutex_lock(&relay->relay_lock);
@@ -328,9 +327,9 @@ void* sender(void* relay_cast) {
 			device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
 			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
 			msg = make_device_write(relay->dev_id.type, pmap[1 + relay->shm_dev_idx], params);
-                        ret = send_message(relay, msg);
+            ret = send_message(relay, msg);
 			if (ret != 0) {
-				log_printf(FATAL, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
+				log_printf(WARN, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
 			}
 			destroy_message(msg);
 		}
@@ -340,7 +339,7 @@ void* sender(void* relay_cast) {
 			msg = make_ping();
 			ret = send_message(relay, msg);
 			if (ret != 0) {
-				log_printf(FATAL, "Couldn't send PING to %s", get_device_name(relay->dev_id.type));
+				log_printf(WARN, "Couldn't send PING to %s", get_device_name(relay->dev_id.type));
 			}
 			// Update the timestamp at which we sent a PING
 			last_sent_ping_time = millis();
@@ -353,7 +352,7 @@ void* sender(void* relay_cast) {
             msg = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
             ret = send_message(relay, msg);
             if (ret != 0) {
-                log_printf(FATAL, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
+                log_printf(WARN, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
             }
             destroy_message(msg);
         }
@@ -373,7 +372,7 @@ void* sender(void* relay_cast) {
  */
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
-    log_printf(DEBUG, "Receiver on standby\n");
+    log_printf(DEBUG, "Receiver on standby for /dev/ttyACM%d\n", relay->port_num);
 
     // Wait until relayer gets an ACKNOWLEDGEMENT
     pthread_mutex_lock(&relay->relay_lock);
@@ -414,7 +413,7 @@ void* receiver(void* relay_cast) {
 		} else if (msg->message_id == LOG) {
             log_printf(DEBUG, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
 		} else {
-			log_printf(FATAL, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
+			log_printf(WARN, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
 		}
 		// Now that the message is taken care of, clear the message
 		msg->message_id = 0x0;
@@ -443,7 +442,7 @@ int send_message(msg_relay_t* relay, message_t* msg) {
 	len = message_to_bytes(msg, data, len);
     int transferred = writen(relay->file_descriptor, data, len);
     if (transferred != len) {
-        log_printf(FATAL, "Sent only %d out of %d bytes\n", transferred, len);
+        log_printf(WARN, "Sent only %d out of %d bytes to %d\n", transferred, len, get_device_name(relay->dev_id.type));
     }
     free(data);
     //log_printf(DEBUG, "Sent %d bytes: ", len);
@@ -473,11 +472,11 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
         num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
         if (num_bytes_read == 0) {  // read() returned due to timeout
-            log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT!");
+            log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT from /dev/ttyACM%d!", relay->port_num);
             return 3;
         } else if (last_byte_read != 0x00) {
             // If the first thing received isn't a perfect ACK, we won't accept it
-            log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
+            log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from /dev/ttyACM%d\n", last_byte_read, relay->port_num);
             return 1;
         }
     } else { // Receiving from a verified lowcar device
@@ -491,7 +490,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
     			break;
     		}
     		// If we were able to read a byte but it wasn't the delimiter
-    		log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
+    		log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from /dev/ttyACM%d\n", last_byte_read, relay->port_num);
     	}
     }
 
@@ -511,7 +510,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 	// Read the message
 	num_bytes_read = readn(relay->file_descriptor, &data[2], cobs_len);
 	if (num_bytes_read != cobs_len) {
-		log_printf(FATAL, "Couldn't read the full message. Read %d out of %d bytes\n", num_bytes_read, cobs_len);
+		log_printf(WARN, "Couldn't read the full message. Read only %d out of %d bytes from /dev/ttyACM%d\n", num_bytes_read, cobs_len, relay->port_num);
 		free(data);
 		return 1;
 	}
@@ -523,7 +522,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 	int ret = parse_message(data, msg);
 	free(data);
 	if (ret != 0) {
-		log_printf(FATAL, "Incorrect checksum\n");
+		log_printf(WARN, "Incorrect checksum from /dev/ttyACM%d\n", relay->port_num);
 		return 2;
 	}
 	return 0;
@@ -539,7 +538,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
  */
 int verify_lowcar(msg_relay_t* relay) {
 	// Send a Ping
-    log_printf(DEBUG, "Sending a Ping...\n");
+    log_printf(DEBUG, "Sending PING to /dev/ttyACM%d\n", relay->port_num);
     message_t* ping = make_ping();
     int ret = send_message(relay, ping);
     destroy_message(ping);
@@ -568,14 +567,14 @@ int verify_lowcar(msg_relay_t* relay) {
      * In serialport_open(), we set read() to timeout specifically for waiting for ACK */
     struct termios toptions;
     if (tcgetattr(relay->file_descriptor, &toptions) < 0) { // Get current options
-        log_printf(ERROR, "Couldn't get term attributes for port /dev/ttyACM%d", relay->port_num);
+        log_printf(ERROR, "Couldn't get term attributes for %s", get_device_name(relay->dev_id.type));
         return -1;
     }
     toptions.c_cc[VMIN]  = 1;               // read() must read at least a byte before returning
     // Save changes to TOPTIONS immediately using flag TCSANOW
     tcsetattr(relay->file_descriptor, TCSANOW, &toptions);
     if(tcsetattr(relay->file_descriptor, TCSAFLUSH, &toptions) < 0) {
-        log_printf(ERROR, "Couldn't set term attributes for port /dev/ttyACM%d", relay->port_num);
+        log_printf(ERROR, "Couldn't set term attributes for %s", get_device_name(relay->dev_id.type));
         return -1;
     }
 
@@ -583,6 +582,7 @@ int verify_lowcar(msg_relay_t* relay) {
     memcpy(&relay->dev_id.type, &ack->payload[0], 1);
     memcpy(&relay->dev_id.year, &ack->payload[1], 1);
     memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
+    log_printf(INFO, "Connected %s (0x%llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
     log_printf(DEBUG, "ACK received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
         relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
 	relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
@@ -654,17 +654,11 @@ int serialport_close(int fd) {
 
 // ************************************ UTILITY ****************************************** //
 
-/* Returns the number of milliseconds since the Unix Epoch */
-uint64_t millis() {
-	struct timeval time; // Holds the current time in seconds + microsecondsx
-	gettimeofday(&time, NULL);
-	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
-	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
-	return s1 + s2;
-}
-
-void cleanup_handler (void *args)
-{
+/**
+ * If sender/receive is canceled during pthread_cond_wait(), pthread_cleanup_push()
+ * using this function guarantees that relay->relay_lock is unlocked before cancellation.
+ */
+void cleanup_handler (void *args) {
     msg_relay_t *relay = (msg_relay_t *)args;
     pthread_mutex_unlock(&relay->relay_lock);
 }

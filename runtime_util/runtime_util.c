@@ -254,6 +254,15 @@ char** get_joystick_names() {
     return JOYSTICK_NAMES;
 }
 
+/* Returns the number of milliseconds since the Unix Epoch */
+uint64_t millis() {
+	struct timeval time; // Holds the current time in seconds + microsecondsx
+	gettimeofday(&time, NULL);
+	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
+	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
+	return s1 + s2;
+}
+
 /*
  * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
  * Arguments:
