@@ -24,6 +24,9 @@
 #define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
 #define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
 
+#define CUSTOM_SHM_NAME "/custom-shm"
+#define CUSTOM_SHM_MUTEX "/custom-sem"
+
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
 // *********************************** SHM TYPEDEFS  ****************************************************** //
@@ -57,6 +60,12 @@ typedef struct gp_shm {
 typedef struct robot_desc_shm {
 	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t)
 } robot_desc_shm_t;
+
+typedef struct {
+	uint8_t num_params;
+	param_val_t params[MAX_PARAMS];
+	param_desc_t desc[MAX_PARAMS];
+} custom_shm_t;
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
 

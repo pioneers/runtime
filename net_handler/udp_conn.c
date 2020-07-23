@@ -1,4 +1,5 @@
 #include "udp_conn.h"
+#include "pbc_gen/device.pb-c.h"
 
 pthread_t gp_thread, device_thread;
 int socket_fd = -1;
@@ -20,6 +21,10 @@ void* send_device_data(void* args) {
 	int valid_dev_idxs[MAX_DEVICES];
 	uint32_t catalog;
 
+	param_val_t custom_params[MAX_PARAMS];
+	param_desc_t custom_desc[MAX_PARAMS];
+	int num_params;
+
 	while (1) {
 		DevData dev_data = DEV_DATA__INIT;
 
@@ -36,7 +41,7 @@ void* send_device_data(void* args) {
 				num_devices++;
 			}
 		}
-		dev_data.devices = malloc(num_devices * sizeof(Device *));
+		dev_data.devices = malloc((num_devices + 1) * sizeof(Device *));
 
 		//populate dev_data.device[i]
 		int dev_idx = 0;
@@ -86,7 +91,38 @@ void* send_device_data(void* args) {
 			}
 			dev_idx++;
 		}
-		dev_data.n_devices = dev_idx;
+		dev_data.n_devices = dev_idx + 1;
+
+		Device* custom = malloc(sizeof(Device));
+		device__init(custom);
+		dev_data.devices[dev_idx] = custom;
+		custom_read(&num_params, custom_params, custom_desc);
+		custom->n_params = num_params;
+		custom->name = "CustomData";
+		custom->type = MAX_DEVICES;
+		custom->uid = 0;
+		for (int i = 0; i < custom->n_params; i++) {
+			Param* param = malloc(sizeof(Param));
+			param__init(param);
+			param->name = custom_desc[i].name;
+			switch (custom_desc[i].type) {
+				case INT:
+					param->val_case = PARAM__VAL_IVAL;
+					param->ival = custom_params[i].p_i;
+					break;
+				case FLOAT:
+					param->val_case = PARAM__VAL_FVAL;
+					param->fval = custom_params[i].p_f;
+					break;
+				case BOOL:
+					param->val_case = PARAM__VAL_BVAL;
+					param->bval = custom_params[i].p_b;
+					break;
+			}
+			custom->params[i] = param;
+		}
+
+
 		len = dev_data__get_packed_size(&dev_data);
 		// log_printf(DEBUG, "Number of actual devices: %d, total size %d, DevData size %d", dev_idx, len, sizeof(DevData));
 		buffer = malloc(len);
