@@ -6,6 +6,7 @@
 #include <string.h>  // strcmp
 #include <errno.h>
 #include <unistd.h>	// read() and write()
+#include <sys/time.h> // Used in millis()
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
@@ -113,6 +114,9 @@ char** get_button_names();
 char** get_joystick_names();
 
 // *************************** READ/WRITE TO FILE DESCRIPTOR ************************** //
+
+/* Returns the number of milliseconds since the Unix Epoch */
+uint64_t millis();
 
 /*
  * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)

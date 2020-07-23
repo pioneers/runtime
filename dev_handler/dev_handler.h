@@ -10,12 +10,12 @@
 #include "../runtime_util/runtime_util.h"
 #include "../logger/logger.h"
 
-#include <pthread.h>
+#include <pthread.h>    // sender, receiver, and relayer threads
 #include <termios.h>    // POSIX terminal control definitions in serialport_init()
 #include <stdio.h>      // Print
 #include <stdlib.h>
 #include <stdint.h>     // ints with specified sizes (uint8_t, uint16_t, etc.)
-#include <signal.h>     // Used to handle SIGTERM, SIGINT, SIGKILL
+#include <signal.h>     // Used to handle SIGINT (Ctrl+C)
 #include <sys/time.h>   // For timestamps on PING
 #include <unistd.h>     // sleep(int seconds)
 
