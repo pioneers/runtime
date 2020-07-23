@@ -164,6 +164,26 @@ cdef class Robot:
         return False
 
 
+    cpdef void log(self, str key, value) except *:
+        cdef param_val_t param
+        cdef param_desc_t desc
+        desc.name = key.encode('utf-8')
+        if type(value) == int:
+            param.p_i = value
+            desc.type = INT
+        elif type(value) == float:
+            param.p_f = value
+            desc.type = FLOAT
+        elif type(value) == bool:
+            param.p_b = int(value)
+            desc.type = BOOL
+        else:
+            _print(f"Cannot log parameter {key} with type {type(key).__name__} since it's not an int, float, or bool.", level=ERROR)
+            return
+        custom_write(param, desc)
+        
+
+
     cpdef get_value(self, str device_id, str param_name):
         """ 
         Get a device value. 
