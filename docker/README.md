@@ -23,7 +23,9 @@ To get the image to emulate a Raspberry Pi, do `docker pull avsurfer123/c-runtim
 
 ## Building
 
-To build your own image instead of using the one on Docker Hub, do `docker build -t avsurfer123/c-runtime:test -f docker/Dockerfile .`.
+To build your own image instead of using the one on Docker Hub, do 
+    
+    DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
 
 ## Pushing
 

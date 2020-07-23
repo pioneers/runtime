@@ -20,7 +20,7 @@ message Param {
 message Device {
 	string name = 1;
 	uint64 uid = 2;
-	int32 type = 3;
+	uint32 type = 3;
 	repeated Param params = 4; //each device has some number of params
 }
 

@@ -1,5 +1,4 @@
 #include "../net_util.h"
-#include "../../runtime_util/runtime_util.h"
 
 int sockfd = -1;
 
@@ -70,7 +69,7 @@ int main (int argc, char* argv[])
 	run_mode__pack(&run_mode, send_buf + 3);
 	writen(sockfd, send_buf, len_pb + 3); //write the message to the raspi
 	free(send_buf); // Free the allocated serialized buffer
-	
+
 	sleep(3);
 	Text inputs = TEXT__INIT;
 	inputs.n_payload = NUM_CHALLENGES;
@@ -147,7 +146,60 @@ int main (int argc, char* argv[])
 				mode.mode = MODE__TELEOP;
 			}
 			else if (strcmp(mode_str, "idle\n") == 0) {
-				// mode.mode = MODE__IDLE;
+				mode.mode = MODE__IDLE;
+			}
+			else if (strcmp(mode_str, "off\n") == 0) {
+				// Send DEVICE DATA subscription
+				DevData dev_data = DEV_DATA__INIT;
+				dev_data.n_devices = 1;
+				dev_data.devices = malloc(sizeof(Device*) * dev_data.n_devices);
+				dev_data.devices[0] = malloc(sizeof(Device));
+				Device* device = dev_data.devices[0];
+				device__init(device);
+				device_t* polarbear = get_device(12);
+				device->n_params = polarbear->num_params;
+				device->type = 12;
+				device->uid = 2604648;
+				device->params = malloc(sizeof(Param*) * device->n_params);
+				for (int i = 0; i < device->n_params; i++) {
+					device->params[i] = malloc(sizeof(Param));
+					param__init(device->params[i]);
+					device->params[i]->ival = 0;
+					device->params[i]->val_case = PARAM__VAL_IVAL;
+				}
+				printf("Turning Polarbear off\n");
+				len_pb = dev_data__get_packed_size(&dev_data);
+				send_buf = make_buf(DEVICE_DATA_MSG, len_pb);
+				dev_data__pack(&dev_data, send_buf + 3);
+				writen(sockfd, send_buf, len_pb + 3);
+				free(send_buf);
+				continue;
+			}
+			else if (strcmp(mode_str, "on\n") == 0) {
+				DevData dev_data = DEV_DATA__INIT;
+				dev_data.n_devices = 1;
+				dev_data.devices = malloc(sizeof(Device*) * dev_data.n_devices);
+				dev_data.devices[0] = malloc(sizeof(Device));
+				Device* device = dev_data.devices[0];
+				device__init(device);
+				device_t* polarbear = get_device(12);
+				device->n_params = polarbear->num_params;
+				device->type = 12;
+				device->uid = 2604648;
+				device->params = malloc(sizeof(Param*) * device->n_params);
+				for (int i = 0; i < device->n_params; i++) {
+					device->params[i] = malloc(sizeof(Param));
+					param__init(device->params[i]);
+					device->params[i]->bval = 1;
+					device->params[i]->val_case = PARAM__VAL_BVAL;
+				}
+				printf("Turning Polarbear on\n");
+				len_pb = dev_data__get_packed_size(&dev_data);
+				send_buf = make_buf(DEVICE_DATA_MSG, len_pb);
+				dev_data__pack(&dev_data, send_buf + 3);
+				writen(sockfd, send_buf, len_pb + 3);
+				free(send_buf);
+				continue;
 			}
 			else {
 				continue;
