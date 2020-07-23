@@ -1,4 +1,4 @@
-FROM arm32v7/debian:buster
+FROM --platform=linux/arm/v7 debian:buster
 
 RUN apt-get -q update
 
