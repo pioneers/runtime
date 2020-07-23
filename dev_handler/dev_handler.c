@@ -43,8 +43,6 @@ int serialport_close(int fd);
 
 // Utility
 uint64_t millis();
-int readn (int fd, void *buf, uint16_t n);
-int writen (int fd, void *buf, uint16_t n);
 
 // ************************************ GLOBAL VARIABLES ****************************************** //
 // Bitmap indicating whether /dev/ttyACM* is used, where * is the *-th bit
@@ -76,10 +74,6 @@ void stop() {
             device_disconnect(i);
         }
     }
-    //Stop shared memory
-	shm_stop();
-    // Stop logger
-    logger_stop();
     // Destroy locks
     pthread_mutex_destroy(&used_ports_lock);
 	exit(0);
@@ -135,9 +129,9 @@ int get_new_devices(uint32_t* bitmap) {
     return num_devices_found;
 }
 
-// ************************************ THREAD-HANDLING ****************************************** //
+// ************************************ THREAD-HANDLING ************************************ //
 
-/*
+/**
  * Opens threads for communication with a device
  * Three threads will be opened:
  *  relayer: Verifies device is lowcar and cancels threads when device disconnects/timesout
@@ -149,18 +143,18 @@ int get_new_devices(uint32_t* bitmap) {
 void communicate(uint8_t port_num) {
 	msg_relay_t* relay = malloc(sizeof(msg_relay_t));
     relay->port_num = port_num;
-    if (OUTPUT == USB_DEV) {
-        char port_name[15]; // Template size + 2 indices for port_number
-        sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
-        log_printf(DEBUG, "Setting up threads for %s\n", port_name);
-        relay->file_descriptor = serialport_open(port_name);
-        if (relay->file_descriptor == -1) {
-            log_printf(ERROR, "Couldn't open port %s\n", port_name);
-            free(relay);
-            return;
-        } else {
-            log_printf(DEBUG, "Opened port %s\n", port_name);
-        }
+
+    // Open serial port
+    char port_name[15]; // Template size + 2 indices for port_number
+    sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
+    log_printf(DEBUG, "Setting up threads for %s\n", port_name);
+    relay->file_descriptor = serialport_open(port_name);
+    if (relay->file_descriptor == -1) {
+        log_printf(ERROR, "Couldn't open port %s\n", port_name);
+        free(relay);
+        return;
+    } else {
+        log_printf(DEBUG, "Opened port %s\n", port_name);
     }
 
 	// Initialize the other relay values
@@ -184,7 +178,7 @@ void communicate(uint8_t port_num) {
     }
 }
 
-/*
+/**
  * Sends a PING to the device and waits for an ACKNOWLEDGEMENT
  * If the ACKNOWLEDGEMENT takes too long, close the device and exit all threads
  * Connects the device to shared memory and signals the sender and receiver to start
@@ -232,7 +226,7 @@ void* relayer(void* relay_cast) {
     sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
 	while (1) {
 		// If Arduino port file doesn't exist, it disconnected
-        if (OUTPUT == USB_DEV && access(port_name, F_OK) == -1) {
+        if (access(port_name, F_OK) == -1) {
             log_printf(INFO, "%s disconnected!", get_device_name(relay->dev_id.type));
             relay_clean_up(relay);
             return NULL;
@@ -250,7 +244,8 @@ void* relayer(void* relay_cast) {
 	}
 }
 
-/* Called by relayer to clean up after the device.
+/**
+ * Called by relayer to clean up after the device.
  * Closes serialport, cancels threads,
  * disconnects from shared memory, and frees the RELAY struct
  */
@@ -273,6 +268,11 @@ void relay_clean_up(msg_relay_t* relay) {
 		device_disconnect(relay->shm_dev_idx);
 	}
 
+    /* 1) If lowcar device timed out, we sleep to give it time to reset and try to send an ACK again
+     * 2) If not lowcar device, we want to minimize time spent on multiple attempts to receive an ACK
+     */
+    sleep(TIMEOUT / 1000);
+
     // Close the device and mark that it disconnected
 	serialport_close(relay->file_descriptor);
 	if ((ret = pthread_mutex_lock(&used_ports_lock))) {
@@ -288,10 +288,8 @@ void relay_clean_up(msg_relay_t* relay) {
 	free(relay);
 }
 
-/*
- * Continuously reads from shared memory to serialize the necessary information
- * to send to the device.
- * Sets relay->last_sent_hb_time when a HeartBeatRequest is sent
+/**
+ * Continuously sends PING and reads from shared memory to send DEVICE_WRITE/SUBSCRIPTION_REQUEST
  * RELAY_CAST is to be casted as msg_relay_t
  */
 void* sender(void* relay_cast) {
@@ -370,7 +368,7 @@ void* sender(void* relay_cast) {
 	return NULL;
 }
 
-/*
+/**
  * Continuously attempts to parse incoming data over serial and send to shared memory
  * Sets relay->last_received_ping_time upon receiving a PING
  * RELAY_CAST is to be casted as msg_relay_t
@@ -400,6 +398,7 @@ void* receiver(void* relay_cast) {
 	while (1) {
 		// Try to read a message
 		if (receive_message(relay, msg) != 0) {
+            // Message was broken... try to read the next message
 			continue;
 		}
 		if (msg->message_id == PING) {
@@ -432,10 +431,10 @@ void* receiver(void* relay_cast) {
 
 // ************************************ DEVICE COMMUNICATION ****************************************** //
 
-/*
+/**
+ * Helper function for sender()
  * Serializes, encodes, and sends a message
- * msg: The message to be sent, constructed from the functions below
- * transferred: Output location for number of bytes actually sent
+ * msg: The message to be sent
  * return: 0 if successful
  *         -1 if couldn't write all the bytes
  */
@@ -443,10 +442,7 @@ int send_message(msg_relay_t* relay, message_t* msg) {
 	int len = calc_max_cobs_msg_length(msg);
 	uint8_t* data = malloc(len);
 	len = message_to_bytes(msg, data, len);
-    int transferred = 0;
-    if (OUTPUT == USB_DEV) {
-        transferred = writen(relay->file_descriptor, data, len);
-    }
+    int transferred = writen(relay->file_descriptor, data, len);
     if (transferred != len) {
         log_printf(FATAL, "Sent only %d out of %d bytes\n", transferred, len);
     }
@@ -456,7 +452,8 @@ int send_message(msg_relay_t* relay, message_t* msg) {
 	return (transferred == len) ? 0 : -1;
 }
 
-/*
+/**
+ * Helper function for receiver()
  * Continuously reads from stream until reads the next message, then attempts to parse
  * This function blocks until it reads a (possibly broken) message
  * relay: The shred relay object
@@ -469,16 +466,35 @@ int send_message(msg_relay_t* relay, message_t* msg) {
 int receive_message(msg_relay_t* relay, message_t* msg) {
 	uint8_t last_byte_read = 0; // Variable to temporarily hold a read byte
     int num_bytes_read = 0;
-	// Keep reading a byte until we get the delimiter byte
-	while (1) {
-		num_bytes_read = readn(relay->file_descriptor, &last_byte_read, 1);
-        // TODO: Return 3 on timeout
-		if (last_byte_read == 0x00) {
-			break;
-		}
-		// If we were able to read a byte but it wasn't the delimiter
-		log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
-	}
+
+    if (relay->dev_id.uid == -1) {
+        /* Haven't verified device is lowcar yet
+         * read() is set to timeout while waiting for an ACK (see serialport_open())*/
+        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
+        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+        if (num_bytes_read == 0) {  // read() returned due to timeout
+            log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT!");
+            return 3;
+        } else if (last_byte_read != 0x00) {
+            // If the first thing received isn't a perfect ACK, we won't accept it
+            log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
+            return 1;
+        }
+    } else { // Receiving from a verified lowcar device
+        // Keep reading a byte until we get the delimiter byte
+    	while (1) {
+            pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    		num_bytes_read = readn(relay->file_descriptor, &last_byte_read, 1);   // Waiting for first byte can block
+            pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+    		if (last_byte_read == 0x00) {
+                // Found start of a message
+    			break;
+    		}
+    		// If we were able to read a byte but it wasn't the delimiter
+    		log_printf(DEBUG, "Attempting to read delimiter but got 0x%X\n", last_byte_read);
+    	}
+    }
 
 	// Read the next byte, which tells how many bytes left are in the message
 	uint8_t cobs_len;
@@ -514,9 +530,10 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 	return 0;
 }
 
-/*
- * Synchronously sends a PING message to a device to check if it's a lowcar device
- * relay: Struct holding device, handle, and endpoint fields
+/**
+ * Sends a PING to the device and waits for an ACKNOWLEDGEMENT
+ * The first message received must be a perfectly constructed ACKNOWLEDGEMENT
+ * relay: Struct holding all relevant device information
  * return:  0 upon receiving an ACKNOWLEDGEMENT. Sets relay->dev_id
  *          1 if Ping message couldn't be sent
  *          2 ACKNOWLEDGEMENT wasn't received
@@ -534,23 +551,22 @@ int verify_lowcar(msg_relay_t* relay) {
 	// Try to read an ACKNOWLEDGEMENT, which we expect from a lowcar device that receives a PING
     message_t* ack = make_empty(MAX_PAYLOAD_SIZE);
 	log_printf(DEBUG, "Listening for ACKNOWLEDGEMENT from /dev/ttyACM%d\n", relay->port_num);
-    while (1) {
-        // TODO: Review constraints on first message received
-        ret = receive_message(relay, ack);
-        if (ret == 0) { // Got message
-            break;
-        } else if (ret == 3) { // Timeout
-            return 2;
-        }
-        sleep(1);
-    }
-    if (ack->message_id != ACKNOWLEDGEMENT) {
+    ret = receive_message(relay, ack);
+    if (ret != 0) {
+        log_printf(DEBUG, "Not an ACKNOWLEDGEMENT");
+        destroy_message(ack);
+        return 2;
+    } else if (ack->message_id != ACKNOWLEDGEMENT) {
 		log_printf(DEBUG, "Message is not an ACKNOWLEDGEMENT, but of type %d", ack->message_id);
 		destroy_message(ack);
 		return 2;
 	}
 
-    // Set serial port options to allow read() to block indefinitely
+    /* We have a lowcar device! */
+
+    /* Set serial port options to allow read() to block indefinitely
+     * We expect the lowcar device to continuously send data
+     * In serialport_open(), we set read() to timeout specifically for waiting for ACK */
     struct termios toptions;
     if (tcgetattr(relay->file_descriptor, &toptions) < 0) { // Get current options
         log_printf(ERROR, "Couldn't get term attributes for port /dev/ttyACM%d", relay->port_num);
@@ -564,11 +580,11 @@ int verify_lowcar(msg_relay_t* relay) {
         return -1;
     }
 
-	// We have a lowcar device!
-    relay->dev_id.type = *(uint16_t*) ack->payload;
-    relay->dev_id.year = *(ack->payload + 2);
-    relay->dev_id.uid = *(uint64_t*) (ack->payload + 3);
-    log_printf(DEBUG, "ACKNOWLEDGEMENT received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
+	// Parse ACKNOWLEDGEMENT payload into relay->dev_id_t
+    memcpy(&relay->dev_id.type, &ack->payload[0], 1);
+    memcpy(&relay->dev_id.year, &ack->payload[1], 1);
+    memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
+    log_printf(DEBUG, "ACK received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
         relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
 	relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
     destroy_message(ack);
@@ -582,7 +598,7 @@ int verify_lowcar(msg_relay_t* relay) {
  * Uses 8-N-1 serial port config and without special processing
  * Also makes read() block for TIMEOUT milliseconds
  *      Used to timeout when waiting for an ACKNOWLEDGEMENT
- *      After receiving an ACKNOWLEDGEMENT, read() blocks until receiving at least a byte
+ *      After receiving an ACKNOWLEDGEMENT, read() blocks until receiving at least a byte (set in verify_lowcar())
  * serialport: The name of the port (ex: "/dev/ttyACM0", "/dev/tty.usbserial", "COM1")
  * returns a file_descriptor or -1 on error
  */
@@ -648,86 +664,13 @@ uint64_t millis() {
 	return s1 + s2;
 }
 
-// TODO: These are copy pasted from net_util.c. Maybe move these into runtime_util.c
-/*
- * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
- * Arguments:
- *    - int fd: file descriptor to read from
- *    - void *buf: pointer to location to copy read bytes into
- *    - size_t n: number of bytes to read
- * Return:
- *    - > 0: number of bytes read into buf
- *    - 0: read EOF on fd
- *    - -1: read errored out
- */
-int readn (int fd, void *buf, uint16_t n)
-{
-	uint16_t n_remain = n;
-	uint16_t n_read;
-	char *curr = buf;
-
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-	while (n_remain > 0) {
-		if ((n_read = read(fd, curr, n_remain)) < 0) {
-			if (errno == EINTR) { //read interrupted by signal; read again
-				n_read = 0;
-			} else {
-				perror("read");
-				log_printf(ERROR, "reading from fd failed");
-				return -1;
-			}
-		} else if (n_read == 0) { //received EOF
-			return 0;
-		}
-		n_remain -= n_read;
-		curr += n_read;
-	}
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-	return (n - n_remain);
-}
-
-/*
- * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
- * Arguments:
- *    - int fd: file descriptor to write to
- *    - void *buf: pointer to location to read from
- *    - size_t n: number of bytes to write
- * Return:
- *    - >= 0: number of bytes written into buf
- *    - -1: write errored out
- */
-int writen (int fd, void *buf, uint16_t n)
-{
-	uint16_t n_remain = n;
-	uint16_t n_written;
-	char *curr = buf;
-
-	while (n_remain > 0) {
-		if ((n_written = write(fd, curr, n_remain)) <= 0) {
-			if (n_written < 0 && errno == EINTR) { //write interrupted by signal, write again
-				n_written = 0;
-			} else {
-				perror("write");
-				log_printf(ERROR, "writing to fd failed");
-				return -1;
-			}
-		}
-		n_remain -= n_written;
-		curr += n_written;
-	}
-	return n;
-}
-
 // ************************************ MAIN ****************************************** //
 
 int main() {
-	// If SIGINT (Ctrl+C) is received, call sigintHandler to clean up
+	// If SIGINT (Ctrl+C) is received, call stop() to clean up
 	signal(SIGINT, stop);
 	init();
-    log_printf(INFO, "DEV_HANDLER starting with OUTPUT==%s\n", (OUTPUT == USB_DEV) ? "USB_DEV" : "FILE_DEV");
-    // Start polling if OUTPUT == USB
+    log_printf(INFO, "DEV_HANDLER initialized.");
     poll_connected_devices();
 	return 0;
 }
