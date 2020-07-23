@@ -267,6 +267,7 @@ void start_net_handler (struct sockaddr_in *udp_servaddr)
 		if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
 			printf("pthread_create: output dump\n");
 		}
+		sleep(1); //allow time for thread to dump output before returning to client
 	}
 }
 
@@ -334,6 +335,7 @@ void send_run_mode (int client, int mode)
 		writen(nh_tcp_dawn_fd, send_buf, len + 3);
 	}
 	free(send_buf);
+	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_start_pos (int client, int pos)
@@ -366,6 +368,7 @@ void send_start_pos (int client, int pos)
 		writen(nh_tcp_dawn_fd, send_buf, len + 3);
 	}
 	free(send_buf);
+	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_challenge_data (int client, char **data)

@@ -245,7 +245,6 @@ void *write_thread_dtrwt (void *arg)
 	const int trials = 100000; //write 100000 times to the block
 	param_val_t params_test[MAX_PARAMS];
 	param_val_t params_in[MAX_PARAMS];
-	int x;
 	
 	//we are writing to the device data block
 	//write 100,000 times on the device upstream block as fast as possible

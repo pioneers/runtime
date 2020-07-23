@@ -13,7 +13,6 @@
 
 void sync()
 {
-	int dev_ix;
 	uint32_t catalog;
 	param_val_t params_in[MAX_PARAMS];
 	param_val_t params_out[MAX_PARAMS];
@@ -59,10 +58,6 @@ void sanity_test()
 	params_in[1].p_f = -0.9;
 	params_in[1].p_b = 1;
 	
-	param_val_t params_out[MAX_PARAMS];
-	
-	uint32_t pmap[33];
-	
 	sync();
 	
 	print_dev_ids();
@@ -105,9 +100,7 @@ void dev_conn_test ()
 //can be done in a second on a device downstream block between
 //exeuctor and device handler
 void single_thread_load_test ()
-{
-	int dev_ix = -1;
-	
+{	
 	int count = 100; //starting number of writes to complete
 	double gain = 40000;
 	
@@ -250,7 +243,6 @@ void *write_thread_dtrwt (void *arg)
 //writing to the downstream block and reading from the upstream block
 void dual_thread_read_write_test ()
 {
-	int dev_ix = -1;
 	int status;
 	pthread_t read_tid, write_tid; //thread_ids for the two threads
 	
@@ -285,7 +277,6 @@ void dual_thread_read_write_test ()
 //exeuctor and device handler, USING DEV_UID READ/WRITE FUNCTIONS
 void single_thread_load_test_uid ()
 {
-	int dev_ix = -1;
 	uint64_t dev_uid = 0;
 	dev_id_t dev_ids[MAX_DEVICES];
 	
