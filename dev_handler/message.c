@@ -22,19 +22,22 @@ static ssize_t device_write_payload_size(uint16_t device_type, uint32_t param_bi
     ssize_t result = BITMAP_SIZE;
     device_t* dev = get_device(device_type);
     // Loop through each of the device's parameters and add the size of the parameter
-    for (int i = 0; i < dev->num_params; i++) {
+    for (int i = 0; (param_bitmap >> i) > 0; i++) {
         // Ignore parameter i if the i-th bit is off
         if (((1 << i) & param_bitmap) == 0) {
             continue;
         }
-        char* type = dev->params[i].type;
-        if (strcmp(type, "int") == 0) {
-            result += sizeof(int16_t);
-        } else if (strcmp(type, "float") == 0) {
-            result += sizeof(float);
-        } else {
-            result += sizeof(uint8_t);
-        }
+		switch (dev->params[i].type) {
+			case INT:
+				result += sizeof(int16_t);
+				break;
+			case FLOAT:
+				result += sizeof(float);
+				break;
+			case BOOL:
+				result += sizeof(uint8_t);
+				break;
+		}
     }
     return result;
 }
@@ -53,7 +56,6 @@ int append_payload(message_t *msg, uint8_t *data, uint8_t length)
 	msg->payload_length += length;
 	return (msg->payload_length > msg->max_payload_length) ? -1 : 0;
 }
-
 
 /*
  * Computes the checksum of data
@@ -204,8 +206,8 @@ message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param
 	device_t* dev = get_device(dev_type);
 	// Don't write to non-existent params
 	pmap &= ((uint32_t) -1) >> (MAX_PARAMS - dev->num_params);	// Set non-existent params to 0
-	// Set non-write-able params to 0
-	for (int i = 0; i < MAX_PARAMS; i++) {
+	// Set non-writeable params to 0
+	for (int i = 0; (pmap >> i) > 0; i++) {
 		if (dev->params[i].write == 0) {
 			pmap &= ~(1 << i);	// Set bit i to 0
 		}
@@ -219,20 +221,23 @@ message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param
     int status = 0;
     // Append the param bitmap
     status += append_payload(dev_write, (uint8_t*) &pmap, BITMAP_SIZE);
-    for (int i = 0; i < MAX_PARAMS; i++) {
+	// Append the param values to the payload
+    for (int i = 0; (pmap >> i) > 0; i++) {
         // If the parameter is off in the bitmap, skip it
         if (((1 << i) & pmap) == 0) {
             continue;
         }
-		// Determine the size of the parameter and append it accordingly
-        char* param_type = dev->params[i].type;
-        if (strcmp(param_type, "int") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int16_t));
-        } else if (strcmp(param_type, "float") == 0) {
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_f), sizeof(float));
-        } else if (strcmp(param_type, "bool") == 0) { // Boolean
-            status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_b), sizeof(uint8_t));
-        }
+		switch (dev->params[i].type) {
+			case INT:
+				status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_i), sizeof(int16_t));
+				break;
+			case FLOAT:
+				status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_f), sizeof(float));
+				break;
+			case BOOL:
+				status += append_payload(dev_write, (uint8_t*) &(param_values[i].p_b), sizeof(uint8_t));
+				break;
+		}
     }
     return (status == 0) ? dev_write : NULL;
 }
@@ -316,24 +321,28 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
 	//printf("%s: ", dev->name);
-    for (int i = 0; i < MAX_PARAMS; i++) {
+    for (int i = 0; (bitmap >> i) > 0; i++) {
         // If bit is off, parameter is not included in the payload
         if (((1 << i) & bitmap) == 0) {
             continue;
         }
-        if (strcmp(dev->params[i].type, "int") == 0) {
-            vals[i].p_i = *((int16_t*) payload_ptr);
-			//printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
-            payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
-        } else if (strcmp(dev->params[i].type, "float") == 0) {
-            vals[i].p_f = *((float*) payload_ptr);
-			//printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
-            payload_ptr += sizeof(float) / sizeof(uint8_t);
-        } else if (strcmp(dev->params[i].type, "bool") == 0) {
-            vals[i].p_b = *payload_ptr;
-			//printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
-            payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
-        }
+		switch (dev->params[i].type) {
+			case INT:
+				vals[i].p_i = *((int16_t*) payload_ptr);
+				//printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
+				payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
+				break;
+			case FLOAT:
+				vals[i].p_f = *((float*) payload_ptr);
+				//printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
+				payload_ptr += sizeof(float) / sizeof(uint8_t);
+				break;
+			case BOOL:
+				vals[i].p_b = *payload_ptr;
+				//printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
+				payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
+				break;
+		}
     }
 	//printf("\n");
 }

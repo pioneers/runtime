@@ -21,16 +21,6 @@
 
 // ************************************ CONFIG ************************************* //
 
-// The types of output the DEV_HANDLER can communicate with. FILE_DEV is used for `make fake`
-typedef enum { USB_DEV, FILE_DEV } output_type_t;
-// Whether DEV_HANDLER should communicate with USB devices over serial or to a fake device over .txt files (for testing)
-#define OUTPUT USB_DEV // Choose USB_DEV when testing with Arduinos. Choose FILE_DEV when using `make fake`
-
-// The file to write to if output == FILE_DEV
-#define TO_DEVICE "to_device.txt"
-// The file to read from if output == FILE_DEV
-#define TO_DEV_HANDLER "to_dev_handler.txt"
-
 /* The maximum number of milliseconds to wait between each PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
 #define TIMEOUT 2500
@@ -43,10 +33,10 @@ typedef enum { USB_DEV, FILE_DEV } output_type_t;
 // Initialize logger, shm, and mutexes
 void init();
 
-// Stop logger, stop shm, and destroy mutexes
+// Disconnect devices from shared memory and destroy mutexes
 void stop();
 
-/*
+/**
  * Detects when devices are connected
  * On Arduino device connect, connect to shared memory and spawn three threads to communicate with the device
  */

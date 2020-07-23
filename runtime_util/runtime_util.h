@@ -100,9 +100,6 @@ uint8_t device_name_to_type(char* dev_name);
 /* Returns the device name given its type DEVICE_TYPE or NULL if the device doesn't exist. */
 char* get_device_name(uint8_t dev_type);
 
-/* Returns the device name given its type DEVICE_TYPE */
-char* get_device_name(uint16_t device_type);
-
 /* Return the description of the device type's parameter. */
 param_desc_t* get_param_desc(uint8_t dev_type, char* param_name);
 

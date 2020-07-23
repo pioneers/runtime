@@ -6,7 +6,7 @@
  * The cobs encoded message, when decoded is in the following format:
  * [message id][payload length][payload][checksum]
  */
- 
+
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
@@ -29,7 +29,7 @@
 // The size in bytes of the section specifying the interval for SUBSCRIPTION_REQUEST
 #define INTERVAL_SIZE 2
 // The size in bytes of the section specifying the device id for ACKNOWLEDGEMENT
-#define DEVICE_ID_SIZE 11
+#define DEVICE_ID_SIZE 10
 // The size in bytes of the section specifying the checksum of the message id, the payload length, and the payload itself
 #define CHECKSUM_SIZE 1
 // The length of the largest payload in bytes, which may be reached for DEVICE_WRITE and DEVICE_DATA message types.
