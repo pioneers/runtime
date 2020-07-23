@@ -20,9 +20,9 @@ before_script:
 
 script:
   - docker cp . $(docker ps -q):/root/runtime/ # Copy the newest code into the image
-  - docker exec -d $(docker ps -q) bash -c "./build.sh && ./run.sh" # Build and run with latest code
-  - sleep 30 # Wait for Runtime to build and run boot up, not best method
-  - docker exec -t $(docker ps -q) bash -c "cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
+  - docker exec -t $(docker ps -q) bash -c "./build.sh" # Build the latest code
+  - docker exec -d $(docker ps -q) bash -c "./run.sh"   # Run the Runtime processes
+  - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
   - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
 
 
