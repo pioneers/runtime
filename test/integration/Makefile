@@ -16,3 +16,6 @@ tc_48_1: $(DEPENDENCIES) tc_48_1.c
 
 tc_48_2: $(DEPENDENCIES) tc_48_2.c
 	gcc tc_48_2.c $(SRC_FILES) -o $@ $(LIBS)
+
+clean:
+	rm tc_48_1 tc_48_2

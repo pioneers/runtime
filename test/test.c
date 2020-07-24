@@ -2,17 +2,41 @@
 
 #define TEMP_FILE "temp.txt"
 
+pid_t output_redirect;          //holds process ID of output redirection process
+FILE *temp_fp;                  //file pointer of open temp file
+int save_std_out;               //saved standard output file descriptor to return to normal printing after test
+int pipe_fd[2];                 //read and write ends of the pipe created between the parent and child processes
 char *test_output = NULL;       //holds the contents of temp file
-int temp_fd;                    //file descriptor of open temp file
-int save_stdout;                //saved file descriptor of standard output
 int check_num = 0;              //increments to report status each time a check is performed
 char *global_test_name = NULL;  //name of test
+
+//child process sigint handler
+static void child_sigint_handler (int signum)
+{
+	fclose(temp_fp);   //close temp file
+	close(pipe_fd[0]); //close read end of pipe
+	exit(0);
+}
+
+//child process main function that just allows stdout to go to the temp file and waits for SIGINT
+static void child_main_function ()
+{
+	char nextline[MAX_LOG_LEN];
+	
+	//register sigint handler
+	signal(SIGINT, child_sigint_handler);
+	
+	//wait for SIGINT to come from parent
+	while (1) {
+		fgets(nextline, MAX_LOG_LEN, stdin);
+		printf("%s", nextline);            //print to standard out (attached to terminal)
+		fprintf(temp_fp, "%s", nextline);  //print to temp file
+	}
+}
 
 //removes the temporary file on exit
 static void cleanup_handler ()
 {
-	close(temp_fd);
-	remove(TEMP_FILE);
 	free(global_test_name);
 	free(test_output);
 }
@@ -27,19 +51,40 @@ void start_test (char *test_name)
 	global_test_name = malloc(strlen(test_name));
 	strcpy(global_test_name, test_name);
 	
-	//open the temp file
-	if ((temp_fd = open(TEMP_FILE, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) == -1) {
-		printf("open: cannot create temp file: %s\n", strerror(errno));
+	//create a pipe
+	if (pipe(pipe_fd) < 0) {
+		printf("pipe: %s\n", strerror(errno));
 	}
-   
-    //save standard output descriptor to save_stdout
-    save_stdout = dup(fileno(stdout));
-
-	//route standard output to this file
-	if (dup2(temp_fd, fileno(stdout)) == -1) {
-		fprintf(stderr, "dup2 stdout to temp_fd: %s\n", strerror(errno));
-	}
-	atexit(cleanup_handler);
+	
+	//fork this process; in the child, route stdin to read end of pipe; in parent, route stdout to write end of pipe
+	if ((output_redirect = fork()) < 0) {
+		printf("fork: %s\n", strerror(errno));
+	} else if (output_redirect == 0) { //child
+		//open the temp file
+		if ((temp_fp = fopen(TEMP_FILE, "w")) == NULL) {
+			printf("open: cannot create temp file: %s\n", strerror(errno));
+		}
+		
+		//route stdin to read end of pipe
+		if (dup2(pipe_fd[0], fileno(stdin)) == -1) {
+			fprintf(stderr, "dup2 stdin to read end of pipe: %s\n", strerror(errno));
+		}
+		close(pipe_fd[1]); //don't need write end
+		
+		child_main_function();
+	} else { //parent
+		//save the standard out attached to the terminal for later
+		save_std_out = dup(fileno(stdout));
+		
+		//route stdout to write end of pipe
+		if (dup2(pipe_fd[1], fileno(stdout)) == -1) {
+			fprintf(stderr, "dup2 stdout to write end of pipe: %s\n", strerror(errno));
+		}
+		close(pipe_fd[0]); //don't need read end
+		
+		//register the clean up handler
+		atexit(cleanup_handler);
+	}	
 }
 
 //this is called when the test has shut down all runtime processes and is ready to compare output
@@ -50,18 +95,25 @@ void end_test ()
 	size_t num_total_bytes_read = 0;
 	char *curr_ptr = test_output = malloc(curr_size);
 
-    //flush standard output buffer (which is still attached to the temp file)
+    //flush standard output buffer
     fflush(stdout);
 
-    //now pull the standard output back to the file descriptor that we saved earlier
-    if (dup2(save_stdout, fileno(stdout)) == -1) {
-        fprintf(stderr, "dup2 stdout to terminal: %s\n", strerror(errno));
+    //kill and wait for the child process
+	if (kill(output_redirect, SIGINT) < 0) {
+		printf("kill: %s\n", strerror(errno));
+	}
+	if (waitpid(output_redirect, NULL, 0) < 0) {
+		printf("waitpid: %s\n", strerror(errno));
+	}
+	
+	//now pull the standard output back to the file descriptor that we saved earlier
+    if (dup2(save_std_out, fileno(stdout)) == -1) {
+        fprintf(stderr, "dup2 stdout back to terminal: %s\n", strerror(errno));
     }
-    close(save_stdout);
+    close(save_std_out);
     //now we are back to normal output
-
+	
     //open the temp file as a file pointer
-    close(temp_fd);
     FILE *temp_fp = fopen(TEMP_FILE, "r");
 
 	//while we haven't encountered EOF yet, read the next line
@@ -77,7 +129,8 @@ void end_test ()
 			curr_ptr = test_output + num_total_bytes_read;
 		}
 	}
-    printf("************************************** Output of test: \"%s\" *************************************\n\n%s\n\n", global_test_name, test_output);
+	fclose(temp_fp);
+	remove(TEMP_FILE);
     printf("************************************** Running Checks... ******************************************\n");
 }
 
@@ -90,9 +143,9 @@ int match_all (char *expected_output)
 		return 0;
 	} else {
 		fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-		fprintf(stderr, "************************************ Expected:\n ************************************************\n");
+		fprintf(stderr, "************************************ Expected: ************************************************\n");
 		fprintf(stderr, "%s", expected_output);
-		fprintf(stderr, "\n********************************** Got:\n *****************************************************\n");
+		fprintf(stderr, "\n********************************** Got: *****************************************************\n");
 		fprintf(stderr, "%s\n", test_output);
 		return 1;
 	}
@@ -107,9 +160,9 @@ int match_part (char *expected_output)
 		return 0;
 	} else {
 		fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf(stderr, "************************************ Expected:\n ************************************************\n");
+        fprintf(stderr, "************************************ Expected: ************************************************\n");
 		fprintf(stderr, "%s", expected_output);
-        fprintf(stderr, "************************************ Got:\n *****************************************************\n");
+        fprintf(stderr, "************************************ Got: *****************************************************\n");
 		fprintf(stderr, "%s\n", test_output);
 		return 1;
 	}

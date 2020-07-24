@@ -78,6 +78,7 @@ mv logger/logger.config logger/logger.config.orig
 cp -p test/logger/logger.config logger/logger.config
 
 cd test/integration
+make clean
 make
 
 # if first argument specified, try to find that test case and run it

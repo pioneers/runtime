@@ -2,6 +2,7 @@
 #define EXEC_CLIENT_H
 
 #include "../../runtime_util/runtime_util.h"
+#include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
 

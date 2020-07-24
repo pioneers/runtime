@@ -1,8 +1,8 @@
 #include "../test.h"
 
-char check_output_1[] = "";
+char check_output_1[] = "asdf";
 
-char check_output_2[] = "";
+char check_output_2[] = "adfad";
 
 int main ()
 {
@@ -10,7 +10,7 @@ int main ()
 	start_test("constant print");
 	start_shm();
 	start_net_handler();
-	start_executor("../../test/student_code/constant_print.py");
+	start_executor("constant_print");
 
 	//poke the system
 	send_start_pos(SHEPHERD_CLIENT, RIGHT_POS);
@@ -27,5 +27,9 @@ int main ()
 	end_test();
 
 	//check outputs
+	if (match_part(check_output_1) != 0) {
+		exit(1);
+	}
+
 	return 0;
 }
