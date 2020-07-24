@@ -10,8 +10,7 @@
 #define PWM1 6
 #define PWM2 9
 
-class PolarBear : public Device
-{
+class PolarBear : public Device {
 public:
 	PolarBear ();
 	virtual size_t device_read (uint8_t param, uint8_t *data_buf);

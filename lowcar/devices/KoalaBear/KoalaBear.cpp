@@ -31,23 +31,23 @@ uint16_t torque_read_data;
 //********************************** labels for useful indices **********************************//
 typedef enum {
 	//params for the first motor
-	DUTY_CYCLE_A	= 0,	//Student's desired speed between -1 and 1, inclusive
-	DEADBAND_A		= 1,	//between 0 and 1, magnitude of duty cycle input under which the motor will not move
-	CURRENT_A		= 2,
-	PID_ENABLED_A	= 3, 	//True if using PID control; False if using manual drive mode
-	PID_KP_A		= 4,	//these three are the PID coefficients
-	PID_KI_A		= 5,
-	PID_KD_A		= 6,
-	ENC_A			= 7,	//encoder position, in ticks
+	DUTY_CYCLE_A  = 0, //Student's desired speed between -1 and 1, inclusive
+	DEADBAND_A    = 1, //between 0 and 1, magnitude of duty cycle input under which the motor will not move
+	CURRENT_A     = 2,
+	PID_ENABLED_A = 3, //True if using PID control; False if using manual drive mode
+	PID_KP_A      = 4, //these three are the PID coefficients
+	PID_KI_A      = 5,
+	PID_KD_A      = 6,
+	ENC_A         = 7, //encoder position, in ticks
 	//same params for the second motor
-	DUTY_CYCLE_B	= 8,
-	DEADBAND_B		= 9,
-	CURRENT_B		= 10,
-	PID_ENABLED_B	= 11,
-	PID_KP_B		= 12,
-	PID_KI_B		= 13,
-	PID_KD_B		= 14,
-	ENC_B			= 15
+	DUTY_CYCLE_B  = 8,
+	DEADBAND_B    = 9,
+	CURRENT_B     = 10,
+	PID_ENABLED_B = 11,
+	PID_KP_B      = 12,
+	PID_KI_B      = 13,
+	PID_KD_B      = 14,
+	ENC_B         = 15
 } param;
 
 typedef enum {
@@ -57,8 +57,7 @@ typedef enum {
 
 //*********************************** MAIN KOALABEAR CODE ***********************************//
 
-KoalaBear::KoalaBear () : Device (DeviceType::KOALA_BEAR, 13) //,  encdr(encoder0PinA, encoder0PinB), pid(0.0, 0.0, 0.0, 0.0, (double) millis(), encdr)
-{
+KoalaBear::KoalaBear () : Device (DeviceType::KOALA_BEAR, 13) {
 	this->desired_speeds = (float *) calloc(2, sizeof(float));	// "duty_cycle"
 
 	this->deadbands = (float *) calloc(2, sizeof(float));
@@ -72,10 +71,10 @@ KoalaBear::KoalaBear () : Device (DeviceType::KOALA_BEAR, 13) //,  encdr(encoder
 	this->curr_led_mtr = MTRA;
 
 	this->led = new LEDKoala();
+	// TODO: Initialize encoder and PID
 }
 
-size_t KoalaBear::device_read (uint8_t param, uint8_t *data_buf)
-{
+size_t KoalaBear::device_read (uint8_t param, uint8_t *data_buf) {
 	float *float_buf = (float *) data_buf;
 	bool *bool_buf = (bool *) data_buf;
 
@@ -150,9 +149,8 @@ size_t KoalaBear::device_read (uint8_t param, uint8_t *data_buf)
 	return 0;
 }
 
-size_t KoalaBear::device_write (uint8_t param, uint8_t *data_buf)
-{
-  switch (param) {
+size_t KoalaBear::device_write (uint8_t param, uint8_t *data_buf) {
+	switch (param) {
 
 		case DUTY_CYCLE_A:
 			this->pid_enabled[MTRA] = FALSE; // TODO: remove later once PID added in
@@ -234,14 +232,13 @@ size_t KoalaBear::device_write (uint8_t param, uint8_t *data_buf)
 	return 0;
 }
 
-void KoalaBear::device_enable ()
-{
+void KoalaBear::device_enable () {
 	electrical_setup(); //ask electrical about this function (it's hardware setup for the motor controller_
 
-    //this->pid->encoderSetup();
-    this->led->setup_LEDs();
-    this->led->test_LEDs();
-    this->pid_enabled[MTRA] = FALSE; //change to true once implemented
+	//this->pid->encoderSetup();
+	this->led->setup_LEDs();
+	this->led->test_LEDs();
+	this->pid_enabled[MTRA] = FALSE; //change to true once implemented
 	this->pid_enabled[MTRB] = FALSE;
 
 	//pinMode(feedback,INPUT);
@@ -254,8 +251,7 @@ void KoalaBear::device_enable ()
 	this->desired_speeds[MTRB] = 0.0;
 }
 
-void KoalaBear::device_disable ()
-{
+void KoalaBear::device_disable () {
 	// digitalWrite(SLEEP, HIGH);
 	//this->pid->setCoefficients(1, 0, 0);
 	//this->pid->resetEncoder();
@@ -266,8 +262,7 @@ void KoalaBear::device_disable ()
 	this->pid_enabled[MTRB] = FALSE;
 }
 
-void KoalaBear::device_actions ()
-{
+void KoalaBear::device_actions () {
 	float target_A, target_B;
 
 	//switch between displaying info about MTRA and MTRB every 2 seconds
@@ -303,8 +298,7 @@ void KoalaBear::device_actions ()
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//
 //used for setup; ask electrical for how it works / what it does
-void KoalaBear::write_current_lim()
-{
+void KoalaBear::write_current_lim() {
 	SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
 	digitalWrite(SCS, HIGH);
 	SPI.transfer16((0 << 15) + (CTRL_REG << 12) + (DTIME_410_ns << 10) + (ISGAIN_20 << 8) + ENABLE);
@@ -318,8 +312,7 @@ void KoalaBear::write_current_lim()
 }
 
 //used for setup; ask electrical for how it works / what it does
-void KoalaBear::read_current_lim()
-{
+void KoalaBear::read_current_lim() {
 	SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
 	digitalWrite(SCS, HIGH);
 	ctrl_read_data = (uint16_t) SPI.transfer16((1 << 15) + (CTRL_REG << 12));
@@ -333,8 +326,7 @@ void KoalaBear::read_current_lim()
 }
 
 //used for setup; ask electrical for how it works / what it does
-void KoalaBear::electrical_setup()
-{
+void KoalaBear::electrical_setup() {
 	SPI.begin();
 
 	pinMode(HEARTBEAT, OUTPUT);
@@ -356,34 +348,34 @@ void KoalaBear::electrical_setup()
 
 /* Calculates the sign of a float. */
 int KoalaBear::sign (float x) {
-    if (x > 0) {
-        return 1;
-    } else if (x < 0) {
-        return -1;
-    }
-    return 0;
+	if (x > 0) {
+		return 1;
+	} else if (x < 0) {
+		return -1;
+	}
+	return 0;
 }
 
-/* Given a TARGET between -1 and 1 inclusive, and a motor MTR,
-** analogWrite to the appropriate pins to accelerate/decelerate
-** Negative indicates moving backwards; Positive indicates moving forwards.
-** If moving forwards, set pwm2 to 255 (stop), then move pwm1 down
-** If moving backwards, set pwm1 to 255, then move pwm2 down
-** Make sure that at least one of the pins is set to 255 at all times.
-*/
-void KoalaBear::drive (float target, uint8_t mtr)
-{
+/**
+ * Given a TARGET between -1 and 1 inclusive, and a motor MTR,
+ * analogWrite to the appropriate pins to accelerate/decelerate
+ * Negative indicates moving backwards; Positive indicates moving forwards.
+ * If moving forwards, set pwm2 to 255 (stop), then move pwm1 down
+ * If moving backwards, set pwm1 to 255, then move pwm2 down
+ * Make sure that at least one of the pins is set to 255 at all times.
+ */
+void KoalaBear::drive (float target, uint8_t mtr) {
 	int pin1 = (mtr == MTRA) ? AIN1 : BIN1; //select the correct pins based on the motor
 	int pin2 = (mtr == MTRA) ? AIN2 : BIN2;
 
-    int direction = sign(target);
+	int direction = sign(target);
 	int currpwm1 = 255;
 	int currpwm2 = 255;
 
 	// Determine how much to move the pins down from 255
 	// Sanity check: If |target| == 1, move max speed --> pwm_difference == 255
 	//				 If |target| == 0, stop moving	  --> pwm_difference == 0
-    unsigned int pwm_difference = (target * direction) * 255 ; // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
+	unsigned int pwm_difference = (target * direction) * 255 ; // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
 
 	if (direction > 0) { // Moving forwards
 		currpwm1 -= pwm_difference;

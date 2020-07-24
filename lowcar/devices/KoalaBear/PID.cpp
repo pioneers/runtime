@@ -3,8 +3,7 @@
 #define encoder0PinA	14
 #define encoder0PinB	15
 
-PID::PID(float SetPoint, float KP, float KI, float KD, float initTime)
-{
+PID::PID(float SetPoint, float KP, float KI, float KD, float initTime) {
 	this->kp = KP;
 	this->ki = KI;
 	this->kd = KD;
@@ -21,8 +20,7 @@ PID::PID(float SetPoint, float KP, float KI, float KD, float initTime)
  * adjust the motor controller pins.
  * This is called continually by PolarBear.
  * Also updates the encoder position and velocity with each call. */
-float PID::compute()
-{
+float PID::compute() {
 	//updateVel();
 	float currTime = (float)(millis());
 	float deltaTime = currTime - this->lastTime;
@@ -52,8 +50,7 @@ float PID::compute()
 	return out;
 }
 
-void PID::setCoefficients(float KP, float KI, float KD)
-{
+void PID::setCoefficients(float KP, float KI, float KD) {
 	this->kp = KP;
 	this->ki = KI;
 	this->kd = KD;

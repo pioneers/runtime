@@ -4,8 +4,7 @@
 #include "Arduino.h"
 #include <Encoder.h>
 
-class PID
-{
+class PID {
 public:
 	PID(float SetPoint, float KP, float KI, float KD, float initTime);
 	float compute();

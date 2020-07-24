@@ -8,8 +8,7 @@
 #include "defs.h"
 #include <SPI.h>
 
-class KoalaBear : public Device
-{
+class KoalaBear : public Device {
 public:
 	KoalaBear ();
 	virtual size_t device_read (uint8_t param, uint8_t *data_buf);

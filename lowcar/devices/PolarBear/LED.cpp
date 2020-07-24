@@ -56,8 +56,7 @@ void ctrl_GREEN() {
 	}
 }
 
-void test_LEDs()
-{
+void test_LEDs() {
 	digitalWrite(LED_GREEN,HIGH);
 	digitalWrite(LED_RED,HIGH);
 	digitalWrite(LED_YELLOW,HIGH);
@@ -69,8 +68,7 @@ void test_LEDs()
 	digitalWrite(LED_YELLOW,LOW);
 }
 
-void setup_LEDs()
-{
+void setup_LEDs() {
 	pinMode(LED_GREEN, OUTPUT);
 	pinMode(LED_RED, OUTPUT);
 	pinMode(LED_YELLOW, OUTPUT);

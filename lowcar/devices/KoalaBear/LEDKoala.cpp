@@ -7,8 +7,7 @@
 #define LED_GREEN	A5
 
 //LED constructor
-LEDKoala::LEDKoala ()
-{
+LEDKoala::LEDKoala () {
 	this->red_state = false;
 	this->yellow_state = false;
 	this->green_state = false;
@@ -26,8 +25,7 @@ void LEDKoala::ctrl_LEDs (float vel, bool enabled) {
 }
 
 //decides when the red LED is on
-void LEDKoala::ctrl_red (float vel, bool enabled)
-{
+void LEDKoala::ctrl_red (float vel, bool enabled) {
 	//turn red LED on if motor is going forward
 	if (vel < 0.0 && enabled) {
 		this->red_state = true;
@@ -43,8 +41,7 @@ void LEDKoala::ctrl_red (float vel, bool enabled)
 }
 
 //decides when the yellow LED is on
-void LEDKoala::ctrl_yellow (float vel, bool enabled)
-{
+void LEDKoala::ctrl_yellow (float vel, bool enabled) {
 	//turn yellow LED on if motor approaching limit
 	if ((vel < 0.9 || vel > 0.9 || vel == 0.0) && enabled) {
 		this->yellow_state = true;
@@ -60,8 +57,7 @@ void LEDKoala::ctrl_yellow (float vel, bool enabled)
 }
 
 //decides when the green LED is on
-void LEDKoala::ctrl_green (float vel, bool enabled)
-{
+void LEDKoala::ctrl_green (float vel, bool enabled) {
 	//turn green LED on if motor moving forward
 	if (vel > 0.0 && enabled) {
 		this->green_state = true;
@@ -76,8 +72,7 @@ void LEDKoala::ctrl_green (float vel, bool enabled)
 	}
 }
 
-void LEDKoala::test_LEDs()
-{
+void LEDKoala::test_LEDs() {
 	digitalWrite(LED_GREEN,HIGH);
 	digitalWrite(LED_RED,HIGH);
 	digitalWrite(LED_YELLOW,HIGH);
@@ -89,8 +84,7 @@ void LEDKoala::test_LEDs()
 	digitalWrite(LED_YELLOW,LOW);
 }
 
-void LEDKoala::setup_LEDs()
-{
+void LEDKoala::setup_LEDs() {
 	pinMode(LED_GREEN, OUTPUT);
 	pinMode(LED_RED, OUTPUT);
 	pinMode(LED_YELLOW, OUTPUT);

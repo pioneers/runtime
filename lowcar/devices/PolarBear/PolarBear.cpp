@@ -1,22 +1,20 @@
 #include "PolarBear.h"
 
 typedef enum {
-    DUTY_CYCLE = 0,
-    MOTOR_CURRENT = 1,
-    DEADBAND = 2
-  } param;
+	DUTY_CYCLE = 0,
+	MOTOR_CURRENT = 1,
+	DEADBAND = 2
+} param;
 
-PolarBear::PolarBear () : Device (DeviceType::POLAR_BEAR, 2)
-{
+PolarBear::PolarBear () : Device (DeviceType::POLAR_BEAR, 2) {
 	this->duty_cycle = 0;
 	this->deadband = 0.05;
 
 	this->dpwm_dt = 255 / 200000;
 }
 
-size_t PolarBear::device_read (uint8_t param, uint8_t *data_buf)
-{
-    float* float_buf = (float *) data_buf;
+size_t PolarBear::device_read (uint8_t param, uint8_t *data_buf) {
+	float* float_buf = (float *) data_buf;
 
 	switch (param) {
 
@@ -38,20 +36,19 @@ size_t PolarBear::device_read (uint8_t param, uint8_t *data_buf)
 	return 0;
 }
 
-size_t PolarBear::device_write (uint8_t param, uint8_t *data_buf)
-{
-    float *float_buf = (float *) data_buf;
-    switch (param) {
+size_t PolarBear::device_write (uint8_t param, uint8_t *data_buf) {
+	float *float_buf = (float *) data_buf;
+	switch (param) {
 
 		case DUTY_CYCLE:
-            // Change duty_cycle only if abs(input) is greater than deadband
-            int abs_input = float_buf[0] * sign(float_buf[0]);
-            if (abs_input > this->deadband) {
-                this->duty_cycle = float_buf[0];
-            } else {
-                this->duty_cycle = 0;
-            }
-            return sizeof(this->duty_cycle);
+			// Change duty_cycle only if abs(input) is greater than deadband
+			int abs_input = float_buf[0] * sign(float_buf[0]);
+			if (abs_input > this->deadband) {
+				this->duty_cycle = float_buf[0];
+			} else {
+				this->duty_cycle = 0;
+			}
+			return sizeof(this->duty_cycle);
 
 		case MOTOR_CURRENT:
 			break;
@@ -66,37 +63,34 @@ size_t PolarBear::device_write (uint8_t param, uint8_t *data_buf)
 	return 0;
 }
 
-void PolarBear::device_enable ()
-{
-    // Start LEDs
-    setup_LEDs();
-    test_LEDs();
+void PolarBear::device_enable () {
+	// Start LEDs
+	setup_LEDs();
+	test_LEDs();
 
 	pinMode(FEEDBACK,INPUT);
 	pinMode(PWM1, OUTPUT);
 	pinMode(PWM2, OUTPUT);
 }
 
-void PolarBear::device_disable ()
-{
-    // Stop motors
+void PolarBear::device_disable () {
+	// Stop motors
 	this->device_write(DUTY_CYCLE, 0);
 }
 
-void PolarBear::device_actions ()
-{
+void PolarBear::device_actions () {
 	ctrl_LEDs();
-    drive(this->duty_cycle);
+	drive(this->duty_cycle);
 }
 
 /* Calculates the sign of a float. */
 int PolarBear::sign(float x) {
-    if (x > 0) {
-        return 1;
-    } else if (x < 0) {
-        return -1;
-    }
-    return 0;
+	if (x > 0) {
+		return 1;
+	} else if (x < 0) {
+		return -1;
+	}
+	return 0;
 }
 
 /* Given a value between -1 and 1 inclusive,
@@ -106,16 +100,15 @@ int PolarBear::sign(float x) {
  * If moving backwards, set pwm2 to 255, then move pwm1 down
  * Make sure that at least one of the pins is set to 255 at all times.
  */
-void PolarBear::drive(float target)
-{
-    int direction = sign(target);
-    int currpwm1 = 255;
-    int currpwm2 = 255;
+void PolarBear::drive(float target) {
+	int direction = sign(target);
+	int currpwm1 = 255;
+	int currpwm2 = 255;
 
-    // Determine how much to move the pins down from 255
+	// Determine how much to move the pins down from 255
 	// Sanity check: If |target| == 1, move max speed --> pwm_difference == 255
-	//				 If |target| == 0, stop moving	  --> pwm_difference == 0
-    unsigned int pwm_difference = (target * direction) * 255 ; // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
+	//               If |target| == 0, stop moving    --> pwm_difference == 0
+	unsigned int pwm_difference = (target * direction) * 255 ; // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
 
 	if (direction > 0) { // Moving forwards
 		currpwm1 -= pwm_difference;

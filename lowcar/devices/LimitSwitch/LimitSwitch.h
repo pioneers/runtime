@@ -4,8 +4,7 @@
 #include "Device.h"
 #include "defs.h"
 
-class LimitSwitch : public Device
-{
+class LimitSwitch : public Device {
 public:
 	//constructs a LimitSwitch; simply calls generic Device constructor with device type and year
 	LimitSwitch ();
