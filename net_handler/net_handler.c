@@ -90,7 +90,7 @@ int main ()
 	struct sockaddr_in cli_addr; //requesting client's address
 	socklen_t cli_addr_len = sizeof(struct sockaddr_in); //length of requesting client's address in bytes
 	uint8_t client_id; //this is 0 if shepherd, 1 if dawn
-	
+
 	//setup
 	logger_init(NET_HANDLER);
 	signal(SIGINT, sigint_handler);
@@ -101,10 +101,9 @@ int main ()
 		return 1;
 	}
 	shm_init();
-
 	//start UDP connection with Dawn
-	start_udp_conn(); 
-	
+	start_udp_conn();
+
 	//run net_handler main control loop
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
@@ -124,10 +123,12 @@ int main ()
 		
 		//if the incoming request is shepherd or dawn, start the appropriate threads
 		if (client_id == 0 && cli_addr.sin_family == AF_INET && robot_desc_read(SHEPHERD) == DISCONNECTED) {
+            fflush(stdout);
 			log_printf(DEBUG, "Starting Shepherd connection");
 			start_tcp_conn(SHEPHERD, connfd, 0);
 		} else if (client_id == 1 && cli_addr.sin_family == AF_INET && robot_desc_read(DAWN) == DISCONNECTED) {
-			log_printf(DEBUG, "Starting Dawn connection");
+            fflush(stdout);
+            log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
 		} else {
 			log_printf(ERROR, "Client is neither Dawn nor Shepherd");
