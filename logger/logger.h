@@ -13,7 +13,7 @@
 #include <sys/stat.h>   //for mkfifo
 #include <signal.h>
 #include <pthread.h>
-#include "../runtime_util/runtime_util.h"   //(TODO: consider removing relative pathname in include)
+#include "../runtime_util/runtime_util.h"
 
 #define CONFIG_FILE "logger.config"   //path to logger config file
 
