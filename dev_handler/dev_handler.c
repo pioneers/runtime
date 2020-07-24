@@ -1,4 +1,29 @@
-#include "dev_handler.h"
+/**
+ * Handles lowcar device connects/disconnects and acts as the interface between the devices and shared memory
+ */
+
+#include "../shm_wrapper/shm_wrapper.h"
+#include "message.h"
+#include "../runtime_util/runtime_util.h"
+#include "../logger/logger.h"
+
+#include <pthread.h>    // sender, receiver, and relayer threads
+#include <termios.h>    // POSIX terminal control definitions in serialport_init()
+#include <stdio.h>      // Print
+#include <stdlib.h>
+#include <stdint.h>     // ints with specified sizes (uint8_t, uint16_t, etc.)
+#include <signal.h>     // Used to handle SIGINT (Ctrl+C)
+#include <sys/time.h>   // For timestamps on PING
+#include <unistd.h>     // sleep(int seconds)
+
+// ************************************ CONFIG ************************************* //
+
+/* The maximum number of milliseconds to wait between each PING from a device
+ * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
+#define TIMEOUT 2500
+
+/* The number of milliseconds between each PING sent to the device */
+#define PING_FREQ 1000
 
 // ************************************ PRIVATE TYPEDEFS ****************************************** //
 // The interval (ms) at which we want DEVICE_DATA messages for subscribed params
@@ -21,7 +46,12 @@ typedef struct msg_relay {
     pthread_cond_t start_cond;          // Conditional variable for relayer to broadcast to sender and receiver to start work
 } msg_relay_t;
 
-// ************************************ PRIVATE FUNCTIONS ****************************************** //
+// ************************************ FUNCTIONS DECLARATIONS ****************************************** //
+// Main functions
+void init();
+void stop();
+void poll_connected_devices();
+
 // Polling Utility
 int get_new_devices(uint32_t* bitmap);
 
@@ -50,8 +80,9 @@ void cleanup_handler(void *args);
 uint32_t used_ports = 0;
 pthread_mutex_t used_ports_lock;    // poll_connected_devices() and relay_clean_up() shouldn't access used_ports at the same time
 
-// ************************************ PUBLIC FUNCTIONS ****************************************** //
+// ************************************ MAIN FUNCTIONS ****************************************** //
 
+// Initialize logger, shm, and mutexes
 void init() {
     // Init logger
     logger_init(DEV_HANDLER);
@@ -59,11 +90,12 @@ void init() {
 	shm_init();
     // Initialize lock on global variable USED_PORTS
     if (pthread_mutex_init(&used_ports_lock, NULL) != 0) {
-        log_printf(ERROR, "Couldn't init USED_PORTS_LOCK");
+        log_printf(FATAL, "Couldn't init USED_PORTS_LOCK");
 	    exit(1);
     }
 }
 
+// Disconnect devices from shared memory and destroy mutexes
 void stop() {
     log_printf(INFO, "Ctrl+C pressed. Safely terminating program\n");
 	// For each tracked lowcar device, disconnect from shared memory
@@ -79,6 +111,10 @@ void stop() {
 	exit(0);
 }
 
+/**
+ * Detects when devices are connected
+ * On Arduino device connect, connect to shared memory and spawn three threads to communicate with the device
+ */
 void poll_connected_devices() {
 	// Poll for newly connected devices and open threads for them
     log_printf(INFO, "Polling now.\n");
@@ -302,37 +338,38 @@ void* sender(void* relay_cast) {
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 	/* Do work!
+     * (1) DEVICE_WRITE
      * Continuously call get_cmd_map(). If bit i in pmap[0] != 0, there are values to write to device i
      * The bitmap of params that need to be written to are at pmap[1 + i]
      * Use shared memory device_read() with pmap[1 + i] to get the values to write
      *
-	 * Send PING at a regular interval, PING_FREQ.
+     * (2) Send PING at a regular interval, PING_FREQ.
      *
-     * Continuously call get_sub_requests().
+     * (3) SUBSCRIPTION_REQUEST. Continuously call get_sub_requests().
      * If bit i in sub_map[0] != 0, there is a new SUBSCRIPTION_REQUEST to be sent to device i
      * The bitmap of params to be subscribed is sub_map[1 + i]
      */
-	uint32_t pmap[MAX_DEVICES + 1];
-	param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read()
+    uint32_t pmap[MAX_DEVICES + 1];
+    param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t)); // Array of params to be filled on device_read()
     uint32_t sub_map[MAX_DEVICES + 1];
-	message_t* msg; 		// Message to build
-	int ret; 				// Hold the value from send_message()
+    message_t* msg; 		// Message to build
+    int ret; 				// Hold the value from send_message()
     log_printf(DEBUG, "Sender for %s starting work!", get_device_name(relay->dev_id.type));
     uint64_t last_sent_ping_time = millis();
-	while (1) {
-		// Write to device if needed
-		 get_cmd_map(pmap);
-		if (pmap[0] & (1 << relay->shm_dev_idx)) {
-			// Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
-			device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
-			// Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
-			msg = make_device_write(relay->dev_id.type, pmap[1 + relay->shm_dev_idx], params);
+    while (1) {
+        // Write to device if needed
+        get_cmd_map(pmap);
+        if (pmap[0] & (1 << relay->shm_dev_idx)) {
+            // Read the new parameter values from shared memory as DEV_HANDLER from the COMMAND stream
+            device_read(relay->shm_dev_idx, DEV_HANDLER, COMMAND, pmap[1 + relay->shm_dev_idx], params);
+            // Serialize and bulk transfer a DeviceWrite packet with PARAMS to the device
+            msg = make_device_write(relay->dev_id.type, pmap[1 + relay->shm_dev_idx], params);
             ret = send_message(relay, msg);
-			if (ret != 0) {
-				log_printf(WARN, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
-			}
-			destroy_message(msg);
-		}
+            if (ret != 0) {
+                log_printf(WARN, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
+            }
+            destroy_message(msg);
+        }
 
 		// Send another PING if it's time again
 		if ((millis() - last_sent_ping_time) >= PING_FREQ) {
@@ -385,46 +422,45 @@ void* receiver(void* relay_cast) {
     // Cancel this thread only where pthread_testcancel()
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-	/* Do work! Continuously read from the device until a complete message can be parsed.
-	 * If it's a PING, update relay->last_received_ping_time
-	 * If it's DEVICE_DATA, write it to shared memory
-	 */
-	// An empty message to parse the received data into
-	message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
-	// An array of empty parameter values to be populated from DeviceData message payloads and written to shared memory
-	param_val_t* vals = malloc(MAX_PARAMS * sizeof(param_val_t));
-	while (1) {
-		// Try to read a message
-		if (receive_message(relay, msg) != 0) {
+    /* Do work! Continuously read from the device until a complete message can be parsed.
+     * If it's a PING, update relay->last_received_ping_time
+     * If it's DEVICE_DATA, write it to shared memory
+     * If it's a LOG, send it to the logger
+     */
+    // An empty message to parse the received data into
+    message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
+    // An array of empty parameter values to be populated from DeviceData message payloads and written to shared memory
+    param_val_t* vals = malloc(MAX_PARAMS * sizeof(param_val_t));
+    while (1) {
+        // Try to read a message
+        if (receive_message(relay, msg) != 0) {
             // Message was broken... try to read the next message
-			continue;
-		}
-		if (msg->message_id == PING) {
-            //log_printf(DEBUG, "Got PING from %s", get_device_name(relay->dev_id.type));
+            continue;
+        }
+        if (msg->message_id == PING) {
             pthread_mutex_lock(&relay->relay_lock);
-			relay->last_received_ping_time = millis();
+            relay->last_received_ping_time = millis();
             pthread_mutex_unlock(&relay->relay_lock);
-		} else if (msg->message_id == DEVICE_DATA) {
-		    //log_printf(DEBUG, "Got DEVICE_DATA from %s", get_device_name(relay->dev_id.type));
-			// Get param values from payload
-			parse_device_data(relay->dev_id.type, msg, vals);
-			// Write it to shared memory
-			device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
-		} else if (msg->message_id == LOG) {
+        } else if (msg->message_id == DEVICE_DATA) {
+            // Get param values from payload
+            parse_device_data(relay->dev_id.type, msg, vals);
+            // Write it to shared memory
+            device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
+        } else if (msg->message_id == LOG) {
             log_printf(DEBUG, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
-		} else {
-			log_printf(WARN, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
-		}
-		// Now that the message is taken care of, clear the message
-		msg->message_id = 0x0;
-		msg->payload_length = 0;
-	    msg->max_payload_length = MAX_PAYLOAD_SIZE;
-		memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
+        } else {
+            log_printf(WARN, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
+        }
+        // Now that the message is taken care of, clear the message
+        msg->message_id = 0x0;
+        msg->payload_length = 0;
+        msg->max_payload_length = MAX_PAYLOAD_SIZE;
+        memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-		pthread_testcancel(); // Cancellation point
+        pthread_testcancel(); // Cancellation point
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	}
-	return NULL;
+    }
+    return NULL;
 }
 
 // ************************************ DEVICE COMMUNICATION ****************************************** //
@@ -445,8 +481,6 @@ int send_message(msg_relay_t* relay, message_t* msg) {
         log_printf(WARN, "Sent only %d out of %d bytes to %d\n", transferred, len, get_device_name(relay->dev_id.type));
     }
     free(data);
-    //log_printf(DEBUG, "Sent %d bytes: ", len);
-    //print_bytes(data, len);
 	return (transferred == len) ? 0 : -1;
 }
 
@@ -500,7 +534,6 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
     if (num_bytes_read != 1) {
         return 1;
     }
-	//log_printf(DEBUG, "Cobs len of message is %d\n", cobs_len);
 
 	// Allocate buffer to read message into
 	uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
@@ -514,9 +547,6 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 		free(data);
 		return 1;
 	}
-
-	//log_printf(DEBUG, "Received %d bytes: ", 2 + cobs_len);
-	//print_bytes(data, 2 + cobs_len);
 
 	// Parse the message
 	int ret = parse_message(data, msg);

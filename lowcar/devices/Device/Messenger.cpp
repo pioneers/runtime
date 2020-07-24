@@ -19,21 +19,19 @@ const int Messenger::DEV_ID_UID_BYTES = 8;      // Bytes in uid field of dev id
 
 //************************************** MESSENGER CLASS METHODS ************************************//
 
-Messenger::Messenger ()
-{
-  Serial.begin(115200); //open Serial (USB) connection
+Messenger::Messenger () {
+    Serial.begin(115200); //open Serial (USB) connection
 
-   // A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
-  this->log_queue_max_size = 10;
-  this->log_queue = (char **) malloc(sizeof(char *) * this->log_queue_max_size);
-  for (int i = 0; i < this->log_queue_max_size; i++) {
-    this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
-  }
-  this->num_logs = 0;
+    // A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
+    this->log_queue_max_size = 10;
+    this->log_queue = (char **) malloc(sizeof(char *) * this->log_queue_max_size);
+    for (int i = 0; i < this->log_queue_max_size; i++) {
+        this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
+    }
+    this->num_logs = 0;
 }
 
-Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_id)
-{
+Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_id) {
     // Fill MessageID field
     msg->message_id = msg_id;
 
@@ -73,8 +71,7 @@ Status Messenger::send_message (MessageID msg_id, message_t *msg, dev_id_t *dev_
     return (written == Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len) ? Status::SUCCESS : Status::PROCESS_ERROR;
 }
 
-Status Messenger::read_message (message_t *msg)
-{
+Status Messenger::read_message (message_t *msg) {
     // Check if there's something to read
     if (!Serial.available()) {
         return Status::NO_DATA;
@@ -133,21 +130,21 @@ Status Messenger::read_message (message_t *msg)
  *  DEV_HANDLER will process the log and send to runtime logger
  */
 void Messenger::lowcar_printf(char* format, ...) {
-  // Double the queue size if it's full
-  if (this->num_logs == this->log_queue_max_size) {
-	this->log_queue = (char**) realloc(this->log_queue, sizeof(char *) * 2 * this->log_queue_max_size);
-    for (int i = this->log_queue_max_size; i < 2 * this->log_queue_max_size; i++) {
-      this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
+    // Double the queue size if it's full
+    if (this->num_logs == this->log_queue_max_size) {
+        this->log_queue = (char**) realloc(this->log_queue, sizeof(char *) * 2 * this->log_queue_max_size);
+        for (int i = this->log_queue_max_size; i < 2 * this->log_queue_max_size; i++) {
+            this->log_queue[i] = (char *) malloc(sizeof(char) * MAX_PAYLOAD_SIZE);
+        }
+        this->log_queue_max_size *= 2;
     }
-    this->log_queue_max_size *= 2;
-  }
-  // Add the new formatted log to the queue
-  va_list args;
-  va_start(args, format);
-  vsprintf(this->log_queue[this->num_logs], format, args);
-  va_end(args);
-  // Increment the number of logs
-  this->num_logs++;
+    // Add the new formatted log to the queue
+    va_list args;
+    va_start(args, format);
+    vsprintf(this->log_queue[this->num_logs], format, args);
+    va_end(args);
+    // Increment the number of logs
+    this->num_logs++;
 }
 
 /**
@@ -167,22 +164,22 @@ void Messenger::lowcar_print_float(char *name, float val) {
  *  Sends strings in the log queue to DEV_HANDLER and clears the queue
  */
 void Messenger::lowcar_flush() {
-  //don't send anything if no logs
-  if (this->num_logs == 0) {
-      return;
-  }
+    //don't send anything if no logs
+    if (this->num_logs == 0) {
+        return;
+    }
 
-  message_t log;
-  // For each log, send a new message
-  for (int i = 0; i < this->num_logs; i++) {
-    log.payload_length = strlen(this->log_queue[i]) + 1; // Null terminator character
+    message_t log;
+    // For each log, send a new message
+    for (int i = 0; i < this->num_logs; i++) {
+        log.payload_length = strlen(this->log_queue[i]) + 1; // Null terminator character
 
-    // Copy string into payload
-    memcpy((char*) log.payload, this->log_queue[i], (size_t) log.payload_length);
-    this->send_message(MessageID::LOG, &log);
-  }
-  // "Clear" the queue
-  this->num_logs = 0;
+        // Copy string into payload
+        memcpy((char*) log.payload, this->log_queue[i], (size_t) log.payload_length);
+        this->send_message(MessageID::LOG, &log);
+    }
+    // "Clear" the queue
+    this->num_logs = 0;
 }
 
 //************************************** HELPER METHODS *****************************************//
@@ -193,8 +190,7 @@ void Messenger::lowcar_flush() {
  *  Returns 0 on success
  *  Returns -1 if LENGTH is too large
  */
-int Messenger::append_payload(message_t *msg, uint8_t *data, uint8_t length)
-{
+int Messenger::append_payload(message_t *msg, uint8_t *data, uint8_t length) {
     if (msg->payload_length + length > MAX_PAYLOAD_SIZE) {
         return -1;
     }
@@ -204,22 +200,20 @@ int Messenger::append_payload(message_t *msg, uint8_t *data, uint8_t length)
 }
 
 // Serializes the fields in MSG into byte array DATA
-void Messenger::message_to_byte(uint8_t *data, message_t *msg)
-{
-  data[0] = (uint8_t) msg->message_id;
-  data[1] = msg->payload_length;
-  memcpy(&data[2], msg->payload, msg->payload_length);
+void Messenger::message_to_byte(uint8_t *data, message_t *msg) {
+    data[0] = (uint8_t) msg->message_id;
+    data[1] = msg->payload_length;
+    memcpy(&data[2], msg->payload, msg->payload_length);
 }
 
 //returns an 8-bit checksum of data array, computed by
 //bitwise-XOR'ing each byte in order with the checksum
-uint8_t Messenger::checksum (uint8_t *data, int length)
-{
-  uint8_t chk = data[0];
-  for (int i = 1; i < length; i++) {
-    chk ^= data[i];
-  }
-  return chk;
+uint8_t Messenger::checksum (uint8_t *data, int length) {
+    uint8_t chk = data[0];
+    for (int i = 1; i < length; i++) {
+        chk ^= data[i];
+    }
+    return chk;
 }
 
 //******************************** COBS ENCODING ********************************//
@@ -228,58 +222,55 @@ uint8_t Messenger::checksum (uint8_t *data, int length)
  */
 
 #define finish_block() {    \
-  *block_len_loc = block_len; \
-  block_len_loc = dst++;      \
-  out_len++;                  \
-  block_len = 0x01;           \
+    *block_len_loc = block_len; \
+    block_len_loc = dst++;      \
+    out_len++;                  \
+    block_len = 0x01;           \
 }
 
 // Encodes src into dst and returns the size of dst. Note that dst will have no
 // more overhead than 1 byte per 254 bytes. src must not overlap dst.
-size_t Messenger::cobs_encode (uint8_t *dst, const uint8_t *src, size_t src_len)
-{
-  const uint8_t *end = src + src_len;
-  uint8_t *block_len_loc = dst++;
-  uint8_t block_len = 0x01;
-  size_t out_len = 0;
+size_t Messenger::cobs_encode (uint8_t *dst, const uint8_t *src, size_t src_len) {
+    const uint8_t *end = src + src_len;
+    uint8_t *block_len_loc = dst++;
+    uint8_t block_len = 0x01;
+    size_t out_len = 0;
 
-  while (src < end) {
-    if (*src == 0) {
-      finish_block();
-    } else {
-      *dst++ = *src;
-      block_len++;
-      out_len++;
-      if (block_len == 0xFF) {
-        finish_block();
-      }
+    while (src < end) {
+        if (*src == 0) {
+            finish_block();
+        } else {
+            *dst++ = *src;
+            block_len++;
+            out_len++;
+            if (block_len == 0xFF) {
+                finish_block();
+            }
+        }
+        src++;
     }
-    src++;
-  }
-  finish_block();
-
-  return out_len;
+    finish_block();
+    return out_len;
 }
 
 // Decodes src into dst and returns the size of dst. src may overlap dst.
-size_t Messenger::cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len)
-{
-  const uint8_t *end = src + src_len;
-  size_t out_len = 0;
+size_t Messenger::cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len) {
+    const uint8_t *end = src + src_len;
+    size_t out_len = 0;
 
-  while (src < end) {
-    uint8_t code = *src++;
-    for (uint8_t i = 1; i < code; i++) {
-      *dst++ = *src++;
-      out_len++;
-      if (src > end) { // Bad packet
-        return 0;
-      }
+    while (src < end) {
+        uint8_t code = *src++;
+        for (uint8_t i = 1; i < code; i++) {
+            *dst++ = *src++;
+            out_len++;
+            if (src > end) { // Bad packet
+                return 0;
+            }
+        }
+        if (code < 0xFF && src != end) {
+            *dst++ = 0;
+            out_len++;
+        }
     }
-    if (code < 0xFF && src != end) {
-      *dst++ = 0;
-      out_len++;
-    }
-  }
-  return out_len;
+    return out_len;
 }
