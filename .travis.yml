@@ -4,6 +4,9 @@ dist: bionic # Ubuntu 18
 
 language: c
 
+env:
+  - TAG=protobuf-c
+
 services:
   - docker
 
@@ -13,8 +16,8 @@ if: (type = pull_request) OR (type = push AND branch = master)
 install: skip
 
 before_script:
-  - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
-  - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32 sleep 5m  # Runs the docker container as detached
+  - docker pull ${DOCKER_USERNAME}/c-runtime:$TAG
+  - docker run -d ${DOCKER_USERNAME}/c-runtime:$TAG sleep 5m  # Runs the docker container as detached
 
 script:
   - docker cp . $(docker ps -q):/root/runtime/ # Copy the newest code into the image
@@ -25,13 +28,13 @@ script:
 
 # DOCKER_USERNAME and DOCKER_PASSWORD are defined as a repository secret environment variable on travis-ci.org
 before_deploy:
-  - docker pull arm32v7/debian:buster
+  # - docker pull arm32v7/debian:buster # For some reason docker build fails to pull if the FROM image isn't cached locally
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${DOCKER_USERNAME}/c-runtime:arm32 -t ${DOCKER_USERNAME}/c-runtime:arm32 -f docker/Dockerfile .
+  - DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from ${DOCKER_USERNAME}/c-runtime:$TAG -t ${DOCKER_USERNAME}/c-runtime:$TAG -f docker/Dockerfile .
 
 deploy:
   provider: script
-  script: docker push ${DOCKER_USERNAME}/c-runtime:arm32
+  script: docker push ${DOCKER_USERNAME}/c-runtime:$TAG
   on:
     branch: master
   edge: true
