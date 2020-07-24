@@ -1,14 +1,14 @@
 #include "net_handler_client.h"
 
 //throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid;          //holds the pid of the net_handler process
-pthread_t dump_tid;    //holds the thread id of the output dumper threads
+pid_t nh_pid;                  //holds the pid of the net_handler process
+pthread_t dump_tid;            //holds the thread id of the output dumper threads
 
-int nh_tcp_shep_fd = -1;    //holds file descriptor for TCP Shepherd socket
-int nh_tcp_dawn_fd = -1;    //holds file descriptor for TCP Dawn socket
-int nh_udp_fd = -1;         //holds file descriptor for UDP Dawn socket
-FILE *output_fp = NULL;     //holds current output location of client
-FILE *null_fp = NULL;       //file pointer to /dev/null
+int nh_tcp_shep_fd = -1;       //holds file descriptor for TCP Shepherd socket
+int nh_tcp_dawn_fd = -1;       //holds file descriptor for TCP Dawn socket
+int nh_udp_fd = -1;            //holds file descriptor for UDP Dawn socket
+FILE *output_fp = NULL;        //holds current output location of client
+FILE *null_fp = NULL;          //file pointer to /dev/null
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -233,8 +233,9 @@ static void *output_dump (void *args)
 
 // ************************************* NET HANDLER CLIENT FUNCTIONS ************************** //
 
-void start_net_handler (struct sockaddr_in *udp_servaddr)
-{	
+void start_net_handler ()
+{
+
 	//fork net_handler process
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
@@ -250,16 +251,10 @@ void start_net_handler (struct sockaddr_in *udp_servaddr)
 		nh_tcp_dawn_fd = connect_tcp(DAWN_CLIENT);
 		nh_tcp_shep_fd = connect_tcp(SHEPHERD_CLIENT);
 		if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-			printf("socket: UDP socket creation failed...\n"); 
+			printf("socket: UDP socket creation failed...\n");
 			stop_net_handler();
 			exit(1);
 		}
-		//set the UDP server address
-		memset(udp_servaddr, 0, sizeof(struct sockaddr_in));
-		udp_servaddr->sin_family = AF_INET; 
-		udp_servaddr->sin_addr.s_addr = inet_addr(RASPI_ADDR); 
-		udp_servaddr->sin_port = htons(RASPI_UDP_PORT);
-		
 		//open /dev/null
 		null_fp = fopen("/dev/null", "w");
 
@@ -281,10 +276,7 @@ void stop_net_handler ()
 		printf("waitpid: %s\n", strerror(errno));
 	}
 	
-	//stop the output dump thread
-	if (pthread_cancel(dump_tid) != 0) {
-		printf("pthread_cancel: output dump\n");
-	}
+	//killing net handler should cause dump thread to return, so join with it
 	if (pthread_join(dump_tid, NULL) != 0) {
 		printf("pthread_join: output dump\n");
 	}

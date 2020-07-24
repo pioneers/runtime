@@ -350,7 +350,7 @@ void print_gamepad_state ()
 	printf("\tJoystick Positions:\n");
 	//print joystick positions
 	for (int i = 0; i < 4; i++) {
-		printf("\t\t %s = %f\n", joystick_names[i], gp_shm_ptr->joysticks[i]);
+		printf("\t\t%s = %f\n", joystick_names[i], gp_shm_ptr->joysticks[i]);
 	}
 	printf("\n");
 	fflush(stdout);
