@@ -13,3 +13,6 @@ all: test_sanity
 
 test_sanity: $(DEPENDENCIES) test_sanity.c
 	gcc test_sanity.c $(SRC_FILES) -o $@ $(LIBS)
+
+test_constant_print: $(DEPENDENCIES) test_constant_print.c
+	gcc test_constant_print.c $(SRC_FILES) -o $@ $(LIBS)
