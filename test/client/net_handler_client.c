@@ -1,14 +1,18 @@
 #include "net_handler_client.h"
 
 //throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid;                  //holds the pid of the net_handler process
-pthread_t dump_tid;            //holds the thread id of the output dumper threads
+pid_t nh_pid;                     //holds the pid of the net_handler process
+struct sockaddr_in udp_servaddr;  //holds the udp server address
+pthread_t dump_tid;               //holds the thread id of the output dumper threads
+pthread_mutex_t print_udp_mutex;  //lock over whether to print the next received udp
+int print_next_udp;               //0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
 
-int nh_tcp_shep_fd = -1;       //holds file descriptor for TCP Shepherd socket
-int nh_tcp_dawn_fd = -1;       //holds file descriptor for TCP Dawn socket
-int nh_udp_fd = -1;            //holds file descriptor for UDP Dawn socket
-FILE *output_fp = NULL;        //holds current output location of client
-FILE *null_fp = NULL;          //file pointer to /dev/null
+int nh_tcp_shep_fd = -1;          //holds file descriptor for TCP Shepherd socket
+int nh_tcp_dawn_fd = -1;          //holds file descriptor for TCP Dawn socket
+int nh_udp_fd = -1;               //holds file descriptor for UDP Dawn socket
+FILE *tcp_output_fp = NULL;       //holds current output location of incoming TCP messages
+FILE *udp_output_fp = NULL;       //holds current output location of incoming UDP messages
+FILE *null_fp = NULL;             //file pointer to /dev/null
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -80,35 +84,35 @@ static void recv_udp_data (int udp_fd)
 	
 	//receive message from udp socket
 	if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
-		fprintf(output_fp, "recvfrom: %s\n", strerror(errno));
+		fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
 	}
-	fprintf(output_fp, "Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
-	fprintf(output_fp, "Received data size %d\n", recv_size);
+	fprintf(udp_output_fp, "Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
+	fprintf(udp_output_fp, "Received data size %d\n", recv_size);
 	DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
 	if (dev_data == NULL) {
 		printf("Error unpacking incoming message\n");
 	}
 	
 	// display the message's fields.
-	fprintf(output_fp, "Received:\n");
+	fprintf(udp_output_fp, "Received:\n");
 	for (int i = 0; i < dev_data->n_devices; i++) {
-		fprintf(output_fp, "Device No. %d: ", i);
-		fprintf(output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
-		fprintf(output_fp, "\tParams:\n");
+		fprintf(udp_output_fp, "Device No. %d: ", i);
+		fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+		fprintf(udp_output_fp, "\tParams:\n");
 		for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
-			fprintf(output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
+			fprintf(udp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
 			switch (dev_data->devices[i]->params[j]->val_case) {
 				case (PARAM__VAL_FVAL):
-					fprintf(output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
+					fprintf(udp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
 					break;
 				case (PARAM__VAL_IVAL):
-					fprintf(output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
+					fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
 					break;
 				case (PARAM__VAL_BVAL):
-					fprintf(output_fp, "BOOL with value %d\n", dev_data->devices[i]->params[j]->bval);
+					fprintf(udp_output_fp, "BOOL with value %d\n", dev_data->devices[i]->params[j]->bval);
 					break;
 				default:
-					fprintf(output_fp, "ERROR: no param value");
+					fprintf(udp_output_fp, "ERROR: no param value");
 					break;
 			}
 		}
@@ -116,7 +120,15 @@ static void recv_udp_data (int udp_fd)
 	
 	// Free the unpacked message
 	dev_data__free_unpacked(dev_data, NULL);
-	fflush(output_fp);
+	fflush(udp_output_fp);
+	
+	//if we were asked to print the last UDP message, set output back to /dev/null
+	pthread_mutex_lock(&print_udp_mutex);
+	if (print_next_udp) {
+		print_next_udp = 0;
+		udp_output_fp = null_fp;
+	}
+	pthread_mutex_unlock(&print_udp_mutex);
 }
 
 static int recv_tcp_data (int client, int tcp_fd)
@@ -133,7 +145,7 @@ static int recv_tcp_data (int client, int tcp_fd)
 		strcpy(client_str, "DAWN");
 	}
 
-	fprintf(output_fp, "From %s:\n", client_str);
+	fprintf(tcp_output_fp, "From %s:\n", client_str);
 	//parse message
 	if (parse_msg(tcp_fd, &msg_type, &len, &buf) == 0) {
 		printf("Net handler disconnected\n");
@@ -142,20 +154,20 @@ static int recv_tcp_data (int client, int tcp_fd)
 	
 	//unpack the message
 	if ((msg = text__unpack(NULL, len, buf)) == NULL) {
-		fprintf(output_fp, "Error unpacking incoming message from %s\n", client_str);
+		fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
 	}
 	
 	//print the incoming message
 	if (msg_type == LOG_MSG) {
 		for (int i = 0; i < msg->n_payload; i++) {
-			fprintf(output_fp, "%s", msg->payload[i]);
+			fprintf(tcp_output_fp, "%s", msg->payload[i]);
 		}
 	} else if (msg_type == CHALLENGE_DATA_MSG) {
 		for (int i = 0; i < msg->n_payload; i++) {
-			fprintf(output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
+			fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
 		}
 	}
-	fflush(output_fp);
+	fflush(tcp_output_fp);
 	
 	//free allocated memory
 	free(buf);
@@ -167,7 +179,7 @@ static int recv_tcp_data (int client, int tcp_fd)
 //dumps output from net handler stdout to this process's standard out
 static void *output_dump (void *args)
 {
-	const int sample_size = 4; //number of messages that need to come in before disabling output
+	const int sample_size = 10; //number of messages that need to come in before disabling output
 	const uint64_t disable_threshold = 50; //if the interval between each of the past sample_size messages has been less than this many milliseconds, disable output
 	const uint64_t enable_threshold = 1000; //if this many milliseconds have passed between now and last received message, enable output
 	uint64_t last_received_time = 0, curr_time;
@@ -197,21 +209,30 @@ static void *output_dump (void *args)
 		//deny all cancellation requests until the next loop
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		
-		//enable output if more than enable_thresh has passed between last time and previous time
-		curr_time = millis();
-		if (curr_time - last_received_time >= enable_threshold) {
-			less_than_disable_thresh = 0;
-			output_fp = stdout;
-		}
-		if (curr_time - last_received_time <= disable_threshold) {
-			less_than_disable_thresh++;
-			if (less_than_disable_thresh == sample_size) {
-				printf("Suppressing output: too many messages...\n\n");
-				fflush(stdout);
-				output_fp = null_fp;
+		//enable tcp output if more than enable_thresh has passed between last time and previous time
+		if (FD_ISSET(nh_tcp_shep_fd, &read_set) || FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
+			curr_time = millis();
+			if (curr_time - last_received_time >= enable_threshold) {
+				less_than_disable_thresh = 0;
+				tcp_output_fp = stdout;
 			}
+			if (curr_time - last_received_time <= disable_threshold) {
+				less_than_disable_thresh++;
+				if (less_than_disable_thresh == sample_size) {
+					printf("Suppressing output: too many messages...\n\n");
+					fflush(stdout);
+					tcp_output_fp = null_fp;
+				}
+			}
+			last_received_time = curr_time;
 		}
-		last_received_time = curr_time;
+		
+		//if we were asked to print the next UDP, set the UDP pointer
+		pthread_mutex_lock(&print_udp_mutex);
+		if (print_next_udp) {
+			udp_output_fp = stdout;
+		}
+		pthread_mutex_unlock(&print_udp_mutex);
 
 		//print stuff from whichever file descriptors are ready for reading...
 		if (FD_ISSET(nh_tcp_shep_fd, &read_set)) {
@@ -255,8 +276,20 @@ void start_net_handler ()
 			stop_net_handler();
 			exit(1);
 		}
+		memset(&udp_servaddr, 0, sizeof(struct sockaddr_in));
+	    udp_servaddr.sin_family = AF_INET; 
+	    udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR); 
+	    udp_servaddr.sin_port = htons(RASPI_UDP_PORT); 
+		
 		//open /dev/null
 		null_fp = fopen("/dev/null", "w");
+
+		//init the mutex that will control whether udp prints to screen
+		if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
+			printf("pthread_mutex_init: print udp mutex\n");
+		}
+		print_next_udp = 0;
+		udp_output_fp = null_fp; //by default set to output to /dev/null
 
 		//start the thread that is dumping output from net_handler to stdout of this process
 		if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
@@ -363,12 +396,124 @@ void send_start_pos (int client, int pos)
 	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
-void send_challenge_data (int client, char **data)
+void send_gamepad_state (uint32_t buttons, float joystick_vals[4])
 {
+	GpState gp_state = GP_STATE__INIT;
+	uint8_t *send_buf;
+	uint16_t len;
 	
+	//build the message
+	gp_state.connected = 1;
+	gp_state.buttons = buttons;
+	gp_state.n_axes = 4;
+	gp_state.axes = malloc(sizeof(double) * 4);
+	for (int i = 0; i < 4; i++) {
+		gp_state.axes[i] = joystick_vals[i];
+	}
+	len = gp_state__get_packed_size(&gp_state);
+	send_buf = malloc(len);
+	gp_state__pack(&gp_state, send_buf);
+	
+	//send the message
+	sendto(nh_udp_fd, send_buf, len, 0, (struct sockaddr *)&udp_servaddr, sizeof(struct sockaddr_in));
+	
+	//free everything
+	free(gp_state.axes);
+	free(send_buf);
+	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
 }
 
-void send_device_data (dev_data_t *data)
+void send_challenge_data (int client, char **data)
 {
+	Text challenge_data = TEXT__INIT;
+	uint8_t *send_buf;
+	uint16_t len;
 	
+	//build the message
+	challenge_data.payload = malloc(sizeof(char *) * NUM_CHALLENGES);
+	challenge_data.n_payload = NUM_CHALLENGES;
+	for (int i = 0; i < NUM_CHALLENGES; i++) {
+		len = strlen(data[i]);
+		challenge_data.payload[i] = malloc(sizeof(char) * len);
+		strcpy(challenge_data.payload[i], data[i]);
+	}
+	len = text__get_packed_size(&challenge_data);
+	send_buf = make_buf(CHALLENGE_DATA_MSG, len);
+	text__pack(&challenge_data, send_buf + 3);
+	
+	//send the message
+	if (client == SHEPHERD_CLIENT) {
+		writen(nh_tcp_shep_fd, send_buf, len + 3);
+	} else {
+		writen(nh_tcp_dawn_fd, send_buf, len + 3);
+	}
+	
+	//free everything
+	for (int i = 0; i < NUM_CHALLENGES; i++) {
+		free(challenge_data.payload[i]);
+	}
+	free(challenge_data.payload);
+	free(send_buf);
+	sleep(6); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
+}
+
+void send_device_data (dev_data_t *data, int num_devices)
+{
+	DevData dev_data = DEV_DATA__INIT;
+	uint8_t *send_buf;
+	uint16_t len;
+	
+	//build the message
+	device_t *curr_device;
+	uint8_t curr_type;
+	dev_data.n_devices = num_devices;
+	dev_data.devices = malloc(sizeof(Device *) * num_devices);
+	
+	//set each device
+	for (int i = 0; i < num_devices; i++) {
+		if ((curr_type = device_name_to_type(data[i].name)) == (uint8_t) -1) {
+			printf("ERROR: no such device \"%s\"\n", data[i].name);
+		}
+		//fill in device fields
+		curr_device = get_device(curr_type);
+		Device dev = DEVICE__INIT;
+		dev.name = curr_device->name;
+		dev.uid = data[i].uid;
+		dev.type = curr_type;
+		dev.n_params = curr_device->num_params;
+		dev.params = malloc(sizeof(Param *) * curr_device->num_params);
+		
+		//set each param
+		for (int j = 0; j < curr_device->num_params; j++) {
+			//fill in param fields
+			Param prm = PARAM__INIT;
+			prm.val_case = PARAM__VAL_BVAL;
+			prm.bval = (data[i].params & (1 << j)) ? 1 : 0;
+			dev.params[j] = &prm;
+		}
+		dev_data.devices[i] = &dev;
+	}
+	len = dev_data__get_packed_size(&dev_data);
+	send_buf = make_buf(DEVICE_DATA_MSG, len);
+	dev_data__pack(&dev_data, send_buf + 3);
+	
+	//send the message
+	writen(nh_tcp_dawn_fd, send_buf, len + 3);
+	
+	//free everything
+	for (int i = 0; i < num_devices; i++) {
+		free(dev_data.devices[i]);
+	}
+	free(dev_data.devices);
+	
+	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
+}
+
+void print_next_dev_data ()
+{
+	pthread_mutex_lock(&print_udp_mutex);
+	print_next_udp = 1;
+	pthread_mutex_unlock(&print_udp_mutex);
+	
+	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
 }
