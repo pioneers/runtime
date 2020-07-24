@@ -9,10 +9,10 @@ endif
 DEPENDENCIES=../test.* ../client/* ../../logger/* ../../net_handler/* ../../runtime_util/* ../../shm_wrapper/*
 SRC_FILES=../client/*.c ../test.c ../../net_handler/pbc_gen/*.c ../../net_handler/net_util.c ../../runtime_util/runtime_util.c ../../shm_wrapper/shm_wrapper.c ../../logger/logger.c
 
-all: test_sanity
+all: tc_48_1
 
-test_sanity: $(DEPENDENCIES) test_sanity.c
-	gcc test_sanity.c $(SRC_FILES) -o $@ $(LIBS)
+tc_48_1: $(DEPENDENCIES) tc_48_1.c
+	gcc tc_48_1.c $(SRC_FILES) -o $@ $(LIBS)
 
-test_constant_print: $(DEPENDENCIES) test_constant_print.c
-	gcc test_constant_print.c $(SRC_FILES) -o $@ $(LIBS)
+tc_48_2: $(DEPENDENCIES) tc_48_2.c
+	gcc tc_48_2.c $(SRC_FILES) -o $@ $(LIBS)

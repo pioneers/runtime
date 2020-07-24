@@ -277,9 +277,9 @@ void start_net_handler ()
 			exit(1);
 		}
 		memset(&udp_servaddr, 0, sizeof(struct sockaddr_in));
-	    udp_servaddr.sin_family = AF_INET; 
-	    udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR); 
-	    udp_servaddr.sin_port = htons(RASPI_UDP_PORT); 
+		udp_servaddr.sin_family = AF_INET; 
+		udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR); 
+		udp_servaddr.sin_port = htons(RASPI_UDP_PORT); 
 		
 		//open /dev/null
 		null_fp = fopen("/dev/null", "w");
