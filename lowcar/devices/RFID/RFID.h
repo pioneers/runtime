@@ -13,8 +13,7 @@ enum class RFID_Param : uint8_t {
 	TAG_DETECT 	= 2		//is 1 if we have a tag; 0 otherwise
 };
 
-class RFID : public Device
-{
+class RFID : public Device {
 public:
 	//constructs an RFID; simply calls generic Device constructor with device type and year
 	//instatiates the mfrc522 private variable, and initializes the other private variables

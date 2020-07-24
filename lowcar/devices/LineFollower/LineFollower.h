@@ -4,8 +4,7 @@
 #include "Device.h"
 #include "defs.h"
 
-class LineFollower : public Device
-{
+class LineFollower : public Device {
 public:
 	//constructs a LineFollower; simply calls generic Device constructor with device type and year
 	LineFollower ();

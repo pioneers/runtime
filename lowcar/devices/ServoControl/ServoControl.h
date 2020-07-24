@@ -5,8 +5,7 @@
 #include "defs.h"
 #include <Servo.h>
 
-class ServoControl : public Device
-{
+class ServoControl : public Device {
 public:
 	//Constructor
 	ServoControl();

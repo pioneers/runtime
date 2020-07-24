@@ -4,8 +4,8 @@
 // default constructor simply specifies DeviceID and and year to generic constructor
 // initalizes helper class objects and pre-existing variables
 BatteryBuzzer::BatteryBuzzer () :
-  	Device (DeviceType:: BATTERY_BUZZER, 1),
-  	disp(SevenSeg(A, B, C, D, E, G, H))
+	Device (DeviceType:: BATTERY_BUZZER, 1),
+	disp(SevenSeg(A, B, C, D, E, G, H))
 {
 	v_cell1 = 0;  // param
 	v_cell2 = 0;  // param 4
@@ -31,19 +31,18 @@ BatteryBuzzer::BatteryBuzzer () :
 	this->segment_8_run = NORMAL_VOLT_READ;  //0 for the normal voltage readout.  1 for "Clear Calibration".  2 for "New Calibration"
 }
 
-size_t BatteryBuzzer::device_read (uint8_t param, uint8_t *data_buf)
-{
-	switch(param) {
-        // Boolean params
-        case IS_UNSAFE:
-            data_buf[0] = is_unsafe();
-            return sizeof(uint8_t);
-        case CALIBRATED:
-            data_buf[0] = is_calibrated();
-            return sizeof(uint8_t);
+size_t BatteryBuzzer::device_read (uint8_t param, uint8_t *data_buf) {
+	switch (param) {
+		// Boolean params
+		case IS_UNSAFE:
+			data_buf[0] = is_unsafe();
+			return sizeof(uint8_t);
+		case CALIBRATED:
+			data_buf[0] = is_calibrated();
+			return sizeof(uint8_t);
 
-        // Float params
-        float *float_buf = (float*) data_buf;
+		// Float params
+		float *float_buf = (float*) data_buf;
 		case V_CELL1:
 			float_buf[0] = v_cell1;
 			break;
@@ -66,8 +65,7 @@ size_t BatteryBuzzer::device_read (uint8_t param, uint8_t *data_buf)
 	return sizeof(float);
 }
 
-void BatteryBuzzer::device_enable ()
-{
+void BatteryBuzzer::device_enable () {
 	pinMode(buzzer, OUTPUT);
 
 	vref_guess = ADC_REF_NOM; //initial guesses, based on datasheet
@@ -81,8 +79,7 @@ void BatteryBuzzer::device_enable ()
 	setup_sensing();
 }
 
-void BatteryBuzzer::device_actions()
-{
+void BatteryBuzzer::device_actions() {
 	setup_display();
 	disp.clearDisp();
 
@@ -98,10 +95,10 @@ void BatteryBuzzer::device_actions()
 	disp.clearDisp();
 }
 
-uint8_t BatteryBuzzer::is_calibrated()
-{
+uint8_t BatteryBuzzer::is_calibrated() {
 	//triple calibration arrays are all default values
-	if (triple_calibration && (calib[0] == ADC_REF_NOM) && (calib[1]  == ADC_REF_NOM) && (calib[2] == ADC_REF_NOM)) {
+	if (triple_calibration && (calib[0] == ADC_REF_NOM) \
+	    && (calib[1]  == ADC_REF_NOM) && (calib[2] == ADC_REF_NOM)) {
 		return FALSE;
 	}
 	//calibration value is set to default
@@ -112,26 +109,30 @@ uint8_t BatteryBuzzer::is_calibrated()
 	return TRUE;
 }
 
-void BatteryBuzzer::setup_display()
-{
+void BatteryBuzzer::setup_display() {
 	disp.setDigitPins(numOfDigits, digitPins);
 	disp.setDPPin(DECIMAL_POINT);  //set the Decimal Point pin to #1
 }
 
-
-void BatteryBuzzer::test_display() //a function to ensure that all outputs of the display are working.
-	//On the current PDB, this should display "8.8.8.8."  The library is capable of handling : and ', but the wires are not hooked up to it.
-{
-	for(int i = 0; i<250; i++) {
-		disp.write("8.8.8.8."); //this function call takes a surprising amount of time, probably because of how many characters are in it.
+/**
+ * a function to ensure that all outputs of the display are working.
+ * On the current PDB, this should display "8.8.8.8."
+ * The library is capable of handling : and ', but the wires are not hooked up to it.
+ */
+void BatteryBuzzer::test_display() {
+	for (int i = 0; i<250; i++) {
+		//this function call takes a surprising amount of time,
+		//probably because of how many characters are in it.
+		disp.write("8.8.8.8.");
 	}
 	disp.clearDisp();
 }
 
-
-void BatteryBuzzer::handle_8_segment() //handles the 8-segment display, and prints out the global values.
-	//MUST be called in the loop() without any if's
-{
+/**
+ * handles the 8-segment display, and prints out the global values.
+ * MUST be called in the loop() without any if's
+ */
+void BatteryBuzzer::handle_8_segment() {
 	if(segment_8_run == NORMAL_VOLT_READ) {
 		//Shows text / numbers of all voltages & then individual cells.
 		//Changed every Second
@@ -169,23 +170,24 @@ void BatteryBuzzer::handle_8_segment() //handles the 8-segment display, and prin
 			}
 			last_LED_time = millis();
 		}
-	} else if(segment_8_run == CLEAR_CALIB) {
-		if(sequence == 0) {
+	} else if (segment_8_run == CLEAR_CALIB) {
+		if (sequence == 0) {
 			disp.write("CAL");
-		} else if(sequence == 1) {
+		} else if (sequence == 1) {
 			disp.write("CLR");
 		}
 
 		if (millis() > (last_LED_time + 750)) { //every 3/4 second
 			sequence = sequence + 1;
-			if(sequence == 2) {
-				start_8_seg_sequence(NORMAL_VOLT_READ); //return to default Programming... showing battery voltages.
+			if (sequence == 2) {
+				//return to default Programming... showing battery voltages.
+				start_8_seg_sequence(NORMAL_VOLT_READ);
 			}
 			last_LED_time = millis();
 		}
-	} else if(segment_8_run == NEW_CALIB) {
-		if(triple_calibration) {
-			switch(sequence) {
+	} else if (segment_8_run == NEW_CALIB) {
+		if (triple_calibration) {
+			switch (sequence) {
 				case 0:
 					disp.write("CAL");
 					break;
@@ -214,13 +216,13 @@ void BatteryBuzzer::handle_8_segment() //handles the 8-segment display, and prin
 
 			if (millis() > (last_LED_time + 750)) { //every 3/4 second
 				sequence++;
-				if(sequence == 8) {
+				if (sequence == 8) {
 					start_8_seg_sequence(NORMAL_VOLT_READ); //return to default Programming... showing battery voltages.
 				}
 				last_LED_time = millis();
 			}
 		} else {
-			switch(sequence) {
+			switch (sequence) {
 				case 0:
 					disp.write("CAL");
 					break;
@@ -246,15 +248,13 @@ void BatteryBuzzer::handle_8_segment() //handles the 8-segment display, and prin
 	}
 }
 
-void BatteryBuzzer::start_8_seg_sequence(SEQ_NUM sequence_num)
-{
+void BatteryBuzzer::start_8_seg_sequence(SEQ_NUM sequence_num) {
 	segment_8_run = sequence_num; //rel the display to run the right sequence
 	sequence = 0;  //and reset the step in the sequence to zero.
 	last_LED_time = millis();
 }
 
-void BatteryBuzzer::setup_sensing()
-{
+void BatteryBuzzer::setup_sensing() {
 	pinMode(ENABLE, OUTPUT);
 	pinMode(CALIB_BUTTON, INPUT);
 
@@ -264,18 +264,18 @@ void BatteryBuzzer::setup_sensing()
 	//let's turn enable on, so we can measure the battery voltage.
 	digitalWrite(ENABLE, HIGH);
 
-	if(triple_calibration) {
+	if (triple_calibration) {
 		update_triple_calibration();  //and then update the calibration values I use based on what I now know
 	} else {
 		float val = get_calibration();
-		if(val > 0) { //by convention, val is -1 if there's no calibration.
+		if (val > 0) { //by convention, val is -1 if there's no calibration.
 			vref_guess = val;
 		}
 	}
 }
 
-void BatteryBuzzer::measure_cells() //measures the battery cells. Should call at least twice a second, but preferrably 5x a second.  No use faster.
-{
+//measures the battery cells. Should call at least twice a second, but preferrably 5x a second.  No use faster.
+void BatteryBuzzer::measure_cells()  {
 	int r_cell1 = analogRead(CELL1);
 	int r_cell2 = analogRead(CELL2);
 	int r_cell3 = analogRead(CELL3);
@@ -290,31 +290,29 @@ void BatteryBuzzer::measure_cells() //measures the battery cells. Should call at
 	v_batt = v_cell3;
 }
 
-uint8_t BatteryBuzzer::handle_calibration() //called very frequently by loop.
-{
+//called very frequently by loop.
+uint8_t BatteryBuzzer::handle_calibration() {
 	if (digitalRead(CALIB_BUTTON)) { //I pressed the button, start calibrating.
 		float calib_0 = calib[0];
 		float calib_1 = calib[1];
 		float calib_2 = calib[2];
 
 		//i'm in triple calibration mode, but the calibration array is exactly the same as the datasheet values... which means i haven't been calibrated.
-		if(triple_calibration && calib_0 == ADC_REF_NOM && calib_1 == ADC_REF_NOM & calib_2 == ADC_REF_NOM) {
+		if (triple_calibration && calib_0 == ADC_REF_NOM && calib_1 == ADC_REF_NOM & calib_2 == ADC_REF_NOM) {
 			float vref_new = calibrate();
 			calib_0 = calib[0];
 			calib_1 = calib[1];
 			calib_2 = calib[2];
 			write_triple_eeprom(calib_0, calib_1, calib_2);
 			return NEW_CALIB;
-		} else if(!triple_calibration && get_calibration() == -1.0) { //i'm not in triple calibration mode, and i haven't been calibrated.
+		} else if (!triple_calibration && get_calibration() == -1.0) { //i'm not in triple calibration mode, and i haven't been calibrated.
 			float vref_new = calibrate();
 			write_single_eeprom(vref_new);
 			return NEW_CALIB;
 		} else { //I have already been calibrated with something.  reset it.
 			//wait untill the button press goes away.
 			//This is to maintain commonality with how calibrate() works.
-			{
-				delay(1);
-			}
+			delay(1);
 			//reset all my calibration values as well, so my calibration values that i'm using are in lockstep with the EEPROM.
 			vref_guess = ADC_REF_NOM;
 			calib[0] = ADC_REF_NOM;
@@ -327,11 +325,12 @@ uint8_t BatteryBuzzer::handle_calibration() //called very frequently by loop.
 	}
 }
 
-//calibrates the device.
-//assumes that a 5V line has been put to each battery cell.
-//it then calculates its best guess for vref.
-float BatteryBuzzer::calibrate()
-{
+/**
+ * calibrates the device.
+ * assumes that a 5V line has been put to each battery cell.
+ * it then calculates its best guess for vref.
+ */
+float BatteryBuzzer::calibrate() {
 	//wait untill the button press goes away.
 	//This is jank debouncing.
 	//Have to calibrate AFTER the button is pressed, not while.  Yes, it's wierd.  PCB issue.
@@ -368,69 +367,58 @@ float BatteryBuzzer::calibrate()
 
 //returns if i'm safe or not based on the most recent reading.
 //Currently does only over and under voltage protection.  No time averaging.  So will need to be fancier later.
-uint8_t BatteryBuzzer::compute_safety()
-{
+uint8_t BatteryBuzzer::compute_safety() {
 	uint8_t unsafe;
 	// Case 0: Cell voltages are below minimum values.
-	if( (v_cell1 < min_cell ) || (dv_cell2 < min_cell) || (dv_cell3 < min_cell) )
-	{
+	if ((v_cell1 < min_cell ) || (dv_cell2 < min_cell) || (dv_cell3 < min_cell)) {
 		unsafe = TRUE;
 		under_volt = TRUE;
 	}
 	// Case 1: Cell voltages are above maximum values.
-	else if((v_cell1 > max_cell ) || (dv_cell2 > max_cell) || (dv_cell3 > max_cell))
-	{
+	else if ((v_cell1 > max_cell ) || (dv_cell2 > max_cell) || (dv_cell3 > max_cell)) {
 		unsafe = TRUE;
 	}
 	// Case 2: Imbalanced cell voltages.
-	else if( (abs(v_cell1 - dv_cell2) > d_cell) || (abs(dv_cell2 - dv_cell3) > d_cell) || (abs(dv_cell3 - v_cell1) > d_cell))
-	{
+	else if ((abs(v_cell1 - dv_cell2) > d_cell) || (abs(dv_cell2 - dv_cell3) > d_cell) || (abs(dv_cell3 - v_cell1) > d_cell)) {
 		imbalance = TRUE;
 		unsafe = TRUE;
 	}
 	// Case 3: Previously undervolted, now exceeding exit threshold.  This has the effect of
 	// rejecting momentary dips under the undervolt threshold but continuing to be unsafe if hovering close.
-	else if(under_volt && (v_cell1 > end_undervolt) && (dv_cell2 > end_undervolt) && (dv_cell3 > end_undervolt) )
-	{
+	else if (under_volt && (v_cell1 > end_undervolt) && (dv_cell2 > end_undervolt) && (dv_cell3 > end_undervolt) ) {
 		unsafe = FALSE;
 		under_volt = FALSE;
 	}
 	// Case 4: Imbalanced, previously undervolted, and now exceeding exit thresholds.
-	else if(imbalance && (abs(v_cell1 - dv_cell2) < end_d_cell) && (abs(dv_cell2 - dv_cell3) < end_d_cell) && (abs(dv_cell3 - v_cell1) < end_d_cell) )
-	{
+	else if (imbalance && (abs(v_cell1 - dv_cell2) < end_d_cell) && (abs(dv_cell2 - dv_cell3) < end_d_cell) && (abs(dv_cell3 - v_cell1) < end_d_cell) ) {
 		unsafe = FALSE;
 		imbalance = FALSE;
 	}
 	// Case 5: All is well.
-	else
-	{
+	else {
 		unsafe = FALSE;
 	}
 	return unsafe;
 }
 
-void BatteryBuzzer::buzz (uint8_t should_buzz)
-{
-	if(should_buzz) {
+void BatteryBuzzer::buzz (uint8_t should_buzz) {
+	if (should_buzz) {
 		tone(buzzer, NOTE_A5);
 	} else {
 		noTone(buzzer);
 	}
 }
 
-void BatteryBuzzer::handle_safety()
-{
+void BatteryBuzzer::handle_safety() {
 	unsafe_status = compute_safety(); //Currently, just does basic sensing.  Should get updated.
 	buzz(unsafe_status);
 }
 
-uint8_t BatteryBuzzer::is_unsafe()
-{
+uint8_t BatteryBuzzer::is_unsafe() {
 	return unsafe_status;
 }
 
-float BatteryBuzzer::get_calibration()
-{
+float BatteryBuzzer::get_calibration() {
 	if (EEPROM.read(0)=='C' && EEPROM.read(1)=='A' && EEPROM.read(2)=='L' && EEPROM.read(3)==':') {
 		//instantiate a float.
 		float f = 0.0f;
@@ -444,10 +432,9 @@ float BatteryBuzzer::get_calibration()
 //updates the global "calib" array based on EEPROM.
 //Calib will contain datasheet values (2.56) if there's no calibration.
 //If there is, the appopriate elements will be updated.
-void BatteryBuzzer::update_triple_calibration()
-{
+void BatteryBuzzer::update_triple_calibration() {
 	int next_addr = 0;
-	for(int i = 1; i<=3; i++) {
+	for (int i = 1; i<=3; i++) {
 		char first = EEPROM.read(next_addr);
 		char second = EEPROM.read(next_addr + 1);
 		char third = EEPROM.read(next_addr + 2);
@@ -455,7 +442,7 @@ void BatteryBuzzer::update_triple_calibration()
 		char fifth = EEPROM.read(next_addr + 4);
 
 		// Only takes in a valid calibration -  no chance of using partial triple calibration left over in single mode.
-		if(first == 'C' && second == 'A' && third == 'L' && fourth == char(i+'0') && fifth == ':') {
+		if (first == 'C' && second == 'A' && third == 'L' && fourth == char(i+'0') && fifth == ':') {
 			float f = 0.0f; //instantiate a float.
 			EEPROM.get(next_addr + 5,f); //calibration value is stored in location 4
 			calib[i - 1] = f; // put value into the calibration array
@@ -466,8 +453,7 @@ void BatteryBuzzer::update_triple_calibration()
 	}
 }
 
-void BatteryBuzzer::write_single_eeprom(float val)
-{
+void BatteryBuzzer::write_single_eeprom(float val) {
 	//Write one-value calibration to eeprom in the following format.
 	//This code may not be used in three-calibration mode, which will be standard.
 	EEPROM.write(0, 'C');
@@ -479,8 +465,7 @@ void BatteryBuzzer::write_single_eeprom(float val)
 	EEPROM.put(4, val);
 }
 
-void BatteryBuzzer::write_triple_eeprom(float val1, float val2, float val3)
-{
+void BatteryBuzzer::write_triple_eeprom(float val1, float val2, float val3) {
 	// Write one-value calibration to eeprom in the following format:
 	// "CAL1:<float1>CAL2:<float2>CAL3<float3>
 
@@ -507,8 +492,7 @@ void BatteryBuzzer::write_triple_eeprom(float val1, float val2, float val3)
 	}
 }
 
-void BatteryBuzzer::clear_eeprom()
-{
+void BatteryBuzzer::clear_eeprom() {
 	// Writes 0 into all positions of the eeprom.
 	for (int i = 0 ; i < EEPROM.length() ; i++) {
 		EEPROM.write(i, 0);

@@ -1,23 +1,23 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <stdio.h>	// perror()
+#include <stdio.h>    // perror()
 #include <stdint.h>
-#include <string.h>  // strcmp
+#include <string.h>   // strcmp
 #include <errno.h>
-#include <unistd.h>	// read() and write()
+#include <unistd.h>   // read() and write()
 #include <sys/time.h> // Used in millis()
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
-#define MAX_DEVICES 32			//maximum number of connected devices
-#define MAX_PARAMS 32			//maximum number of parameters supported
+#define MAX_DEVICES 32         //maximum number of connected devices
+#define MAX_PARAMS 32          //maximum number of parameters supported
 
-#define DEVICES_LENGTH 15		// The largest device type number + 1.
+#define DEVICES_LENGTH 15      // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 5		//number of fields in the robot description
+#define NUM_DESC_FIELDS 5      //number of fields in the robot description
 
-#define NUM_GAMEPAD_BUTTONS 17	//number of gamepad buttons
+#define NUM_GAMEPAD_BUTTONS 17 //number of gamepad buttons
 
 #define MAX_LOG_LEN 512
 
@@ -62,9 +62,9 @@ typedef enum param_type {
 
 //hold a single param value. One-to-one mapping to param_val_t enum
 typedef union {
-	int16_t p_i;	//data if int
-	float p_f;		//data if float
-	uint8_t p_b;	//data if bool
+	int16_t p_i; //data if int
+	float p_f;   //data if float
+	uint8_t p_b; //data if bool
 } param_val_t;
 
 //holds the device identification information of a single device
@@ -76,18 +76,18 @@ typedef struct dev_id {
 
 // A struct defining the type and access level of a device parameter
 typedef struct param_desc {
-  char* name;			// Parameter name
-  param_type_t type;	// Data type
-  uint8_t read;			// Whether or not the param is readable
-  uint8_t write;		// Whether or not the param is writable
+	char* name;        // Parameter name
+	param_type_t type; // Data type
+	uint8_t read;      // Whether or not the param is readable
+	uint8_t write;     // Whether or not the param is writable
 } param_desc_t;
 
 // A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
-  uint8_t type;						// The type of device
-  char* name;						// Device name (ex: "LimitSwitch")
-  uint8_t num_params; 				// Number of params the device has
-  param_desc_t params[MAX_PARAMS];	// Description of each parameter
+	uint8_t type;                    // The type of device
+	char* name;                      // Device name (ex: "LimitSwitch")
+	uint8_t num_params;              // Number of params the device has
+	param_desc_t params[MAX_PARAMS]; // Description of each parameter
 } device_t;
 
 // *************************** DEVICE UTILITY FUNCTIONS ************************** //

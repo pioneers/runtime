@@ -4,8 +4,7 @@
 #include "pindefs_koala.h"
 
 //class for controlling the LED's on the KoalaBear
-class LEDKoala
-{
+class LEDKoala {
 public:
 	//Constructor
 	LEDKoala();
@@ -22,4 +21,4 @@ private:
 	bool green_state;
 };
 
- #endif /* LEDKOALA_H */
+#endif /* LEDKOALA_H */

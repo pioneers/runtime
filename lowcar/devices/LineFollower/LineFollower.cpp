@@ -5,21 +5,18 @@ const int LineFollower::NUM_PINS = 3; //number of pins used for I/O for LineFoll
 const uint8_t LineFollower::pins[] = {(const uint8_t) Analog::IO0, (const uint8_t) Analog::IO1, (const uint8_t) Analog::IO2};
 
 //default constructor simply specifies DeviceID and year to generic constructor
-LineFollower::LineFollower () : Device (DeviceType::LINE_FOLLOWER, 1)
-{
+LineFollower::LineFollower () : Device (DeviceType::LINE_FOLLOWER, 1) {
 	;
 }
 
-size_t LineFollower::device_read (uint8_t param, uint8_t *data_buf)
-{
+size_t LineFollower::device_read (uint8_t param, uint8_t *data_buf) {
 	//use data_ptr_float to shove 10-bit sensor reading into the data_buf (even though data_buf is of type uint8_t)
 	float *data_ptr_float = (float *)data_buf;
 	*data_ptr_float = ((float) analogRead(this->pins[param])) / 1023;
 	return sizeof(float);
 }
 
-void LineFollower::device_enable ()
-{
+void LineFollower::device_enable () {
 	//set all pins to INPUT mode
 	for (int i = 0; i < LineFollower::NUM_PINS; i++) {
 		pinMode(LineFollower::pins[i], INPUT);
