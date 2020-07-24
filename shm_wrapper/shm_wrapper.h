@@ -10,8 +10,8 @@
 #include <unistd.h>                        //for standard symbolic constants
 #include <semaphore.h>                     //for semaphores
 #include <sys/mman.h>                      //for posix shared memory
-#include "../logger/logger.h"              //for logger (TODO: consider removing relative pathname in include)
-#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
+#include "../logger/logger.h"              //for logger
+#include "../runtime_util/runtime_util.h"  //for runtime constants
 
 //names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm.c
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
