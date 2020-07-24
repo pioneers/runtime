@@ -10,9 +10,10 @@
 #include <stdint.h>                        //for standard int types
 #include <unistd.h>                        //for sleep
 #include <pthread.h>                       //for POSIX threads
-#include <signal.h>                        // Used to handle SIGTERM, SIGINT, SIGKILL
-#include <time.h>                          // for getting time
-#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
+#include <signal.h>                        //Used to handle SIGTERM, SIGINT, SIGKILL
+#include <time.h>                          //for getting time
+#include <stddef.h>                        //for offsetof function
+#include "../runtime_util/runtime_util.h"  //for runtime constants
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 #include "../logger/logger.h"              // for runtime logger
 
