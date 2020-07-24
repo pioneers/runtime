@@ -4,8 +4,7 @@ const float Device::MAX_SUB_INTERVAL_MS = 500.0;    // maximum tolerable subscri
 const float Device::MIN_SUB_INTERVAL_MS = 40.0;     // minimum tolerable subscription delay, in ms
 
 //Device constructor
-Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t ping_interval)
-{
+Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t ping_interval) {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
 	this->dev_id.uid = 0; //sets a temporary value
@@ -25,15 +24,13 @@ Device::Device (DeviceType dev_id, uint8_t dev_year, uint32_t timeout, uint32_t 
 }
 
 //Sets the UID
-void Device::set_uid (uint64_t uid)
-{
+void Device::set_uid (uint64_t uid) {
 	this->dev_id.uid = uid;
 }
 
 //universal loop function
 //TODO: do something when device disables because of time out
-void Device::loop ()
-{
+void Device::loop () {
     Status sts;
     this->curr_time = millis();
     sts = this->msngr->read_message(&(this->curr_msg)); //try to read a new message
@@ -107,39 +104,33 @@ void Device::loop ()
 //************************************************ DEFAULT DEVICE-SPECIFIC METHODS ******************************************* //
 
 //a device uses this function to return data about its state
-size_t Device::device_read (uint8_t param, uint8_t *data_buf)
-{
+size_t Device::device_read (uint8_t param, uint8_t *data_buf) {
   return 0; //by default, we read 0 bytes into buffer
 }
 
 //a device uses this function to change a state
-size_t Device::device_write (uint8_t param, uint8_t *data_buf)
-{
+size_t Device::device_write (uint8_t param, uint8_t *data_buf) {
   return 0; //by default, we wrote 0 bytes successfully to device
 }
 
 //a device uses this function to enable itself
-void Device::device_enable ()
-{
+void Device::device_enable () {
   return; //by default, enabling the device does nothing
 }
 
 //a device uses this function to disable itself
-void Device::device_disable ()
-{
+void Device::device_disable () {
   return; //by default, disabling the device does nothing
 }
 
 //a device uses this function to perform any continuous updates or actions
-void Device::device_actions ()
-{
+void Device::device_actions () {
   return; //by default, device does nothing on every loop
 }
 
 //*************************************************** HELPER METHODS ***************************************************//
 
-void Device::device_read_params (message_t *msg)
-{
+void Device::device_read_params (message_t *msg) {
     // Clear the message before building device data
     msg->message_id = MessageID::DEVICE_DATA;
     msg->payload_length = 0;
@@ -160,8 +151,7 @@ void Device::device_read_params (message_t *msg)
 	//this->msngr->lowcar_printf("params is %08X", *((uint32_t *)msg->payload));
 }
 
-void Device::device_write_params (message_t *msg)
-{
+void Device::device_write_params (message_t *msg) {
     if (msg->message_id != MessageID::DEVICE_WRITE) {
         return;
     }

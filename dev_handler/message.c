@@ -274,13 +274,11 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
     data[0] = msg->message_id;
 
     data[1] = msg->payload_length;
-	//log_printf(DEBUG, "Sending message id 0x%02X\n", data[0]);
-	//log_printf(DEBUG, "Sending payload length 0x%02X\n", data[1]);
     for (int i = 0; i < msg->payload_length; i++) {
         data[i + MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE] = msg->payload[i];
     }
     data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length] = checksum(data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length);
-	//log_printf(DEBUG, "Sending checksum 0x%02X\n", data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length]);
+
     cobs_encoded[0] = 0x00;
     int cobs_len = cobs_encode(&cobs_encoded[2], data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
     cobs_encoded[1] = cobs_len;
@@ -290,12 +288,8 @@ int message_to_bytes(message_t* msg, uint8_t cobs_encoded[], int len) {
 
 int parse_message(uint8_t data[], message_t* msg_to_fill) {
     uint8_t* decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->max_payload_length + CHECKSUM_SIZE);
-    // printf("Cobs len: %d\n", data[1]);
     int ret = cobs_decode(decoded, &data[2], data[1]);
-    //printf("Decoded message: ");
-    //print_bytes(decoded, ret);
     msg_to_fill->message_id = decoded[0];
-    // printf("INFO: Received message id 0x%X\n", decoded[0]);
     msg_to_fill->payload_length = 0;
     msg_to_fill->max_payload_length = decoded[1];
 	ret = append_payload(msg_to_fill, &decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE], decoded[1]);
@@ -303,7 +297,6 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
 		printf("ERROR: Overwrote to payload\n");
 		return 2;
 	}
-	//printf("Received payload length %d\n", msg_to_fill->payload_length);
     char expected_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
     char received_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
 	if (expected_checksum != received_checksum) {
@@ -320,7 +313,6 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
     /* Iterate through device's parameters. If bit is off, continue
      * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
-	//printf("%s: ", dev->name);
     for (int i = 0; (bitmap >> i) > 0; i++) {
         // If bit is off, parameter is not included in the payload
         if (((1 << i) & bitmap) == 0) {
@@ -329,20 +321,16 @@ void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[
 		switch (dev->params[i].type) {
 			case INT:
 				vals[i].p_i = *((int16_t*) payload_ptr);
-				//printf("(%s) %d; ", dev->params[i].name, vals[i].p_i);
 				payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
 				break;
 			case FLOAT:
 				vals[i].p_f = *((float*) payload_ptr);
-				//printf("(%s) %f; ", dev->params[i].name, vals[i].p_f);
 				payload_ptr += sizeof(float) / sizeof(uint8_t);
 				break;
 			case BOOL:
 				vals[i].p_b = *payload_ptr;
-				//printf("(%s) %d; ", dev->params[i].name, vals[i].p_b);
 				payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
 				break;
 		}
     }
-	//printf("\n");
 }

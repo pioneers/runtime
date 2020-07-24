@@ -123,9 +123,9 @@ int calc_max_cobs_msg_length(message_t* msg);
 int message_to_bytes(message_t* msg, uint8_t data[], int len);
 
 /*
- * Cobs decodes a byte array and populates a message_t*, filling up the fields of msg_to_fill
+ * Cobs decodes a byte array and populates the fields of input message_t
  * The structure of the byte array is expected to be:
- *      8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
+ * 8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
  * data: A byte array containing a cobs encoded message. data[0] should be the delimiter. data[1] should be cobs_len
  * empty_msg: A message to be populated. Payload must be properly allocated memory. Use make_empty()
  * return: 0 if successful parsing (correct checksum). 1 Otherwise

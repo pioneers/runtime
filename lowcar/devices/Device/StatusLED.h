@@ -8,8 +8,7 @@
 
 #include "defs.h"
 
-class StatusLED
-{
+class StatusLED {
 public:
 	//sets up the status LED and configures the pin
 	StatusLED ();
