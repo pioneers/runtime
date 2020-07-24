@@ -4,6 +4,7 @@
 #include "../../runtime_util/runtime_util.h"
 #include "../../net_handler/net_util.h"
 #include <sys/time.h>
+#include <sys/wait.h>
 
 #define SHEPHERD_CLIENT 0
 #define DAWN_CLIENT 1

@@ -130,7 +130,6 @@ void sigint_handler (int signum)
 
 int main ()
 {
-	struct sockaddr_in udp_servaddr; //for holding server address of UDP connection with raspi
 	char nextcmd[MAX_CMD_LEN]; //to hold nextline
 	int stop = 0;
 	
@@ -140,7 +139,7 @@ int main ()
 	fflush(stdout);
 	
 	//start the net handler and connect all of its output locations to file descriptors in this process
-	start_net_handler(&udp_servaddr);
+	start_net_handler();
 	
 	//command-line loop which prompts user for commands to send to net_handler
 	while (!stop) {
