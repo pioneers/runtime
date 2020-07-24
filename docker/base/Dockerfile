@@ -1,5 +1,6 @@
 FROM arm32v7/python:3.7-buster
 
+# Install Python.h and other apt dependencies
 RUN apt-get -q update && \
     apt-get -y install python3-dev wget tar pkg-config && \
     apt-get clean

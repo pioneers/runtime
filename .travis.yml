@@ -16,20 +16,15 @@ if: (type = pull_request) OR (type = push AND branch = master)
 install: skip
 
 before_script:
-  - docker build -t ${DOCKER_USERNAME}/c-runtime:$TAG -f docker/Dockerfile .
+  - docker build -t ${DOCKER_USERNAME}/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
   - docker run -d ${DOCKER_USERNAME}/c-runtime:$TAG # Runs the docker container as detached
 
 script:
-  # - docker cp . $(docker ps -q):/root/runtime/ # Copy the newest code into the image
-  # - docker exec -t $(docker ps -q) bash -c "./build.sh" # Build the latest code
-  # - docker exec -d $(docker ps -q) bash -c "./run.sh"   # Run the Runtime processes
   - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
   - docker kill -s INT $(docker ps -q)
-  # - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
 
 # DOCKER_USERNAME and DOCKER_PASSWORD are defined as a repository secret environment variable on travis-ci.org
 before_deploy:
-  # - docker pull arm32v7/debian:buster # For some reason docker build fails to pull if the FROM image isn't cached locally
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
 deploy:
