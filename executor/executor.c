@@ -472,18 +472,27 @@ int main(int argc, char* argv[]) {
         student_code = argv[1];
     }
     log_printf(DEBUG, "Min time %llu", min_time);
-    remove(CHALLENGE_SOCKET); // Always remove any old challenge socket
-    struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
-	//create the socket
-	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+	
+	// open challenge socket to read and write
+	struct sockaddr_un my_addr;
+	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
-        log_printf(FATAL, "could not create challenge socket");
+		log_printf(FATAL, "could not create challenge socket");
 		return 1;
 	}
-
-	if (bind(challenge_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_un)) < 0) {
-        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
-		return 1;
+	//set up the challenge socket
+	memset(&my_addr, 0, sizeof(struct sockaddr_un));
+	my_addr.sun_family = AF_UNIX;
+	strcpy(my_addr.sun_path, CHALLENGE_SOCKET);
+	
+	//bind it if it doesn't exist on the system already
+	if (access(CHALLENGE_SOCKET, F_OK) == -1) {
+		int my_addr_len = offsetof(struct sockaddr_un, sun_path) + strlen(my_addr.sun_path);
+		if (bind(challenge_fd, (struct sockaddr *) &my_addr, my_addr_len) < 0) {
+	        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
+			close(challenge_fd);
+			return 1;
+		}
 	}
 
     robot_desc_val_t new_mode = IDLE;
