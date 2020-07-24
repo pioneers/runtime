@@ -10,7 +10,7 @@ int main ()
 	start_test("constant print");
 	start_shm();
 	start_net_handler();
-	start_executor("../student_code/constant_print.py");
+	start_executor("../../test/student_code/constant_print.py");
 
 	//poke the system
 	send_start_pos(SHEPHERD_CLIENT, RIGHT_POS);
