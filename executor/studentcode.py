@@ -1,9 +1,7 @@
 import time
 import math
 
-RFID = '51975776734790250051004'
-MOTOR = '12_2604648'
-
+MOTOR = '13_2652141'
 
 def autonomous_actions(n=1000):
     print('Running autonomous action ...')
@@ -13,14 +11,14 @@ def autonomous_actions(n=1000):
 
 
 def set_motor():
-    Robot.set_value(MOTOR, 'duty_cycle', 0.5)
+    Robot.set_value(MOTOR, 'duty_cycle_a', 0.5)
     time.sleep(1)
     print("after first sleep")
-    Robot.set_value(MOTOR, 'duty_cycle', 0)
+    Robot.set_value(MOTOR, 'duty_cycle_b', 0)
     time.sleep(2)
     print("after second sleep")
     while True:
-        Robot.set_value(MOTOR, 'pid_vel_kp', 0.237)
+        Robot.set_value(MOTOR, 'pid_kp_a', 0.237)
 
 def constant_print(msg):
     while True:
@@ -34,7 +32,7 @@ def autonomous_setup():
     
     # Robot.run(autonomous_actions)
     # Robot.run(set_motor)
-    Robot.set_value(MOTOR, 'duty_cycle', 0.2)
+    Robot.set_value(MOTOR, 'duty_cycle_a', 0.2)
     global start
     start = time.time()
     Robot.run(set_motor)
@@ -46,14 +44,14 @@ def autonomous_setup():
 def autonomous_main():
     # time.sleep(10)
     # Robot.run(wait)
-    Robot.get_value(MOTOR, 'duty_cycle')
+    Robot.get_value(MOTOR, 'duty_cycle_b')
     global i, start
     if i % 10000 == 0:
         print("Iteration:", i, time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
     i += 1
-    Robot.set_value(MOTOR, 'current_thresh', .12)
+    Robot.set_value(MOTOR, 'enc_b', .12)
     
     # while True: pass
     # print("testing whether thread dies", time.time())
@@ -91,8 +89,8 @@ def teleop_main():
 
     # print('=>', Robot.get_value('my_rfid', 'id'), Robot.get_value('my_rfid2', 'tag_detect'))
     
-    Robot.set_value(MOTOR, 'duty_cycle', Gamepad.get_value('joystick_left_x'))
-    pos = Robot.get_value(MOTOR, 'enc_pos')
+    Robot.set_value(MOTOR, 'duty_cycle_b', Gamepad.get_value('joystick_left_x'))
+    pos = Robot.get_value(MOTOR, 'enc_a')
 
     if Gamepad.get_value('button_a'):
         global i, start 
@@ -103,7 +101,7 @@ def teleop_main():
         i += 1
         # print('in here')
     # print('Running motor ...')
-    Robot.set_value(MOTOR, 'duty_cycle', .12)
+    Robot.set_value(MOTOR, 'duty_cycle_a', .12)
 
 # Times out
 # def autonomous_main():
@@ -117,7 +115,7 @@ def double(x):
 
 def wait():
     while True:
-        Robot.get_value(MOTOR, 'enc_pos')
+        Robot.get_value(MOTOR, 'enc_b')
         # print('of course')
 
 

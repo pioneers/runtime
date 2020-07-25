@@ -1,5 +1,8 @@
 #include "Messenger.h"
-// #define Serial SERIAL_PORT_USBVIRTUAL
+
+#ifdef ARDUINO_SAMD_ZERO
+#define Serial SERIAL_PORT_USBVIRTUAL // Patch to work with Sparkfun Razor IMU
+#endif
 
 //************************************* MESSENGER CLASS CONSTANTS *********************************** //
 
