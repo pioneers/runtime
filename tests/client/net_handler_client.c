@@ -471,22 +471,24 @@ void send_device_data (dev_data_t *data, int num_devices)
 		}
 		//fill in device fields
 		curr_device = get_device(curr_type);
-		Device dev = DEVICE__INIT;
-		dev.name = curr_device->name;
-		dev.uid = data[i].uid;
-		dev.type = curr_type;
-		dev.n_params = curr_device->num_params;
-		dev.params = malloc(sizeof(Param *) * curr_device->num_params);
+		Device *dev = malloc(sizeof(Device));
+		device__init(dev);
+		dev->name = curr_device->name;
+		dev->uid = data[i].uid;
+		dev->type = curr_type;
+		dev->n_params = curr_device->num_params;
+		dev->params = malloc(sizeof(Param *) * curr_device->num_params);
 		
 		//set each param
 		for (int j = 0; j < curr_device->num_params; j++) {
 			//fill in param fields
-			Param prm = PARAM__INIT;
-			prm.val_case = PARAM__VAL_BVAL;
-			prm.bval = (data[i].params & (1 << j)) ? 1 : 0;
-			dev.params[j] = &prm;
+			Param *prm = malloc(sizeof(Param));
+			param__init(prm);
+			prm->val_case = PARAM__VAL_BVAL;
+			prm->bval = (data[i].params & (1 << j)) ? 1 : 0;
+			dev->params[j] = prm;
 		}
-		dev_data.devices[i] = &dev;
+		dev_data.devices[i] = dev;
 	}
 	len = dev_data__get_packed_size(&dev_data);
 	send_buf = make_buf(DEVICE_DATA_MSG, len);
@@ -497,6 +499,10 @@ void send_device_data (dev_data_t *data, int num_devices)
 	
 	//free everything
 	for (int i = 0; i < num_devices; i++) {
+		for (int j = 0; j < dev_data.devices[i]->n_params; j++) {
+			free(dev_data.devices[i]->params[j]);
+		}
+		free(dev_data.devices[i]->params);
 		free(dev_data.devices[i]);
 	}
 	free(dev_data.devices);
