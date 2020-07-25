@@ -11,11 +11,12 @@ function clean_up {
 function run_one_test {
 	local found_test=0    # whether or not we found the specified test
 	local status=0        # whether or not the test passed
+	local test_exe=""     # name of executable for test
 
-	# search through all the tests to find the specified one
+	# search through all the tests to find the source file corresponding to specified test
 	for test in $(ls); do
-		# skip Makefile, source files, and anything that doesn't match what was specified
-		if [[ $test == "Makefile" || $test == *".c" || $test != *"$1" ]]; then
+		# skip Makefile and anything that doesn't match what was specified
+		if [[ $test == "Makefile" || $test != *"$1.c" ]]; then
 			continue
 		fi
 		found_test=1
@@ -29,9 +30,16 @@ function run_one_test {
 		exit 1
 	fi
 
+	# make executable (remove the executable and re-make if it exists)
+	test_exe=$(echo $test | awk -F'.' '{ print $1 }')
+	if [[ -f $test_exe ]]; then
+		rm $test_exe
+	fi
+	make $test_exe
+
 	# run test
 	printf "\nRunning $test...\n"
-	./$test
+	./$test_exe
 	status=$?
 
 	# move the original log file back
@@ -47,6 +55,10 @@ function run_one_test {
 function run_all_tests {
 	local all_is_well=1 # is set to 0 if we have any failed tests
 	local status=0      # whether or not the test pased
+
+	# remove and recompile all tests
+	make clean
+	make
 
 	# loop through all tests
 	for test in $(ls); do
@@ -89,8 +101,6 @@ cp -p tests/logger/logger.config logger/logger.config
 
 export PYTHONPATH="../tests/student_code" # this is so that executor can find the sample student code we write for testing
 cd tests/integration
-make clean
-make
 
 # if first argument specified, try to find that test case and run it
 if [[ $1 != "" ]]; then

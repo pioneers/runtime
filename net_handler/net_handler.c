@@ -125,12 +125,10 @@ int main ()
 		
 		//if the incoming request is shepherd or dawn, start the appropriate threads
 		if (client_id == 0 && cli_addr.sin_family == AF_INET && robot_desc_read(SHEPHERD) == DISCONNECTED) {
-            fflush(stdout);
 			log_printf(DEBUG, "Starting Shepherd connection");
 			start_tcp_conn(SHEPHERD, connfd, 0);
 		} else if (client_id == 1 && cli_addr.sin_family == AF_INET && robot_desc_read(DAWN) == DISCONNECTED) {
-            fflush(stdout);
-            log_printf(DEBUG, "Starting Dawn connection");
+			log_printf(DEBUG, "Starting Dawn connection");
 			start_tcp_conn(DAWN, connfd, 1);
 		} else {
 			log_printf(ERROR, "Client is neither Dawn nor Shepherd");

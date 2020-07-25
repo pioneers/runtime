@@ -42,8 +42,6 @@ def get_all_params(code_file):
     try:
         f = open(f"{code_file}.py", "r")
     except FileNotFoundError as e:
-        pass
-    if f is None:
         f = open(f"../tests/student_code/{code_file}.py", "r")	
 	
     for i, line in enumerate(f):
