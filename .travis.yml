@@ -4,6 +4,9 @@ dist: bionic # Ubuntu 18
 
 language: c
 
+env:
+  - TAG=latest
+
 services:
   - docker
 
@@ -12,27 +15,21 @@ if: (type = pull_request) OR (type = push AND branch = master)
 
 install: skip
 
-# DOCKER_USERNAME is defined as a repository secret environment variable on travis-ci.org
 before_script:
-  - docker pull ${DOCKER_USERNAME}/c-runtime:arm32
-  # - DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
-  - docker run -d ${DOCKER_USERNAME}/c-runtime:arm32 sleep 5m  # Runs the docker container as detached
+  - docker build -t ${DOCKER_USERNAME}/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
+  - docker run -d ${DOCKER_USERNAME}/c-runtime:$TAG # Runs the docker container as detached
 
 script:
-  - docker cp . $(docker ps -q):/root/runtime/ # Copy the newest code into the image
-  - docker exec -t $(docker ps -q) bash -c "./build.sh" # Build the latest code
-  - docker exec -d $(docker ps -q) bash -c "./run.sh"   # Run the Runtime processes
   - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
-  - docker stop -t 1 $(docker ps -q) # Stop the container when tests finish
+  - docker kill -s INT $(docker ps -q)
 
+# DOCKER_USERNAME and DOCKER_PASSWORD are defined as a repository secret environment variable on travis-ci.org
+before_deploy:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
-# Trying Docker automatic build instead
-# before_deploy:
-#   - docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
-
-# deploy:
-#   - provider: script
-#     script: docker push ${DOCKER_USERNAME}/c-runtime:arm32
-#     on:
-#       branch: master
-#       condition: type = push
+deploy:
+  provider: script
+  script: docker push ${DOCKER_USERNAME}/c-runtime:$TAG
+  on:
+    branch: master
+  edge: true
