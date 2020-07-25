@@ -5,6 +5,9 @@ from collections import defaultdict
 
 """ Student code parser to determine params used """
 
+# append the directory with all of the test student code, used for testing
+sys.path.append('../test/student_code')
+
 cpdef void make_device_subs(str code_file):
     cdef device_t* device
     cdef uint32_t request
@@ -36,20 +39,29 @@ def get_all_params(code_file):
     for v in var:
         setattr(mod, v, getattr(code, v))
     param_dict = defaultdict(set)
-    with open(f"{code_file}.py", "r") as f:
-        for i, line in enumerate(f):
-            line = line.lstrip() # Remove whitespace
-            comment = line.find("#")
-            if comment != -1:
-                line = line[:comment] # Remove commented lines
-            # Find exact functions
-            matches = [re.search(r"Robot.set_value\((.*)\)", line), re.search(r"Robot.get_value\((.*)\)", line)]
-            for res in matches:
-                if res:
-                    try:
-                        # Find parameters by splitting by comma
-                        params = re.split(r"\s?[,\(\)]\s?", res[1])
-                        param_dict[eval(params[0])].add(eval(params[1]))
-                    except Exception as e:
-                        log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
+
+    # Open the code file into f (try the current directory and the test student code directory)
+    f = None
+    try:
+        f = open(f"{code_file}.py", "r")
+    except FileNotFoundError as e:
+        pass
+    if f is None:
+        f = open(f"../test/student_code/{code_file}.py", "r")	
+	
+    for i, line in enumerate(f):
+        line = line.lstrip() # Remove whitespace
+        comment = line.find("#")
+        if comment != -1:
+            line = line[:comment] # Remove commented lines
+        # Find exact functions
+        matches = [re.search(r"Robot.set_value\((.*)\)", line), re.search(r"Robot.get_value\((.*)\)", line)]
+        for res in matches:
+            if res:
+                try:
+                    # Find parameters by splitting by comma
+                    params = re.split(r"\s?[,\(\)]\s?", res[1])
+                    param_dict[eval(params[0])].add(eval(params[1]))
+                except Exception as e:
+                    log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
     return param_dict
