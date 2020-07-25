@@ -74,10 +74,12 @@ void sigint_handler (int sig_num)
 	if (robot_desc_read(DAWN) == CONNECTED) {
 		stop_tcp_conn(DAWN);
 	}
-	if (remove(CHALLENGE_SOCKET) != 0) {
-		log_printf(ERROR, "Unable to remove challenge socket: %s\n", strerror(errno));
+	//remove challenge socket if it exists
+	if (access(CHALLENGE_SOCKET, F_OK) == 0) {
+		if (remove(CHALLENGE_SOCKET) != 0) {
+			log_printf(ERROR, "Unable to remove challenge socket: %s\n", strerror(errno));
+		}
 	}
-	
 	//sockfd and connfd are automatically closed when process terminates
 	exit(0);
 }

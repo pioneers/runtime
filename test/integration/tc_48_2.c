@@ -1,8 +1,14 @@
 #include "../test.h"
 
-char check_output_1[] = "asdf";
+char check_output_1[] = "autonomous printing again\n";
 
-char check_output_2[] = "adfad";
+char check_output_2[] = "New mode 1\n";
+
+char check_output_3[] = "New mode 0\n";
+
+char check_output_4[] = "Autonomous setup has begun!\n";
+
+char check_output_5[] = "In KILL subprocess\n";
 
 int main ()
 {
@@ -14,11 +20,11 @@ int main ()
 
 	//poke the system
 	send_start_pos(SHEPHERD_CLIENT, RIGHT_POS);
-	print_shm();
 	send_run_mode(SHEPHERD_CLIENT, AUTO_MODE);
-	sleep(7);
-	send_run_mode(SHEPHERD_CLIENT, IDLE_MODE);
+	sleep(1);
 	print_shm();
+	sleep(2);
+	send_run_mode(SHEPHERD_CLIENT, IDLE_MODE);
 
 	//stop all the tests
 	stop_executor();
@@ -28,6 +34,18 @@ int main ()
 
 	//check outputs
 	if (match_part(check_output_1) != 0) {
+		exit(1);
+	}
+	if (match_part(check_output_2) != 0) {
+		exit(1);
+	}
+	if (match_part(check_output_3) != 0) {
+		exit(1);
+	}
+	if (match_part(check_output_4) != 0) {
+		exit(1);
+	}
+	if (match_part(check_output_5) != 0) {
 		exit(1);
 	}
 

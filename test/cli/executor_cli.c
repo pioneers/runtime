@@ -27,7 +27,7 @@ int main ()
 	
 	//asks for student code to execute
 	printf("Starting Executor CLI...\n");
-	printf("Please enter the path to student code file: ");
+	printf("Please enter the name of the file to use as student code (do not enter the \".py\"): ");
 	fflush(stdout);
 	fgets(nextcmd, MAX_CMD_LEN, stdin);
 	

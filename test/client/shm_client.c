@@ -8,8 +8,13 @@ void start_shm ()
 	if ((shm_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
 	} else if (shm_pid == 0) { //child
-		//exec the actual net_handler process
-		if (execlp("../../shm_wrapper/shm", "shm", (char *) 0) < 0) {
+		//cd to the shm_wrapper directory
+		if (chdir("../../shm_wrapper") == -1) {
+			printf("chdir: %s\n", strerror(errno));
+		}
+
+		//exec the actual shm process
+		if (execlp("./shm", "shm", (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
