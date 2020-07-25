@@ -5,9 +5,6 @@ from collections import defaultdict
 
 """ Student code parser to determine params used """
 
-# append the directory with all of the test student code, used for testing
-sys.path.append('../tests/student_code')
-
 cpdef void make_device_subs(str code_file):
     cdef device_t* device
     cdef uint32_t request

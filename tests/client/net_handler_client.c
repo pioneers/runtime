@@ -16,15 +16,6 @@ FILE *null_fp = NULL;             //file pointer to /dev/null
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
-// Returns the number of milliseconds since the Unix Epoch
-static uint64_t millis() {
-	struct timeval time; // Holds the current time in seconds + microsecondsx
-	gettimeofday(&time, NULL);
-	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
-	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
-	return s1 + s2;
-}
-
 static int connect_tcp (int client)
 {
 	struct sockaddr_in serv_addr, cli_addr;
