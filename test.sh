@@ -87,6 +87,7 @@ function run_all_tests {
 mv logger/logger.config logger/logger.config.orig
 cp -p tests/logger/logger.config logger/logger.config
 
+export PYTHONPATH="../tests/student_code" # this is so that executor can find the sample student code we write for testing
 cd tests/integration
 make clean
 make
