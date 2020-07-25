@@ -1,3 +1,5 @@
+Travis CI Master Build ![](https://travis-ci.org/pioneers/c-runtime.svg?branch=master)
+
 # PiE C-Runtime
 
 Welcome to the PiE Runtime repo! This README will only cover how to install, build, and run Runtime. If you want to learn more info about how Runtime works, or are a new member, please check out our wiki https://github.com/pioneers/c-runtime/wiki.
