@@ -85,9 +85,9 @@ function run_all_tests {
 
 # do some setup work with the log file
 mv logger/logger.config logger/logger.config.orig
-cp -p test/logger/logger.config logger/logger.config
+cp -p tests/logger/logger.config logger/logger.config
 
-cd test/integration
+cd tests/integration
 make clean
 make
 
