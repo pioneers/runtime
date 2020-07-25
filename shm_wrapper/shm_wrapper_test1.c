@@ -12,13 +12,20 @@
 
 // ************************************* HELPER FUNCTIONS ******************************************** //
 
-void sync()
+void device_connect_fields (uint16_t type, uint8_t year, uint64_t uid)
 {
 	int dev_ix;
+	dev_id_t dev_id = { type, year, uid };
+	device_connect(dev_id, &dev_ix);
+}
+
+void sync()
+{
 	param_val_t params_in[MAX_PARAMS];
 	param_val_t params_out[MAX_PARAMS];
+	dev_id_t new_dev;
 	
-	device_connect(0, 0, 48482, &dev_ix); //this will connect in dev_ix = 0
+	device_connect_fields(0, 0, 48482); //this will connect in dev_ix = 0
 	params_in[0].p_b = 0;
 	device_write(0, DEV_HANDLER, DATA, 1, params_in); //write a 0 to the upstream block
 	params_in[0].p_b = 1;
@@ -46,14 +53,12 @@ void sanity_test ()
 	params_in[1].p_b = 1;
 	
 	param_val_t params_out[MAX_PARAMS];
-	
 	uint32_t pmap[33];
-	
-	int dev_ix = -1;
+	dev_id_t new_dev;
 	
 	sync();
 	
-	device_connect(0, 3, 382726112, &dev_ix);
+	device_connect_fields(0, 3, 382726112);
 	
 	print_dev_ids();
 	
@@ -96,7 +101,8 @@ void sanity_test ()
 //test disconnecting devices in quick succession
 void dev_conn_test ()
 {
-	int dev_ix = -1;
+	dev_id_t new_dev;
+	int dev_ix;
 	
 	sync();
 	
@@ -105,10 +111,11 @@ void dev_conn_test ()
 	//connect as many devices as possible
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		//randomly chosen quadratic function that is positive and integral in range [0, 32] for the lols
-		device_connect(i, i % 3, (-10000 * i * i) + (297493 * i) + 474732, &dev_ix);
+		device_connect_fields(i, i % 3, (-10000 * i * i) + (297493 * i) + 474732);
 	}
 	print_dev_ids();
-	device_connect(1, 2, 4845873, &dev_ix); //trying to connect one more should error
+	device_connect_fields(1, 2, 4845873);
+	device_connect(new_dev, &dev_ix); //trying to connect one more should error
 	sleep(1);
 	
 	//try and disconnect 3 devices and then adding 3 more devices
@@ -119,9 +126,9 @@ void dev_conn_test ()
 	
 	sleep(1);
 	
-	device_connect(10, 0, 65456874, &dev_ix);
-	device_connect(14, 2, 32558656, &dev_ix);
-	device_connect(3, 1, 798645325, &dev_ix);
+	device_connect_fields(10, 0, 65456874);
+	device_connect_fields(14, 2, 32558656);
+	device_connect_fields(3, 1, 798645325);
 	print_dev_ids();
 	
 	sleep(1);
@@ -143,7 +150,6 @@ void single_thread_load_test ()
 {
 	//writing will be done from process2
 	//process1 just needs to read from the block as fast as possible
-	int dev_ix = -1;
 	int i = 0;
 	
 	param_val_t params_out[MAX_PARAMS];
@@ -154,8 +160,8 @@ void single_thread_load_test ()
 	
 	printf("Beginning single threaded load test...\n");
 	
-	device_connect(0, 1, 4894249, &dev_ix); //this is going to connect at dev_ix = 0
-	device_connect(1, 2, 9848990, &dev_ix); //this is going to connect at dev_ix = 1
+	device_connect_fields(0, 1, 4894249); //this is going to connect at dev_ix = 0
+	device_connect_fields(1, 2, 9848990); //this is going to connect at dev_ix = 1
 	
 	//write params_test[0].p_b = 0 into the shared memory block for second device so we don't exit the test prematurely
 	params_test[0].p_b = 0; 
@@ -262,7 +268,6 @@ void *write_thread_dtrwt (void *arg)
 //writing to the upstream block and reading from the downstream block
 void dual_thread_read_write_test ()
 {
-	int dev_ix = -1;
 	int status;
 	pthread_t read_tid, write_tid; //thread_ids for the two threads
 	
@@ -270,8 +275,8 @@ void dual_thread_read_write_test ()
 	
 	printf("Beginning dual thread read write test...\n");
 	
-	device_connect(0, 1, 4894249, &dev_ix);
-	device_connect(1, 2, 3556498, &dev_ix);
+	device_connect_fields(0, 1, 4894249);
+	device_connect_fields(1, 2, 3556498);
 	
 	//create threads
 	if ((status = pthread_create(&read_tid, NULL, read_thread_dtrwt, NULL)) != 0) {
@@ -304,7 +309,6 @@ void single_thread_load_test_uid ()
 {
 	//writing will be done from process2
 	//process1 just needs to read from the block as fast as possible
-	int dev_ix = -1;
 	int dev_uid = 0;
 	int i = 0;
 	
@@ -318,8 +322,8 @@ void single_thread_load_test_uid ()
 	
 	dev_uid = 4894249;
 	
-	device_connect(0, 1, dev_uid, &dev_ix); //this is going to connect at dev_ix = 0
-	device_connect(1, 2, 9848990, &dev_ix); //this is going to connect at dev_ix = 1
+	device_connect_fields(0, 1, dev_uid); //this is going to connect at dev_ix = 0
+	device_connect_fields(1, 2, 9848990); //this is going to connect at dev_ix = 1
 	
 	//write params_test[0].p_b = 0 into the shared memory block for second device so we don't exit the test prematurely
 	params_test[0].p_b = 0; 
@@ -450,15 +454,14 @@ void sanity_robot_desc_test ()
 void subscription_test ()
 {
 	uint32_t sub_map[MAX_DEVICES + 1];
-	int dev_ix = -1;
 	
 	sync();
 	
 	printf("Begin subscription test...\n");
 	
-	device_connect(0, 3, 382726112, &dev_ix);
-	device_connect(1, 3, 248742981, &dev_ix);
-	device_connect(2, 3, 893489237, &dev_ix);
+	device_connect_fields(0, 3, 382726112);
+	device_connect_fields(1, 3, 248742981);
+	device_connect_fields(2, 3, 893489237);
 	
 	for (int i = 0; i < 6; i++) {
 		printf("Processing case %d from test2\n", i - 1);
