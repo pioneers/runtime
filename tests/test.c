@@ -7,6 +7,7 @@ FILE *temp_fp;                  //file pointer of open temp file
 int save_std_out;               //saved standard output file descriptor to return to normal printing after test
 int pipe_fd[2];                 //read and write ends of the pipe created between the parent and child processes
 char *test_output = NULL;       //holds the contents of temp file
+char *rest_of_test_output;      //holds the rest of the test output as we're performing checks
 int check_num = 0;              //increments to report status each time a check is performed
 char *global_test_name = NULL;  //name of test
 
@@ -129,6 +130,7 @@ void end_test ()
 			curr_ptr = test_output + num_total_bytes_read;
 		}
 	}
+	rest_of_test_output = test_output;
 	fclose(temp_fp);
 	remove(TEMP_FILE);
     printf("************************************** Running Checks... ******************************************\n");
@@ -151,11 +153,11 @@ int match_all (char *expected_output)
 	}
 }
 
-//returns true if expected output is somewhere in the output
+//returns true if expected output is somewhere in the output after the last call to match_part
 int match_part (char *expected_output)
 {
 	check_num++;
-	if (strstr(test_output, expected_output) != NULL) {
+	if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
 		fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
 		return 0;
 	} else {

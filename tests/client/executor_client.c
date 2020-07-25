@@ -1,6 +1,6 @@
 #include "executor_client.h"
 
-char *path_to_test_student_code = "../test/student_code";
+char *path_to_test_student_code = "../tests/student_code";
 char *python_path_header = "PYTHONPATH=";
 pid_t executor_pid;
 
