@@ -145,7 +145,6 @@ static int recv_tcp_data (int client, int tcp_fd)
 		strcpy(client_str, "DAWN");
 	}
 
-	fprintf(tcp_output_fp, "From %s:\n", client_str);
 	//parse message
 	if (parse_msg(tcp_fd, &msg_type, &len, &buf) == 0) {
 		printf("Net handler disconnected\n");
@@ -261,8 +260,13 @@ void start_net_handler ()
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
 	} else if (nh_pid == 0) { //child
+		//cd to the net_handler directory
+		if (chdir("../../net_handler") == -1) {
+			printf("chdir: %s\n", strerror(errno));
+		}
+
 		//exec the actual net_handler process
-		if (execlp("../../net_handler/net_handler", "net_handler", (char *) 0) < 0) {
+		if (execlp("./net_handler", "net_handler", (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
