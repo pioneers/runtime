@@ -1,10 +1,10 @@
 [Unit]
-Description=test3 service for script3.py
+Description=test4 service for script4.py
 After=test5.service
 
 [Service]
 Type=oneshot
-ExecStart=/path/to/script3.py
+ExecStart=/path/to/script4.py
 
 [Install]
 WantedBy=multi-user.target

@@ -2,11 +2,11 @@
 
 import time
 
-end = 7
+duration = 7
 
-print("Start script3.py:", time.time())
-for i in range(end):
-    print(i)
+print("Start script3.py:", time.time(), flush=True)
+for i in range(duration):
+    print(i, flush=True)
     time.sleep(1)
-print(end)
-print("End script3.py:", time.time())
+print(duration, flush=True)
+print("End script3.py:", time.time(), flush=True)
