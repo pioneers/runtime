@@ -233,18 +233,118 @@ void prompt_challenge_data ()
 	free(inputs);
 }
 
-//TODO: fill in this prompt
 void prompt_device_data ()
 {
-	//char nextcmd[MAX_CMD_LEN];
+	char nextcmd[MAX_CMD_LEN];
+	char dev_names[DEVICES_LENGTH][32]; //for holding the names of the devices
+	int num_devices = 0;
+	long int temp;
+	dev_data_t data[MAX_DEVICES];
+	device_t *curr_dev;
 	
-	//ask for UID
-	//ask for device type
-	//fetch parameters and prompt user "y" or "n" on each one
-	//repeat
+	//first get the list of device names
+	for (int i = 0; i < DEVICES_LENGTH; i++) {
+		if ((curr_dev = get_device((uint8_t) i)) != NULL) {
+			strcpy(dev_names[i], curr_dev->name);
+		} else {
+			strcpy(dev_names[i], "");
+		}
+	}
+	
+	//enter prompt loop
+	while (1) {
+		//subscribe to another device?
+		printf("Type \"done\" if ready to send message; type anything else to continue: ");
+		fgets(nextcmd, MAX_CMD_LEN, stdin);
+		if (strcmp(nextcmd, "done\n") == 0) {
+			break;
+		}
+		
+		//ask for UID
+		while (1) {
+			printf("Enter the UID of the device, in base 10: ");
+			fgets(nextcmd, MAX_CMD_LEN, stdin);
+			
+			if (strcmp(nextcmd, "abort\n") == 0) {
+				return;
+			}
+			temp = strtol(nextcmd, NULL, 10);
+			if (temp < 0) {
+				printf("Input is not a positive number: %ld\n", temp);
+				continue;
+			} else {
+				data[num_devices].uid = (uint64_t) temp;
+				break;
+			}
+		}
+		
+		//ask for device type
+		data[num_devices].name = NULL;
+		printf("Specify the device type, one of the following (exactly as they appear in the list):\n");
+		for (int i = 0; i < DEVICES_LENGTH; i++) {
+			if (strcmp(dev_names[i], "") != 0) {
+				printf("\t%s\n", dev_names[i]);
+			}
+		}
+		while (1) {	
+			printf("Enter the device type: ");
+			fgets(nextcmd, MAX_CMD_LEN, stdin);
+			if (strcmp(nextcmd, "abort\n") == 0) {
+				return;
+			}
+			nextcmd[strlen(nextcmd) - 1] = '\0'; //get rid of the newline at the end of nextcmd
+			
+			//check to see if valid device
+			for (int i = 0; i < DEVICES_LENGTH; i++) {
+				if (strcmp(dev_names[i], "") == 0) {
+					continue;
+				}
+				if (strcmp(nextcmd, dev_names[i]) == 0) {
+					data[num_devices].name = malloc(strlen(dev_names[i]));
+					strcpy(data[num_devices].name, dev_names[i]);
+					break;
+				}
+			}
+			if (data[num_devices].name == NULL) {
+				printf("Input is not a valid device name: %s\n", nextcmd);
+			} else {
+				break;
+			}
+		}
+		
+		//fetch parameters and prompt user "y" or "n" on each one
+		curr_dev = get_device(device_name_to_type(data[num_devices].name));
+		data[num_devices].params = 0;
+		printf("Now specify whether to subscribe to given param or not.\n");
+		printf("If a subscription is desired, type lowercase letter \"y\", if not type \"n\"\n");
+		for (int i = 0; i < curr_dev->num_params; i++) {
+			while (1) {
+				printf("\t%s? ", curr_dev->params[i].name);
+				fgets(nextcmd, MAX_CMD_LEN, stdin);
+				if (strcmp(nextcmd, "abort\n") == 0) {
+					return;
+				}
+				if (strcmp(nextcmd, "y\n") == 0) {
+					data[num_devices].params |= (1 << i);
+					break;
+				} else if (strcmp(nextcmd, "n\n") == 0) {
+					break;
+				} else {
+					printf("Input is not \"y\" or \"n\": %s\n", nextcmd);
+				}
+			}
+		}
+		num_devices++;
+	}
 	
 	//send
-	//free pointers
+	printf("Sending Device Data message!\n\n");
+	send_device_data(data, num_devices);
+	
+	//free everything
+	for (int i = 0; i < num_devices; i++) {
+		free(data[i].name);
+	}
 }
 
 void display_help()
