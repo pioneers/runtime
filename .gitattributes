@@ -1,5 +1,4 @@
 # in language profile, ignore third-party libraries and protobuf-generated code
 lowcar/lib/* linguist-vendored
-lowcar/lib/lowcar -linguist-vendored
 net_handler/pbc_gen/* linguist-generated
 executor/studentapi.c linguist-generated
