@@ -1,0 +1,9 @@
+[Unit]
+Description=test5 service for script5.py
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/script5.py
+
+[Install]
+WantedBy=multi-user.target

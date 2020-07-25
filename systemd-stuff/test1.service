@@ -1,10 +1,10 @@
 [Unit]
-Description=asdf
-BindsTo=test2.service test3.service
+Description=test1 service for script1.py
+After=test2.service test3.service test4.service
 
 [Service]
-ExecStart=/path/to/executable
-Restart=on-failure
+Type=oneshot
+ExecStart=/path/to/script1.py
 
 [Install]
 WantedBy=multi-user.target
