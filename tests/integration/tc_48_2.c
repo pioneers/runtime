@@ -35,27 +35,12 @@ int main ()
 	end_test();
 
 	//check outputs
-	if (match_part(check_output_1) != 0) {
-		exit(1);
-	}
-	if (match_part(check_output_2) != 0) {
-		exit(1);
-	}
-	if (match_part(check_output_3) != 0) {
-		exit(1);
-	}
-	if (match_part(check_output_4) != 0) {
-		exit(1);
-	}
-	if (match_part(check_output_3) != 0) {
-		exit(1);
-	}
-	if (match_part(check_output_5) != 0) {
-		exit(1);
-	}
-	if (match_part(check_output_6) != 0) {
-		exit(1);
-	}
-
+	match_part(check_output_1);
+	match_part(check_output_2);
+	match_part(check_output_3);
+	match_part(check_output_4);
+	match_part(check_output_3);
+	match_part(check_output_5);
+	match_part(check_output_6);
 	return 0;
 }
