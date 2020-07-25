@@ -267,10 +267,10 @@ void print_params (uint32_t devices)
 							printf("\t\tparam_idx = %d, name = %s, value = %d\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_i);
 							break;
 						case FLOAT:
-							printf("\t\tparam_idx = %d, name = %s, value = %s\n", j, device->params[j].name, (dev_shm_ptr->params[s][i][j].p_b) ? "True" : "False");
+							printf("\t\tparam_idx = %d, name = %s, value = %f\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_f);
 							break;
 						case BOOL:
-							printf("\t\tparam_idx = %d, name = %s, value = %f\n", j, device->params[j].name, dev_shm_ptr->params[s][i][j].p_f);
+							printf("\t\tparam_idx = %d, name = %s, value = %s\n", j, device->params[j].name, (dev_shm_ptr->params[s][i][j].p_b) ? "True" : "False");
 							break;
 					}
 				}
@@ -464,13 +464,11 @@ void shm_stop ()
  * Selects the next available device index and assigns the newly connected device to that location.
  * Turns on the associated bit in the catalog.
  * Arguments:
- *    - uint8_t dev_type: the type of the device being connected e.g. LIMITSWITCH, LINEFOLLOWER, etc.
- *    - uint8_t dev_year: year of device manufacture
- *    - uint64_t dev_uid: the unique, random 64-bit uid assigned to the device when flashing
+ *    - dev_id_t dev_id: device identification info for the device being connected (type, year, uid)
  *    - int *dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
-void device_connect (uint8_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *dev_ix)
+void device_connect (dev_id_t dev_id, int *dev_ix)
 {
 	//wait on catalog_sem
 	my_sem_wait(catalog_sem, "catalog_sem");
@@ -494,9 +492,9 @@ void device_connect (uint8_t dev_type, uint8_t dev_year, uint64_t dev_uid, int *
 	my_sem_wait(sub_map_sem, "sub_map_sem");
 
 	//fill in dev_id for that device with provided values
-	dev_shm_ptr->dev_ids[*dev_ix].type = dev_type;
-	dev_shm_ptr->dev_ids[*dev_ix].year = dev_year;
-	dev_shm_ptr->dev_ids[*dev_ix].uid = dev_uid;
+	dev_shm_ptr->dev_ids[*dev_ix].type = dev_id.type;
+	dev_shm_ptr->dev_ids[*dev_ix].year = dev_id.year;
+	dev_shm_ptr->dev_ids[*dev_ix].uid = dev_id.uid;
 
 	//update the catalog
 	dev_shm_ptr->catalog |= (1 << *dev_ix);
@@ -918,3 +916,4 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 
 	return 0;
 }
+
