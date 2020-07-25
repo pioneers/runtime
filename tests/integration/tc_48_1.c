@@ -59,12 +59,7 @@ int main ()
 	end_test();
 
 	//do checks
-	if (match_part(check_1_output) != 0) {
-		exit(1);
-	}
-	if (match_part(check_2_output) != 0) {
-		exit(1);
-	}
-
+	match_part(check_1_output);
+	match_part(check_2_output);
 	return 0;
 }

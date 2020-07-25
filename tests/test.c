@@ -137,35 +137,35 @@ void end_test ()
 }
 
 //returns true if exepcted output matches output exactly
-int match_all (char *expected_output)
+void match_all (char *expected_output)
 {
 	check_num++;
 	if (strcmp(test_output, expected_output) == 0) {
 		fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-		return 0;
+		return;
 	} else {
 		fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
 		fprintf(stderr, "************************************ Expected: ************************************************\n");
 		fprintf(stderr, "%s", expected_output);
 		fprintf(stderr, "\n********************************** Got: *****************************************************\n");
 		fprintf(stderr, "%s\n", test_output);
-		return 1;
+		exit(1);
 	}
 }
 
 //returns true if expected output is somewhere in the output after the last call to match_part
-int match_part (char *expected_output)
+void match_part (char *expected_output)
 {
 	check_num++;
 	if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
 		fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-		return 0;
+		return;
 	} else {
 		fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
         fprintf(stderr, "************************************ Expected: ************************************************\n");
 		fprintf(stderr, "%s", expected_output);
         fprintf(stderr, "************************************ Got: *****************************************************\n");
 		fprintf(stderr, "%s\n", test_output);
-		return 1;
+		exit(1);
 	}
 }

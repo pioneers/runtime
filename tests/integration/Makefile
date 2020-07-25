@@ -9,7 +9,7 @@ endif
 DEPENDENCIES=../test.* ../client/* ../../logger/* ../../net_handler/* ../../runtime_util/* ../../shm_wrapper/*
 SRC_FILES=../client/*.c ../test.c ../../net_handler/pbc_gen/*.c ../../net_handler/net_util.c ../../runtime_util/runtime_util.c ../../shm_wrapper/shm_wrapper.c ../../logger/logger.c
 
-all: tc_48_1 tc_48_2
+all: tc_48_1 tc_48_2 tc_48_3
 
 tc_48_1: $(DEPENDENCIES) tc_48_1.c
 	gcc tc_48_1.c $(SRC_FILES) -o $@ $(LIBS)
@@ -17,5 +17,8 @@ tc_48_1: $(DEPENDENCIES) tc_48_1.c
 tc_48_2: $(DEPENDENCIES) tc_48_2.c
 	gcc tc_48_2.c $(SRC_FILES) -o $@ $(LIBS)
 
+tc_48_3: $(DEPENDENCIES) tc_48_3.c
+	gcc tc_48_3.c $(SRC_FILES) -o $@ $(LIBS)
+
 clean:
-	rm tc_48_1 tc_48_2
+	rm tc_48_1 tc_48_2 tc_48_3
