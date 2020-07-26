@@ -38,7 +38,6 @@ def get_all_params(code_file):
     param_dict = defaultdict(set)
 
     # Open the code file into f (try the current directory and the test student code directory)
-    f = None
     try:
         f = open(f"{code_file}.py", "r")
     except FileNotFoundError as e:

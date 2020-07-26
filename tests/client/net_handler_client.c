@@ -16,9 +16,8 @@ FILE *null_fp = NULL;             //file pointer to /dev/null
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
-static int connect_tcp (int client)
+static int connect_tcp (robot_desc_field_t client)
 {
-	struct sockaddr_in serv_addr, cli_addr;
 	int sockfd;
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		printf("socket: failed to create listening socket: %s\n", strerror(errno));
@@ -32,9 +31,9 @@ static int connect_tcp (int client)
 	}
 	
 	//set the elements of cli_addr
-	memset(&cli_addr, '\0', sizeof(struct sockaddr_in));     //initialize everything to 0
+	struct sockaddr_in cli_addr = {0};                       //initialize everything to 0
 	cli_addr.sin_family = AF_INET;                           //use IPv4
-	cli_addr.sin_port = (client == SHEPHERD_CLIENT) ? htons(SHEPHERD_PORT) : htons(DAWN_PORT); //use specifid port to connect
+	cli_addr.sin_port = (client == SHEPHERD) ? htons(SHEPHERD_PORT) : htons(DAWN_PORT); //use specifid port to connect
 	cli_addr.sin_addr.s_addr = htonl(INADDR_ANY);            //use any address set on this machine to connect
 	
 	//bind the client side too, so that net_handler can verify it's the proper client
@@ -46,7 +45,7 @@ static int connect_tcp (int client)
 	}
 	
 	//set the elements of serv_addr
-	memset(&serv_addr, '\0', sizeof(struct sockaddr_in));     //initialize everything to 0
+	struct sockaddr_in serv_addr = {0};                       //initialize everything to 0
 	serv_addr.sin_family = AF_INET;                           //use IPv4
 	serv_addr.sin_port = htons(RASPI_PORT);                   //want to connect to raspi port
 	serv_addr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
@@ -60,7 +59,8 @@ static int connect_tcp (int client)
 	}
 	
 	//send the verification byte
-	writen(sockfd, &client, 1);
+	uint8_t verif_byte = (client == SHEPHERD) ? 0 : 1;
+	writen(sockfd, &verif_byte, 1);
 	
 	return sockfd;
 }
@@ -122,7 +122,7 @@ static void recv_udp_data (int udp_fd)
 	pthread_mutex_unlock(&print_udp_mutex);
 }
 
-static int recv_tcp_data (int client, int tcp_fd)
+static int recv_tcp_data (robot_desc_field_t client, int tcp_fd)
 {
 	//variables to read messages into
 	Text* msg;
@@ -130,7 +130,7 @@ static int recv_tcp_data (int client, int tcp_fd)
 	uint8_t *buf;
 	uint16_t len;
 	char client_str[16];
-	if (client == SHEPHERD_CLIENT) {
+	if (client == SHEPHERD) {
 		strcpy(client_str, "SHEPHERD");
 	} else {
 		strcpy(client_str, "DAWN");
@@ -210,7 +210,7 @@ static void *output_dump (void *args)
 				less_than_disable_thresh++;
 				if (less_than_disable_thresh == sample_size) {
 					printf("Suppressing output: too many messages...\n\n");
-					fflush(stdout);
+					fflush(tcp_output_fp);
 					tcp_output_fp = null_fp;
 				}
 			}
@@ -246,7 +246,6 @@ static void *output_dump (void *args)
 
 void start_net_handler ()
 {
-
 	//fork net_handler process
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
@@ -264,8 +263,8 @@ void start_net_handler ()
 		sleep(1); //allows net_handler to set itself up
 
 		//Connect to the raspi networking ports to catch network output
-		nh_tcp_dawn_fd = connect_tcp(DAWN_CLIENT);
-		nh_tcp_shep_fd = connect_tcp(SHEPHERD_CLIENT);
+		nh_tcp_dawn_fd = connect_tcp(DAWN);
+		nh_tcp_shep_fd = connect_tcp(SHEPHERD);
 		if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
 			printf("socket: UDP socket creation failed...\n");
 			stop_net_handler();
@@ -322,7 +321,7 @@ void stop_net_handler ()
 }	
 	
 
-void send_run_mode (int client, int mode)
+void send_run_mode (robot_desc_field_t client, robot_desc_val_t mode)
 {
 	RunMode run_mode = RUN_MODE__INIT;
 	uint8_t *send_buf;
@@ -330,13 +329,13 @@ void send_run_mode (int client, int mode)
 	
 	//set the right mode
 	switch (mode) {
-		case (IDLE_MODE):
+		case (IDLE):
 			run_mode.mode = MODE__IDLE;
 			break;
-		case (AUTO_MODE):
+		case (AUTO):
 			run_mode.mode = MODE__AUTO;
 			break;
-		case (TELEOP_MODE):
+		case (TELEOP):
 			run_mode.mode = MODE__TELEOP;
 			break;
 		default:
@@ -346,19 +345,19 @@ void send_run_mode (int client, int mode)
 	//build the message
 	len = run_mode__get_packed_size(&run_mode);
 	send_buf = make_buf(RUN_MODE_MSG, len);
-	run_mode__pack(&run_mode, send_buf + 3);
+	run_mode__pack(&run_mode, send_buf + BUFFER_OFFSET);
 	
 	//send the message
-	if (client == SHEPHERD_CLIENT) {
-		writen(nh_tcp_shep_fd, send_buf, len + 3);
+	if (client == SHEPHERD) {
+		writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
 	} else {
-		writen(nh_tcp_dawn_fd, send_buf, len + 3);
+		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
 	free(send_buf);
 	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
-void send_start_pos (int client, int pos)
+void send_start_pos (robot_desc_field_t client, robot_desc_val_t pos)
 {
 	StartPos start_pos = START_POS__INIT;
 	uint8_t *send_buf;
@@ -366,10 +365,10 @@ void send_start_pos (int client, int pos)
 	
 	//set the right mode
 	switch (pos) {
-		case (LEFT_POS):
+		case (LEFT):
 			start_pos.pos = POS__LEFT;
 			break;
-		case (RIGHT_POS):
+		case (RIGHT):
 			start_pos.pos = POS__RIGHT;
 			break;
 		default:
@@ -379,13 +378,13 @@ void send_start_pos (int client, int pos)
 	//build the message
 	len = start_pos__get_packed_size(&start_pos);
 	send_buf = make_buf(START_POS_MSG, len);
-	start_pos__pack(&start_pos, send_buf + 3);
+	start_pos__pack(&start_pos, send_buf + BUFFER_OFFSET);
 	
 	//send the message
-	if (client == SHEPHERD_CLIENT) {
-		writen(nh_tcp_shep_fd, send_buf, len + 3);
+	if (client == SHEPHERD) {
+		writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
 	} else {
-		writen(nh_tcp_dawn_fd, send_buf, len + 3);
+		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
 	free(send_buf);
 	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
@@ -418,7 +417,7 @@ void send_gamepad_state (uint32_t buttons, float joystick_vals[4])
 	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
 }
 
-void send_challenge_data (int client, char **data)
+void send_challenge_data (robot_desc_field_t client, char **data)
 {
 	Text challenge_data = TEXT__INIT;
 	uint8_t *send_buf;
@@ -434,13 +433,13 @@ void send_challenge_data (int client, char **data)
 	}
 	len = text__get_packed_size(&challenge_data);
 	send_buf = make_buf(CHALLENGE_DATA_MSG, len);
-	text__pack(&challenge_data, send_buf + 3);
+	text__pack(&challenge_data, send_buf + BUFFER_OFFSET);
 	
 	//send the message
-	if (client == SHEPHERD_CLIENT) {
-		writen(nh_tcp_shep_fd, send_buf, len + 3);
+	if (client == SHEPHERD) {
+		writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
 	} else {
-		writen(nh_tcp_dawn_fd, send_buf, len + 3);
+		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
 	
 	//free everything
@@ -492,10 +491,10 @@ void send_device_data (dev_data_t *data, int num_devices)
 	}
 	len = dev_data__get_packed_size(&dev_data);
 	send_buf = make_buf(DEVICE_DATA_MSG, len);
-	dev_data__pack(&dev_data, send_buf + 3);
+	dev_data__pack(&dev_data, send_buf + BUFFER_OFFSET);
 	
 	//send the message
-	writen(nh_tcp_dawn_fd, send_buf, len + 3);
+	writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	
 	//free everything
 	for (int i = 0; i < num_devices; i++) {

@@ -216,10 +216,8 @@ void prompt_challenge_data ()
 		}
 		
 		//we need to do this because nextcmd has a newline at the end
-		inputs[i - 1] = malloc(strlen(nextcmd) - 1);
-		for (int j = 0; j < strlen(nextcmd) - 1; j++) {
-			inputs[i - 1][j] = nextcmd[j];
-		}
+		nextcmd[strlen(nextcmd) -1] = '\0';
+		strcpy(inputs[i - 1], nextcmd);
 	}
 	
 	//send
@@ -238,13 +236,13 @@ void prompt_device_data ()
 	char nextcmd[MAX_CMD_LEN];
 	char dev_names[DEVICES_LENGTH][32]; //for holding the names of the devices
 	int num_devices = 0;
-	long int temp;
+	long long int temp;
 	dev_data_t data[MAX_DEVICES];
 	device_t *curr_dev;
 	
 	//first get the list of device names
-	for (int i = 0; i < DEVICES_LENGTH; i++) {
-		if ((curr_dev = get_device((uint8_t) i)) != NULL) {
+	for (uint8_t i = 0; i < DEVICES_LENGTH; i++) {
+		if ((curr_dev = get_device(i)) != NULL) {
 			strcpy(dev_names[i], curr_dev->name);
 		} else {
 			strcpy(dev_names[i], "");
@@ -268,7 +266,7 @@ void prompt_device_data ()
 			if (strcmp(nextcmd, "abort\n") == 0) {
 				return;
 			}
-			temp = strtol(nextcmd, NULL, 10);
+			temp = strtoll(nextcmd, NULL, 10);
 			if (temp < 0) {
 				printf("Input is not a positive number: %ld\n", temp);
 				continue;
