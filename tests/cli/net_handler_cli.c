@@ -4,7 +4,7 @@
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
-void prompt_run_mode ()
+void prompt_run_mode()
 {
 	robot_desc_field_t client = SHEPHERD;
 	robot_desc_val_t mode = IDLE;
@@ -15,10 +15,10 @@ void prompt_run_mode ()
 		printf("Send as DAWN or SHEPHERD: ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		if (strcmp(nextcmd, "dawn\n") == 0) {
-			client = DAWN_CLIENT;
+			client = DAWN;
 			break;
 		} else if (strcmp(nextcmd, "shepherd\n") == 0) {
-			client = SHEPHERD_CLIENT;
+			client = SHEPHERD;
 			break;
 		} else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
@@ -103,7 +103,6 @@ void prompt_gamepad_state ()
 	float joystick_vals[4];
 	char nextcmd[MAX_CMD_LEN];
 	char **list_of_names;
-	char button_name[16];
 	int button_ix = 0;
 	int set_joysticks = 0;
 	
@@ -111,7 +110,7 @@ void prompt_gamepad_state ()
 	printf("Specify which of the following buttons are pressed\n\t(type the number corresponding to the named button):\n");
 	list_of_names = get_button_names();
 	for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-		printf("\t%4d%s\n", i, list_of_names[i]);
+		printf("\t%4d %s\n", i, list_of_names[i]);
 	}
 	printf("After you have finished setting buttons, type \"done\"\n");
 	printf("If you accidentally set a button, you can unset the button by typing its name again\n");
@@ -268,7 +267,7 @@ void prompt_device_data ()
 			}
 			temp = strtoll(nextcmd, NULL, 10);
 			if (temp < 0) {
-				printf("Input is not a positive number: %ld\n", temp);
+				printf("Input is not a positive number: %lld\n", temp);
 				continue;
 			} else {
 				data[num_devices].uid = (uint64_t) temp;
@@ -281,7 +280,7 @@ void prompt_device_data ()
 		printf("Specify the device type, one of the following\n\t(type the number corresponding to the device type):\n");
 		for (int i = 0; i < DEVICES_LENGTH; i++) {
 			if (strcmp(dev_names[i], "") != 0) {
-				printf("\t%4d%s\n", i, dev_names[i]);
+				printf("\t%4d %s\n", i, dev_names[i]);
 			}
 		}
 		while (1) {	
@@ -352,7 +351,7 @@ void display_help()
 	printf("\tdevice data        send a Device Data message (send a subscription request)\n");
 	printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
 	printf("\thelp               display this help text\n");
-	printf("\tstop               exit the Net Handler CLI\n");
+	printf("\texit               exit the Net Handler CLI\n");
 }
 
 // ********************************** MAIN PROCESS ****************************************** //
@@ -384,7 +383,7 @@ int main ()
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		
 		//compare input string against the available commands
-		if (strcmp(nextcmd, "stop\n") == 0) {
+		if (strcmp(nextcmd, "exit\n") == 0) {
 			stop = 1;
 		} else if (strcmp(nextcmd, "run mode\n") == 0) {
 			prompt_run_mode();
@@ -406,7 +405,7 @@ int main ()
 		}
 	}
 	
-	printf("Stopping Net Handler CLI...\n");
+	printf("Exiting Net Handler CLI...\n");
 	
 	stop_net_handler();
 	

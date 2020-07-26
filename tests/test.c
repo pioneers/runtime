@@ -30,7 +30,7 @@ static void child_main_function ()
 	//wait for SIGINT to come from parent
 	while (1) {
 		fgets(nextline, MAX_LOG_LEN, stdin);
-		printf("%s", nextline);            //print to standard out (attached to terminal)
+		fprintf(stderr, "%s", nextline);            //print to standard out (attached to terminal)
 		fprintf(temp_fp, "%s", nextline);  //print to temp file
 	}
 }

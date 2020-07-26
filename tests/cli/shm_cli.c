@@ -8,7 +8,7 @@ void display_help()
 	printf("All commands should be typed in all lower case.\n");
 	printf("\tprint     print the current state of shared memory\n");
 	printf("\thelp      display this help text\n");
-	printf("\tstop      exit the Shared Memory CLI\n");
+	printf("\texit      exit the Shared Memory CLI\n");
 }
 
 // ********************************** MAIN PROCESS ****************************************** //
@@ -39,7 +39,7 @@ int main ()
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		
 		//compare input string against the available commands
-		if (strcmp(nextcmd, "stop\n") == 0) {
+		if (strcmp(nextcmd, "exit\n") == 0) {
 			stop = 1;
 		} else if (strcmp(nextcmd, "print\n") == 0) {
 			print_shm();
@@ -51,7 +51,7 @@ int main ()
 		}
 	}
 	
-	printf("Stopping Shared Memory CLI...\n");
+	printf("Exiting Shared Memory CLI...\n");
 	
 	stop_shm();
 	

@@ -10,10 +10,9 @@
 #include <stdint.h>                        //for standard int types
 #include <unistd.h>                        //for sleep
 #include <pthread.h>                       //for POSIX threads
-#include <signal.h>                        //Used to handle SIGTERM, SIGINT, SIGKILL
-#include <time.h>                          //for getting time
-#include <stddef.h>                        //for offsetof function
-#include "../runtime_util/runtime_util.h"  //for runtime constants
+#include <signal.h>                        // Used to handle SIGTERM, SIGINT, SIGKILL
+#include <time.h>                          // for getting time
+#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 #include "../logger/logger.h"              // for runtime logger
 
@@ -473,23 +472,18 @@ int main(int argc, char* argv[]) {
         student_code = argv[1];
     }
     log_printf(DEBUG, "Min time %llu", min_time);
-	
-	// open challenge socket to read and write
-	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
-		perror("socket");
-		log_printf(FATAL, "could not create challenge socket");
+    
+    remove(CHALLENGE_SOCKET); // Always remove any old challenge socket
+    struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
+	//create the socket
+	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+        perror("socket");
+        log_printf(FATAL, "could not create challenge socket");
 		return 1;
 	}
-	//set up the challenge socket
-	remove(CHALLENGE_SOCKET);
-	struct sockaddr_un my_addr = {0};
-	my_addr.sun_family = AF_UNIX;
-	strcpy(my_addr.sun_path, CHALLENGE_SOCKET);
-	
-	//bind the socket to CHALLENGE_SOCKET Unix path
+
 	if (bind(challenge_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_un)) < 0) {
         log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
-		close(challenge_fd);
 		return 1;
 	}
 
