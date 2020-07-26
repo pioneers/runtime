@@ -1,89 +1,47 @@
 #!/bin/bash
 
-FAILED_TESTS=""
-
 # restore the previous logger config file
 function clean_up {
-	rm ../../logger/logger.config
-	mv ../../logger/logger.config.orig ../../logger/logger.config
+	rm ../logger/logger.config
+	mv ../logger/logger.config.orig ../logger/logger.config
 }
 
-function run_one_test {
-	local found_test=0    # whether or not we found the specified test
-	local status=0        # whether or not the test passed
+function run_tests {
 	local test_exe=""     # name of executable for test
+	local failed=0		  # whether tests failed
+	local failing_tests=""
 
-	# search through all the tests to find the source file corresponding to specified test
-	for test in $(ls); do
-		# skip Makefile and anything that doesn't match what was specified
-		if [[ $test == "Makefile" || $test != *"$1.c" ]]; then
-			continue
+	echo "Running tests: $@"
+
+	for test in $@; do 
+		
+		# exit if we didn't find the test
+		if [[ $ALL_TESTS != *"$test"* ]]; then
+			printf "Could not find specified test $test\n"
+			clean_up
+			exit 1
 		fi
-		found_test=1
-		break
-	done
-
-	# exit if we didn't find the test
-	if [[ $found_test == 0 ]]; then
-		printf "Could not find specified test $1\n"
-		clean_up
-		exit 1
-	fi
-
-	# make executable (remove the executable and re-make if it exists)
-	test_exe=$(echo $test | awk -F'.' '{ print $1 }')
-	if [[ -f $test_exe ]]; then
-		rm $test_exe
-	fi
-	make $test_exe
-
-	# run test
-	printf "\nRunning $test...\n"
-	./$test_exe
-	status=$?
-
-	# move the original log file back
-	clean_up
-
-	# exit with error status of test
-	if [[ $status == 1 ]]; then
-		exit 1
-	fi
-	exit 0
-}
-
-function run_all_tests {
-	local all_is_well=1 # is set to 0 if we have any failed tests
-	local status=0      # whether or not the test pased
-
-	# remove and recompile all tests
-	make clean
-	make
-
-	# loop through all tests
-	for test in $(ls); do
-	    # skip source files and Makefile
-	    if [[ $test == "Makefile" || $test == *".c" ]]; then
-	        continue
-	    fi
-
+		
+		# make executable
+		printf "Making $test\n"
+		make $test
+		
+		test_exe=$(echo $test | awk -F'/' '{ print $2 }')
 		# run test
-		printf "\nRunning $test...\n"
-		./$test
-		status=$?
+		printf "Running $test_exe...\n"
+		./$test_exe
 
 		# if that test failed, set all_is_well to 1
-		if [[ $status == 1 ]]; then
-			FAILING_TESTS="$FAILING_TESTS $test"  # add this test to list of failing testse
-			all_is_well=0
+		if [[ $? == 1 ]]; then
+			failing_tests="$failing_tests $test"  # add this test to list of failing testse
+			failed=1
 		fi
 	done
 
-	# move the original log file back
 	clean_up
 
 	# return status
-	if [[ $all_is_well == 0 ]]; then
+	if [[ $failed == "1" ]]; then
 		printf "\n\n################################################# TESTS FAILED! ##########################################\n\n"
 		printf "Failing tests: $FAILING_TESTS\n\n\n"
 		exit 1
@@ -92,25 +50,33 @@ function run_all_tests {
 
 ################################################ BEGIN SCRIPT ##########################################
 
+set -e
+
 # build all of Runtime
 ./build.sh
 
 # do some setup work with the log file
 mv logger/logger.config logger/logger.config.orig
-cp -p tests/logger/logger.config logger/logger.config
+cp -p tests/logger.config logger/logger.config
 
-export PYTHONPATH="$PYTHONPATH:$PWD/tests/student_code" # this is so that executor can find the sample student code we write for testing
-cd tests/integration
+cd tests
 
-# if first argument specified, try to find that test case and run it
-if [[ $1 != "" ]]; then
-	run_one_test $1
+export PYTHONPATH="$PYTHONPATH:$PWD/student_code" # modify PYTHONPATH so that executor can find the test student code
+
+make clean
+
+ALL_TESTS=$(ls integration/*.c | awk -F'.' '{ print $1 }')
+
+# if no first argument specified, run all the tests
+if [[ $1 == "" ]]; then
+	input=$ALL_TESTS
+else
+	input=$1
 fi
 
 printf "\n\n################################################ RUNNING TEST SUITE ##########################################\n\n"
 
-# if no first argument specified, run all the tests
-run_all_tests
+run_tests $input
 
 printf "\n\n############################################### ALL TESTS PASSED ############################################\n\n\n"
 

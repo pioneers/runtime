@@ -10,7 +10,7 @@ void start_executor (char *student_code)
 	} else if (executor_pid == 0) { //child
 		int len;
 		//cd to the executor directory
-		if (chdir("../../executor") == -1) {
+		if (chdir("../executor") == -1) {
 			printf("chdir: %s\n", strerror(errno));
 		}
 
