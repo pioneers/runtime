@@ -374,14 +374,15 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	pthread_t* tid = (client == DAWN) ? &dawn_tid : &shepherd_tid;
 
 	// open challenge socket to read and write
-	struct sockaddr_un my_addr;
+	//struct sockaddr_un my_addr;
 	if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
 		log_printf(ERROR, "failed to create challenge socket");
 		return;
 	}
 	//set up the challenge socket
-	memset(&my_addr, 0, sizeof(struct sockaddr_un));
+	struct sockaddr_un my_addr = {0};
+	//memset(&my_addr, 0, sizeof(struct sockaddr_un));
 	my_addr.sun_family = AF_UNIX;
 	strcpy(my_addr.sun_path, CHALLENGE_SOCKET);
 	

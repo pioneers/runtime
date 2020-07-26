@@ -24,8 +24,6 @@ void start_executor (char *student_code)
 		if (execlp("./executor", "executor", student_code, (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
-	} else { //parent
-		;
 	}
 }
 

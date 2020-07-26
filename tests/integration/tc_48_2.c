@@ -1,16 +1,12 @@
 #include "../test.h"
 
-char check_output_1[] = "New mode 1\n";
+char check_output_1[] = "Autonomous setup has begun!\n";
 
-char check_output_2[] = "Autonomous setup has begun!\n";
+char check_output_2[] = "autonomous printing again\n";
 
-char check_output_3[] = "autonomous printing again\n";
+char check_output_3[] = "\tRUN_MODE = AUTO\n";
 
-char check_output_4[] = "\tRUN_MODE = AUTO\n";
-
-char check_output_5[] = "In KILL subprocess\n";
-
-char check_output_6[] = "New mode 0\n";
+char check_output_4[] = "\tRUN_MODE = IDLE\n";
 
 int main ()
 {
@@ -21,12 +17,13 @@ int main ()
 	start_executor("constant_print");
 
 	//poke the system
-	send_start_pos(SHEPHERD_CLIENT, RIGHT_POS);
-	send_run_mode(SHEPHERD_CLIENT, AUTO_MODE);
+	send_start_pos(SHEPHERD, RIGHT);
+	send_run_mode(SHEPHERD, AUTO);
 	sleep(1);
 	print_shm();
 	sleep(2);
-	send_run_mode(SHEPHERD_CLIENT, IDLE_MODE);
+	send_run_mode(SHEPHERD, IDLE);
+	print_shm();
 
 	//stop all the tests
 	stop_executor();
@@ -38,9 +35,7 @@ int main ()
 	match_part(check_output_1);
 	match_part(check_output_2);
 	match_part(check_output_3);
+	match_part(check_output_2);
 	match_part(check_output_4);
-	match_part(check_output_3);
-	match_part(check_output_5);
-	match_part(check_output_6);
 	return 0;
 }
