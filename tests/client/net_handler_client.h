@@ -6,15 +6,15 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 
-#define SHEPHERD_CLIENT 0
-#define DAWN_CLIENT 1
+//#define SHEPHERD_CLIENT 0
+//#define DAWN_CLIENT 1
 
-#define IDLE_MODE 0
-#define AUTO_MODE 1
-#define TELEOP_MODE 2
+//#define IDLE_MODE 0
+//#define AUTO_MODE 1
+//#define TELEOP_MODE 2
 
-#define LEFT_POS 0
-#define RIGHT_POS 1
+//#define LEFT_POS 0
+//#define RIGHT_POS 1
 
 typedef struct dev_data {
 	uint64_t uid;    //what the uid of this device is
@@ -41,7 +41,7 @@ void stop_net_handler ();
  *    - int mode: one of IDLE_MODE, AUTO_MODE, or TELEOP_MODE
  * No return value.
  */
-void send_run_mode (int client, int mode);
+void send_run_mode (robot_desc_field_t client, robot_desc_val_t mode);
 
 /*
  * Sends a Start Pos message from the specified client with the specified position
@@ -50,7 +50,7 @@ void send_run_mode (int client, int mode);
  *    - int pos: one of LEFT_POS or RIGHT_POS
  * No return value.
  */
-void send_start_pos (int client, int pos);
+void send_start_pos (robot_desc_field_t client, robot_desc_val_t pos);
 
 /*
  * Sends a Gamepad State message from Dawn over UDP with the specified buttons pushed and joystick values
@@ -68,7 +68,7 @@ void send_gamepad_state (uint32_t buttons, float joystick_vals[4]);
  *    - char **data: array of NUM_CHALLENGES strings, each containing the input to the corresponding challenge
  * No return value.
  */
-void send_challenge_data (int client, char **data);
+void send_challenge_data (robot_desc_field_t client, char **data);
 
 /*
  * Sends a Device Data message from Dawn over TCP with the specified device subscriptions

@@ -1,7 +1,6 @@
 #include "../test.h"
 
 char check_1_output[] =
-	"entering AUTO mode\n"
 	"Changed devices: 00000000000000000000000000000000\n"
 	"Changed params:\n"
 	"Requested devices: 00000000000000000000000000000000\n"
@@ -21,7 +20,6 @@ char check_1_output[] =
 	"\t\tY_RIGHT_JOYSTICK = 0.000000\n";
 
 char check_2_output[] =
-	"robot is in RIGHT start position\n"
 	"Changed devices: 00000000000000000000000000000000\n"
 	"Changed params:\n"
 	"Requested devices: 00000000000000000000000000000000\n"
@@ -48,9 +46,9 @@ int main ()
 	start_net_handler();
 
 	//poke the system
-	send_run_mode(SHEPHERD_CLIENT, AUTO_MODE);
+	send_run_mode(SHEPHERD, AUTO);
 	print_shm();
-	send_start_pos(SHEPHERD_CLIENT, RIGHT_POS);
+	send_start_pos(SHEPHERD, RIGHT);
 	print_shm();
 
 	//stop the system
