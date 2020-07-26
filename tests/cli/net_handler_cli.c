@@ -6,8 +6,8 @@
 
 void prompt_run_mode ()
 {
-	int client = SHEPHERD_CLIENT;
-	int mode = IDLE_MODE;
+	robot_desc_field_t client = SHEPHERD;
+	robot_desc_val_t mode = IDLE;
 	char nextcmd[MAX_CMD_LEN];
 	
 	//get client to send as
@@ -32,13 +32,13 @@ void prompt_run_mode ()
 		printf("Send mode IDLE, AUTO, or TELEOP: ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		if (strcmp(nextcmd, "idle\n") == 0) {
-			mode = IDLE_MODE;
+			mode = IDLE;
 			break;
 		} else if (strcmp(nextcmd, "auto\n") == 0) {
-			mode = AUTO_MODE;
+			mode = AUTO;
 			break;
 		} else if (strcmp(nextcmd, "teleop\n") == 0) {
-			mode = TELEOP_MODE;
+			mode = TELEOP;
 			break;
 		} else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
@@ -54,8 +54,8 @@ void prompt_run_mode ()
 
 void prompt_start_pos ()
 {
-	int client = SHEPHERD_CLIENT;
-	int pos = LEFT_POS;
+	robot_desc_field_t client = SHEPHERD;
+	robot_desc_val_t pos = LEFT;
 	char nextcmd[MAX_CMD_LEN];
 	
 	//get client to send as
@@ -63,10 +63,10 @@ void prompt_start_pos ()
 		printf("Send as DAWN or SHEPHERD: ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		if (strcmp(nextcmd, "dawn\n") == 0) {
-			client = DAWN_CLIENT;
+			client = DAWN;
 			break;
 		} else if (strcmp(nextcmd, "shepherd\n") == 0) {
-			client = SHEPHERD_CLIENT;
+			client = SHEPHERD;
 			break;
 		} else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
@@ -80,10 +80,10 @@ void prompt_start_pos ()
 		printf("Send pos LEFT or RIGHT: ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		if (strcmp(nextcmd, "left\n") == 0) {
-			pos = LEFT_POS;
+			pos = LEFT;
 			break;
 		} else if (strcmp(nextcmd, "right\n") == 0) {
-			pos = RIGHT_POS;
+			pos = RIGHT;
 			break;
 		} else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
@@ -108,10 +108,10 @@ void prompt_gamepad_state ()
 	int set_joysticks = 0;
 	
 	//get which buttons are pressed
-	printf("Specify which of the following buttons are pressed:\n");
+	printf("Specify which of the following buttons are pressed\n\t(type the number corresponding to the named button):\n");
 	list_of_names = get_button_names();
 	for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-		printf("\t%s\n", list_of_names[i]);
+		printf("\t%4d%s\n", i, list_of_names[i]);
 	}
 	printf("After you have finished setting buttons, type \"done\"\n");
 	printf("If you accidentally set a button, you can unset the button by typing its name again\n");
@@ -128,25 +128,24 @@ void prompt_gamepad_state ()
 		}
 		
 		//get the index of the button that was specified
-		for (button_ix = 0; button_ix < NUM_GAMEPAD_BUTTONS; button_ix++) {
-			//this logic appends a newline to the end of the button name
-			strcpy(button_name, list_of_names[button_ix]);
-			if (strcmp(nextcmd, strcat(button_name, "\n")) == 0) {
-				break;
-			}
+		errno = 0;
+		if ((button_ix = (int) strtol(nextcmd, NULL, 10)) == 0 && errno != 0) {
+			printf("Did not enter integer: %s\n", nextcmd);
+			continue;
 		}
-		if (button_ix == NUM_GAMEPAD_BUTTONS) {
-			printf("Not a button: %s\n", nextcmd);
+		
+		if (button_ix < 0 || button_ix >= NUM_GAMEPAD_BUTTONS) {
+			printf("Not a valid button index: %s\n", nextcmd);
 			continue;
 		}
 		
 		//otherwise set that bit in buttons
 		if (buttons & (1 << button_ix)) {
 			buttons &= ~(1 << button_ix);
-			printf("\tOK, unset button %s\n", list_of_names[button_ix]);
+			printf("\tUnset button %s\n", list_of_names[button_ix]);
 		} else {
 			buttons |= (1 << button_ix);
-			printf("\tOK, set button %s\n", list_of_names[button_ix]);
+			printf("\tSet button %s\n", list_of_names[button_ix]);
 		}
 	}
 	
@@ -184,7 +183,7 @@ void prompt_gamepad_state ()
 
 void prompt_challenge_data ()
 {
-	int client = SHEPHERD_CLIENT;
+	int client = SHEPHERD;
 	char nextcmd[MAX_CMD_LEN];
 	char **inputs = malloc(sizeof(char *) * NUM_CHALLENGES);
 	
@@ -193,10 +192,10 @@ void prompt_challenge_data ()
 		printf("Send as DAWN or SHEPHERD: ");
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		if (strcmp(nextcmd, "dawn\n") == 0) {
-			client = DAWN_CLIENT;
+			client = DAWN;
 			break;
 		} else if (strcmp(nextcmd, "shepherd\n") == 0) {
-			client = SHEPHERD_CLIENT;
+			client = SHEPHERD;
 			break;
 		} else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
@@ -236,6 +235,7 @@ void prompt_device_data ()
 	char nextcmd[MAX_CMD_LEN];
 	char dev_names[DEVICES_LENGTH][32]; //for holding the names of the devices
 	int num_devices = 0;
+	uint8_t dev_type;
 	long long int temp;
 	dev_data_t data[MAX_DEVICES];
 	device_t *curr_dev;
@@ -278,10 +278,10 @@ void prompt_device_data ()
 		
 		//ask for device type
 		data[num_devices].name = NULL;
-		printf("Specify the device type, one of the following (exactly as they appear in the list):\n");
+		printf("Specify the device type, one of the following\n\t(type the number corresponding to the device type):\n");
 		for (int i = 0; i < DEVICES_LENGTH; i++) {
 			if (strcmp(dev_names[i], "") != 0) {
-				printf("\t%s\n", dev_names[i]);
+				printf("\t%4d%s\n", i, dev_names[i]);
 			}
 		}
 		while (1) {	
@@ -290,24 +290,18 @@ void prompt_device_data ()
 			if (strcmp(nextcmd, "abort\n") == 0) {
 				return;
 			}
-			nextcmd[strlen(nextcmd) - 1] = '\0'; //get rid of the newline at the end of nextcmd
 			
-			//check to see if valid device
-			for (int i = 0; i < DEVICES_LENGTH; i++) {
-				if (strcmp(dev_names[i], "") == 0) {
-					continue;
-				}
-				if (strcmp(nextcmd, dev_names[i]) == 0) {
-					data[num_devices].name = malloc(strlen(dev_names[i]));
-					strcpy(data[num_devices].name, dev_names[i]);
-					break;
-				}
+			errno = 0;
+			if ((dev_type = (uint8_t) strtol(nextcmd, NULL, 10)) == 0 && errno != 0) {
+				printf("Did not enter integer: %s\n", nextcmd);
+				continue;
 			}
-			if (data[num_devices].name == NULL) {
-				printf("Input is not a valid device name: %s\n", nextcmd);
-			} else {
-				break;
+			
+			if ((curr_dev = get_device(dev_type)) == NULL) {
+				printf("Did not specify a valid device type: %s\n", nextcmd);
+				continue;
 			}
+			break;
 		}
 		
 		//fetch parameters and prompt user "y" or "n" on each one
