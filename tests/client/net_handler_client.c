@@ -2,7 +2,7 @@
 
 //throughout this code, net_handler is abbreviated "nh"
 pid_t nh_pid;                     //holds the pid of the net_handler process
-struct sockaddr_in udp_servaddr;  //holds the udp server address
+struct sockaddr_in udp_servaddr = {0};  //holds the udp server address
 pthread_t dump_tid;               //holds the thread id of the output dumper threads
 pthread_mutex_t print_udp_mutex;  //lock over whether to print the next received udp
 int print_next_udp;               //0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
@@ -138,7 +138,6 @@ static int recv_tcp_data (robot_desc_field_t client, int tcp_fd)
 
 	//parse message
 	if (parse_msg(tcp_fd, &msg_type, &len, &buf) == 0) {
-		printf("Net handler disconnected\n");
 		return -1;
 	}
 	
@@ -251,7 +250,7 @@ void start_net_handler ()
 		printf("fork: %s\n", strerror(errno));
 	} else if (nh_pid == 0) { //child
 		//cd to the net_handler directory
-		if (chdir("../../net_handler") == -1) {
+		if (chdir("../net_handler") == -1) {
 			printf("chdir: %s\n", strerror(errno));
 		}
 
@@ -259,6 +258,7 @@ void start_net_handler ()
 		if (execlp("./net_handler", "net_handler", (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
+		
 	} else { //parent
 		sleep(1); //allows net_handler to set itself up
 
@@ -270,7 +270,6 @@ void start_net_handler ()
 			stop_net_handler();
 			exit(1);
 		}
-		memset(&udp_servaddr, 0, sizeof(struct sockaddr_in));
 		udp_servaddr.sin_family = AF_INET; 
 		udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR); 
 		udp_servaddr.sin_port = htons(RASPI_UDP_PORT); 

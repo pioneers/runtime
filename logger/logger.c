@@ -81,7 +81,7 @@ static void read_config_file ()
 	strcpy(last + 1, CONFIG_FILE); //append CONFIG_FILE to that path to get relative path to logger file
 
 	if ((conf_fd = fopen(file_buf, "r")) == NULL) {  //open the config file for reading
-		fprintf(stderr, "fopen: logger could not open config file %s; exiting... \n%s", file_buf, strerror(errno));
+		fprintf(stderr, "fopen: logger could not open config file %s: %s", file_buf, strerror(errno));
 		exit(1);
 	}
 

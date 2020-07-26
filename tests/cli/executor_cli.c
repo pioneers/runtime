@@ -7,7 +7,7 @@ void display_help()
 	printf("This is the main menu.\n");
 	printf("All commands should be typed in all lower case.\n");
 	printf("\thelp      display this help text\n");
-	printf("\tstop      exit the Executor CLI\n");
+	printf("\texit      exit the Executor CLI\n");
 }
 
 // ********************************** MAIN PROCESS ****************************************** //
@@ -41,7 +41,7 @@ int main ()
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		
 		//compare input string against the available commands
-		if (strcmp(nextcmd, "stop\n") == 0) {
+		if (strcmp(nextcmd, "exit\n") == 0) {
 			stop = 1;
 		} else if (strcmp(nextcmd, "help\n") == 0) {
 			display_help();
@@ -51,7 +51,7 @@ int main ()
 		}
 	}
 	
-	printf("Stopping Executor CLI...\n");
+	printf("Exiting Executor CLI...\n");
 	
 	stop_executor();
 	

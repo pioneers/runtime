@@ -9,7 +9,7 @@ void start_shm ()
 		printf("fork: %s\n", strerror(errno));
 	} else if (shm_pid == 0) { //child
 		//cd to the shm_wrapper directory
-		if (chdir("../../shm_wrapper") == -1) {
+		if (chdir("../shm_wrapper") == -1) {
 			printf("chdir: %s\n", strerror(errno));
 		}
 

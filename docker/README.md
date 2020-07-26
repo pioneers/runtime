@@ -19,33 +19,24 @@ To install Docker, go here https://docs.docker.com/get-docker/.
 
 ## Pulling
 
-To get the image to emulate a Raspberry Pi, do `docker pull avsurfer123/c-runtime:arm32`.
+To get the image to emulate a Raspberry Pi, do `docker pull avsurfer123/c-runtime:latest`. This will have the code from the `master` branch.
 
 ## Building
 
-To build your own image instead of using the one on Docker Hub, do 
+To build your own image instead of using the one on Docker Hub, so that it uses your up to date code instead of code on `master`, do
     
-    DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:arm32 -t avsurfer123/c-runtime:arm32 -f docker/Dockerfile .
-
-## Pushing
-
-To push a built image to Docker Hub (only if you have push access), do `docker push avsurfer123/c-runtime:{TAG}`. You can change the tag before pushing by `docker tag avsurfer123/c-runtime:{OLD_TAG} avsurfer123/c-runtime:{NEW_TAG}`.
+    DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t avsurfer123/c-runtime:latest -f docker/Dockerfile .
 
 ## Running
 
-To run the latest Runtime inside the Docker image, do `docker run -it avsurfer123/c-runtime:arm32`. Then you can test by in another terminal doing `docker exec -it $(docker ps -q) bash` and running whatever you want inside the container.
-
-This above method will use the code that was added when the image was built. If you want to run your own Runtime code, follow these commands:
-
-    # Terminal 1
-    docker run -it ${DOCKER_USERNAME}/c-runtime:arm32 bash
-    # Terminal 2
-    docker cp . $(docker ps -q):/root/runtime/
-    docker exec -it $(docker ps -q) bash -c "./build.sh && ./run.sh"
+To run the latest Runtime inside a Docker container, do `docker run -it --rm avsurfer123/c-runtime:latest`. Then you can test by in another terminal doing `docker exec -it $(docker ps -q) bash` and running whatever you want inside the container. The `c-runtime` repo will be located at `/root/runtime`.
 
 If you want to have the container access any Arduino devices, add the flag `--device /dev/ttyACM0` or what ever devices you want to `docker run`.
 
 ## Stopping
 
-To stop the container that was ran with method 1, do `docker kill -s INT $(docker ps -q)`. To stop the container that was ran with method 2, do `docker stop $(docker ps -q)`.
+To stop the container, either exit from the `docker run` shell with Ctrl+C or do `docker kill -s INT $(docker ps -q)`.
 
+## Pushing
+
+To push a built image to Docker Hub (only if you have push access), do `docker push avsurfer123/c-runtime:{TAG}`. You can change the tag before pushing by `docker tag avsurfer123/c-runtime:{OLD_TAG} avsurfer123/c-runtime:{NEW_TAG}`.
