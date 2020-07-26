@@ -318,8 +318,7 @@ void stop_net_handler ()
 	if (nh_udp_fd != -1) {
 		close(nh_udp_fd);
 	}
-}	
-	
+}
 
 void send_run_mode (robot_desc_field_t client, robot_desc_val_t mode)
 {

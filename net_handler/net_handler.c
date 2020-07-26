@@ -3,14 +3,14 @@
 #include "udp_conn.h"
 
 /*
-* Sets up TCP listening socket on raspberry pi.
-* Creates the socket, binds it to the raspi's well-known address and port, and puts it in listen mode.
-* Arguments:
-*    - int *sockfd: pointer to integer which will store the litening socket descriptor upon successful return
-* Return:
-*    - 0: all steps completed successfully
-*    - 1: listening socket setup failed
-*/
+ * Sets up TCP listening socket on raspberry pi.
+ * Creates the socket, binds it to the raspi's well-known address and port, and puts it in listen mode.
+ * Arguments:
+ *    - int *sockfd: pointer to integer which will store the litening socket descriptor upon successful return
+ * Return:
+ *    - 0: all steps completed successfully
+ *    - 1: listening socket setup failed
+ */
 int listening_socket_setup (int *sockfd)
 {
 	struct sockaddr_in serv_addr = {0}; //initialize everything to 0
@@ -60,10 +60,10 @@ int listening_socket_setup (int *sockfd)
 
 
 /*
-* Handles SIGINT being sent to the process by closing connections and closing shm_aux, shm, and logger.
-* Arguments:
-*    - int sig_num: signal that caused this handler to execute (will always be SIGINT in this case)
-*/
+ * Handles SIGINT being sent to the process by closing connections and closing shm_aux, shm, and logger.
+ * Arguments:
+ *    - int sig_num: signal that caused this handler to execute (will always be SIGINT in this case)
+ */
 void sigint_handler (int sig_num)
 {
 	log_printf(DEBUG, "stopping net_handler");

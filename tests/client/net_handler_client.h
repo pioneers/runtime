@@ -6,16 +6,6 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 
-//#define SHEPHERD_CLIENT 0
-//#define DAWN_CLIENT 1
-
-//#define IDLE_MODE 0
-//#define AUTO_MODE 1
-//#define TELEOP_MODE 2
-
-//#define LEFT_POS 0
-//#define RIGHT_POS 1
-
 typedef struct dev_data {
 	uint64_t uid;    //what the uid of this device is
 	char *name;      //name of this devices ("KoalaBear", "LimitSwitch", etc.)
