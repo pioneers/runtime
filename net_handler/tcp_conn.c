@@ -5,9 +5,9 @@
 typedef struct {
 	int conn_fd;
 	int challenge_fd;
-    int send_logs;
+	int send_logs;
 	FILE *log_file;
-    robot_desc_field_t client;
+	robot_desc_field_t client;
 } tcp_conn_args_t;
 
 pthread_t dawn_tid, shepherd_tid;
@@ -205,24 +205,24 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		//write the specified run mode to the RUN_MODE field of the robot description
 		switch (run_mode_msg->mode) {
 			case (MODE__IDLE):
-				log_printf(INFO, "entering IDLE mode");
-				robot_desc_write(RUN_MODE, IDLE);
-				break;
+			log_printf(INFO, "entering IDLE mode");
+			robot_desc_write(RUN_MODE, IDLE);
+			break;
 			case (MODE__AUTO):
-				log_printf(INFO, "entering AUTO mode");
-				robot_desc_write(RUN_MODE, AUTO);
-				break;
+			log_printf(INFO, "entering AUTO mode");
+			robot_desc_write(RUN_MODE, AUTO);
+			break;
 			case (MODE__TELEOP):
-				log_printf(INFO, "entering TELEOP mode");
-				robot_desc_write(RUN_MODE, TELEOP);
-				break;
+			log_printf(INFO, "entering TELEOP mode");
+			robot_desc_write(RUN_MODE, TELEOP);
+			break;
 			case (MODE__ESTOP):
-				log_printf(INFO, "ESTOP RECEIVED! entering IDLE mode");
-				robot_desc_write(RUN_MODE, IDLE);
-				break;
+			log_printf(INFO, "ESTOP RECEIVED! entering IDLE mode");
+			robot_desc_write(RUN_MODE, IDLE);
+			break;
 			default:
-				log_printf(ERROR, "requested robot to enter invalid robot mode %s", run_mode_msg->mode);
-				break;
+			log_printf(ERROR, "requested robot to enter invalid robot mode %s", run_mode_msg->mode);
+			break;
 		}
 		run_mode__free_unpacked(run_mode_msg, NULL);
 	} 
@@ -236,16 +236,16 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		//write the specified start pos to the STARTPOS field of the robot description
 		switch (start_pos_msg->pos) {
 			case (POS__LEFT):
-				log_printf(INFO, "robot is in LEFT start position");
-				robot_desc_write(START_POS, LEFT);
-				break;
+			log_printf(INFO, "robot is in LEFT start position");
+			robot_desc_write(START_POS, LEFT);
+			break;
 			case (POS__RIGHT):
-				log_printf(INFO, "robot is in RIGHT start position");
-				robot_desc_write(START_POS, RIGHT);
-				break;
+			log_printf(INFO, "robot is in RIGHT start position");
+			robot_desc_write(START_POS, RIGHT);
+			break;
 			default:
-				log_printf(WARN, "entered unknown start position");
-				break;
+			log_printf(WARN, "entered unknown start position");
+			break;
 		}
 		start_pos__free_unpacked(start_pos_msg, NULL);
 	} 
@@ -374,7 +374,6 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	pthread_t* tid = (client == DAWN) ? &dawn_tid : &shepherd_tid;
 
 	// open challenge socket to read and write
-	//struct sockaddr_un my_addr;
 	if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
 		log_printf(ERROR, "failed to create challenge socket");
@@ -382,18 +381,14 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	}
 	//set up the challenge socket
 	struct sockaddr_un my_addr = {0};
-	//memset(&my_addr, 0, sizeof(struct sockaddr_un));
 	my_addr.sun_family = AF_UNIX;
 	strcpy(my_addr.sun_path, CHALLENGE_SOCKET);
 	
 	//bind it if it doesn't exist on the system already
-	if (access(CHALLENGE_SOCKET, F_OK) == -1) {
-		int my_addr_len = offsetof(struct sockaddr_un, sun_path) + strlen(my_addr.sun_path);
-		if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, my_addr_len) < 0) {
-	        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
-			close(args->challenge_fd);
-			return;
-		}
+	if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_un)) < 0) {
+		log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
+		close(args->challenge_fd);
+		return;
 	}
 
 	//Open FIFO pipe for logs
