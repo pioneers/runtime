@@ -10,8 +10,10 @@
 #include <unistd.h>                        //for standard symbolic constants
 #include <semaphore.h>                     //for semaphores
 #include <sys/mman.h>                      //for posix shared memory
+#include <limits.h>						   //for UCHAR_MAX
 #include "../logger/logger.h"              //for logger
 #include "../runtime_util/runtime_util.h"  //for runtime constants
+
 
 //names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm.c
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
@@ -24,8 +26,8 @@
 #define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
 #define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
 
-#define CUSTOM_SHM_NAME "/custom-shm"
-#define CUSTOM_SHM_MUTEX "/custom-sem"
+#define LOG_DATA_SHM "/log-data-shm"
+#define LOG_DATA_MUTEX "/log-data-sem"
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
@@ -63,9 +65,9 @@ typedef struct robot_desc_shm {
 
 typedef struct {
 	uint8_t num_params;
-	param_val_t params[MAX_PARAMS];
-	param_desc_t desc[MAX_PARAMS];
-} custom_shm_t;
+	param_val_t params[UCHAR_MAX];
+	param_desc_t desc[UCHAR_MAX];
+} log_data_shm_t;
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
 
@@ -268,5 +270,11 @@ int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4]);
  * Returns 0 on success, -1 on failure (if gamepad is not connected)
  */
 int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
+
+
+int log_data_write(param_desc_t desc, param_val_t value);
+
+int log_data_read(uint8_t* num_params, param_desc_t descs[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
+
 
 #endif
