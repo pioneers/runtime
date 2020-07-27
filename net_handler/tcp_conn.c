@@ -5,9 +5,9 @@
 typedef struct {
 	int conn_fd;
 	int challenge_fd;
-    int send_logs;
+	int send_logs;
 	FILE *log_file;
-    robot_desc_field_t client;
+	robot_desc_field_t client;
 } tcp_conn_args_t;
 
 pthread_t dawn_tid, shepherd_tid;
@@ -42,14 +42,14 @@ static void tcp_conn_cleanup (void *args)
 }
 
 
-/* 
+/*
  * Send a log message on the TCP connection to the client. Reads lines from the pipe until there is no more data
  * or it has read MAX_NUM_LOGS lines from the pipe, packages the message, and sends it.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
  */
 static void send_log_msg (int conn_fd, FILE *log_file)
-{	
+{
 	char nextline[MAX_LOG_LEN];   //next log line read from FIFO pipe
 	Text log_msg = TEXT__INIT;    //initialize a new Text protobuf message
 	log_msg.n_payload = 0;
@@ -61,11 +61,15 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 			log_msg.payload[log_msg.n_payload] = malloc(strlen(nextline) + 1);
 			strcpy(log_msg.payload[log_msg.n_payload], nextline);
 			log_msg.n_payload++;
-		}
-		else if (errno == EAGAIN) { // EAGAIN occurs when nothing to read
+		} else if (feof(log_file) != 0) { // All write ends of FIFO are closed, don't send any more logs
+			if (log_msg.n_payload != 0) { //if a few last logs to send, break to send those logs
+				break;
+			} else { //otherwise, return immediately
+				return;
+			}
+		} else if (errno == EAGAIN || errno == EWOULDBLOCK) { // No more to read on pipe (would block in a blocking read)
 			break;
-		}
-		else { // Error occurred
+		} else { // Error occurred
 			perror("fgets");
 			log_printf(ERROR, "Error reading from log fifo\n");
 			return;
@@ -92,7 +96,7 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 }
 
 
-/* 
+/*
  * Send a challenge data message on the TCP connection to the client. Reads packets from the UNIX socket from
  * executor until all messages are read, packages the message, and sends it.
  * Arguments:
@@ -104,16 +108,16 @@ static void send_challenge_results(int conn_fd, int challenge_fd) {
 	Text results = TEXT__INIT;
 	results.n_payload = NUM_CHALLENGES;
 	results.payload = malloc(sizeof(char*) * NUM_CHALLENGES);
-
+	
 	char read_buf[CHALLENGE_LEN];
 
-	// read results from executor, line by line	
+	// read results from executor, line by line
 	for (int i = 0; i < NUM_CHALLENGES; i++) {
 		int readlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, NULL, NULL);
 		if (readlen == CHALLENGE_LEN) {
 			log_printf(WARN, "challenge_fd: Read length matches size of read buffer %d", readlen);
 		}
-		if (readlen < 0) { 
+		if (readlen < 0) {
 			perror("recvfrom");
 			log_printf(ERROR, "Socket recv from challenge_fd failed");
 		}
@@ -155,13 +159,13 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	net_msg_t msg_type;           //message type
 	uint16_t len_pb;              //length of incoming serialized protobuf message
 	uint8_t* buf;                 //buffer to read raw data into
-
+	
 	int err = parse_msg(conn_fd, &msg_type, &len_pb, &buf);
 	if (err == 0) { // Means there is EOF while reading which means client disconnected
-		return -1; 
+		return -1;
 	}
 	else if (err == -1) { // Means there is some other error while reading
-		return -2; 
+		return -2;
 	}
 	
 	//unpack according to message
@@ -188,13 +192,13 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				perror("sendto");
 				log_printf(ERROR, "Socket send to challenge_fd failed");
 				return -2;
-			}	
+			}
 		}
 		text__free_unpacked(inputs, NULL);
-
-		log_printf(INFO, "entering CHALLENGE mode. running coding challenges!");
+		
+		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
 		robot_desc_write(RUN_MODE, CHALLENGE);
-	} 
+	}
 	else if (msg_type == RUN_MODE_MSG) {
 		RunMode* run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
 		if (run_mode_msg == NULL) {
@@ -205,19 +209,19 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		//write the specified run mode to the RUN_MODE field of the robot description
 		switch (run_mode_msg->mode) {
 			case (MODE__IDLE):
-				log_printf(INFO, "entering IDLE mode");
+				log_printf(DEBUG, "entering IDLE mode");
 				robot_desc_write(RUN_MODE, IDLE);
 				break;
 			case (MODE__AUTO):
-				log_printf(INFO, "entering AUTO mode");
+				log_printf(DEBUG, "entering AUTO mode");
 				robot_desc_write(RUN_MODE, AUTO);
 				break;
 			case (MODE__TELEOP):
-				log_printf(INFO, "entering TELEOP mode");
+				log_printf(DEBUG, "entering TELEOP mode");
 				robot_desc_write(RUN_MODE, TELEOP);
 				break;
 			case (MODE__ESTOP):
-				log_printf(INFO, "ESTOP RECEIVED! entering IDLE mode");
+				log_printf(DEBUG, "ESTOP RECEIVED! entering IDLE mode");
 				robot_desc_write(RUN_MODE, IDLE);
 				break;
 			default:
@@ -225,7 +229,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				break;
 		}
 		run_mode__free_unpacked(run_mode_msg, NULL);
-	} 
+	}
 	else if (msg_type == START_POS_MSG) {
 		StartPos* start_pos_msg = start_pos__unpack(NULL, len_pb, buf);
 		if (start_pos_msg == NULL) {
@@ -236,11 +240,11 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		//write the specified start pos to the STARTPOS field of the robot description
 		switch (start_pos_msg->pos) {
 			case (POS__LEFT):
-				log_printf(INFO, "robot is in LEFT start position");
+				log_printf(DEBUG, "robot is in LEFT start position");
 				robot_desc_write(START_POS, LEFT);
 				break;
 			case (POS__RIGHT):
-				log_printf(INFO, "robot is in RIGHT start position");
+				log_printf(DEBUG, "robot is in RIGHT start position");
 				robot_desc_write(START_POS, RIGHT);
 				break;
 			default:
@@ -248,7 +252,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				break;
 		}
 		start_pos__free_unpacked(start_pos_msg, NULL);
-	} 
+	}
 	else if (msg_type == DEVICE_DATA_MSG) {
 		DevData* dev_data_msg = dev_data__unpack(NULL, len_pb, buf);
 		if (dev_data_msg == NULL) {
@@ -274,8 +278,6 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				log_printf(ERROR, "Invalid device subscription: device uid %llu is invalid", req_device->uid);
 			}
 		}
-		//TODO: tell UDP suite to only send parts of data, not implemented by Dawn yet
-		
 		dev_data__free_unpacked(dev_data_msg, NULL);
 	}
 	else {
@@ -335,15 +337,15 @@ static void* tcp_process (void* tcp_args)
 		if (args->send_logs && FD_ISSET(log_fd, &read_set)) {
 			send_log_msg(args->conn_fd, args->log_file);
 		}
-
+		
 		//send challenge results if executor sent them
 		if (FD_ISSET(args->challenge_fd, &read_set)) {
 			send_challenge_results(args->conn_fd, args->challenge_fd);
 		}
-
+		
 		//receive new message on socket if it is ready
 		if (FD_ISSET(args->conn_fd, &read_set)) {
-			if (recv_new_msg(args->conn_fd, args->challenge_fd) == -1) { 
+			if (recv_new_msg(args->conn_fd, args->challenge_fd) == -1) {
 				log_printf(DEBUG, "client %d has disconnected", args->client);
 				break;
 			}
@@ -372,7 +374,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	args->challenge_fd = -1;
 	
 	pthread_t* tid = (client == DAWN) ? &dawn_tid : &shepherd_tid;
-
+	
 	// open challenge socket to read and write
 	if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
@@ -382,11 +384,11 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	struct sockaddr_un my_addr = {0};
 	my_addr.sun_family = AF_UNIX;
 	if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, sizeof(sa_family_t)) < 0) {
-        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
+		log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
 		close(args->challenge_fd);
 		return;
 	}
-
+	
 	//Open FIFO pipe for logs
 	if (send_logs) {
 		int log_fd;
@@ -404,7 +406,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 			return;
 		}
 	}
-
+	
 	//create the main control thread for this client
 	if (pthread_create(tid, NULL, tcp_process, args) != 0) {
 		perror("pthread_create");
@@ -426,7 +428,7 @@ void stop_tcp_conn (robot_desc_field_t client)
 	}
 	
 	pthread_t tid = (client == DAWN) ? dawn_tid : shepherd_tid;
-
+	
 	if (pthread_cancel(tid) != 0) {
 		perror("pthread_cancel");
 		log_printf(ERROR, "Failed to cancel TCP client thread for %d", client);

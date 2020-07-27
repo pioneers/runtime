@@ -27,9 +27,9 @@ int main ()
 	end_test();
 
 	//check output
-	match_part(check_output_1);
-	match_part(check_output_2);
-	match_part(check_output_3);
-	match_part(check_output_4);
+	in_rest_of_output(check_output_1);
+	in_rest_of_output(check_output_2);
+	in_rest_of_output(check_output_3);
+	in_rest_of_output(check_output_4);
 	return 0;
 }
