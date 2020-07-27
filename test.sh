@@ -1,9 +1,22 @@
 #!/bin/bash
 
-# restore the previous logger config file
+# normal clean up function that restores logger config
 function clean_up {
 	rm ../logger/logger.config
 	mv ../logger/logger.config.orig ../logger/logger.config
+}
+
+# sigint handler
+function sigint_handler {
+	# if logger/logger.config.orig exists, we need to restore it
+	if [[ -f ../logger/logger.config.orig ]]; then
+        clean_up
+	fi
+	# if temp.txt exists, we Ctrl-C'ed in the middle of a running test and we need to remove it
+	if [[ -f temp.txt ]]; then
+		rm temp.txt
+	fi
+	exit 1
 }
 
 function run_tests {
@@ -13,8 +26,7 @@ function run_tests {
 
 	echo "Running tests: $@"
 
-	for test in $@; do 
-		
+	for test in $@; do
 		# exit if we didn't find the test
 		if [[ $ALL_TESTS != *"$test"* ]]; then
 			printf "Could not find specified test $test\n"
@@ -23,8 +35,14 @@ function run_tests {
 		fi
 		
 		# make executable
-		printf "Making $test\n"
+		printf "\nMaking $test\n"
 		make $test
+
+		# if test failed to compile, set failed to 1
+		if [[ $? != 0 ]]; then
+			failing_tests="$failing_tests $test"  # add this test to list of failing tests
+			failed=1
+		fi
 		
 		test_exe=$(echo $test | awk -F'/' '{ print $2 }')
 		# run test
@@ -43,14 +61,15 @@ function run_tests {
 	# return status
 	if [[ $failed == "1" ]]; then
 		printf "\n\n################################################# TESTS FAILED! ##########################################\n\n"
-		printf "Failing tests: $FAILING_TESTS\n\n\n"
+		printf "Failing tests: $failing_tests\n\n\n"
 		exit 1
 	fi
 }
 
 ################################################ BEGIN SCRIPT ##########################################
 
-set -e
+# installs function clean_up as SIGINT handler
+trap 'sigint_handler' INT
 
 # build all of Runtime
 ./build.sh

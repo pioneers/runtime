@@ -139,11 +139,11 @@ void* update_gamepad_state(void* args) {
 		}
 		else {
 			// display the message's fields.
-			log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
-			for (int i = 0; i < gp_state->n_axes; i++) {
-				log_printf(PYTHON, "\t%f", gp_state->axes[i]);
-			}
-			log_printf(PYTHON, "\n");
+			//log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
+			//for (int i = 0; i < gp_state->n_axes; i++) {
+			//	log_printf(PYTHON, "\t%f", gp_state->axes[i]);
+			//}
+			//log_printf(PYTHON, "\n");
 
 			robot_desc_write(GAMEPAD,  gp_state->connected ? CONNECTED : DISCONNECTED);
 			if (gp_state->connected) {

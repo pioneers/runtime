@@ -57,7 +57,7 @@ int main ()
 	end_test();
 
 	//do checks
-	match_part(check_1_output);
-	match_part(check_2_output);
+	in_rest_of_output(check_1_output);
+	in_rest_of_output(check_2_output);
 	return 0;
 }

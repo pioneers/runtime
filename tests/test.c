@@ -30,28 +30,43 @@ static void child_main_function ()
 	//wait for SIGINT to come from parent
 	while (1) {
 		fgets(nextline, MAX_LOG_LEN, stdin);
-		fprintf(stderr, "%s", nextline);            //print to standard out (attached to terminal)
-		fprintf(temp_fp, "%s", nextline);  //print to temp file
+		fprintf(stderr, "%s", nextline);      //print to standard error (attached to terminal)
+		fprintf(temp_fp, "%s", nextline);     //print to temp file
 	}
 }
 
-//removes the temporary file on exit
+//this function kills and waits for child process
+static void kill_child ()
+{
+    //flush standard output buffer
+    fflush(stdout);
+
+    //kill and wait for the child process
+	if (kill(output_redirect, SIGINT) < 0) {
+		printf("kill test output redirect: %s\n", strerror(errno));
+	}
+	if (waitpid(output_redirect, NULL, 0) < 0) {
+		printf("waitpid test output redirect: %s\n", strerror(errno));
+	}
+}
+
+//cleanup done for main process
 static void cleanup_handler ()
 {
 	free(global_test_name);
 	free(test_output);
 }
 
-//routes stdout of test process to a temporary file to collect output from all the clients
+//creates a child process that duplicates the output from the test to both standard out and to a temp file
 void start_test (char *test_name)
 {
     printf("************************************** Starting test: \"%s\" **************************************\n", test_name);
     fflush(stdout);
 
 	//save the test name
-	global_test_name = malloc(strlen(test_name));
+	global_test_name = malloc(strlen(test_name) + 1);
 	strcpy(global_test_name, test_name);
-	
+
 	//create a pipe
 	if (pipe(pipe_fd) < 0) {
 		printf("pipe: %s\n", strerror(errno));
@@ -82,31 +97,26 @@ void start_test (char *test_name)
 			fprintf(stderr, "dup2 stdout to write end of pipe: %s\n", strerror(errno));
 		}
 		close(pipe_fd[0]); //don't need read end
-		
+
+		//kill the child on Ctrl-C (SIGINT)
+		signal(SIGINT, kill_child);
+
 		//register the clean up handler
 		atexit(cleanup_handler);
-	}	
+	}
 }
 
 //this is called when the test has shut down all runtime processes and is ready to compare output
-//reads in the entire contents of the temporary file into a string
+//kills the child process, then reads in the entire contents of the temporary file into a string
 void end_test ()
 {
 	size_t curr_size = 1024;
 	size_t num_total_bytes_read = 0;
 	char *curr_ptr = test_output = malloc(curr_size);
 
-    //flush standard output buffer
-    fflush(stdout);
+	//kill the child process
+	kill_child();
 
-    //kill and wait for the child process
-	if (kill(output_redirect, SIGINT) < 0) {
-		printf("kill: %s\n", strerror(errno));
-	}
-	if (waitpid(output_redirect, NULL, 0) < 0) {
-		printf("waitpid: %s\n", strerror(errno));
-	}
-	
 	//now pull the standard output back to the file descriptor that we saved earlier
     if (dup2(save_std_out, fileno(stdout)) == -1) {
         fprintf(stderr, "dup2 stdout back to terminal: %s\n", strerror(errno));
@@ -136,29 +146,30 @@ void end_test ()
     printf("************************************** Running Checks... ******************************************\n");
 }
 
-//returns true if exepcted output matches output exactly
-void match_all (char *expected_output)
+//returns true if expected_output is somewhere in the output
+void in_output (char *expected_output)
 {
-	check_num++;
-	if (strcmp(test_output, expected_output) == 0) {
-		fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-		return;
-	} else {
-		fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-		fprintf(stderr, "************************************ Expected: ************************************************\n");
-		fprintf(stderr, "%s", expected_output);
-		fprintf(stderr, "\n********************************** Got: *****************************************************\n");
-		fprintf(stderr, "%s\n", test_output);
-		exit(1);
-	}
+    check_num++;
+    if (strstr(rest_of_test_output, expected_output) != NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf(stderr, "************************************ Expected: ************************************************\n");
+        fprintf(stderr, "%s", expected_output);
+        fprintf(stderr, "************************************ Got: *****************************************************\n");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
 }
 
-//returns true if expected output is somewhere in the output after the last call to match_part
-void match_part (char *expected_output)
+//returns true if expected_output is somewhere in the output after the last call to in_rest_of_output
+void in_rest_of_output (char *expected_output)
 {
 	check_num++;
 	if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
 		fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+		rest_of_test_output += strlen(expected_output); //advance rest_of_test_output past what we were looking for
 		return;
 	} else {
 		fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
@@ -168,4 +179,38 @@ void match_part (char *expected_output)
 		fprintf(stderr, "%s\n", test_output);
 		exit(1);
 	}
+}
+
+//returns true if not_expected_output is not anywhere in the output
+void not_in_output (char *not_expected_output)
+{
+    check_num++;
+    if (strstr(test_output, not_expected_output) == NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf(stderr, "************************************ Not Expected: ********************************************\n");
+        fprintf(stderr, "%s", not_expected_output);
+        fprintf(stderr, "************************************ Got: *****************************************************\n");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
+}
+
+//returns true if not_expected_output is not anywhere in the output after the last call to in_rest_of_output
+void not_in_rest_of_output (char *not_expected_output)
+{
+    check_num++;
+    if (strstr(rest_of_test_output, not_expected_output) == NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf(stderr, "************************************ Not Expected: ********************************************\n");
+        fprintf(stderr, "%s", not_expected_output);
+        fprintf(stderr, "************************************ Got: *****************************************************\n");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
 }
