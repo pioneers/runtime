@@ -295,7 +295,7 @@ void log_printf (log_level_t level, char *format, ...)
 		}
 		//if FIFO is up, try to write to it; if SIGPIPE then use handler to set fifo_up to 0
 		if (fifo_up) {
-			if (write(fifo_fd, final_msg, strlen(final_msg)) == -1) {
+			if (writen(fifo_fd, final_msg, strlen(final_msg)) == -1) {
 				//net_handler crashed or was terminated (sent SIGPIPE which was handled)
 				if (errno != EPIPE) {
 					perror("write: writing to FIFO failed unexpectedly");

@@ -8,7 +8,7 @@
 
 typedef struct dev_data {
 	uint64_t uid;    //what the uid of this device is
-	char *name;      //name of this devices ("KoalaBear", "LimitSwitch", etc.)
+	char *name;      //name of this device ("KoalaBear", "LimitSwitch", etc.)
 	uint32_t params; //which params to subscribe to
 } dev_data_t;
 
@@ -27,8 +27,8 @@ void stop_net_handler ();
 /*
  * Sends a Run Mode message from the specified client with the specified mode
  * Arguments:
- *    - int client: one of SHEPHERD_CLIENT or DAWN_CLIENT
- *    - int mode: one of IDLE_MODE, AUTO_MODE, or TELEOP_MODE
+ *    - robot_desc_field_t client: one of SHEPHERD or DAWN
+ *    - robot_desc_val_t mode: one of IDLE, AUTO, or TELEOP
  * No return value.
  */
 void send_run_mode (robot_desc_field_t client, robot_desc_val_t mode);
@@ -36,8 +36,8 @@ void send_run_mode (robot_desc_field_t client, robot_desc_val_t mode);
 /*
  * Sends a Start Pos message from the specified client with the specified position
  * Arguments:
- *    - int client: one of SHEPHERD_CLIENT or DAWN_CLIENT
- *    - int pos: one of LEFT_POS or RIGHT_POS
+ *    - robot_desc_field_t client: one of SHEPHERD or DAWN
+ *    - robot_desc_val_t pos: one of LEFT or RIGHT
  * No return value.
  */
 void send_start_pos (robot_desc_field_t client, robot_desc_val_t pos);
@@ -54,7 +54,7 @@ void send_gamepad_state (uint32_t buttons, float joystick_vals[4]);
 /*
  * Sends a Challenge Data message from the specified client with the specified data
  * Arguments:
- *    - int client: one of SHEPHERD_CLIENT or DAWN_CLIENT
+ *    - robot_desc_field_t client: one of SHEPHERD or DAWN
  *    - char **data: array of NUM_CHALLENGES strings, each containing the input to the corresponding challenge
  * No return value.
  */

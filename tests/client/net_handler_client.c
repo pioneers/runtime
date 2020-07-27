@@ -245,6 +245,9 @@ static void *output_dump (void *args)
 
 void start_net_handler ()
 {
+	//if someone presses Ctrl-C (SIGINT), stop the net handler before exiting)
+	signal(SIGINT, stop_net_handler);
+
 	//fork net_handler process
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
@@ -296,10 +299,10 @@ void stop_net_handler ()
 {
 	//send signal to net_handler and wait for termination
 	if (kill(nh_pid, SIGINT) < 0) {
-		printf("kill: %s\n", strerror(errno));
+		printf("kill net handler: %s\n", strerror(errno));
 	}
 	if (waitpid(nh_pid, NULL, 0) < 0) {
-		printf("waitpid: %s\n", strerror(errno));
+		printf("waitpid net handler: %s\n", strerror(errno));
 	}
 	
 	//killing net handler should cause dump thread to return, so join with it
