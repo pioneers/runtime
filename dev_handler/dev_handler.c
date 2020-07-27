@@ -37,7 +37,7 @@ typedef struct msg_relay {
 	pthread_t sender;                   // Thread to build and send outgoing messages
 	pthread_t receiver;                 // Thread to receive and process all incoming messages
 	pthread_t relayer;                  // Thread to get ACKNOWLEDGEMENT and monitor disconnect/timeout
-	uint8_t port_num;                   // Where device is connected to "/dev/ttyACM<port_num>/"
+	uint8_t port_num;                   // Where device is connected to "<port_prefix><port_num>/"
 	int file_descriptor;                // Obtained from opening port. Used to close port.
 	int shm_dev_idx;                    // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
 	dev_id_t dev_id;                    // set by relayer once ACKNOWLEDGEMENT is received
@@ -75,7 +75,10 @@ int serialport_close(int fd);
 void cleanup_handler(void *args);
 
 // ************************************ GLOBAL VARIABLES ****************************************** //
-// Bitmap indicating whether /dev/ttyACM* is used, where * is the *-th bit
+// The file name prefix of where to find devices, preceeding the port number
+char* port_prefix = "/dev/ttyACM";
+
+// Bitmap indicating whether port "<port_prefix>*" is being monitored by dev handler, where * is the *-th bit
 // Bits are turned on in get_new_devices() and turned off on disconnect/timeout in relay_clean_up()
 uint32_t used_ports = 0;
 pthread_mutex_t used_ports_lock;    // poll_connected_devices() and relay_clean_up() shouldn't access used_ports at the same time
@@ -97,7 +100,7 @@ void init() {
 
 // Disconnect devices from shared memory and destroy mutexes
 void stop() {
-	log_printf(INFO, "Ctrl+C pressed. Safely terminating program\n");
+	log_printf(INFO, "DEV_HANDLER shutting down\n");
 	// For each tracked lowcar device, disconnect from shared memory
 	uint32_t connected_devs = 0;
 	get_catalog(&connected_devs);
@@ -117,14 +120,14 @@ void stop() {
  */
 void poll_connected_devices() {
 	// Poll for newly connected devices and open threads for them
-	log_printf(INFO, "Polling now.\n");
+	log_printf(INFO, "Polling now for %s*.\n", port_prefix);
 	uint32_t connected_devs = 0;
 	while (1) {
 		if (get_new_devices(&connected_devs) > 0) {
 			// If bit i of CONNECTED_DEVS is on, then it's a new device
 			for (int i = 0; (connected_devs >> i) > 0; i++) {
 				if (connected_devs & (1 << i)) {
-					log_printf(DEBUG, "Starting communication with new device /dev/ttyACM%d\n", i);
+					log_printf(DEBUG, "Starting communication with new device %s%d\n", port_prefix, i);
 					communicate(i);
 				}
 			}
@@ -138,7 +141,7 @@ void poll_connected_devices() {
 
 /*
  * Finds which Arduinos are newly connected since the last call to this function
- * bitmap: Bit i will be turned on if /dev/ttyACM[i] is a newly connected device
+ * bitmap: Bit i will be turned on if <port_prefix>[i] is a newly connected device
  * Return the number of devices that were found
  */
 int get_new_devices(uint32_t* bitmap) {
@@ -149,10 +152,9 @@ int get_new_devices(uint32_t* bitmap) {
 		pthread_mutex_lock(&used_ports_lock);
 		// Check if i-th bit of USED_PORTS is zero (indicating device wasn't connected in previous function call)
 		if (!(used_ports & (1 << i))) {
-			sprintf(port_name, "/dev/ttyACM%d", i);
+			sprintf(port_name, "%s%d", port_prefix, i);
 			// If that port currently connected (file exists), it's a new device
 			if (access(port_name, F_OK) != -1) {
-				log_printf(DEBUG, "Port /dev/ttyACM%d is new\n", i);
 				// Turn bit on in BITMAP
 				*bitmap |= (1 << i);
 				// Mark that we've taken care of this device
@@ -182,15 +184,12 @@ void communicate(uint8_t port_num) {
 
 	// Open serial port
 	char port_name[15]; // Template size + 2 indices for port_number
-	sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
-	log_printf(DEBUG, "Setting up threads for %s\n", port_name);
+	sprintf(port_name, "%s%d", port_prefix, relay->port_num);
 	relay->file_descriptor = serialport_open(port_name);
 	if (relay->file_descriptor == -1) {
 		log_printf(ERROR, "Couldn't open port %s\n", port_name);
 		free(relay);
 		return;
-	} else {
-		log_printf(DEBUG, "Opened port %s\n", port_name);
 	}
 
 	// Initialize the other relay values
@@ -227,10 +226,10 @@ void* relayer(void* relay_cast) {
 	int ret;
 
 	// Verify that the device is a lowcar device
-	log_printf(DEBUG, "Verifying that /dev/ttyACM%d is lowcar\n", relay->port_num);
+	log_printf(DEBUG, "Verifying that %s%d is lowcar\n", port_prefix, relay->port_num);
 	ret = verify_lowcar(relay);
 	if (ret != 0) {
-		log_printf(DEBUG, "/dev/ttyACM%d couldn't be verified to be a lowcar device", relay->port_num);
+		log_printf(DEBUG, "%s%d couldn't be verified to be a lowcar device", port_prefix, relay->port_num);
 		log_printf(ERROR, "A non-PiE device was recently plugged in. Please unplug immediately");
 		relay_clean_up(relay);
 		return NULL;
@@ -239,7 +238,6 @@ void* relayer(void* relay_cast) {
 	/****** At this point, the device is confirmed to be lowcar! ******/
 
 	// Connect the lowcar device to shared memory
-	log_printf(DEBUG, "Connecting %s to shared memory\n", get_device_name(relay->dev_id.type));
 	device_connect(relay->dev_id, &relay->shm_dev_idx);
 
 	// Broadcast to the sender and receiver to start work
@@ -258,9 +256,8 @@ void* relayer(void* relay_cast) {
 	}
 
 	// If the device disconnects or times out, clean up
-	log_printf(DEBUG, "Relayer monitoring %s", get_device_name(relay->dev_id.type));
 	char port_name[14];
-	sprintf(port_name, "/dev/ttyACM%d", relay->port_num);
+	sprintf(port_name, "%s%d", port_prefix, relay->port_num);
 	while (1) {
 		// If Arduino port file doesn't exist, it disconnected
 		if (access(port_name, F_OK) == -1) {
@@ -326,7 +323,6 @@ void relay_clean_up(msg_relay_t* relay) {
  */
 void* sender(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
-	log_printf(DEBUG, "Sender on standby for /dev/ttyACM%d\n", relay->port_num);
 
 	// Wait until relayer gets an ACKNOWLEDGEMENT
 	pthread_mutex_lock(&relay->relay_lock);
@@ -354,7 +350,6 @@ void* sender(void* relay_cast) {
 	uint32_t sub_map[MAX_DEVICES + 1];
 	message_t* msg; // Message to build
 	int ret;        // Hold the value from send_message()
-	log_printf(DEBUG, "Sender for %s starting work!", get_device_name(relay->dev_id.type));
 	uint64_t last_sent_ping_time = millis();
 	while (1) {
 		// Write to device if needed
@@ -409,15 +404,12 @@ void* sender(void* relay_cast) {
  */
 void* receiver(void* relay_cast) {
 	msg_relay_t* relay = relay_cast;
-	log_printf(DEBUG, "Receiver on standby for /dev/ttyACM%d\n", relay->port_num);
 
 	// Wait until relayer gets an ACKNOWLEDGEMENT
 	pthread_mutex_lock(&relay->relay_lock);
 	pthread_cleanup_push(&cleanup_handler, (void *)relay);
 	pthread_cond_wait(&relay->start_cond, &relay->relay_lock);
 	pthread_cleanup_pop(1);
-
-	log_printf(DEBUG, "Receiver for %s starting work!", get_device_name(relay->dev_id.type));
 
 	// Cancel this thread only where pthread_testcancel()
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -506,11 +498,11 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 		num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		if (num_bytes_read == 0) {  // read() returned due to timeout
-			log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT from /dev/ttyACM%d!", relay->port_num);
+			log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT from %s%d!", port_prefix, relay->port_num);
 			return 3;
 		} else if (last_byte_read != 0x00) {
 			// If the first thing received isn't a perfect ACK, we won't accept it
-			log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from /dev/ttyACM%d\n", last_byte_read, relay->port_num);
+			log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
 			return 1;
 		}
 	} else { // Receiving from a verified lowcar device
@@ -524,7 +516,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 				break;
 			}
 			// If we were able to read a byte but it wasn't the delimiter
-			log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from /dev/ttyACM%d\n", last_byte_read, relay->port_num);
+			log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
 		}
 	}
 
@@ -543,7 +535,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 	// Read the message
 	num_bytes_read = readn(relay->file_descriptor, &data[2], cobs_len);
 	if (num_bytes_read != cobs_len) {
-		log_printf(WARN, "Couldn't read the full message. Read only %d out of %d bytes from /dev/ttyACM%d\n", num_bytes_read, cobs_len, relay->port_num);
+		log_printf(WARN, "Couldn't read the full message. Read only %d out of %d bytes from %s%d\n", num_bytes_read, cobs_len, port_prefix, relay->port_num);
 		free(data);
 		return 1;
 	}
@@ -552,7 +544,7 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
 	int ret = parse_message(data, msg);
 	free(data);
 	if (ret != 0) {
-		log_printf(WARN, "Incorrect checksum from /dev/ttyACM%d\n", relay->port_num);
+		log_printf(WARN, "Incorrect checksum from %s%d\n", port_prefix, relay->port_num);
 		return 2;
 	}
 	return 0;
@@ -568,7 +560,6 @@ int receive_message(msg_relay_t* relay, message_t* msg) {
  */
 int verify_lowcar(msg_relay_t* relay) {
 	// Send a Ping
-	log_printf(DEBUG, "Sending PING to /dev/ttyACM%d\n", relay->port_num);
 	message_t* ping = make_ping();
 	int ret = send_message(relay, ping);
 	destroy_message(ping);
@@ -578,14 +569,13 @@ int verify_lowcar(msg_relay_t* relay) {
 
 	// Try to read an ACKNOWLEDGEMENT, which we expect from a lowcar device that receives a PING
 	message_t* ack = make_empty(MAX_PAYLOAD_SIZE);
-	log_printf(DEBUG, "Listening for ACKNOWLEDGEMENT from /dev/ttyACM%d\n", relay->port_num);
 	ret = receive_message(relay, ack);
 	if (ret != 0) {
-		log_printf(DEBUG, "Not an ACKNOWLEDGEMENT");
+		log_printf(DEBUG, "Didn't receive ACK");
 		destroy_message(ack);
 		return 2;
 	} else if (ack->message_id != ACKNOWLEDGEMENT) {
-		log_printf(DEBUG, "Message is not an ACKNOWLEDGEMENT, but of type %d", ack->message_id);
+		log_printf(DEBUG, "Message is not an ACK, but of type %d", ack->message_id);
 		destroy_message(ack);
 		return 2;
 	}
@@ -613,8 +603,8 @@ int verify_lowcar(msg_relay_t* relay) {
 	memcpy(&relay->dev_id.year, &ack->payload[1], 1);
 	memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
 	log_printf(INFO, "Connected %s (0x%llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
-	log_printf(DEBUG, "ACK received! /dev/ttyACM%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
-		relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
+	log_printf(DEBUG, "ACK received! %s%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
+		port_prefix, relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
 	relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
 	destroy_message(ack);
 	return 0;
@@ -695,10 +685,14 @@ void cleanup_handler (void *args) {
 
 // ************************************ MAIN ****************************************** //
 
-int main() {
+int main(int argc, char *argv[]) {
 	// If SIGINT (Ctrl+C) is received, call stop() to clean up
 	signal(SIGINT, stop);
 	init();
+	// Passing argument "test" will search for fake devices in /tmp/ttyACM
+	if (argc == 2 && strcmp(argv[1], "test") == 0) {
+		port_prefix = "/tmp/ttyACM";
+	}
 	log_printf(INFO, "DEV_HANDLER initialized.");
 	poll_connected_devices();
 	return 0;
