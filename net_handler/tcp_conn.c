@@ -1,5 +1,4 @@
 #include "tcp_conn.h"
-#include "pbc_gen/device.pb-c.h"
 
 //used for creating and cleaning up TCP connection
 typedef struct {

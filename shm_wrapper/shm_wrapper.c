@@ -1,6 +1,8 @@
 #include "shm_wrapper.h"
+#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
@@ -14,6 +16,9 @@ gamepad_shm_t *gp_shm_ptr;     //points to memory-mapped shared memory block for
 robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for robot description
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
+
+log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
+sem_t *log_data_sem;			   //semaphore used as a mutex on the log data
 
 // ******************************************* SEMAPHORE UTILITIES **************************************** //
 
@@ -376,6 +381,7 @@ void shm_init ()
 	sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
 	gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
 	rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
+	log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		generate_sem_name(DATA, i, sname); //get the data name
 		if ((sems[i].data_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) {
@@ -426,6 +432,19 @@ void shm_init ()
 		log_printf(ERROR, "close: robot_desc_shm. %s", strerror(errno));
 	}
 
+		//create log data shm block
+	if ((fd_shm = shm_open(LOG_DATA_SHM, O_RDWR | O_CREAT, 0660)) == -1) {
+		log_printf(FATAL, "shm_open log_data_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if ((log_data_shm_ptr = mmap(NULL, sizeof(log_data_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
+		log_printf(FATAL, "mmap log_data_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if (close(fd_shm) == -1) {
+		log_printf(ERROR, "close log_data_shm: %s", strerror(errno));
+	}
+
 	atexit(shm_stop);
 }
 
@@ -446,6 +465,7 @@ void shm_stop ()
 	my_sem_close(sub_map_sem, "sub map sem");
 	my_sem_close(gp_sem, "gamepad_mutex");
 	my_sem_close(rd_sem, "robot_desc_mutex");
+	my_sem_close(log_data_sem, "log data mutex");
 
 	//unmap all shared memory blocks
 	if (munmap(dev_shm_ptr, sizeof(dev_shm_t)) == -1) {
@@ -456,6 +476,9 @@ void shm_stop ()
 	}
 	if (munmap(rd_shm_ptr, sizeof(robot_desc_shm_t)) == -1) {
 		log_printf(ERROR, "munmap: robot_desc_shm. %s", strerror(errno));
+	}
+	if (munmap(log_data_shm_ptr, sizeof(log_data_shm_t)) == -1) {
+		log_printf(ERROR, "munmap: log_data_shm_ptr. %s", strerror(errno));
 	}
 }
 
@@ -916,4 +939,47 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 
 	return 0;
 }
+
+
+int log_data_write(param_desc_t desc, param_val_t value) {
+	my_sem_wait(log_data_sem, "log_data_mutex");
+
+	int idx;
+	for (idx = 0; idx < log_data_shm_ptr->num_params; idx++) {
+		if (strcmp(desc.name, log_data_shm_ptr->desc[idx].name) == 0) {
+			break;
+		}
+	}
+
+	if (idx == UCHAR_MAX) {
+		log_printf(ERROR, "Maximum number of %d log data keys reached. can't add key %s", UCHAR_MAX, desc.name);
+		return -1;
+	}
+
+	log_data_shm_ptr->desc[idx] = desc;
+	log_data_shm_ptr->params[idx] = value;
+	
+	if (idx == log_data_shm_ptr->num_params) {
+		log_data_shm_ptr->num_params++;
+	}
+
+	my_sem_post(log_data_sem, "log_data_mutex");
+	return 0;
+}
+
+
+int log_data_read(uint8_t* num_params, param_desc_t descs[UCHAR_MAX], param_val_t values[UCHAR_MAX]) {
+	my_sem_wait(log_data_sem, "log_data_mutex");
+
+	*num_params = log_data_shm_ptr->num_params;
+	for (int i = 0; i < UCHAR_MAX; i++) {
+		descs[i] = log_data_shm_ptr->desc[i];
+		values[i] = log_data_shm_ptr->params[i];
+	}
+
+	my_sem_post(log_data_sem, "log_data_mutex");
+	return 0;
+}
+
+
 

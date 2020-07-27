@@ -96,7 +96,7 @@ cdef class Gamepad:
         for i in range(4):
             if param == joystick_names[i]:
                 return joysticks[i]
-        raise DeviceError(f"Invalid gamepad parameter {param_name}")
+        raise KeyError(f"Invalid gamepad parameter {param_name}")
 
 
 class ThreadWrapper(threading.Thread):
@@ -144,7 +144,7 @@ cdef class Robot:
             _print(f"Calling action {action.__name__} when it is still running won't do anything. Use Robot.is_running to check if action is over.", level=ERROR)
             return
         if threading.active_count() > MAX_THREADS:
-            _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=WARN)
+            _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=ERROR)
             return
         thread = ThreadWrapper(action, self.error_event, args, kwargs)
         thread.daemon = True
@@ -167,7 +167,8 @@ cdef class Robot:
     cpdef void log(self, str key, value) except *:
         cdef param_val_t param
         cdef param_desc_t desc
-        desc.name = key.encode('utf-8')
+        cdef bytes key_bytes = key.encode('utf-8')
+        desc.name = key_bytes
         if type(value) == int:
             param.p_i = value
             desc.type = INT
@@ -178,9 +179,13 @@ cdef class Robot:
             param.p_b = int(value)
             desc.type = BOOL
         else:
-            _print(f"Cannot log parameter {key} with type {type(key).__name__} since it's not an int, float, or bool.", level=ERROR)
-            return
-        custom_write(param, desc)
+            raise ValueError(f"Cannot log parameter {key} with type {type(key).__name__} since it's not an int, float, or bool.")
+
+        desc.read = 1
+        desc.write = 1
+        cdef int err = log_data_write(desc, param)
+        if err == -1:
+            raise IndexError(f"Maximum number of 255 log data keys reached. can't add key {key}")
         
 
 
