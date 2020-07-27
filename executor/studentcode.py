@@ -48,6 +48,7 @@ def autonomous_main():
     global i, start
     if i % 10000 == 0:
         print("Iteration:", i, time.time() - start)
+        Robot.log("iteration time", time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
     i += 1

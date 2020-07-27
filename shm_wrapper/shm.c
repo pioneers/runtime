@@ -14,8 +14,8 @@ robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
 
-custom_shm_t *custom_shm_ptr;  // points to shared memory block for custom data specified by executor
-sem_t *custom_sem;			   //semaphore used as a mutex on the custom data
+log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
+sem_t *log_data_sem;			   //semaphore used as a mutex on the log data
 
 // *********************************** SHM PROCESS FUNCTIONS ************************************************* //
 
@@ -75,11 +75,15 @@ void sigint_handler (int signum)
 	if (munmap(rd_shm_ptr, sizeof(robot_desc_shm_t)) == -1) {
 		log_printf(ERROR, "munmap: robot_desc_shm_ptr. %s", strerror(errno));
 	}
+	if (munmap(log_data_shm_ptr, sizeof(log_data_shm_t)) == -1) {
+		log_printf(ERROR, "munmap: log_data_shm_ptr. %s", strerror(errno));
+	}
 	
 	//unlink all shared memory blocks
 	my_shm_unlink(DEV_SHM_NAME, "dev_shm");
 	my_shm_unlink(GPAD_SHM_NAME, "gamepad_shm");
 	my_shm_unlink(ROBOT_DESC_SHM_NAME, "robot_desc_shm");
+	my_shm_unlink(LOG_DATA_SHM, "log_data_shm");
 	
 	//close all the semaphores
 	my_sem_close(catalog_sem, "catalog sem");
@@ -87,6 +91,7 @@ void sigint_handler (int signum)
 	my_sem_close(sub_map_sem, "sub map sem");
 	my_sem_close(gp_sem, "gamepad_mutex");
 	my_sem_close(rd_sem, "robot_desc_mutex");
+	my_sem_close(log_data_sem, "log data mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		my_sem_close(sems[i].data_sem, "data sem");
 		my_sem_close(sems[i].command_sem, "command sem");
@@ -98,6 +103,7 @@ void sigint_handler (int signum)
 	my_sem_unlink(SUBMAP_MUTEX_NAME, "sub map mutex");
 	my_sem_unlink(GP_MUTEX_NAME, "gamepad mutex");
 	my_sem_unlink(RD_MUTEX_NAME, "robot desc mutex");
+	my_sem_unlink(LOG_DATA_MUTEX, "log data mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		generate_sem_name(DATA, i, sname);
 		if (sem_unlink((const char *) sname) == -1) {
@@ -126,6 +132,7 @@ int main ()
 	sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
 	gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
 	rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
+	log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		generate_sem_name(DATA, i, sname); //get the data name
 		if ((sems[i].data_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
@@ -190,21 +197,21 @@ int main ()
 		log_printf(ERROR, "close robot_desc_shm: %s", strerror(errno));
 	}
 
-	//create custom shm block
-	if ((fd_shm = shm_open(CUSTOM_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
-		log_printf(FATAL, "shm_open custom_shm: %s", strerror(errno));
+	//create log data shm block
+	if ((fd_shm = shm_open(LOG_DATA_SHM, O_RDWR | O_CREAT, 0660)) == -1) {
+		log_printf(FATAL, "shm_open log_data_shm: %s", strerror(errno));
 		exit(1);
 	}
-	if (ftruncate(fd_shm, sizeof(custom_shm_t)) == -1) {
-		log_printf(FATAL, "ftruncate custom_shm: %s", strerror(errno));
+	if (ftruncate(fd_shm, sizeof(log_data_shm_t)) == -1) {
+		log_printf(FATAL, "ftruncate log_data_shm: %s", strerror(errno));
 		exit(1);
 	}
-	if ((custom_shm_ptr = mmap(NULL, sizeof(custom_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-		log_printf(FATAL, "mmap custom_shm: %s", strerror(errno));
+	if ((log_data_shm_ptr = mmap(NULL, sizeof(log_data_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
+		log_printf(FATAL, "mmap log_data_shm: %s", strerror(errno));
 		exit(1);
 	}
 	if (close(fd_shm) == -1) {
-		log_printf(ERROR, "close custom_shm: %s", strerror(errno));
+		log_printf(ERROR, "close log_data_shm: %s", strerror(errno));
 	}
 	
 	//initialize everything
@@ -224,7 +231,7 @@ int main ()
 	rd_shm_ptr->fields[GAMEPAD] = DISCONNECTED;
 	rd_shm_ptr->fields[START_POS] = LEFT;
 
-	custom_shm_ptr->num_params = 0;
+	log_data_shm_ptr->num_params = 0;
 	
 	//now we just stall and wait
 	while (1) {

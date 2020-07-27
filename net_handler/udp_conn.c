@@ -1,5 +1,4 @@
 #include "udp_conn.h"
-#include "pbc_gen/device.pb-c.h"
 
 pthread_t gp_thread, device_thread;
 int socket_fd = -1;
@@ -21,9 +20,9 @@ void* send_device_data(void* args) {
 	int valid_dev_idxs[MAX_DEVICES];
 	uint32_t catalog;
 
-	param_val_t custom_params[MAX_PARAMS];
-	param_desc_t custom_desc[MAX_PARAMS];
-	int num_params;
+	param_val_t custom_params[UCHAR_MAX];
+	param_desc_t custom_desc[UCHAR_MAX];
+	uint8_t num_params;
 
 	while (1) {
 		DevData dev_data = DEV_DATA__INIT;
@@ -96,7 +95,8 @@ void* send_device_data(void* args) {
 		Device* custom = malloc(sizeof(Device));
 		device__init(custom);
 		dev_data.devices[dev_idx] = custom;
-		custom_read(&num_params, custom_params, custom_desc);
+		log_printf(DEBUG, "about to read from SHM");
+		log_data_read(&num_params, custom_desc, custom_params);
 		custom->n_params = num_params;
 		custom->name = "CustomData";
 		custom->type = MAX_DEVICES;
