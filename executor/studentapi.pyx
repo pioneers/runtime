@@ -9,6 +9,7 @@ import sys
 import builtins
 import inspect
 import traceback
+import time
 
 include "code_parser.pyx"
 
@@ -123,6 +124,8 @@ cdef class Robot:
     cdef dict running_actions
     cdef public str start_pos
     cdef public error_event
+    cdef public sleep_event
+    cdef int64_t main_thread
 
 
     def __cinit__(self):
@@ -130,6 +133,8 @@ cdef class Robot:
         self.running_actions = {}
         self.start_pos = 'left' if robot_desc_read(START_POS) == LEFT else 'right'
         self.error_event = threading.Event()
+        self.sleep_event = threading.Event()
+        self.main_thread = threading.get_ident()
 
 
     def run(self, action, *args, **kwargs) -> None:
@@ -164,7 +169,23 @@ cdef class Robot:
         return False
 
 
+    cpdef void sleep(self, float timeout) except *:
+        """Make the current thread inactive for `timeout` seconds."""
+        if threading.current_thread().ident == self.main_thread:
+            self.sleep_event.wait(timeout)
+        else: # For action threads
+            time.sleep(timeout)
+
+
     cpdef void log(self, str key, value) except *:
+        """
+        Log a parameter to send back to Dawn.
+
+        Args:
+            key: name of the parameter
+            value: value of the parameter. Must be an int, float, or bool.
+        
+        """
         cdef param_val_t param
         cdef param_type_t param_type
         cdef bytes key_bytes = key.encode('utf-8')

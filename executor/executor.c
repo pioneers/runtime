@@ -90,6 +90,7 @@ void reset_params() {
 void executor_init(char* student_code) {
     //initialize Python
     Py_Initialize();
+    PyEval_InitThreads();
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
 
@@ -317,8 +318,7 @@ void run_challenges() {
             log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
         }
         if (recvlen <= 0) {
-            perror("recvfrom");
-            log_printf(ERROR, "Socket read from challenge_fd failed");
+            log_printf(ERROR, "Socket read from challenge_fd failed: recvfrom %s", strerror(errno));
             return;
         }
         // Convert input C string to C long then Python tuple args
@@ -378,9 +378,24 @@ void run_challenges() {
  */
 void python_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
-    log_printf(DEBUG, "about to send exception");
+    log_printf(DEBUG, "cancelling Python function");
+    PyGILState_STATE gstate = PyGILState_Ensure();
+    if (mode != CHALLENGE) {
+        PyObject* event = PyObject_GetAttrString(pRobot, "sleep_event");
+        if (event == NULL) {
+            PyErr_Print();
+            log_printf(ERROR, "Could not get sleep_event from Robot instance");
+            exit(2);
+        }
+        PyObject* ret = PyObject_CallMethod(event, "set", NULL);
+        if (ret == NULL) {
+            PyErr_Print();
+            log_printf(ERROR, "Could not set sleep_event to True");
+            exit(2);
+        }
+    }
     PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    log_printf(DEBUG, "sent exception");
+    PyGILState_Release(gstate);
 }
 
 
@@ -476,8 +491,7 @@ int main(int argc, char* argv[]) {
     struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)
 	//create the socket
 	if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        perror("socket");
-        log_printf(FATAL, "could not create challenge socket");
+        log_printf(FATAL, "could not create challenge socket: %s", strerror(errno));
 		return 1;
 	}
 
