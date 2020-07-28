@@ -1,4 +1,4 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 
 cd shm_wrapper && ./shm &
 sleep 0.5
