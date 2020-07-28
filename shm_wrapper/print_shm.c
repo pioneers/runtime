@@ -17,6 +17,7 @@ int main (int argc, char *argv[])
 	shm_init();
 	
 	print_params(devices);
+	print_custom_data();
 	print_cmd_map();
 	print_sub_map(EXECUTOR);
 	print_robot_desc();

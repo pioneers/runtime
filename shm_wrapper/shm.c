@@ -231,7 +231,7 @@ int main ()
 	rd_shm_ptr->fields[GAMEPAD] = DISCONNECTED;
 	rd_shm_ptr->fields[START_POS] = LEFT;
 
-	log_data_shm_ptr->num_params = 0;
+	memset(log_data_shm_ptr, 0, sizeof(log_data_shm_t));
 	
 	//now we just stall and wait
 	while (1) {

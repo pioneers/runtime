@@ -1,8 +1,4 @@
 #include "shm_wrapper.h"
-#include <limits.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
@@ -362,6 +358,31 @@ void print_gamepad_state ()
 
 	//release rd_sem
 	my_sem_post(gp_sem, "gamepad_mutex (in print)");
+}
+
+/*
+ *	Prints the current custom logged data.
+ */
+void print_custom_data() {
+	my_sem_wait(log_data_sem, "log_data_mutex (in print)");
+
+	printf("Custom logged data (Device %d):\n", MAX_DEVICES);
+	for (int i = 0; i < log_data_shm_ptr->num_params; i++) {
+		printf("\t%s: ", log_data_shm_ptr->names[i]);
+		switch (log_data_shm_ptr->types[i]) {
+			case INT:
+				printf("%d\n", log_data_shm_ptr->params[i].p_i);
+				break;
+			case FLOAT:
+				printf("%f\n", log_data_shm_ptr->params[i].p_f);
+				break;
+			case BOOL:
+				printf("%s\n", log_data_shm_ptr->params[i].p_b == 1 ? "True" : "False");
+				break;
+		}
+	}
+
+	my_sem_post(log_data_sem, "log_data_mutex (in print)");
 }
 
 // ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
@@ -941,24 +962,35 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 }
 
 
-int log_data_write(param_desc_t desc, param_val_t value) {
+/**
+* 	Write the given custom parameter to shared memory. 
+*	Args:
+*		- key is name of the parameter
+*		- type is type of the parameter
+*		- value is the value of the parameter, with the corresponding type filled with data
+*	Returns:
+*		0 if successful
+*		-1 if the maximum number of custom parameters is reached so this parameter isn't written
+*/
+int log_data_write(char* key,  param_type_t type, param_val_t value) {
 	my_sem_wait(log_data_sem, "log_data_mutex");
 
-	int idx;
-	for (idx = 0; idx < log_data_shm_ptr->num_params; idx++) {
-		if (strcmp(desc.name, log_data_shm_ptr->desc[idx].name) == 0) {
+	int idx = 0;
+	for (; idx < log_data_shm_ptr->num_params; idx++) {
+		if (strcmp(key, log_data_shm_ptr->names[idx]) == 0) {
 			break;
 		}
 	}
 
 	if (idx == UCHAR_MAX) {
-		log_printf(ERROR, "Maximum number of %d log data keys reached. can't add key %s", UCHAR_MAX, desc.name);
+		log_printf(ERROR, "Maximum number of %d log data keys reached. can't add key %s", UCHAR_MAX, key);
 		return -1;
 	}
-
-	log_data_shm_ptr->desc[idx] = desc;
-	log_data_shm_ptr->params[idx] = value;
 	
+	strcpy(log_data_shm_ptr->names[idx], key);
+	log_data_shm_ptr->types[idx] = type;
+	log_data_shm_ptr->params[idx] = value;
+
 	if (idx == log_data_shm_ptr->num_params) {
 		log_data_shm_ptr->num_params++;
 	}
@@ -968,17 +1000,25 @@ int log_data_write(param_desc_t desc, param_val_t value) {
 }
 
 
-int log_data_read(uint8_t* num_params, param_desc_t descs[UCHAR_MAX], param_val_t values[UCHAR_MAX]) {
+/**
+*	Reads the custom log data from shared memory.
+*	Args:
+*		- num_params is a pointer to an int that will get filled with the number of custom parameters
+*		- names is a 2D char array that will be filled with the parameter names, up to `num_params`. Assumes that every parameter name is less than 64 characters long
+*		- types is an array and will be filled with the parameter types, up to `num_params`
+*		- values is an array and will be filled with the parameter values, up to `num_params`
+*/
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]) {
 	my_sem_wait(log_data_sem, "log_data_mutex");
 
 	*num_params = log_data_shm_ptr->num_params;
-	for (int i = 0; i < UCHAR_MAX; i++) {
-		descs[i] = log_data_shm_ptr->desc[i];
+	for (int i = 0; i < *num_params; i++) {
+		strcpy(names[i], log_data_shm_ptr->names[i]);
+		types[i] = log_data_shm_ptr->types[i];
 		values[i] = log_data_shm_ptr->params[i];
 	}
 
 	my_sem_post(log_data_sem, "log_data_mutex");
-	return 0;
 }
 
 

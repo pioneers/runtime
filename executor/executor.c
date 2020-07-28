@@ -388,7 +388,6 @@ void python_exit_handler(int signum) {
  *  Kills any running subprocess. Will make the robot go into IDLE mode.
  */
 void kill_subprocess() {
-    log_printf(DEBUG, "In KILL subprocess");
     if (kill(pid, SIGTERM) != 0) {
         log_printf(ERROR, "Kill signal not sent: %s", strerror(errno));
     } 
