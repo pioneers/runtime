@@ -27,16 +27,30 @@ To build your own image instead of using the one on Docker Hub, so that it uses 
     
     DOCKER_BUILDKIT=1 docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t avsurfer123/c-runtime:latest -f docker/Dockerfile .
 
+### Base Image
+
+We use a base image to make sure that the building of the actual image is fast. If for some reason the base image needs to be updated and pushed, do
+
+    DOCKER_BUILDKIT=1 cd docker/base && docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from avsurfer123/c-runtime:base -t avsurfer123/c-runtime:base .
+
+If you haven't run this already on your machine and so don't have local caches, it might take up to an hour.
+
 ## Running
 
 To run the latest Runtime inside a Docker container, do `docker run -it --rm avsurfer123/c-runtime:latest`. Then you can test by in another terminal doing `docker exec -it $(docker ps -q) bash` and running whatever you want inside the container. The `c-runtime` repo will be located at `/root/runtime`.
 
+### Devices
+
 If you want to have the container access any Arduino devices, add the flag `--device /dev/ttyACM0` or what ever devices you want to `docker run`.
+
+### SystemD
+
+If you want to run the Docker container with SystemD enabled as PID 1, do `docker run -it --rm --privileged avsurfer123/c-runtime:latest /lib/systemd/systemd` in one terminal. Then in another terminal, you can test with `docker exec -it $(docker ps -q) bash`. Then you can run Runtime from its SystemD service in `systemd/`. 
 
 ## Stopping
 
-To stop the container, either exit from the `docker run` shell with Ctrl+C or do `docker kill -s INT $(docker ps -q)`.
+To stop the container, either exit from the `./run.sh` shell with Ctrl+C or do `docker stop -t 5 $(docker ps -q)`.
 
 ## Pushing
 
-To push a built image to Docker Hub (only if you have push access), do `docker push avsurfer123/c-runtime:{TAG}`. You can change the tag before pushing by `docker tag avsurfer123/c-runtime:{OLD_TAG} avsurfer123/c-runtime:{NEW_TAG}`.
+To push a built image to Docker Hub (only if you have push access, talk to the Runtime PMs), do `docker push avsurfer123/c-runtime:{TAG}`. You can change the tag before pushing by `docker tag avsurfer123/c-runtime:{OLD_TAG} avsurfer123/c-runtime:{NEW_TAG}`.

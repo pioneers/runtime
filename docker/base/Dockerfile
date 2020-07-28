@@ -38,6 +38,10 @@ RUN wget https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_ARMv7
     rm -r ${arduino_folder} && \
     arduino-cli core update-index
 
+# Install SystemD
+RUN apt-get -y install systemd
+STOPSIGNAL SIGRTMIN+3
+
 # Install debug packages
 RUN apt-get -y install procps htop tmux nano
 
