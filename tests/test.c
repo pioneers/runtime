@@ -1,6 +1,6 @@
 #include "test.h"
 
-#define TEMP_FILE "temp.txt"
+#define TEMP_FILE "/tmp/temp_logs.txt"
 
 pid_t output_redirect;          //holds process ID of output redirection process
 FILE *temp_fp;                  //file pointer of open temp file

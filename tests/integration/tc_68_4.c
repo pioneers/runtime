@@ -20,8 +20,7 @@ char check_output_1[] =
 
 char check_output_2[] =
 	"Raspi IP is 127.0.0.1:9000\n"
-	"Received data size 0\n"
-	"Received:\n";
+	"Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n";
 
 int main ()
 {
