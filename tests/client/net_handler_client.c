@@ -78,16 +78,14 @@ static void recv_udp_data (int udp_fd)
 		fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
 	}
 	fprintf(udp_output_fp, "Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
-	fprintf(udp_output_fp, "Received data size %d\n", recv_size);
 	DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
 	if (dev_data == NULL) {
 		printf("Error unpacking incoming message\n");
 	}
 	
 	// display the message's fields.
-	fprintf(udp_output_fp, "Received:\n");
 	for (int i = 0; i < dev_data->n_devices; i++) {
-		fprintf(udp_output_fp, "Device No. %d: ", i);
+		fprintf(udp_output_fp, "Device No. %d:", i);
 		fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
 		fprintf(udp_output_fp, "\tParams:\n");
 		for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
