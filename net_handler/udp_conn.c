@@ -1,11 +1,11 @@
 #include "udp_conn.h"
 
-pthread_t gp_thread, device_thread;
-int socket_fd = -1;
-struct sockaddr_in dawn_addr = {0};
-socklen_t addr_len = sizeof(struct sockaddr_in);
+pthread_t gp_thread, device_thread;					// thread IDs for receiving gamepad data and sending device data
+int socket_fd = -1;									// the UDP socket's file descriptor
+struct sockaddr_in dawn_addr = {0};					// the address of our client, which should be Dawn
+socklen_t addr_len = sizeof(struct sockaddr_in);	// length of the address
 
-uint64_t start_time;
+uint64_t start_time;	// the time that Runtime/net_handler was started, in milliseconds since the UNIX epoch
 
 
 void* send_device_data(void* args) {
