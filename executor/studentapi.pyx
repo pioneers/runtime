@@ -166,24 +166,21 @@ cdef class Robot:
 
     cpdef void log(self, str key, value) except *:
         cdef param_val_t param
-        cdef param_desc_t desc
+        cdef param_type_t param_type
         cdef bytes key_bytes = key.encode('utf-8')
-        desc.name = key_bytes
         if type(value) == int:
             param.p_i = value
-            desc.type = INT
+            param_type = INT
         elif type(value) == float:
             param.p_f = value
-            desc.type = FLOAT
+            param_type = FLOAT
         elif type(value) == bool:
             param.p_b = int(value)
-            desc.type = BOOL
+            param_type = BOOL
         else:
-            raise ValueError(f"Cannot log parameter {key} with type {type(key).__name__} since it's not an int, float, or bool.")
+            raise ValueError(f"Cannot log parameter {key} with type {type(value).__name__} since it's not an int, float, or bool.")
 
-        desc.read = 1
-        desc.write = 1
-        cdef int err = log_data_write(desc, param)
+        cdef int err = log_data_write(key_bytes, param_type, param)
         if err == -1:
             raise IndexError(f"Maximum number of 255 log data keys reached. can't add key {key}")
         

@@ -66,7 +66,8 @@ typedef struct robot_desc_shm {
 typedef struct {
 	uint8_t num_params;
 	param_val_t params[UCHAR_MAX];
-	param_desc_t desc[UCHAR_MAX];
+	char names[UCHAR_MAX][64];
+	param_type_t types[UCHAR_MAX];
 } log_data_shm_t;
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
@@ -105,6 +106,13 @@ void print_robot_desc ();
  * Prints the current state of the gamepad in a human-readable way
  */
 void print_gamepad_state ();
+
+
+/*
+ *	Prints the current custom logged data.
+ */
+void print_custom_data();
+
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
@@ -271,10 +279,26 @@ int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4]);
  */
 int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
 
+/**
+* 	Write the given custom parameter to shared memory. 
+*	Args:
+*		- key is name of the parameter
+*		- type is type of the parameter
+*		- value is the value of the parameter, with the corresponding type filled with data
+*	Returns:
+*		0 if successful
+*		-1 if the maximum number of custom parameters is reached so this parameter isn't written
+*/
+int log_data_write(char* key, param_type_t type, param_val_t value);
 
-int log_data_write(param_desc_t desc, param_val_t value);
-
-int log_data_read(uint8_t* num_params, param_desc_t descs[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
-
+/**
+*	Reads the custom log data from shared memory.
+*	Args:
+*		- num_params is a pointer to an int that will get filled with the number of custom parameters
+*		- names is a 2D char array that will be filled with the parameter names, up to `num_params`. Assumes that every parameter name is less than 64 characters long
+*		- types is an array and will be filled with the parameter types, up to `num_params`
+*		- values is an array and will be filled with the parameter values, up to `num_params`
+*/
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
 
 #endif
