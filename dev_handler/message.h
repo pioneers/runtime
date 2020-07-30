@@ -10,11 +10,12 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h> // strcmp
+#include <stdlib.h> // for malloc()
+#include <stdio.h>  // for print()
+#include <stdint.h> // for ints with specified sizes (uint8_t, uint16_t, etc.)
+
 #include "../runtime_util/runtime_util.h"
+#include "../logger/logger.h"
 
 // The size in bytes of the message delimiter
 #define DELIMITER_SIZE 1
@@ -35,7 +36,7 @@
 // The length of the largest payload in bytes, which may be reached for DEVICE_WRITE and DEVICE_DATA message types.
 #define MAX_PAYLOAD_SIZE (BITMAP_SIZE+(MAX_PARAMS*sizeof(float))) // Bitmap + Each param (may be floats)
 
-/* The types of messages */
+// The types of messages
 typedef enum {
     NOP                     = 0x00, // Dummy message
     PING                    = 0x01, // Bidirectional
@@ -46,100 +47,128 @@ typedef enum {
     LOG                     = 0x06  // To dev handler
 } message_id_t;
 
-/* A struct defining a message to be sent over serial */
-typedef struct message {
-    message_id_t   message_id;
-    uint8_t*       payload;             // Array of bytes
-    uint8_t        payload_length;      // The current number of bytes in payload
-    uint8_t        max_payload_length;  // The maximum length of the payload for the specific message_id
+// A struct defining a message to be sent over serial
+typedef struct {
+    message_id_t message_id;
+    uint8_t*     payload;             // Array of bytes
+    size_t       payload_length;      // The current number of bytes in payload
+    size_t       max_payload_length;  // The maximum length of the payload for the specific message_id
 } message_t;
 
-/* Prints the byte array DATA of length LEN in hex */
-void print_bytes(uint8_t* data, int len);
+// ******************************** Utility ********************************* //
 
-/******************************************************************************************
- *                              MESSAGE CONSTRUCTORS                                      *
- *   The message returned from these MUST be deallocated memory using destroy_message()   *
- ******************************************************************************************/
+/* Prints a byte array byte by byte in hex
+ * Arguments:
+ *    data: Byte array to be printed
+ *    len: The length of the data array
+ */
+void print_bytes(uint8_t *data, size_t len);
 
-/*
+// ************************* MESSAGE CONSTRUCTORS *************************** //
+// Messages built from these constructors MUST be decalloated with destroy_message()
+
+/**
  * Utility function to allocate memory for an empty message
  * To be used with parse_message()
- * payload_size: The size of memory of allocate for the payload
+ * Arguments:
+ *    payload_size: The size of memory to allocate for the payload
+ * Returns:
+ *    A message of type NOP, payload_length 0, and max_payload_length PAYLOAD_SIZE
  */
-message_t* make_empty(ssize_t payload_size);
+message_t *make_empty(ssize_t payload_size);
 
-/*
- * A message that pings a device
- * Payload: empty
+/**
+ * Builds a PING message
+ * Returns:
+ *    A message of type PING
+ *      payload_length 0
+ *      max_payload_length 0
  */
-message_t* make_ping();
+message_t *make_ping();
 
-/*
- * A message to request parameter data from a device at an interval
- * dev_type: The type of device. Used to verify params are write-able
- * pmap: 32-bit param bitmap indicating which params should be subscribed to
- * interval: The number of milliseconds to wait between each DEVICE_DATA
- *
- * Payload: 32-bit param bitmap, 16-bit interval
+/**
+ * Builds a SUBSCRIPTION_REQUEST
+ * Arguments:
+ *    dev_type: The type of device. Used to verify params are readable
+ *    pmap: param bitmap indicating which params should be subscribed to
+ *    interval: The number of milliseconds to wait between each DEVICE_DATA
+ * Returns:
+ *    A message of type SUBSCRIPTION_REQUEST
+ *      Payload: bitmap, then interval
+ *      payload_length: sizeof(pmap) + sizeof(interval)
+ *      max_payload_length: same as above
  */
-message_t* make_subscription_request(uint16_t dev_type, uint32_t pmap, uint16_t interval);
+message_t *make_subscription_request(uint8_t dev_type, uint32_t pmap, uint16_t interval);
 
-/*
- * A message to write data to the specified writable parameters of a device
- * dev_type: The type of device. Used to verify params are write-able
- * pmap: The 32-bit param bitmap indicating which parameters will be written to
- * param_values: An array of the parameter values. If i-th bit in the bitmap is on, its value is in the i-th index.
- *
- * Payload: 32-bit param mask, each of the param_values specified (number of bytes depends on the parameter type)
+/**
+ * Builds a DEVICE_WRITE
+ * Arguments:
+ *    dev_type: The type of device. Used to verify params are writeable
+ *    pmap: param bitmap indicating which parameters will be written to
+ *    param_values: An array of the parameter values.
+ *      The i-th bit in PMAP is on if and only if its value is in the i-th index of PARAM_VALUES
+ * Returns:
+ *    A message of type DEVICE_WRITE
+ *      Payload: pmap followed by, each of the param_values specified
+ *      payload_length: sizeof(pmap) + sizeof(all the values in PARAM_VALUES)
+ *      max_payload_length: same as above
  */
-message_t* make_device_write(uint16_t dev_type, uint32_t pmap, param_val_t param_values[]);
+message_t *make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_values[]);
 
-/*
+/**
  * Frees the memory allocated for the message struct and its payload.
- * message: The messsage to have its memory deallocated.
+ * Arguments:
+ *    message: The message to have its memory deallocated.
  */
-void destroy_message(message_t* message);
+void destroy_message(message_t *message);
 
-/******************************************************************************************
- *                          Serializing and Parsing Messages                              *
- ******************************************************************************************/
+// ********************* SERIALIZE AND PARSE MESSAGES *********************** //
 
-/*
+/**
  * Calculates the largest length possible of a cobs-encoded msg
  * Used when allocating a buffer to parse a message into via parse_message()
- * msg: The msg to be serialized to a byte array
- * return: the maximum length
+ * Arguments:
+ *    msg: The message to be serialized to a byte array
+ * Returns:
+ *    The size of a byte array that should be allocated to serialize the message into
  */
-int calc_max_cobs_msg_length(message_t* msg);
+size_t calc_max_cobs_msg_length(message_t *msg);
 
-/*
- * Serializes msg into a cobs-encoded byte array
- * msg: the message to serialize
- * data: empty buffer to be filled with the cobs-encoded message
- * len: the length of DATA. Should be at least calc_max_cobs_msg_length(msg)
- * return: The length of the serialized message. -1 if len is too small (less than calc_max_cobs_msg_length)
+/**
+ * Serializes then cobs encodes a message into a byte array
+ * Arguments:
+ *    msg: the message to serialize
+ *    cobs_encoded: empty buffer to be filled with the cobs-encoded message
+ *    len: the length of COBS_ENCODED. Should be at least calc_max_cobs_msg_length(msg)
+ * Returns:
+ *    The size of COBS_ENCODED that was actually populated
+ *    -1 if len is too small (less than calc_max_cobs_msg_length)
  */
-int message_to_bytes(message_t* msg, uint8_t data[], int len);
+ssize_t message_to_bytes(message_t *msg, uint8_t cobs_encoded[], size_t len);
 
-/*
- * Cobs decodes a byte array and populates the fields of input message_t
- * The structure of the byte array is expected to be:
- * 8-bit MessageID + 8-Bit PayloadLength + Payload + 8-Bit Checksum
- * data: A byte array containing a cobs encoded message. data[0] should be the delimiter. data[1] should be cobs_len
- * empty_msg: A message to be populated. Payload must be properly allocated memory. Use make_empty()
- * return: 0 if successful parsing (correct checksum). 1 Otherwise
+/**
+ * Cobs decodes a byte array and populates the fields of input message
+ * Arguments:
+ *    data: A byte array containing a cobs encoded message.
+ *      data[0] should be the delimiter. data[1] should be cobs_len
+ *    empty_msg: A message to be populated.
+ *      Payload must be properly allocated memory. Use make_empty()
+ * Returns:
+ *    0 if successful parsing
+ *    1 if incorrect checksum
+ *    2 if max_payload_length is too small
  */
-int parse_message(uint8_t data[], message_t* empty_msg);
+int parse_message(uint8_t data[], message_t *empty_msg);
 
-/*
- * Reads the parameter values from a DEVICE_DATA message into vals
- * dev_type: The type of the device that the message was sent from
- * dev_data: The DEVICE_DATA message to unpack
- * vals: An array of param_val_t structs to be populated with the values from the message.
- *  NOTE: The length of vals MUST be at LEAST the number of params sent in the DEVICE_DATA message
- *  Tip: Allocate MAX_PARAMS param_val_t structs to guarantee this
+/**
+ * Reads the parameter values from a DEVICE_DATA message into param_val_t[]
+ * Arguments:
+ *    dev_type: The type of the device that the message was sent from
+ *    dev_data: The DEVICE_DATA message to unpack
+ *    vals: An array of param_val_t structs to be populated with the values from the message.
+ * NOTE: The length of vals MUST be at LEAST the number of params sent in the DEVICE_DATA message
+ * Allocate MAX_PARAMS param_val_t structs to guarantee this
  */
-void parse_device_data(uint16_t dev_type, message_t* dev_data, param_val_t vals[]);
+void parse_device_data(uint8_t dev_type, message_t *dev_data, param_val_t vals[]);
 
 #endif
