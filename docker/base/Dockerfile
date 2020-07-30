@@ -1,4 +1,4 @@
-FROM arm32v7/python:3.7-buster
+FROM python:3.7-buster
 
 # Install Python.h and other apt dependencies
 RUN apt-get -q update && \
@@ -30,12 +30,7 @@ RUN wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.3.3/proto
 RUN pip3 install Cython
 
 # Install arduino-cli
-ENV arduino_folder arduino_cli
-RUN wget https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_ARMv7.tar.gz -O ${arduino_folder}.tar.gz && \
-    mkdir ${arduino_folder} && tar xzf ${arduino_folder}.tar.gz -C ${arduino_folder} && \
-    rm ${arduino_folder}.tar.gz && \
-    mv ${arduino_folder}/arduino-cli /usr/bin/ && \
-    rm -r ${arduino_folder} && \
+RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/bin sh && \
     arduino-cli core update-index
 
 # Install SystemD
