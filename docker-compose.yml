@@ -1,6 +1,10 @@
-version: '3'
+version: '3.8'
+
 services:
     runtime:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
         image: avsurfer123/c-runtime:latest
         volumes:
             # Changes in local /c-runtime and container /root/runtime are synced
