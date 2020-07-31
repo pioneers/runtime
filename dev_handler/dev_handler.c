@@ -5,11 +5,16 @@
 
 #include <pthread.h>    // for sender, receiver, and relayer threads
 #include <termios.h>    // for POSIX terminal control definitions in serialport_open()
+#include <sys/un.h>     // for sockaddr_un
+#include <sys/socket.h> // for binding to a virtual device's socket
+#include <string.h>     // for strcpy()
 #include <stdio.h>      // for sprintf()
 #include <stdlib.h>     // for malloc()
 #include <stdint.h>     // for ints with specified sizes (uint8_t, uint16_t, etc.)
 #include <signal.h>     // for SIGINT (Ctrl+C)
 #include <unistd.h>     // for sleep()
+#include <string.h>     // for strerror()
+#include <errno.h>      // for errno with sockets
 
 #include "message.h"
 #include "../shm_wrapper/shm_wrapper.h"
@@ -72,7 +77,8 @@ int send_message(relay_t *relay, message_t *msg);
 int receive_message(relay_t *relay, message_t *msg);
 int verify_lowcar(relay_t *relay);
 
-// Serial port opening and closing
+// Serial port or socket opening and closing
+int connect_socket(const char *socket_name);
 int serialport_open(const char *port_name);
 int serialport_close(int fd);
 
@@ -188,17 +194,22 @@ void communicate(uint8_t port_num) {
     relay_t *relay = malloc(sizeof(relay_t));
     relay->port_num = port_num;
 
-    // Open serial port
     char port_name[15]; // Template size + 2 indices for port_number
     sprintf(port_name, "%s%d", port_prefix, relay->port_num);
-    log_printf(DEBUG, "Setting up threads for %s\n", port_name);
-    relay->file_descriptor = serialport_open(port_name);
-    if (relay->file_descriptor == -1) {
-        log_printf(ERROR, "communicate: Couldn't open port %s\n", port_name);
-        free(relay);
-        return;
-    } else {
-        log_printf(DEBUG, "Opened port %s\n", port_name);
+    if (strcmp(port_prefix, "/tmp/ttyACM") == 0) { // Bind to socket
+        relay->file_descriptor = connect_socket(port_name);
+        if (relay->file_descriptor == -1) {
+            log_printf(ERROR, "communicate: Couldn't create socket--%s", strerror(errno));
+            free(relay);
+            return;
+        }
+    } else { // Open serial port
+        relay->file_descriptor = serialport_open(port_name);
+        if (relay->file_descriptor == -1) {
+            log_printf(ERROR, "communicate: Couldn't open port %s\n", port_name);
+            free(relay);
+            return;
+        }
     }
 
     // Initialize the other relay values
@@ -442,7 +453,7 @@ void *receiver(void *relay_cast) {
             // If received LOG, send it to the logger
             log_printf(DEBUG, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
         } else {
-            log_printf(WARN, "Dropping received message of unexpected type from %s", get_device_name(relay->dev_id.type));
+            log_printf(WARN, "Dropping received message of unexpected type %d from %s", msg->message_id, get_device_name(relay->dev_id.type));
         }
         // Now that the message is taken care of, clear the message
         msg->message_id = 0x0;
@@ -502,8 +513,11 @@ int receive_message(relay_t *relay, message_t *msg) {
          * read() is set to timeout while waiting for an ACK (see serialport_open())*/
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
+        printf("HERE. Read %d bytes: 0x%02X\n", num_bytes_read, last_byte_read);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-        if (num_bytes_read == 0) {  // read() returned due to timeout
+        if (num_bytes_read == -1) {
+            log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
+        } else if (num_bytes_read == 0) {  // read() returned due to timeout
             log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT from %s%d!", port_prefix, relay->port_num);
             return 3;
         } else if (last_byte_read != 0x00) {
@@ -594,17 +608,19 @@ int verify_lowcar(relay_t *relay) {
     /* Set serial port options to allow read() to block indefinitely
      * We expect the lowcar device to continuously send data
      * In serialport_open(), we set read() to timeout specifically for waiting for ACK */
-    struct termios toptions;
-    if (tcgetattr(relay->file_descriptor, &toptions) < 0) { // Get current options
-        log_printf(ERROR, "Couldn't get term attributes for %s", get_device_name(relay->dev_id.type));
-        return -1;
-    }
-    toptions.c_cc[VMIN]  = 1; // read() must read at least a byte before returning
-    // Save changes to TOPTIONS immediately using flag TCSANOW
-    tcsetattr(relay->file_descriptor, TCSANOW, &toptions);
-    if (tcsetattr(relay->file_descriptor, TCSAFLUSH, &toptions) < 0) {
-        log_printf(ERROR, "Couldn't set term attributes for %s", get_device_name(relay->dev_id.type));
-        return -1;
+    if (strcmp(port_prefix, "/dev/ttyACM") == 0) {
+        struct termios toptions;
+        if (tcgetattr(relay->file_descriptor, &toptions) < 0) { // Get current options
+            log_printf(ERROR, "verify_lowcar: Couldn't get term attributes for %s", get_device_name(relay->dev_id.type));
+            return -1;
+        }
+        toptions.c_cc[VMIN]  = 1; // read() must read at least a byte before returning
+        // Save changes to TOPTIONS immediately using flag TCSANOW
+        tcsetattr(relay->file_descriptor, TCSANOW, &toptions);
+        if (tcsetattr(relay->file_descriptor, TCSAFLUSH, &toptions) < 0) {
+            log_printf(ERROR, "verify_lowcar: Couldn't set term attributes for %s", get_device_name(relay->dev_id.type));
+            return -1;
+        }
     }
 
     // Parse ACKNOWLEDGEMENT payload into relay->dev_id_t
@@ -612,14 +628,47 @@ int verify_lowcar(relay_t *relay) {
     memcpy(&relay->dev_id.year, &ack->payload[1], 1);
     memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
     log_printf(INFO, "Connected %s (0x%llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
-    log_printf(DEBUG, "ACK received! %s%d is type 0x%04X (%s), year 0x%02X, uid 0x%llX!\n", \
+    log_printf(DEBUG, "ACK received! %s%d is type 0x%02X (%s), year 0x%02X, uid 0x%llX!\n", \
     port_prefix, relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
     relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
     destroy_message(ack);
     return 0;
 }
 
-// ****************************** SERIAL PORTS ****************************** //
+// ************************* SOCKETS / SERIAL PORTS ************************* //
+
+/**
+ * Binds to a socket for reading and writing binary data
+ * Arguments:
+ *     socket_name: THe name of the socket (ex: "/tmp/ttyACM0")
+ * Returns:
+ *    A valid file_descriptor, or
+ *    -1 on error
+ */
+int connect_socket(const char *socket_name) {
+    // Make a local socket for sending/receiving raw byte streams
+    int fd;
+    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd == -1) {
+        log_printf(ERROR, "connect_socket: Couldn't create socket--%s", strerror(errno));
+        return -1;
+    }
+    // Connect the socket to the found device's socket address
+    // https://www.man7.org/linux/man-pages/man7/unix.7.html
+    struct sockaddr_un dev_socket_addr = {AF_UNIX, ""};
+    strcpy(dev_socket_addr.sun_path, socket_name);
+    if (connect(fd, (struct sockaddr *) &dev_socket_addr, sizeof(dev_socket_addr)) != 0) {
+        log_printf(ERROR, "connect_socket: Couldn't connect socket--%s", strerror(errno));
+        return -1;
+    }
+
+    // Set read() to timeout for up to TIMEOUT milliseconds
+    struct timeval tv;
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    return fd;
+}
 
 /**
  * Opens a serial port for reading and writing binary data
@@ -628,7 +677,7 @@ int verify_lowcar(relay_t *relay) {
  *      Used to timeout when waiting for an ACKNOWLEDGEMENT
  *      After receiving an ACKNOWLEDGEMENT, read() blocks until receiving at least a byte (set in verify_lowcar())
  * Arguments:
- *    serialport: The name of the port (ex: "/dev/ttyACM0", "/dev/tty.usbserial", "COM1")
+ *    port_name: The name of the port (ex: "/dev/ttyACM0", "/dev/tty.usbserial", "COM1")
  * Returns:
  *    A valid file_descriptor, or
  *    -1 on error

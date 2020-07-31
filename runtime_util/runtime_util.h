@@ -10,14 +10,14 @@
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
-#define MAX_DEVICES 32         //maximum number of connected devices
-#define MAX_PARAMS 32          //maximum number of parameters supported
+#define MAX_DEVICES 32          // Maximum number of connected devices
+#define MAX_PARAMS 32           // Maximum number of parameters supported
 
-#define DEVICES_LENGTH 15      // The largest device type number + 1.
+#define DEVICES_LENGTH 256      // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 5      //number of fields in the robot description
+#define NUM_DESC_FIELDS 5       // Number of fields in the robot description
 
-#define NUM_GAMEPAD_BUTTONS 17 //number of gamepad buttons
+#define NUM_GAMEPAD_BUTTONS 17  // Number of gamepad buttons
 
 #define MAX_LOG_LEN 512
 
