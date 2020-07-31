@@ -1,9 +1,15 @@
 #ifndef DEV_CLIENT_H
 #define DEV_CLIENT_H
 
-#include "../../runtime_util/runtime_util.h"
-#include <stdlib.h>
-#include <signal.h>
+#include <stdlib.h>     // for exit()
+#include <stdio.h>      // for printf()
+#include <errno.h>      // for errno
+#include <string.h>     // for strerr()
+#include <sys/socket.h> // for sockets
+#include <sys/un.h>     // for sockaddr_un
+#include <stdint.h>     // for int with specific widths
+#include <unistd.h>     // read()
+#include <signal.h>     // for SIGINT (Ctrl+C)
 
 // Starts dev handler with "virtual" argument
 void start_dev_handler();
@@ -13,14 +19,15 @@ void stop_dev_handler();
 
 /**
  * Connects a virtual device to dev handler
- * device_name: The name of a virtual device
- * Returns the port number at which the device is connected
+ * Arguments:
+ *    device_name: The name of a virtual device
  */
 void connect_device(char* device_name);
 
 /**
  * Disconnects a virtual device from dev handler
- * port_number: The port number returned from connect_device()
+ * Arguments:
+ *    port_number: The port number returned from connect_device()
  */
 void disconnect_device(int port_number);
 
