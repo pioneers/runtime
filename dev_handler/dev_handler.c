@@ -265,17 +265,6 @@ void *relayer(void *relay_cast) {
     // Broadcast to the sender and receiver to start work
     pthread_cond_broadcast(&relay->start_cond);
 
-    // Subscribe to params requested in shared memory
-    uint32_t sub_map[MAX_DEVICES + 1];
-    get_sub_requests(sub_map, DEV_HANDLER);
-    if (sub_map[0] & (1 << relay->shm_dev_idx)) { // If bit is on in sub_map[0], there's a pending SUBSCRIPTION_REQUEST
-        message_t *sub_request = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
-        if (send_message(relay, sub_request) != 0) {
-            log_printf(WARN, "Couldn't send initial SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
-        }
-        destroy_message(sub_request);
-    }
-
     // If the device disconnects or times out, clean up
     log_printf(DEBUG, "Relayer monitoring %s", get_device_name(relay->dev_id.type));
     char port_name[14];
@@ -513,7 +502,6 @@ int receive_message(relay_t *relay, message_t *msg) {
          * read() is set to timeout while waiting for an ACK (see serialport_open())*/
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
-        printf("HERE. Read %d bytes: 0x%02X\n", num_bytes_read, last_byte_read);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
         if (num_bytes_read == -1) {
             log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
