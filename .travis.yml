@@ -12,27 +12,32 @@ services:
 # requires that commit is for a PR or is on master branch
 if: (type = pull_request) OR (type = push AND branch = master)
 
+_shared_setup: &shared_setup
+  before_script:
+    - docker version
+    - docker info
+    - echo '{"experimental":true}' | sudo tee /etc/docker/daemon.json
+    - sudo service docker restart
+    # - mkdir -p ~/.docker
+    # - echo $"{ \"experimental\":\"enabled\" }" > ~/.docker/config.json
+    - docker version
+    - docker info
+
 jobs:
   include:
     - name: multiarch
       arch: amd64
+      <<: *shared_setup
       # if: type = push AND branch = master
       script:
-        - docker version
-        - docker info
-        - echo $"{ \"experimental\":\"enabled\" }" > ~/.docker/config.json
-        - docker version
-        - docker info
         - echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
         - docker buildx create --use
         - docker buildx build --platform linux/amd64,linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG --build-arg BUILDKIT_INLINE_CACHE=1 --push --pull -f docker/Dockerfile .
     - name: test
       arch: arm64 
-      before_script:
-        - docker version
-        - docker info
-        - docker build --platform linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
+      <<: *shared_setup
       script:
+        - docker build --platform linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
         - docker run -d $DOCKER_USERNAME/c-runtime:$TAG # Runs the docker container as detached
         - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
         - docker kill -s INT $(docker ps -q) # Kill the current container
