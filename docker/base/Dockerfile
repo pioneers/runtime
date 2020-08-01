@@ -33,12 +33,8 @@ RUN pip3 install Cython
 RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | BINDIR=/usr/bin sh && \
     arduino-cli core update-index
 
-# Install SystemD
-RUN apt-get -y install systemd
-STOPSIGNAL SIGRTMIN+3
-
 # Install debug packages
-RUN apt-get -y install procps htop tmux nano
+RUN apt-get -y install procps htop tmux nano net-tools
 
 WORKDIR /root
 
