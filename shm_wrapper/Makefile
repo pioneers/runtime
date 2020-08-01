@@ -16,7 +16,10 @@ test1: shm_wrapper_test1.c $(FILES)
 test2: shm_wrapper_test2.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 	
-shm: shm.c $(FILES)
+shm_start: shm_start.c $(FILES)
+	gcc $^ -o $@ $(LIBS)
+
+shm_stop: shm_stop.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 
 static_dev: static_dev.c $(FILES)
@@ -29,4 +32,4 @@ print: print_shm.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 
 clean:
-	rm test1 test2 shm static_dev static_aux print
+	rm test1 test2 shm_start shm_stop static_dev static_aux print
