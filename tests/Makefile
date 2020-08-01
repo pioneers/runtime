@@ -28,9 +28,10 @@ shm_cli: ../shm_wrapper/* client/shm_client.* cli/shm_cli.c
 executor_cli: ../executor/* client/executor_client.* cli/executor_cli.c
 	gcc cli/executor_cli.c client/executor_client.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
-dev_handler_cli: client/dev_handler_client.c general_dev
-	gcc $< -o $@
+dev_handler_cli: client/dev_handler_client.c cli/dev_handler_cli.c general_dev
+	gcc client/dev_handler_client.c cli/dev_handler_cli.c -o $@
 
+# TODO: Add target for all future virtual devices
 general_dev: client/virtual_devices/general_dev.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
 	gcc $^ -o $@
 

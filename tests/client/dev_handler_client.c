@@ -1,49 +1,47 @@
 #include "dev_handler_client.h"
 
+// Timeout time in ms for a socket read()
 #define TIMEOUT 2000
 
+// The name of a socket's file to be succeeded by an integer
 #define SOCKET_PREFIX "/tmp/ttyACM"
 
+// The maximum number of devices that can be connected
 #define MAX_DEVICES 32
 
+// Struct grouping a virtual device's socket number, socket fd, and name
+typedef struct {
+    int fd;             // The socket's file descriptor
+    char *dev_exe_name; // The name of the virtual device's executable file
+} device_socket_t;
+
 // ****************************** GLOBAL VARS ******************************* //
-// Array of file descriptors. used_sockets[i] == file descriptor for "/tmp/ttyACM[i]"
-// If used_sockets[i] == -1, it is unused
-int used_sockets[MAX_DEVICES];
+/* Array of connected devices and their sockets
+ * used_sockets[i] == NULL if unused
+ */
+device_socket_t used_sockets[MAX_DEVICES];
+// A hack to initialize. https://stackoverflow.com/a/6991475
+__attribute__((constructor))
+void used_sockets_init() {
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        used_sockets[i].fd = -1;
+        used_sockets[i].dev_exe_name = "";
+    }
+}
 
 // ******************************** Private ********************************* //
+
 /**
- * Cleans up sockets
+ * Returns a file descriptor after connecting to a socket
+ * Returns:
+ *    A valid file descriptor, or
+ *    -1 if error
  */
-void stop() {
-    char socket_name[14];
-    for (int i = 0; i < MAX_DEVICES; i++) {
-        sprintf(socket_name, "%s%d", SOCKET_PREFIX, i);
-        remove(socket_name);
-    }
-    exit(0);
-}
-
-// Utility
-static void print_bytes(uint8_t *data, size_t len) {
-    printf("0x");
-    for (int i = 0; i < len; i++) {
-        printf("%02X ", data[i]);
-    }
-    printf("\n");
-}
-
-/**
-* Returns a file descriptor after connecting to a socket
-* Returns:
-*    A valid file descriptor, or
-*    -1 if error
-*/
-static int connect_socket() {
+static int connect_socket(char *dev_exe_name) {
     // Get an unoccupied socket and get a fd
     int socket_num;
     for (int i = 0; i < 32; i++) {
-        if (used_sockets[i] == -1) {
+        if (used_sockets[i].fd == -1) {
             socket_num = i;
             break;
         }
@@ -82,7 +80,8 @@ static int connect_socket() {
     close(server_fd);
 
     // Indicate in global variable that socket is now used
-    used_sockets[socket_num] = connection_fd;
+    used_sockets[socket_num].fd = connection_fd;
+    used_sockets[socket_num].dev_exe_name = dev_exe_name;
 
     // Set read() to timeout for up to TIMEOUT milliseconds
     struct timeval tv;
@@ -92,49 +91,52 @@ static int connect_socket() {
 
     return connection_fd;
 }
+
 // ******************************** Public ********************************* //
 
-void start_dev_handler();
+void start_dev_handler() {
+    return;
+}
 
-void stop_dev_handler();
+void stop_dev_handler() {
+    return;
+}
 
-void connect_device(char *device_name) {
-    int fd = connect_socket();
+void connect_device(char* dev_exe_name) {
+    int fd = connect_socket(dev_exe_name);
     // Spawn virtual device with arg fd
     pid_t pid = fork();
     if (pid == 0) { // If child process
         // Become the virtual device
         char exe_name[32];
-        sprintf(exe_name, "./%s", device_name);
+        sprintf(exe_name, "./%s", dev_exe_name);
         char fd_str[2];
         sprintf(fd_str, "%d", fd);
         if (execlp(exe_name, fd_str, (char *) NULL) < 0) {
-			printf("connect_device: execlp failed -- %s\n", strerror(errno));
-		}
+            printf("connect_device: execlp failed -- %s\n", strerror(errno));
+        }
     }
 }
 
 void disconnect_device(int socket_num) {
     // CLose file descriptor
-    close(used_sockets[socket_num]);
+    close(used_sockets[socket_num].fd);
     // Remove socket
     char socket_name[14];
     sprintf(socket_name, "%s%d", SOCKET_PREFIX, socket_num);
     remove(socket_name);
     // Mark socket as unoccupied
-    used_sockets[socket_num] = -1;
+    used_sockets[socket_num].fd = -1;
+    used_sockets[socket_num].dev_exe_name = "";
 }
 
-void list_devices();
-
-// For testing purposes. Creates and binds a general_dev
-int main() {
-    // If SIGINT (Ctrl+C) is received, call stop() to clean up
-    signal(SIGINT, stop);
-    // Reset used_sockets
+void list_devices() {
+    printf("Socket\t\t\tDevice\n");
     for (int i = 0; i < MAX_DEVICES; i++) {
-        used_sockets[i] = -1;
+        // If socket is used, show information
+        if (used_sockets[i].fd != -1) {
+            printf("%s%d\t\t%s\n", SOCKET_PREFIX, i, used_sockets[i].dev_exe_name);
+        }
     }
-    printf("Connecting general_dev\n");
-    connect_device("general_dev");
+    return;
 }
