@@ -2,7 +2,7 @@
 
 import time
 
-duration = 5
+duration = 6
 
 print("Start script2.py:", time.time(), flush=True)
 for i in range(duration):
