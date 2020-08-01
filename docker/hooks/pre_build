@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "{ \"experimental\": \"enabled\" }" > ~/.docker/config.json
