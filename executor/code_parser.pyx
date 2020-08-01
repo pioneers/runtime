@@ -5,7 +5,7 @@ from collections import defaultdict
 
 """ Student code parser to determine params used """
 
-cpdef void make_device_subs(str code_file):
+cpdef void make_device_subs(str code_file) except *:
     cdef device_t* device
     cdef uint32_t request
     cdef int err
