@@ -4,7 +4,7 @@ After=test2.service test3.service test4.service
 
 [Service]
 Type=oneshot
-ExecStart=/home/jshi/Desktop/c-runtime/systemd-stuff/script1.py
+ExecStart=/home/pi/c-runtime/systemd/script1.py
 KillSignal=SIGINT
 
 [Install]
