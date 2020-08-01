@@ -73,7 +73,7 @@ static void init_params(param_val_t params[NUM_PARAMS]) {
  */
 static void device_actions(param_val_t params[NUM_PARAMS]) {
     params[INCREASING_ODD].p_i += 2;
-    params[DECREASING_ODD].p_i -= -2;
+    params[DECREASING_ODD].p_i -= 2;
     params[INCREASING_EVEN].p_i += 2;
     params[DECREASING_EVEN].p_i -= 2;
     params[INCREASING_FLIP].p_i = (-1) *
@@ -110,7 +110,7 @@ int receive_message(int fd, message_t *msg) {
     while (1) {
         num_bytes_read = read(fd, &last_byte_read, 1);   // Waiting for first byte can block
         if (num_bytes_read == -1) {
-            printf("Couldn't read first byte\n");
+            printf("Couldn't read first byte -- %s\n", strerror(errno));
             return 1;
         } else if (last_byte_read == 0x00) {
             // Found start of a message
@@ -193,11 +193,11 @@ message_t *make_device_data(uint32_t pmap, param_val_t params[NUM_PARAMS]) {
     dev_data->message_id = DEVICE_DATA;
     dev_data->payload_length = 0;
     // Copy pmap into payload
-    memcpy(&dev_data->payload, &pmap, 4);
+    memcpy(&dev_data->payload[0], &pmap, 4);
     // Copy params into payload
     device_t *dev = get_device(DEV_TYPE);
     uint8_t *payload_ptr = &dev_data->payload[4];
-    for (int i = 0; (pmap >> i) > 0; i++) {
+    for (int i = 0; ((pmap >> i) > 0) && (i < 32); i++) {
         if (pmap & (1 << i)) {
             switch(dev->params[i].type) {
                 case INT:
@@ -238,6 +238,7 @@ int main(int argc, char *argv[]) {
     uint64_t uid = millis();
 
     param_val_t params[MAX_PARAMS];
+    init_params(params);
 
     // Every cycle, read a message and respond accordingly, then send messages as needed
     message_t *incoming_msg = make_empty(MAX_PAYLOAD_SIZE);
@@ -250,7 +251,6 @@ int main(int argc, char *argv[]) {
     uint64_t last_device_action = 0;
     uint64_t now;
     while (1) {
-        printf("Loopin\n");
         now = millis();
         if (receive_message(fd, incoming_msg) == 0) {
             // Got a message
@@ -268,13 +268,13 @@ int main(int argc, char *argv[]) {
                     break;
 
                 case SUBSCRIPTION_REQUEST:
-                    printf("Got SUBSCRIPTION_REQUEST\n");
-                    memcpy(&subscribed_params, &incoming_msg->payload, 4);
+                    memcpy(&subscribed_params, &incoming_msg->payload[0], 4);
                     memcpy(&subscription_interval, &incoming_msg->payload[4], 2);
                     printf("Now subscribed to 0x%08X every %d milliseconds\n", subscribed_params, subscription_interval);
                     break;
 
                 case DEVICE_WRITE:
+                    printf("Got DEVICE_WRITE\n");
                     device_write(incoming_msg, params);
                     break;
             }
@@ -299,8 +299,8 @@ int main(int argc, char *argv[]) {
         }
         // Check if we should send another DEVICE_DATA
         if (subscribed_params && ((now - last_sent_data) > subscription_interval)) {
+            printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
             outgoing_msg = make_device_data(subscribed_params, params);
-            printf("Sending device data\n");
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
         }

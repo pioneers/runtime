@@ -25,7 +25,7 @@ static size_t device_write_payload_size(uint8_t device_type, uint32_t param_bitm
     size_t result = BITMAP_SIZE;
     device_t *dev = get_device(device_type);
     // Loop through each of the device's parameters and add the size of the parameter
-    for (int i = 0; (param_bitmap >> i) > 0; i++) {
+    for (int i = 0; ((param_bitmap >> i) > 0) && (i < 32); i++) {
         // Ignore parameter i if the i-th bit is off
         if (((1 << i) & param_bitmap) == 0) {
             continue;
@@ -198,7 +198,7 @@ message_t *make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_
     // Don't write to non-existent params
     pmap &= ((uint32_t) -1) >> (MAX_PARAMS - dev->num_params);	// Set non-existent params to 0
     // Set non-writeable params to 0
-    for (int i = 0; (pmap >> i) > 0; i++) {
+    for (int i = 0; ((pmap >> i) > 0) && (i < 32); i++) {
         if (dev->params[i].write == 0) {
             pmap &= ~(1 << i);	// Set bit i to 0
         }
@@ -213,7 +213,7 @@ message_t *make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_
     // Append the param bitmap
     status += append_payload(dev_write, (uint8_t*) &pmap, BITMAP_SIZE);
     // Append the param values to the payload
-    for (int i = 0; (pmap >> i) > 0; i++) {
+    for (int i = 0; ((pmap >> i) > 0) && (i < 32); i++) {
         // If the parameter is off in the bitmap, skip it
         if (((1 << i) & pmap) == 0) {
             continue;
@@ -299,24 +299,24 @@ void parse_device_data(uint8_t dev_type, message_t *dev_data, param_val_t vals[]
     /* Iterate through device's parameters. If bit is off, continue
     * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t *payload_ptr = &(dev_data->payload[BITMAP_SIZE]); // Start the pointer at the beginning of the values (skip the bitmap)
-    for (int i = 0; (bitmap >> i) > 0; i++) {
+    for (int i = 0; ((bitmap >> i) > 0) && (i < 32); i++) {
         // If bit is off, parameter is not included in the payload
         if (((1 << i) & bitmap) == 0) {
             continue;
         }
         switch (dev->params[i].type) {
             case INT:
-            vals[i].p_i = *((int16_t*) payload_ptr);
-            payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
-            break;
+                vals[i].p_i = *((int16_t*) payload_ptr);
+                payload_ptr += sizeof(int16_t) / sizeof(uint8_t);
+                break;
             case FLOAT:
-            vals[i].p_f = *((float*) payload_ptr);
-            payload_ptr += sizeof(float) / sizeof(uint8_t);
-            break;
+                vals[i].p_f = *((float*) payload_ptr);
+                payload_ptr += sizeof(float) / sizeof(uint8_t);
+                break;
             case BOOL:
-            vals[i].p_b = *payload_ptr;
-            payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
-            break;
+                vals[i].p_b = *payload_ptr;
+                payload_ptr += sizeof(uint8_t) / sizeof(uint8_t);
+                break;
         }
     }
 }
