@@ -1,0 +1,4 @@
+#!/bin/bash
+
+docker buildx create --use
+docker buildx build --platform linux/amd64,linux/arm/v7 -t avsurfer123/c-runtime:latest --build-arg BUILDKIT_INLINE_CACHE=1 --push --pull -f $DOCKERFILE_PATH .
