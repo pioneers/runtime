@@ -2,9 +2,7 @@
 Description=test5 service for script5.py
 
 [Service]
-Type=oneshot
-ExecStart=/home/jshi/Desktop/c-runtime/systemd-stuff/script5.py
-Restart=on-failure
+ExecStart=/home/pi/c-runtime/systemd/script5.py
 KillSignal=SIGINT
 
 [Install]
