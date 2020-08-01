@@ -5,7 +5,7 @@ services:
         build:
             context: .
             dockerfile: docker/Dockerfile
-        image: avsurfer123/c-runtime:latest
+        image: pierobotics/c-runtime:latest
         volumes:
             # Changes in local /c-runtime and container /root/runtime are synced
             - .:/root/runtime
