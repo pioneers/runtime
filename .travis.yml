@@ -1,11 +1,10 @@
 os: linux 
-arch: arm64 
 dist: bionic # Ubuntu 18
 
 language: c
 
 env:
-  - TAG=latest
+  - TAG=latest DOCKER_CLI_EXPERIMENTAL=enabled
 
 services:
   - docker
@@ -13,16 +12,31 @@ services:
 # requires that commit is for a PR or is on master branch
 if: (type = pull_request) OR (type = push AND branch = master)
 
-install: skip
-
-before_script:
-  - docker build -t ${DOCKER_USERNAME}/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
-
-script:
-  - docker run -d ${DOCKER_USERNAME}/c-runtime:$TAG # Runs the docker container as detached
-  - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
-  - docker kill -s INT $(docker ps -q) # Kill the current container
-  - docker run -t ${DOCKER_USERNAME}/c-runtime:$TAG ./test.sh # Runs the integration tests in a new container
+jobs:
+  include:
+    - name: multiarch
+      arch: amd64
+      # if: type = push AND branch = master
+      script:
+        - docker version
+        - docker info
+        - echo $"{ \"experimental\":\"enabled\" }" > ~/.docker/config.json
+        - docker version
+        - docker info
+        - echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker buildx create --use
+        - docker buildx build --platform linux/amd64,linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG --build-arg BUILDKIT_INLINE_CACHE=1 --push --pull -f docker/Dockerfile .
+    - name: test
+      arch: arm64 
+      before_script:
+        - docker version
+        - docker info
+        - docker build --platform linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
+      script:
+        - docker run -d $DOCKER_USERNAME/c-runtime:$TAG # Runs the docker container as detached
+        - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
+        - docker kill -s INT $(docker ps -q) # Kill the current container
+        - docker run -t $DOCKER_USERNAME/c-runtime:$TAG ./test.sh # Runs the integration tests in a new container
 
 # DOCKER_USERNAME and DOCKER_ACCESS_TOKEN are defined as a repository secret environment variable on travis-ci.org
 before_deploy:
