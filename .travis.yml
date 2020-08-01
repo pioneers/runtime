@@ -12,44 +12,34 @@ services:
 # requires that commit is for a PR or is on master branch
 if: (type = pull_request) OR (type = push AND branch = master)
 
-_shared_setup: &shared_setup
-  before_script:
-    - docker version
-    - docker info
-    - echo '{"experimental":true}' | sudo tee /etc/docker/daemon.json
-    - sudo service docker restart
-    # - mkdir -p ~/.docker
-    # - echo $"{ \"experimental\":\"enabled\" }" > ~/.docker/config.json
-    - docker version
-    - docker info
 
 jobs:
   include:
-    - name: multiarch
-      arch: amd64
-      <<: *shared_setup
-      # if: type = push AND branch = master
-      script:
-        - echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
-        - docker buildx create --use
-        - docker buildx build --platform linux/amd64,linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG --build-arg BUILDKIT_INLINE_CACHE=1 --push --pull -f docker/Dockerfile .
     - name: test
       arch: arm64 
-      <<: *shared_setup
+      before_script:
+        - echo '{"experimental":true}' | sudo tee /etc/docker/daemon.json   # Need to enable experimental features to choose platform. For some reason, only changing the CLI doesn't work.
+        - sudo service docker restart
       script:
-        - docker build --platform linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG -f docker/Dockerfile . # Build new image with updated code
+        - docker build --platform linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG -f docker/Dockerfile .  # Build new image with updated code for arm32v7
         - docker run -d $DOCKER_USERNAME/c-runtime:$TAG # Runs the docker container as detached
         - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
         - docker kill -s INT $(docker ps -q) # Kill the current container
         - docker run -t $DOCKER_USERNAME/c-runtime:$TAG ./test.sh # Runs the integration tests in a new container
 
-# DOCKER_USERNAME and DOCKER_ACCESS_TOKEN are defined as a repository secret environment variable on travis-ci.org
-before_deploy:
-  - echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-deploy:
-  provider: script
-  script: docker push ${DOCKER_USERNAME}/c-runtime:$TAG
-  on:
-    branch: master
-  edge: true
+    - name: push
+      arch: amd64
+      if: type = push AND branch = master
+      before_script:
+        # Need to install updated version of Docker 19.03 to get experimental features for buildx
+        - sudo rm -rf /var/lib/apt/lists/*
+        - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) edge"
+        - sudo apt-get update
+        - sudo apt-get -y -o Dpkg::Options::="--force-confnew" install docker-ce
+      script:
+        # DOCKER_USERNAME and DOCKER_ACCESS_TOKEN are defined as a repository secret environment variable on travis-ci.org
+        - echo "$DOCKER_ACCESS_TOKEN" | docker login -u "$DOCKER_USERNAME" --password-stdin
+        - docker run --rm --privileged multiarch/qemu-user-static --reset -p yes  # Need to install QEMU to emulate ARM architectures
+        - docker buildx create --use
+        - docker buildx build --platform linux/amd64,linux/arm/v7 -t $DOCKER_USERNAME/c-runtime:$TAG --build-arg BUILDKIT_INLINE_CACHE=1 --push --pull -f docker/Dockerfile .
