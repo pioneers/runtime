@@ -1,6 +1,7 @@
 [Unit]
 Description=test1 service for script1.py
 After=test2.service test3.service test4.service
+OnFailure=test2.service test3.service test4.service test5.service
 
 [Service]
 Type=oneshot
