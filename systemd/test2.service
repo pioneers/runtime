@@ -1,7 +1,8 @@
 [Unit]
 Description=test2 service for script2.py
-Requisite=test5.service
+BindsTo=test3.service test4.service
 After=test5.service
+OnFailure=test1.service
 
 [Service]
 Type=oneshot
@@ -9,4 +10,4 @@ ExecStart=/home/pi/c-runtime/systemd/script2.py
 KillSignal=SIGINT
 
 [Install]
-WantedBy=test5.service
+WantedBy=multi-user.target
