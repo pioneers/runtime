@@ -4,7 +4,7 @@ import time
 
 cur = time.time()
 
-duration = 3
+duration = 4
 
 print("Start script4.py:", cur, flush=True)
 for i in range(duration):

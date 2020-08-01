@@ -3,7 +3,9 @@ Description=test5 service for script5.py
 
 [Service]
 Type=oneshot
-ExecStart=/path/to/script5.py
+ExecStart=/home/jshi/Desktop/c-runtime/systemd-stuff/script5.py
+Restart=on-failure
+KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target
