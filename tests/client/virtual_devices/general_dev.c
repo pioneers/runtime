@@ -5,6 +5,8 @@
 
 #define DEV_TYPE 0xFF
 #define DEV_YEAR 0xFF
+// TODO: Make this non-static for connecting multiple general devices
+#define DEV_UID 0x0123456789ABCDEF
 
 // Boolean value indicating whether we sent an ACK
 uint8_t sent_ack = 0;
@@ -63,7 +65,7 @@ static void init_params(param_val_t params[NUM_PARAMS]) {
     params[GREEN_BOOL].p_b = 0;
     params[BLUE_BOOL].p_b = 0;
     params[PURPLE_BOOL].p_b = 0;
-    params[YELLOW_BOOL].p_b = 0;
+    params[YELLOW_BOOL].p_b = 1;
 }
 
 /**
@@ -163,10 +165,12 @@ void send_message(int fd, message_t *msg) {
 
 void device_write(message_t *dev_write, param_val_t params[NUM_PARAMS]) {
     device_t *dev = get_device(DEV_TYPE);
+    // Get bitmap from payload
     uint32_t pmap;
-    memcpy(&pmap, &dev_write->payload, 4);
+    memcpy(&pmap, &dev_write->payload[0], BITMAP_SIZE);
+    // Process each parameter
     uint8_t *payload_ptr = &dev_write->payload[BITMAP_SIZE];
-    for (int i = 0; (pmap >> i) > 0; i++) {
+    for (int i = 0; ((pmap >> i) > 0) && (i < 32); i++) {
         if (pmap & (1 << i)) {
             // Write to the corresponding field in params[i]
             switch (dev->params[i].type) {
@@ -191,13 +195,13 @@ void device_write(message_t *dev_write, param_val_t params[NUM_PARAMS]) {
 message_t *make_device_data(uint32_t pmap, param_val_t params[NUM_PARAMS]) {
     message_t *dev_data = make_empty(MAX_PAYLOAD_SIZE);
     dev_data->message_id = DEVICE_DATA;
-    dev_data->payload_length = 0;
     // Copy pmap into payload
-    memcpy(&dev_data->payload[0], &pmap, 4);
+    memcpy(&dev_data->payload[0], &pmap, BITMAP_SIZE);
+    dev_data->payload_length = BITMAP_SIZE;
     // Copy params into payload
     device_t *dev = get_device(DEV_TYPE);
-    uint8_t *payload_ptr = &dev_data->payload[4];
-    for (int i = 0; ((pmap >> i) > 0) && (i < 32); i++) {
+    uint8_t *payload_ptr = &dev_data->payload[BITMAP_SIZE];
+    for (int i = 0; ((pmap >> i) > 0) && (i < MAX_PARAMS); i++) {
         if (pmap & (1 << i)) {
             switch(dev->params[i].type) {
                 case INT:
@@ -235,7 +239,7 @@ int main(int argc, char *argv[]) {
     printf("GeneralTestDevice ready with socket fd %d\n", fd);
     uint8_t type = DEV_TYPE;
     uint8_t year = DEV_YEAR;
-    uint64_t uid = millis();
+    uint64_t uid = DEV_UID;
 
     param_val_t params[MAX_PARAMS];
     init_params(params);
@@ -245,9 +249,9 @@ int main(int argc, char *argv[]) {
     message_t *outgoing_msg;
     uint64_t last_sent_ping_time = 0;
     uint64_t last_received_ping_time = millis();
-    uint64_t last_sent_data = 0;
+    uint64_t last_sent_data_time = 0;
     uint32_t subscribed_params = 0;
-    uint16_t subscription_interval = 0xFFFF; // Initialize at max (don't send anything)
+    uint16_t subscription_interval = 0;
     uint64_t last_device_action = 0;
     uint64_t now;
     while (1) {
@@ -268,13 +272,13 @@ int main(int argc, char *argv[]) {
                     break;
 
                 case SUBSCRIPTION_REQUEST:
-                    memcpy(&subscribed_params, &incoming_msg->payload[0], 4);
-                    memcpy(&subscription_interval, &incoming_msg->payload[4], 2);
+                    memcpy(&subscribed_params, &incoming_msg->payload[0], BITMAP_SIZE);
+                    memcpy(&subscription_interval, &incoming_msg->payload[BITMAP_SIZE], INTERVAL_SIZE);
                     printf("Now subscribed to 0x%08X every %d milliseconds\n", subscribed_params, subscription_interval);
                     break;
 
                 case DEVICE_WRITE:
-                    printf("Got DEVICE_WRITE\n");
+                    printf("Got DEVICE_WRITE for 0x%08X\n", *((uint32_t *) incoming_msg->payload));
                     device_write(incoming_msg, params);
                     break;
             }
@@ -298,7 +302,7 @@ int main(int argc, char *argv[]) {
             last_sent_ping_time = now;
         }
         // Check if we should send another DEVICE_DATA
-        if (subscribed_params && ((now - last_sent_data) > subscription_interval)) {
+        if (subscribed_params && ((now - last_sent_data_time) > subscription_interval)) {
             printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
             outgoing_msg = make_device_data(subscribed_params, params);
             send_message(fd, outgoing_msg);
@@ -306,7 +310,6 @@ int main(int argc, char *argv[]) {
         }
         // Change read-only params every 2 seconds
         if ((now - last_device_action) > 2000) {
-            printf("Doing device actions\n");
             device_actions(params);
             last_device_action = now;
         }
