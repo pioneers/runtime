@@ -33,7 +33,7 @@ dev_handler_cli: client/dev_handler_client.c cli/dev_handler_cli.c general_dev
 
 # TODO: Add target for all future virtual devices
 general_dev: client/virtual_devices/general_dev.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
-	gcc $^ -o $@
+	gcc $^ -o client/virtual_devices/GeneralTestDevice
 
 integration/%: $(SRC_FILES)
 	gcc $@.c $(SRC_FILES) -o $* $(LIBS)

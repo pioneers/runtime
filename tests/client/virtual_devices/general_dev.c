@@ -230,12 +230,12 @@ message_t *make_device_data(uint32_t pmap, param_val_t params[NUM_PARAMS]) {
 // ********************************* MAIN *********************************** //
 
 int main(int argc, char *argv[]) {
-    if (argc != 1) {
+    if (argc != 2) {
         printf("Attempted to start GeneralTestDevice without socket fd\n");
         exit(0);
     }
 
-    int fd = atoi(argv[0]);
+    int fd = atoi(argv[1]);
     printf("GeneralTestDevice ready with socket fd %d\n", fd);
     uint8_t type = DEV_TYPE;
     uint8_t year = DEV_YEAR;
