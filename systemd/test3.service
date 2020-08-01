@@ -1,12 +1,12 @@
 [Unit]
 Description=test3 service for script3.py
-BindsTo=test2.service test4.service
+Requisite=test5.service
 After=test5.service
 
 [Service]
 Type=oneshot
-ExecStart=/home/jshi/Desktop/c-runtime/systemd-stuff/script3.py
+ExecStart=/home/pi/c-runtime/systemd/script3.py
 KillSignal=SIGINT
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=test5.service
