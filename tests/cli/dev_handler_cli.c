@@ -53,9 +53,26 @@ int main() {
 		} else if (strcmp(nextcmd, "connect\n") == 0) {
             int is_device = 0;
             while(!is_device){
-			printf("This is the list of devices by name.\n");
-            for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
-                printf("\t%s", devices[i]);
+                printf("This is the list of devices by name.\n");
+                for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
+                    printf("\t%s", devices[i]);
+                }
+                printf("Device name?\n");
+                fflush(stdout);
+                printf("> ");
+                fgets(nextcmd, MAX_CMD_LEN, stdin);
+                for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
+                    if(strcmp(nextcmd, devices[i]) == 0){
+                        nextcmd[strlen(nextcmd) - 1] = '\0'; // Strip off \n character
+                        connect_device(nextcmd);
+                        printf("Device Connected! \n");
+                        is_device = 1;
+                        break;
+                    }
+                }
+                if (!is_device) {
+                    printf("Invalid Device! \n");
+                }
             }
             printf("Device name?\n");
             fflush(stdout);
@@ -69,11 +86,11 @@ int main() {
                     break;
                 }
             }
-           
+
             if(!is_device) {
                 printf("Invalid Device! \n");
             }
-            } 
+            }
 		} else if (strcmp(nextcmd, "disconnect\n") == 0) {
 			printf("Port Number?\n");
             fflush(stdout);
@@ -91,7 +108,7 @@ int main() {
     printf("Exiting Dev Handler CLI...\n");
 
     stop_dev_handler();
-    
+
     printf("Done!\n");
 
     return 0;
