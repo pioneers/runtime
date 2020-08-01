@@ -16,7 +16,7 @@ LineFollower::LineFollower () : Device (DeviceType::LINE_FOLLOWER, 1) {
 size_t LineFollower::device_read(uint8_t param, uint8_t *data_buf) {
     // use data_ptr_float to shove 10-bit sensor reading into the data_buf (even though data_buf is of type uint8_t)
     float *data_ptr_float = (float *)data_buf;
-    *data_ptr_float = ((float) analogRead(this->pins[param])) / 1023;
+    *data_ptr_float = 1.0 - ((float) analogRead(this->pins[param])) / 1023;
     return sizeof(float);
 }
 
