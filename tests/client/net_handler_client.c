@@ -255,8 +255,8 @@ void start_net_handler ()
 			printf("chdir: %s\n", strerror(errno));
 		}
 
-		//exec the actual net_handler process, running in local mode
-		if (execlp("./net_handler_local", "net_handler_local", (char *) 0) < 0) {
+		//exec the actual net_handler process
+		if (execlp("./net_handler", "net_handler", (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 		
