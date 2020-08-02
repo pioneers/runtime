@@ -7,7 +7,7 @@ void start_shm ()
 	//if someone presses Ctrl-C (SIGINT), stop shared memory before exiting
 	signal(SIGINT, stop_shm);
 
-	//fork shm process
+	//fork shm_start process
 	if ((shm_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
 	} else if (shm_pid == 0) { //child
@@ -16,24 +16,45 @@ void start_shm ()
 			printf("chdir: %s\n", strerror(errno));
 		}
 
-		//exec the actual shm process
-		if (execlp("./shm", "shm", (char *) 0) < 0) {
+		//exec the shm_start process
+		if (execlp("./shm_start", "shm", (char *) 0) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
 		sleep(1); //allows shm to set itself up
+		
+		//wait for shm_start process to terminate
+		if (waitpid(shm_pid, NULL, 0) < 0) {
+			printf("waitpid shm: %s\n", strerror(errno));
+		}
+		
+		//init to the now-existing shared memory
 		shm_init();
 	}
 }
 
 void stop_shm ()
 {
-	//send signal to shm process and wait for termination
-	if (kill(shm_pid, SIGINT) < 0) {
-		printf("kill shm: %s\n", strerror(errno));
-	}
-	if (waitpid(shm_pid, NULL, 0) < 0) {
-		printf("waitpid shm: %s\n", strerror(errno));
+	//fork shm_stop process
+	if ((shm_pid = fork()) < 0) {
+		printf("fork: %s\n", strerror(errno));
+	} else if (shm_pid == 0) { //child
+		//cd to the shm_wrapper directory
+		if (chdir("../shm_wrapper") == -1) {
+			printf("chdir: %s\n", strerror(errno));
+		}
+
+		//exec the shm_stop process
+		if (execlp("./shm_stop", "shm", (char *) 0) < 0) {
+			printf("execlp: %s\n", strerror(errno));
+		}
+	} else { //parent
+		sleep(1); //allows shm to set itself up
+		
+		//wait for shm_stop process to terminate
+		if (waitpid(shm_pid, NULL, 0) < 0) {
+			printf("waitpid shm: %s\n", strerror(errno));
+		}
 	}
 }
 
