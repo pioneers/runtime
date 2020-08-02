@@ -23,7 +23,13 @@
 #include "pbc_gen/text.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 
+//this logic defines the port to use as the raspberry pi address
+#ifdef LOCAL
 #define RASPI_ADDR "127.0.0.1"
+#else
+#define RASPI_ADDR "192.168.0.24" // <----------- CHANGE THIS PORT FOR DIFFERENT TEAMS! ------------ <<<
+#endif
+
 #define RASPI_PORT 8101     //well-known port of TCP listening socket used by runtime on raspi
 #define SHEPHERD_PORT 6101
 #define DAWN_PORT 7101
