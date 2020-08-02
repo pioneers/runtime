@@ -108,36 +108,43 @@ void stop_dev_handler() {
     return;
 }
 
-void connect_device(char* dev_exe_name) {
+int connect_device(char* dev_exe_name) {
+    // Connect a socket
     int socket_num = connect_socket();
+    if (socket_num == -1) {
+        return -1;
+    }
+    // printf("Successfuly connected to socket %s%d\n", SOCKET_PREFIX, socket_num);
     used_sockets[socket_num].dev_exe_name = dev_exe_name;
+    // Fork to make child process execute virtual device
     pid_t pid = fork();
     if (pid < 0) {
         printf("connect_device: Couldn't spawn child process %s\n", dev_exe_name);
+        return -1;
     } else if (pid == 0) { // If child process
         // Cd into virtual_devices dir where the device exe is
         if (chdir("client/virtual_devices") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
-
         // Become the virtual device by calling "./<dev_exe_name> <fd>"
         char exe_name[32];
         sprintf(exe_name, "./%s", dev_exe_name);
         char fd_str[2]; // CLI arg to virtual device
         sprintf(fd_str, "%d", used_sockets[socket_num].fd);
-
+        // printf("Spawning %s\n", used_sockets[socket_num].dev_exe_name);
         if (execlp(exe_name, dev_exe_name, fd_str, (char *) NULL) < 0) {
             printf("connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
         }
     } else { // Parent
         used_sockets[socket_num].pid = pid;
     }
+    return 0;
 }
 
-void disconnect_device(int socket_num) {
+int disconnect_device(int socket_num) {
     // Do nothing if socket is unused
-    if (used_sockets[socket_num].fd == -1) {
-        return;
+    if ((socket_num < 0) || (socket_num > MAX_DEVICES) || (used_sockets[socket_num].fd == -1)) {
+        return -1;
     }
     // Kill virtual device process
     kill(used_sockets[socket_num].pid, SIGINT);
@@ -151,16 +158,24 @@ void disconnect_device(int socket_num) {
     used_sockets[socket_num].pid = -1;
     used_sockets[socket_num].fd = -1;
     used_sockets[socket_num].dev_exe_name = "";
+    return 0;
+}
+
+void disconnect_all_devices() {
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        disconnect_device(i);
+    }
 }
 
 void list_devices() {
     printf("SOCKET\tDEVICE\n");
+    fflush(stdout);
     for (int i = 0; i < MAX_DEVICES; i++) {
         // If socket is used, show information
-        //if (used_sockets[i].fd != -1) {
-        printf("  %d\t%s\n", i, used_sockets[i].dev_exe_name);
-        fflush(stdout);
-        //}
+        if (used_sockets[i].fd != -1) {
+            printf("  %d\t%s\n", i, used_sockets[i].dev_exe_name);
+            fflush(stdout);
+        }
     }
     return;
 }
