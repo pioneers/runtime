@@ -70,6 +70,25 @@ typedef struct {
 	param_type_t types[UCHAR_MAX];
 } log_data_shm_t;
 
+// *********************************** SHM EXTERNAL VARIABLES  ******************************************** //
+
+// DO NOT USE THESE UNDER NORMAL CIRCUMSTANCES
+// THESE ARE ONLY USED TO SIMPLIFY CODE IN SHM_START AND SHM_STOP
+
+extern dual_sem_t sems[MAX_DEVICES];      //array of semaphores, two for each possible device (one for data and one for commands)
+extern dev_shm_t *dev_shm_ptr;            //points to memory-mapped shared memory block for device data and commands
+extern sem_t *catalog_sem;                //semaphore used as a mutex on the catalog
+extern sem_t *cmd_map_sem;                //semaphore used as a mutex on the command bitmap
+extern sem_t *sub_map_sem;                //semaphore used as a mutex on the subscription bitmap
+
+extern gamepad_shm_t *gp_shm_ptr;         //points to memory-mapped shared memory block for gamepad
+extern robot_desc_shm_t *rd_shm_ptr;      //points to memory-mapped shared memory block for robot description
+extern sem_t *gp_sem;                     //semaphore used as a mutex on the gamepad
+extern sem_t *rd_sem;                     //semaphore used as a mutex on the robot description
+
+extern log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
+extern sem_t *log_data_sem;			      //semaphore used as a mutex on the log data
+
 // ******************************************* PRINTING UTILITIES ***************************************** //
 
 /*
@@ -113,6 +132,60 @@ void print_gamepad_state ();
  */
 void print_custom_data();
 
+// ****************************************** SEMAPHORE UTILITIES ***************************************** //
+
+/*
+ * Function that generates a semaphore name for the data and command streams
+ * Arguments:
+ *    stream: stream for which the semaphore is created (one of DATA or COMMAND)
+ *    dev_ix: index of device whose STREAM is being created
+ *    name: pointer to a buffer of size SNAME_SIZE into which the name of the semaphore will be put
+ */
+void generate_sem_name (stream_t stream, int dev_ix, char *name);
+
+/*
+ * Custom wrapper function for sem_wait. Prints out descriptive logging message on failure
+ * Arguments:
+ *    sem: pointer to a semaphore to wait on
+ *    sem_desc: string that describes the semaphore being waited on, displayed with error message
+ */
+void my_sem_wait (sem_t *sem, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_post. Prints out descriptive logging message on failure
+ * Arguments:
+ *    sem: pointer to a semaphore to post
+ *    sem_desc: string that describes the semaphore being posted, displayed with error message
+ */
+void my_sem_post (sem_t *sem, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_open. Prints out descriptive logging message on failure
+ * exits (not being able to open a semaphore is fatal to Runtime).
+ * Arguments:
+ *    sem_name: name of a semaphore to be opened
+ *    sem_desc: string that describes the semaphore being opened, displayed with error message
+ * Returns a pointer to the semaphore that was opened.
+ */
+sem_t *my_sem_open (char *sem_name, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_open with create flag. Prints out descriptive logging message on failure
+ * exits (not being able to create and open a semaphore is fatal to Runtime).
+ * Arguments:
+ *    sem_name: name of a semaphore to be created and opened
+ *    sem_desc: string that describes the semaphore being created and opened, displayed with error message
+ * Returns a pointer to the semaphore that was created and opened.
+ */
+sem_t *my_sem_open_create (char *sem_name, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_close. Prints out descriptive logging message on failure
+ * Arguments:
+ *    sem: pointer to a semaphore to close
+ *    sem_desc: string that describes the semaphore being closed, displayed with error message
+ */
+void my_sem_close (sem_t *sem, char *sem_desc);
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
