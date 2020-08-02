@@ -21,15 +21,26 @@ void stop_dev_handler();
  * Connects a virtual device to dev handler
  * Arguments:
  *    dev_exe_name: The name of a virtual device's exe file in /virtual_devices dir
+ * Returns:
+ *    0 on success
+ *    -1 on failure
  */
-void connect_device(char* dev_exe_name);
+int connect_device(char* dev_exe_name);
 
 /**
  * Disconnects a virtual device from dev handler
  * Arguments:
  *    socket_num: The port number returned from connect_device()
+ * Returns:
+ *    0 on success
+ *    -1 if invalid socket number
  */
-void disconnect_device(int socket_num);
+int disconnect_device(int socket_num);
+
+/**
+ * Disconnects all currently connected virtual devices
+ */
+void disconnect_all_devices();
 
 /**
  * Prints the list of connected ports and the corresponding virtual device

@@ -24,16 +24,19 @@ void display_help() {
 
 // ********************************** MAIN PROCESS ****************************************** //
 
-void sigint_handler(int signum) {
+void clean_up() {
+    printf("Exiting Dev Handler CLI...\n");
+    disconnect_all_devices();
     stop_dev_handler();
+    printf("Done!\n");
     exit(0);
 }
 
 int main() {
+    signal(SIGINT, clean_up);
+
     char nextcmd[MAX_CMD_LEN];
     int stop = 1;
-
-    signal(SIGINT, sigint_handler);
 
     printf("Starting Dev Handler CLI...\n");
     fflush(stdout);
@@ -82,6 +85,7 @@ int main() {
             printf("> ");
             fgets(nextcmd, MAX_CMD_LEN, stdin);
             nextcmd[strlen(nextcmd) - 1] = '\0'; // Strip off \n character
+            // TODO: Do nothing if empty input. Currently port_num == 0 if so
             int port_num = atoi(nextcmd);
             disconnect_device(port_num);
         } else if (strcmp(nextcmd, "list") == 0) {
@@ -91,11 +95,6 @@ int main() {
         }
     }
 
-    printf("Exiting Dev Handler CLI...\n");
-
-    stop_dev_handler();
-
-    printf("Done!\n");
-
+    clean_up();
     return 0;
 }
