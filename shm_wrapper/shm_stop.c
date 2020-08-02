@@ -1,52 +1,9 @@
 #include <signal.h>
 #include "shm_wrapper.h"
 
-// *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
-
-dual_sem_t sems[MAX_DEVICES];  //array of semaphores, two for each possible device (one for data and one for commands)
-dev_shm_t *dev_shm_ptr;        //points to memory-mapped shared memory block for device data and commands
-sem_t *catalog_sem;            //semaphore used as a mutex on the catalog
-sem_t *cmd_map_sem;            //semaphore used as a mutex on the command bitmap
-sem_t *sub_map_sem;            //semaphore used as a mutex on the subscription bitmap
-
-gamepad_shm_t *gp_shm_ptr;     //points to memory-mapped shared memory block for gamepad
-robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for robot description
-sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
-sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
-
-log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
-sem_t *log_data_sem;			   //semaphore used as a mutex on the log data
-
-// *********************************** SHM PROCESS FUNCTIONS ************************************************* //
-
 char sname[SNAME_SIZE];   //being lazy here but this is for holding all the semaphore names
 
-void generate_sem_name (stream_t stream, int dev_ix, char *name)
-{
-	if (stream == DATA) {
-		sprintf(name, "/data_sem_%d", dev_ix);
-	} else if (stream == COMMAND) {
-		sprintf(name, "/command_sem_%d", dev_ix);
-	}
-}
-
-// this is the my_sem_open in shm_wrapper.c, not the my_sem_open in shm_start.c
-sem_t *my_sem_open (char *sem_name, char *sem_desc)
-{
-	sem_t *ret;
-	if ((ret = sem_open(sem_name, 0, 0, 0)) == SEM_FAILED) {
-		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
-		exit(1);
-	}
-	return ret;
-}
-
-void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	if (sem_close(sem) == -1) {
-		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
-	}
-}
+// *********************************** SHM PROCESS UTILITIES *********************************************** //
 
 void my_shm_unlink (char *shm_name, char *shm_desc)
 {

@@ -8,7 +8,7 @@ endif
 
 FILES=shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
 
-all: test1 test2 shm static_dev static_aux print shm_start shm_stop
+all: test1 test2 static_dev static_aux print shm_start shm_stop
 
 test1: shm_wrapper_test1.c $(FILES)
 	gcc $^ -o $@ $(LIBS)

@@ -1,66 +1,7 @@
 #include <signal.h>
 #include "shm_wrapper.h"
 
-// *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
-
-dual_sem_t sems[MAX_DEVICES];  //array of semaphores, two for each possible device (one for data and one for commands)
-dev_shm_t *dev_shm_ptr;        //points to memory-mapped shared memory block for device data and commands
-sem_t *catalog_sem;            //semaphore used as a mutex on the catalog
-sem_t *cmd_map_sem;            //semaphore used as a mutex on the command bitmap
-sem_t *sub_map_sem;            //semaphore used as a mutex on the subscription bitmap
-
-gamepad_shm_t *gp_shm_ptr;     //points to memory-mapped shared memory block for gamepad
-robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for robot description
-sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
-sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
-
-log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
-sem_t *log_data_sem;			   //semaphore used as a mutex on the log data
-
-// *********************************** SHM PROCESS FUNCTIONS ************************************************* //
-
 char sname[SNAME_SIZE];   //being lazy here but this is for holding all the semaphore names
-
-void generate_sem_name (stream_t stream, int dev_ix, char *name)
-{
-	if (stream == DATA) {
-		sprintf(name, "/data_sem_%d", dev_ix);
-	} else if (stream == COMMAND) {
-		sprintf(name, "/command_sem_%d", dev_ix);
-	}
-}
-
-//this is NOT the same as the function in shm_wrapper.c! This creates the semaphore with permissions
-sem_t *my_sem_open (char *sem_name, char *sem_desc)
-{
-	sem_t *ret;
-	if ((ret = sem_open(sem_name, O_CREAT, 0660, 1)) == SEM_FAILED) {
-		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
-		exit(1);
-	}
-	return ret;
-}
-
-void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	if (sem_close(sem) == -1) {
-		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
-void my_shm_unlink (char *shm_name, char *shm_desc)
-{
-	if (shm_unlink(shm_name) == -1) {
-		log_printf(ERROR, "shm_unlink: %s. %s", shm_desc, strerror(errno));
-	}
-}
-
-void my_sem_unlink (char *sem_name, char *sem_desc)
-{
-	if (sem_unlink(sem_name) == -1) {
-		log_printf(ERROR, "sem_unlink: %s. %s", sem_desc, strerror(errno));
-	}
-}
 
 int main ()
 {
@@ -70,12 +11,12 @@ int main ()
 	int fd_shm;
 	
 	//create all semaphores with initial value 1
-	catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
-	cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
-	sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
-	gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
-	rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
-	log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
+	catalog_sem = my_sem_open_create(CATALOG_MUTEX_NAME, "catalog mutex");
+	cmd_map_sem = my_sem_open_create(CMDMAP_MUTEX_NAME, "cmd map mutex");
+	sub_map_sem = my_sem_open_create(SUBMAP_MUTEX_NAME, "sub map mutex");
+	gp_sem = my_sem_open_create(GP_MUTEX_NAME, "gamepad mutex");
+	rd_sem = my_sem_open_create(RD_MUTEX_NAME, "robot desc mutex");
+	log_data_sem = my_sem_open_create(LOG_DATA_MUTEX, "log data mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		generate_sem_name(DATA, i, sname); //get the data name
 		if ((sems[i].data_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
