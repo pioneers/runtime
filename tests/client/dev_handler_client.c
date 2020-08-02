@@ -101,10 +101,29 @@ static int connect_socket() {
 // ******************************** Public ********************************* //
 
 void start_dev_handler() {
-    return;
+    
+    // pid_t dev_handler_pid;
+
+    // // Cf someone presses Ctrl-C (SIGINT), stop dev_handler
+    // signal(SIGINT, stop_dev_handler);
+
+    // // Check to see if creation of child is successful
+    // if((dev_handler_pid = fork()) < 0) { 
+    //     printf("fork: %s\n", strerror(errno));
+    // } else if (dev_handler_pid == 0) { // child created!
+    //     //redirect to dev handler folder
+    //     if(chdir("../dev_handler") == -1) {
+    //         printf("chdir: %s\n", strerror(errno));
+    //     //execute the device handler process
+    //     if (execlp("./dev_handler", "virtual", (char *) 0) < 0) {
+    //         printf("execlp: %s\n", strerror(errno));
+    //     }
+    //     } 
+    // } 
 }
 
-void stop_dev_handler() {
+void stop_dev_handler(){
+    
     return;
 }
 
@@ -138,6 +157,7 @@ int connect_device(char* dev_name) {
         sprintf(fd_str, "%d", used_sockets[socket_num]->fd);
         if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, (char *) NULL) < 0) {
             printf("connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
+            return -1;
         }
     } else { // Parent process
         // Take note of child pid so we can kill it in disconnect_device()
