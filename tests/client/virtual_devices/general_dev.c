@@ -119,7 +119,7 @@ int receive_message(int fd, message_t *msg) {
             break;
         }
         // If we were able to read a byte but it wasn't the delimiter
-        printf("Attempting to read delimiter but got 0x%02X\n", last_byte_read);
+        // printf("Attempting to read delimiter but got 0x%02X\n", last_byte_read);
     }
 
     // Read the next byte, which tells how many bytes left are in the message
@@ -236,7 +236,7 @@ int main(int argc, char *argv[]) {
     }
 
     int fd = atoi(argv[1]);
-    printf("GeneralTestDevice ready with socket fd %d\n", fd);
+    // printf("GeneralTestDevice ready with socket fd %d\n", fd);
     uint8_t type = DEV_TYPE;
     uint8_t year = DEV_YEAR;
     uint64_t uid = DEV_UID;
@@ -260,7 +260,7 @@ int main(int argc, char *argv[]) {
             // Got a message
             switch (incoming_msg->message_id) {
                 case PING:
-                    printf("Got PING\n");
+                    // printf("Got PING\n");
                     last_received_ping_time = now;
                     if (!sent_ack) {
                         // Send an ack
@@ -274,11 +274,11 @@ int main(int argc, char *argv[]) {
                 case SUBSCRIPTION_REQUEST:
                     memcpy(&subscribed_params, &incoming_msg->payload[0], BITMAP_SIZE);
                     memcpy(&subscription_interval, &incoming_msg->payload[BITMAP_SIZE], INTERVAL_SIZE);
-                    printf("Now subscribed to 0x%08X every %d milliseconds\n", subscribed_params, subscription_interval);
+                    // printf("Now subscribed to 0x%08X every %d milliseconds\n", subscribed_params, subscription_interval);
                     break;
 
                 case DEVICE_WRITE:
-                    printf("Got DEVICE_WRITE for 0x%08X\n", *((uint32_t *) incoming_msg->payload));
+                    // printf("Got DEVICE_WRITE for 0x%08X\n", *((uint32_t *) incoming_msg->payload));
                     device_write(incoming_msg, params);
                     break;
             }
@@ -295,7 +295,7 @@ int main(int argc, char *argv[]) {
         }
         // Check if we should send another PING
         if ((now - last_sent_ping_time) > PING_FREQ) {
-            printf("Sending PING\n");
+            // printf("Sending PING\n");
             outgoing_msg = make_ping();
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
@@ -303,7 +303,7 @@ int main(int argc, char *argv[]) {
         }
         // Check if we should send another DEVICE_DATA
         if (subscribed_params && ((now - last_sent_data_time) > subscription_interval)) {
-            printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
+            // printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
             outgoing_msg = make_device_data(subscribed_params, params);
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);

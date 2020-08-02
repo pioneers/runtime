@@ -6,18 +6,18 @@
 #define MAX_STRING_SIZE 64
 
 char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] =
-{ "GeneralTestDevice\n",
-  "SimpleTestDevice\n",
-  "UnresponsiveTestDevice\n",
-  "ForeignTestDevice\n",
-  "UnstableTestDevice\n"
+{ "GeneralTestDevice",
+"SimpleTestDevice",
+"UnresponsiveTestDevice",
+"ForeignTestDevice",
+"UnstableTestDevice"
 };
 
 void display_help() {
-	printf("This is the list of commands.\n");
-	printf("All commands should be typed in all lower case.\n");
-	printf("\tstop          stop dev handler process\n");
-	printf("\tconnect       connect specified device\n");
+    printf("This is the list of commands.\n");
+    printf("All commands should be typed in all lower case.\n");
+    printf("\tstop          stop dev handler process\n");
+    printf("\tconnect       connect specified device\n");
     printf("\tdisconnect    disconnect device from specified port\n");
     printf("\tlist          list all currently connected devices and their ports\n");
 }
@@ -35,37 +35,39 @@ int main() {
 
     signal(SIGINT, sigint_handler);
 
-    //asks for student code to execute
-	printf("Starting Dev Handler CLI...\n");
+    printf("Starting Dev Handler CLI...\n");
     fflush(stdout);
-    printf("Please enter device handler command:\n ");
+    printf("Please enter device handler command:\n");
     fflush(stdout);
     start_dev_handler();
 
-    while(stop) {
-        //get the next command
-		printf("> ");
-		fgets(nextcmd, MAX_CMD_LEN, stdin);
+    while (stop) {
+        // Get the next command
+        printf("> ");
+        fgets(nextcmd, MAX_CMD_LEN, stdin);
+        nextcmd[strlen(nextcmd) - 1] = '\0'; // Strip off \n character
 
-        //compare input string against the available commands
-		if (strcmp(nextcmd, "stop\n") == 0) {
-			stop = 0;
-		} else if (strcmp(nextcmd, "connect\n") == 0) {
+        // Compare input string against the available commands
+        if (strcmp(nextcmd, "stop") == 0) {
+            stop = 0;
+        } else if (strcmp(nextcmd, "connect") == 0) {
             int is_device = 0;
-            while(!is_device){
+            // Keep asking until user gives valid device name
+            while (!is_device) {
                 printf("This is the list of devices by name.\n");
                 for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
-                    printf("\t%s", devices[i]);
+                    printf("\t%s\n", devices[i]);
                 }
+                // Ask for which device to connect
                 printf("Device name?\n");
                 fflush(stdout);
                 printf("> ");
                 fgets(nextcmd, MAX_CMD_LEN, stdin);
+                nextcmd[strlen(nextcmd) - 1] = '\0'; // Strip off \n character
                 for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
-                    if(strcmp(nextcmd, devices[i]) == 0){
-                        nextcmd[strlen(nextcmd) - 1] = '\0'; // Strip off \n character
+                    if (strcmp(nextcmd, devices[i]) == 0) {
                         connect_device(nextcmd);
-                        printf("Device Connected! \n");
+                        printf("Device Connected!\n");
                         is_device = 1;
                         break;
                     }
@@ -74,31 +76,15 @@ int main() {
                     printf("Invalid Device! \n");
                 }
             }
-            printf("Device name?\n");
+        } else if (strcmp(nextcmd, "disconnect") == 0) {
+            printf("Port Number?\n");
             fflush(stdout);
             printf("> ");
             fgets(nextcmd, MAX_CMD_LEN, stdin);
-            for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
-                if(strcmp(nextcmd, devices[i]) == 0){
-                    connect_device(nextcmd);
-                    printf("Device Connected! \n");
-                    is_device = 1;
-                    break;
-                }
-            }
-
-            if(!is_device) {
-                printf("Invalid Device! \n");
-            }
-            }
-		} else if (strcmp(nextcmd, "disconnect\n") == 0) {
-			printf("Port Number?\n");
-            fflush(stdout);
-            printf("> ");
-		    fgets(nextcmd, MAX_CMD_LEN, stdin);
+            nextcmd[strlen(nextcmd) - 1] = '\0'; // Strip off \n character
             int port_num = atoi(nextcmd);
             disconnect_device(port_num);
-		} else if (strcmp(nextcmd, "list\n") == 0) {
+        } else if (strcmp(nextcmd, "list") == 0) {
             list_devices();
         } else {
             display_help();
