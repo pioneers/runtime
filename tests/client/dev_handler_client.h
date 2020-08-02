@@ -10,6 +10,7 @@
 #include <stdint.h>     // for int with specific widths
 #include <unistd.h>     // read()
 #include <signal.h>     // for SIGINT (Ctrl+C)
+#include <sys/wait.h>   // for waitpid()
 
 // Starts dev handler with "virtual" argument
 void start_dev_handler();
@@ -20,12 +21,12 @@ void stop_dev_handler();
 /**
  * Connects a virtual device to dev handler
  * Arguments:
- *    dev_exe_name: The name of a virtual device's exe file in /virtual_devices dir
+ *    dev_name: The name of a virtual device's name
  * Returns:
  *    0 on success
  *    -1 on failure
  */
-int connect_device(char* dev_exe_name);
+int connect_device(char* dev_name);
 
 /**
  * Disconnects a virtual device from dev handler
