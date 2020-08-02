@@ -47,8 +47,7 @@ server: protobuf_tests/tcp_pb_server.c pbc_gen/text.pb-c.c
 	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
 
 net_handler: net_util.c net_handler.c udp_conn.c tcp_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c 
-	gcc $^ $(GEN_FILES) -o net_handler $(LIBS) $(LDFLAGS)
-	gcc -D LOCAL $^ $(GEN_FILES) -o net_handler_local $(LIBS) $(LDFLAGS) 
+	gcc $^ $(GEN_FILES) -o net_handler $(LIBS) $(LDFLAGS) 
 
 udp_client: test/udp_client.c ../logger/logger.c ../runtime_util/runtime_util.c
 	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS)

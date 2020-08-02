@@ -19,7 +19,7 @@ clean:
 cli: net_handler_cli shm_cli executor_cli
 
 net_handler_cli: ../net_handler/* client/net_handler_client.* cli/net_handler_cli.c
-	gcc -D LOCAL cli/net_handler_cli.c client/net_handler_client.c ../net_handler/net_util.c ../runtime_util/runtime_util.c \
+	gcc cli/net_handler_cli.c client/net_handler_client.c ../net_handler/net_util.c ../runtime_util/runtime_util.c \
 		../net_handler/pbc_gen/*.c ../logger/logger.c -o $@ $(LIBS)
 
 shm_cli: ../shm_wrapper/* client/shm_client.* cli/shm_cli.c
