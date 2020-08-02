@@ -30,13 +30,6 @@ void generate_sem_name (stream_t stream, int dev_ix, char *name)
 	}
 }
 
-void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	if (sem_close(sem) == -1) {
-		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
 // this is the my_sem_open in shm_wrapper.c, not the my_sem_open in shm_start.c
 sem_t *my_sem_open (char *sem_name, char *sem_desc)
 {
@@ -46,6 +39,13 @@ sem_t *my_sem_open (char *sem_name, char *sem_desc)
 		exit(1);
 	}
 	return ret;
+}
+
+void my_sem_close (sem_t *sem, char *sem_desc)
+{
+	if (sem_close(sem) == -1) {
+		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
+	}
 }
 
 void my_shm_unlink (char *shm_name, char *shm_desc)
