@@ -139,7 +139,6 @@ void poll_connected_devices() {
             // If bit i of CONNECTED_DEVS is on, then it's a new device
             for (int i = 0; (connected_devs >> i) > 0; i++) {
                 if (connected_devs & (1 << i)) {
-                    log_printf(DEBUG, "Starting communication with new device %s%d\n", port_prefix, i);
                     communicate(i);
                 }
             }
@@ -199,15 +198,15 @@ void communicate(uint8_t port_num) {
     if (strcmp(port_prefix, "/tmp/ttyACM") == 0) { // Bind to socket
         relay->file_descriptor = connect_socket(port_name);
         if (relay->file_descriptor == -1) {
-            log_printf(ERROR, "communicate: Couldn't create socket--%s", strerror(errno));
-            free(relay);
+            // log_printf(ERROR, "communicate: Couldn't connect to socket %s\n", port_name);
+            relay_clean_up(relay);
             return;
         }
     } else { // Open serial port
         relay->file_descriptor = serialport_open(port_name);
         if (relay->file_descriptor == -1) {
             log_printf(ERROR, "communicate: Couldn't open port %s\n", port_name);
-            free(relay);
+            relay_clean_up(relay);
             return;
         }
     }
@@ -247,7 +246,6 @@ void *relayer(void *relay_cast) {
     int ret;
 
     // Verify that the device is a lowcar device
-    log_printf(DEBUG, "Verifying that %s%d is lowcar\n", port_prefix, relay->port_num);
     ret = verify_lowcar(relay);
     if (ret != 0) {
         log_printf(DEBUG, "/dev/ttyACM%d couldn't be verified to be a lowcar device", relay->port_num);
@@ -259,7 +257,6 @@ void *relayer(void *relay_cast) {
     // At this point, the device is confirmed to be a lowcar device!
 
     // Connect the lowcar device to shared memory
-    log_printf(DEBUG, "Connecting %s to shared memory\n", get_device_name(relay->dev_id.type));
     device_connect(relay->dev_id, &relay->shm_dev_idx);
 
     // Broadcast to the sender and receiver to start work
@@ -297,6 +294,14 @@ void *relayer(void *relay_cast) {
  *    relay: Struct containing device/thread info used to clean up
  */
 void relay_clean_up(relay_t *relay) {
+    // If couldn't connect to device in the first place, just mark as unused
+    if (relay->file_descriptor == -1) {
+        used_ports &= ~(1 << relay->port_num); // Set bit to 0 to indicate unused
+        free(relay);
+        sleep(TIMEOUT / 1000);
+        return;
+    }
+
     int ret;
     // Cancel the sender and receiver threads when ongoing transfers are completed
     pthread_cancel(relay->sender);
@@ -635,24 +640,24 @@ int verify_lowcar(relay_t *relay) {
  */
 int connect_socket(const char *socket_name) {
     // Make a local socket for sending/receiving raw byte streams
-    int fd;
-    fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd == -1) {
         log_printf(ERROR, "connect_socket: Couldn't create socket--%s", strerror(errno));
         return -1;
     }
     // Connect the socket to the found device's socket address
     // https://www.man7.org/linux/man-pages/man7/unix.7.html
-    struct sockaddr_un dev_socket_addr = {AF_UNIX, ""};
+    struct sockaddr_un dev_socket_addr = {0};
+    dev_socket_addr.sun_family = AF_UNIX;
     strcpy(dev_socket_addr.sun_path, socket_name);
     if (connect(fd, (struct sockaddr *) &dev_socket_addr, sizeof(dev_socket_addr)) != 0) {
-        log_printf(ERROR, "connect_socket: Couldn't connect socket--%s", strerror(errno));
+        log_printf(ERROR, "connect_socket: Couldn't connect socket %s--%s", dev_socket_addr.sun_path, strerror(errno));
         return -1;
     }
 
     // Set read() to timeout for up to TIMEOUT milliseconds
     struct timeval tv;
-    tv.tv_sec = TIMEOUT;
+    tv.tv_sec = TIMEOUT / 1000;
     tv.tv_usec = 0;
     setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
     return fd;
