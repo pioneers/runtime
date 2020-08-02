@@ -16,50 +16,7 @@ sem_t *rd_sem;                 //semaphore used as a mutex on the robot descript
 log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
 sem_t *log_data_sem;			   //semaphore used as a mutex on the log data
 
-// ******************************************* SEMAPHORE UTILITIES **************************************** //
-
-static void my_sem_wait (sem_t *sem, char *sem_desc)
-{
-	if (sem_wait(sem) == -1) {
-		log_printf(ERROR, "sem_wait: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
-static void my_sem_post (sem_t *sem, char *sem_desc)
-{
-	if (sem_post(sem) == -1) {
-		log_printf(ERROR, "sem_post: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
-static sem_t *my_sem_open (char *sem_name, char *sem_desc)
-{
-	sem_t *ret;
-	if ((ret = sem_open(sem_name, 0, 0, 0)) == SEM_FAILED) {
-		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
-		exit(1);
-	}
-	return ret;
-}
-
-static void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	if (sem_close(sem) == -1) {
-		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
 // ******************************************** HELPER FUNCTIONS ****************************************** //
-
-//function for generating device data and command semaphore names
-static void generate_sem_name (stream_t stream, int dev_ix, char *name)
-{
-	if (stream == DATA) {
-		sprintf(name, "/data_sem_%d", dev_ix);
-	} else if (stream == COMMAND) {
-		sprintf(name, "/command_sem_%d", dev_ix);
-	}
-}
 
 //function for printing bitmap that is NUM_BITS long
 static void print_bitmap (int num_bits, uint32_t bitmap)
@@ -157,6 +114,58 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 		my_sem_post(sems[dev_ix].data_sem, "data sem @device_write");
 	} else {
 		my_sem_post(sems[dev_ix].command_sem, "command sem @device_write");
+	}
+}
+
+// ************************************* PUBLIC SEMAPHORE UTILITIES *************************************** //
+
+void generate_sem_name (stream_t stream, int dev_ix, char *name)
+{
+	if (stream == DATA) {
+		sprintf(name, "/data_sem_%d", dev_ix);
+	} else if (stream == COMMAND) {
+		sprintf(name, "/command_sem_%d", dev_ix);
+	}
+}
+
+void my_sem_wait (sem_t *sem, char *sem_desc)
+{
+	if (sem_wait(sem) == -1) {
+		log_printf(ERROR, "sem_wait: %s. %s", sem_desc, strerror(errno));
+	}
+}
+
+void my_sem_post (sem_t *sem, char *sem_desc)
+{
+	if (sem_post(sem) == -1) {
+		log_printf(ERROR, "sem_post: %s. %s", sem_desc, strerror(errno));
+	}
+}
+
+sem_t *my_sem_open (char *sem_name, char *sem_desc)
+{
+	sem_t *ret;
+	if ((ret = sem_open(sem_name, 0, 0, 0)) == SEM_FAILED) {
+		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
+		exit(1);
+	}
+	return ret;
+}
+
+sem_t *my_sem_open_create (char *sem_name, char *sem_desc)
+{
+	sem_t *ret;
+	if ((ret = sem_open(sem_name, O_CREAT, 0660, 1)) == SEM_FAILED) {
+		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
+		exit(1);
+	}
+	return ret;
+}
+
+void my_sem_close (sem_t *sem, char *sem_desc)
+{
+	if (sem_close(sem) == -1) {
+		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
 	}
 }
 
