@@ -13,7 +13,8 @@
 typedef struct {
     pid_t pid;          // The process id of the virtual device
     int fd;             // The socket's file descriptor
-    char *dev_name; // The name of the virtual device's name
+    char *dev_name;     // The name of the virtual device's name
+    uint64_t dev_uid;   // The device uid
 } device_socket_t;
 
 // ****************************** GLOBAL VARS ******************************* //
@@ -101,14 +102,14 @@ static int connect_socket() {
 // ******************************** Public ********************************* //
 
 void start_dev_handler() {
-    
+
     // pid_t dev_handler_pid;
 
     // // Cf someone presses Ctrl-C (SIGINT), stop dev_handler
     // signal(SIGINT, stop_dev_handler);
 
     // // Check to see if creation of child is successful
-    // if((dev_handler_pid = fork()) < 0) { 
+    // if((dev_handler_pid = fork()) < 0) {
     //     printf("fork: %s\n", strerror(errno));
     // } else if (dev_handler_pid == 0) { // child created!
     //     //redirect to dev handler folder
@@ -118,27 +119,26 @@ void start_dev_handler() {
     //     if (execlp("./dev_handler", "virtual", (char *) 0) < 0) {
     //         printf("execlp: %s\n", strerror(errno));
     //     }
-    //     } 
-    // } 
+    //     }
+    // }
 }
 
 void stop_dev_handler(){
-    
+
     return;
 }
 
-// TODO: Require year and UID
-int connect_device(char* dev_name) {
+int connect_device(char *dev_name, uint64_t uid) {
     // Connect a socket
     int socket_num = connect_socket();
     if (socket_num == -1) {
         return -1;
     }
-    // printf("Successfuly connected to socket %s%d\n", SOCKET_PREFIX, socket_num);
 
     // Take note of the type of device connected
     used_sockets[socket_num]->dev_name = malloc(strlen(dev_name));
     strcpy(used_sockets[socket_num]->dev_name, dev_name);
+    used_sockets[socket_num]->dev_uid = uid;
 
     // Fork to make child process execute virtual device
     pid_t pid = fork();
@@ -150,12 +150,12 @@ int connect_device(char* dev_name) {
         if (chdir("client/virtual_devices") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
-        // Become the virtual device by calling "./<dev_name> <fd>"
-        char exe_name[32];
+        // Become the virtual device by calling "./<dev_name> <fd> <uid>"
+        char exe_name[32], fd_str[2], uid_str[20];
         sprintf(exe_name, "./%s", used_sockets[socket_num]->dev_name);
-        char fd_str[2]; // CLI arg to virtual device
         sprintf(fd_str, "%d", used_sockets[socket_num]->fd);
-        if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, (char *) NULL) < 0) {
+        sprintf(uid_str, "0x%016llX", uid);
+        if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, uid_str, (char *) NULL) < 0) {
             printf("connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
             return -1;
         }
@@ -193,15 +193,14 @@ void disconnect_all_devices() {
     }
 }
 
-// TODO: List UIDs as well
 void list_devices() {
     printf("\n");
-    printf("SOCKET\tDEVICE\n");
+    printf("SOCKET\tDEVICE NAME\t\tUID\n");
     fflush(stdout);
     for (int i = 0; i < MAX_DEVICES; i++) {
         // If socket is used, show information
         if (used_sockets[i] != NULL) {
-            printf("  %d\t%s\n", i, used_sockets[i]->dev_name);
+            printf("  %d\t%s\t0x%016llX\n", i, used_sockets[i]->dev_name, used_sockets[i]->dev_uid);
             fflush(stdout);
         }
     }

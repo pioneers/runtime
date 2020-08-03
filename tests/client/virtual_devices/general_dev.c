@@ -4,9 +4,8 @@
 #define NUM_PARAMS 32
 
 #define DEV_TYPE 0xFF
-#define DEV_YEAR 0xFF
-// TODO: Make this non-static for connecting multiple general devices
-#define DEV_UID 0x0123456789ABCDEF
+// Because why not
+#define DEV_YEAR DEV_TYPE
 
 // Boolean value indicating whether we sent an ACK
 uint8_t sent_ack = 0;
@@ -33,39 +32,39 @@ enum {
  *    params: Array of params to be initialized
  */
 static void init_params(param_val_t params[NUM_PARAMS]) {
-    params[INCREASING_ODD].p_i = 1;
-    params[DECREASING_ODD].p_i = -1;
-    params[INCREASING_EVEN].p_i = 0;
-    params[DECREASING_EVEN].p_i = 0;
-    params[INCREASING_FLIP].p_i = 0;
-    params[ALWAYS_LEET].p_i = 1337;
-    params[DOUBLING].p_f = 1;
-    params[DOUBLING_NEG].p_f = -1;
-    params[HALFING].p_f = 1048576; // 2^20
-    params[HALFING_NEG].p_f = -1048576;
-    params[EXP_ONE_PT_ONE].p_f = 1;
-    params[EXP_ONE_PT_TWO].p_f = 1;
-    params[ALWAYS_PI].p_f = 3.14159265359;
-    params[FLIP_FLOP].p_b = 1;
-    params[ALWAYS_TRUE].p_b = 1;
-    params[ALWAYS_FALSE].p_b = 0;
+    params[INCREASING_ODD].p_i      = 1;
+    params[DECREASING_ODD].p_i      = -1;
+    params[INCREASING_EVEN].p_i     = 0;
+    params[DECREASING_EVEN].p_i     = 0;
+    params[INCREASING_FLIP].p_i     = 0;
+    params[ALWAYS_LEET].p_i         = 1337;
+    params[DOUBLING].p_f            = 1;
+    params[DOUBLING_NEG].p_f        = -1;
+    params[HALFING].p_f             = 1048576; // 2^20
+    params[HALFING_NEG].p_f         = -1048576;
+    params[EXP_ONE_PT_ONE].p_f      = 1;
+    params[EXP_ONE_PT_TWO].p_f      = 1;
+    params[ALWAYS_PI].p_f           = 3.14159265359;
+    params[FLIP_FLOP].p_b           = 1;
+    params[ALWAYS_TRUE].p_b         = 1;
+    params[ALWAYS_FALSE].p_b        = 0;
     // Read and Write
-    params[RED_INT].p_i = 0;
-    params[ORANGE_INT].p_i = 0;
-    params[GREEN_INT].p_i = 0;
-    params[BLUE_INT].p_i = 0;
-    params[PURPLE_INT].p_i = 0;
-    params[RED_FLOAT].p_f = 0;
-    params[ORANGE_FLOAT].p_f = 0;
-    params[GREEN_FLOAT].p_f = 0;
-    params[BLUE_FLOAT].p_f = 0;
-    params[PURPLE_FLOAT].p_f = 0;
-    params[RED_BOOL].p_b = 0;
-    params[ORANGE_BOOL].p_b = 0;
-    params[GREEN_BOOL].p_b = 0;
-    params[BLUE_BOOL].p_b = 0;
-    params[PURPLE_BOOL].p_b = 0;
-    params[YELLOW_BOOL].p_b = 1;
+    params[RED_INT].p_i         = 1;
+    params[ORANGE_INT].p_i      = 2;
+    params[GREEN_INT].p_i       = 3;
+    params[BLUE_INT].p_i        = 4;
+    params[PURPLE_INT].p_i      = 5;
+    params[RED_FLOAT].p_f       = 6.6;
+    params[ORANGE_FLOAT].p_f    = 7.7;
+    params[GREEN_FLOAT].p_f     = 8.8;
+    params[BLUE_FLOAT].p_f      = 9.9;
+    params[PURPLE_FLOAT].p_f    = 10.1;
+    params[RED_BOOL].p_b        = 1;
+    params[ORANGE_BOOL].p_b     = 1;
+    params[GREEN_BOOL].p_b      = 1;
+    params[BLUE_BOOL].p_b       = 1;
+    params[PURPLE_BOOL].p_b     = 1;
+    params[YELLOW_BOOL].p_b     = 1;
 }
 
 /**
@@ -229,17 +228,22 @@ message_t *make_device_data(uint32_t pmap, param_val_t params[NUM_PARAMS]) {
 
 // ********************************* MAIN *********************************** //
 
+/**
+ * A device that behaves like a lowcar device, connected to dev handler via a socket
+ * Arguments:
+ *    int: file descriptor for the socket
+ *    uint64_t: device uid
+ */
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("Attempted to start GeneralTestDevice without socket fd\n");
-        exit(0);
+    if (argc != 3) {
+        printf("Incorrect number of arguments: %d out of %d\n", argc, 3);
+        exit(1);
     }
 
     int fd = atoi(argv[1]);
-    // printf("GeneralTestDevice ready with socket fd %d\n", fd);
     uint8_t type = DEV_TYPE;
     uint8_t year = DEV_YEAR;
-    uint64_t uid = DEV_UID;
+    uint64_t uid = strtoull(argv[2], NULL, 0);
 
     param_val_t params[MAX_PARAMS];
     init_params(params);

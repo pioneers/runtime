@@ -8,7 +8,7 @@
 #include <sys/socket.h> // for sockets
 #include <sys/un.h>     // for sockaddr_un
 #include <stdint.h>     // for int with specific widths
-#include <unistd.h>     // read()
+#include <unistd.h>     // for read()
 #include <signal.h>     // for SIGINT (Ctrl+C)
 #include <sys/wait.h>   // for waitpid()
 
@@ -22,11 +22,12 @@ void stop_dev_handler();
  * Connects a virtual device to dev handler
  * Arguments:
  *    dev_name: The name of a virtual device's name
+ *    uid: The uid to designate the device
  * Returns:
  *    0 on success
  *    -1 on failure
  */
-int connect_device(char* dev_name);
+int connect_device(char *dev_name, uint64_t uid);
 
 /**
  * Disconnects a virtual device from dev handler
