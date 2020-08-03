@@ -21,8 +21,6 @@ void start_shm ()
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
-		sleep(1); //allows shm to set itself up
-		
 		//wait for shm_start process to terminate
 		if (waitpid(shm_pid, NULL, 0) < 0) {
 			printf("waitpid shm: %s\n", strerror(errno));
@@ -49,8 +47,6 @@ void stop_shm ()
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
-		sleep(1); //allows shm to set itself up
-		
 		//wait for shm_stop process to terminate
 		if (waitpid(shm_pid, NULL, 0) < 0) {
 			printf("waitpid shm: %s\n", strerror(errno));
