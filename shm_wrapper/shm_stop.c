@@ -97,7 +97,7 @@ int main ()
 		log_printf(ERROR, "close log_data_shm: %s", strerror(errno));
 	}
     
-     // ******************************* CLOSE + UNLINK EVERYTHING ************************** //
+     // ******************************* UNLINK + CLOSE EVERYTHING ************************** //
     
 	//unmap all shared memory blocks
 	if (munmap(dev_shm_ptr, sizeof(dev_shm_t)) == -1) {
@@ -149,5 +149,10 @@ int main ()
 		}
 	}
 	
-	return 1; //returns with 1 to start up 
+    /*
+     * Under normal production circumstances, this program should never be run (it only runs when net_handler, executor, or dev_handler
+     * crash abnormally). So, systemd needs to know that this process "failed" so that it can run shm_start to try and boot up Runtime
+     * again. A nonzero exit status is a failure, so we return 1 here to tell systemd that this process "failed".
+     */
+	return 1;
 }
