@@ -157,6 +157,7 @@ ssize_t message_to_bytes(message_t *msg, uint8_t cobs_encoded[], size_t len);
  *    0 if successful parsing
  *    1 if incorrect checksum
  *    2 if max_payload_length is too small
+ *    3 if invalid message (decoded message has invalid length)
  */
 int parse_message(uint8_t data[], message_t *empty_msg);
 

@@ -11,10 +11,6 @@
 #include "../../../dev_handler/message.h"
 #include "../../../runtime_util/runtime_util.h"
 
-#define PING_FREQ 1000
-
-#define TIMEOUT 2500
-
 /**
  * Builds an ACKNOWLEDGEMENT message.
  * Arguments:
@@ -52,18 +48,32 @@ void send_message(int fd, message_t *msg);
 /**
  * Processes a DEVICE_WRITE message, writing to params as appropriate
  * Arguments:
+ *    type: The device of device being written to
  *    dev_write: A DEVICE_WRITE message to process
  *    params: Array of params to be written to
  */
-void device_write(message_t *dev_write, param_val_t params[]);
+void device_write(uint8_t type, message_t *dev_write, param_val_t params[]);
 
 /**
  * Builds a DEVICE_DATA message, reading params as appropriate
  * Arguments:
+ *    type: The type of device being read from
  *    dev_data: message_t to be populated with the requested data
  *    pmap: bitmap indicating which params should be read into DEV_DATA
  *    params: Array of params to be read from
  */
-message_t *make_device_data(uint32_t pmap, param_val_t params[]);
+message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
+
+/**
+ * Executes the lowcar protocol, receiving/responding to messages, and sending
+ * messages as appropriate
+ * Arguments:
+ *    fd: The file descriptor to read from and write to
+ *    type: The device type
+ *    year: The device year
+ *    uid: The device uid
+ *    params: Array of parameters to work with
+ */
+void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, param_val_t params[]);
 
 #endif

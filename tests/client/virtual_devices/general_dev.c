@@ -1,11 +1,10 @@
 #include "general_dev.h"
 
-// The number of parameters for this device
-#define NUM_PARAMS 32
+// How often we send PING to dev handler
+#define PING_FREQ 1000
 
-#define DEV_TYPE 0xFF
-// Because why not
-#define DEV_YEAR DEV_TYPE
+// Longest time period we tolerate not having a PING
+#define TIMEOUT 2500
 
 // Boolean value indicating whether we sent an ACK
 uint8_t sent_ack = 0;
@@ -31,7 +30,7 @@ enum {
  * Arguments:
  *    params: Array of params to be initialized
  */
-static void init_params(param_val_t params[NUM_PARAMS]) {
+static void init_params(param_val_t params[]) {
     params[INCREASING_ODD].p_i      = 1;
     params[DECREASING_ODD].p_i      = -1;
     params[INCREASING_EVEN].p_i     = 0;
@@ -72,7 +71,7 @@ static void init_params(param_val_t params[NUM_PARAMS]) {
  * Arguments:
  *    params: Array of param values to be modified
  */
-static void device_actions(param_val_t params[NUM_PARAMS]) {
+static void device_actions(param_val_t params[]) {
     params[INCREASING_ODD].p_i += 2;
     params[DECREASING_ODD].p_i -= 2;
     params[INCREASING_EVEN].p_i += 2;
@@ -162,8 +161,8 @@ void send_message(int fd, message_t *msg) {
     free(data);
 }
 
-void device_write(message_t *dev_write, param_val_t params[NUM_PARAMS]) {
-    device_t *dev = get_device(DEV_TYPE);
+void device_write(uint8_t type, message_t *dev_write, param_val_t params[]) {
+    device_t *dev = get_device(type);
     // Get bitmap from payload
     uint32_t pmap;
     memcpy(&pmap, &dev_write->payload[0], BITMAP_SIZE);
@@ -191,14 +190,14 @@ void device_write(message_t *dev_write, param_val_t params[NUM_PARAMS]) {
     }
 }
 
-message_t *make_device_data(uint32_t pmap, param_val_t params[NUM_PARAMS]) {
+message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]) {
     message_t *dev_data = make_empty(MAX_PAYLOAD_SIZE);
     dev_data->message_id = DEVICE_DATA;
     // Copy pmap into payload
     memcpy(&dev_data->payload[0], &pmap, BITMAP_SIZE);
     dev_data->payload_length = BITMAP_SIZE;
     // Copy params into payload
-    device_t *dev = get_device(DEV_TYPE);
+    device_t *dev = get_device(type);
     uint8_t *payload_ptr = &dev_data->payload[BITMAP_SIZE];
     for (int i = 0; ((pmap >> i) > 0) && (i < MAX_PARAMS); i++) {
         if (pmap & (1 << i)) {
@@ -228,26 +227,7 @@ message_t *make_device_data(uint32_t pmap, param_val_t params[NUM_PARAMS]) {
 
 // ********************************* MAIN *********************************** //
 
-/**
- * A device that behaves like a lowcar device, connected to dev handler via a socket
- * Arguments:
- *    int: file descriptor for the socket
- *    uint64_t: device uid
- */
-int main(int argc, char *argv[]) {
-    if (argc != 3) {
-        printf("Incorrect number of arguments: %d out of %d\n", argc, 3);
-        exit(1);
-    }
-
-    int fd = atoi(argv[1]);
-    uint8_t type = DEV_TYPE;
-    uint8_t year = DEV_YEAR;
-    uint64_t uid = strtoull(argv[2], NULL, 0);
-
-    param_val_t params[MAX_PARAMS];
-    init_params(params);
-
+void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, param_val_t params[]) {
     // Every cycle, read a message and respond accordingly, then send messages as needed
     message_t *incoming_msg = make_empty(MAX_PAYLOAD_SIZE);
     message_t *outgoing_msg;
@@ -283,7 +263,7 @@ int main(int argc, char *argv[]) {
 
                 case DEVICE_WRITE:
                     // printf("Got DEVICE_WRITE for 0x%08X\n", *((uint32_t *) incoming_msg->payload));
-                    device_write(incoming_msg, params);
+                    device_write(type, incoming_msg, params);
                     break;
             }
         }
@@ -308,7 +288,7 @@ int main(int argc, char *argv[]) {
         // Check if we should send another DEVICE_DATA
         if (subscribed_params && ((now - last_sent_data_time) > subscription_interval)) {
             // printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
-            outgoing_msg = make_device_data(subscribed_params, params);
+            outgoing_msg = make_device_data(type, subscribed_params, params);
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
         }
@@ -318,4 +298,29 @@ int main(int argc, char *argv[]) {
             last_device_action = now;
         }
     }
+}
+
+/**
+ * A device that behaves like a lowcar device, connected to dev handler via a socket
+ * Arguments:
+ *    int: file descriptor for the socket
+ *    uint64_t: device uid
+ */
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        printf("Incorrect number of arguments: %d out of %d\n", argc, 3);
+        exit(1);
+    }
+
+    int fd = atoi(argv[1]);
+    uint64_t uid = strtoull(argv[2], NULL, 0);
+
+    uint8_t dev_type = 0xFF;
+    device_t *dev = get_device(dev_type);
+
+    param_val_t params[dev->num_params];
+    init_params(params);
+
+    lowcar_protocol(fd, dev_type, dev_type, uid, params);
+    return 0;
 }

@@ -16,7 +16,9 @@ all: $(TEST_FILES) cli
 clean:
 	rm -f  $(shell find -type f ! -name "*.*" ! -name "Makefile")
 
-cli: net_handler_cli shm_cli executor_cli
+################################## CLI TARGETS #################################
+
+cli: net_handler_cli shm_cli executor_cli dev_handler_cli
 
 net_handler_cli: ../net_handler/* client/net_handler_client.* cli/net_handler_cli.c
 	gcc cli/net_handler_cli.c client/net_handler_client.c ../net_handler/net_util.c ../runtime_util/runtime_util.c \
@@ -28,12 +30,28 @@ shm_cli: ../shm_wrapper/* client/shm_client.* cli/shm_cli.c
 executor_cli: ../executor/* client/executor_client.* cli/executor_cli.c
 	gcc cli/executor_cli.c client/executor_client.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
-dev_handler_cli: client/dev_handler_client.c cli/dev_handler_cli.c general_dev
+dev_handler_cli: client/dev_handler_client.c cli/dev_handler_cli.c devices
 	gcc client/dev_handler_client.c cli/dev_handler_cli.c -o $@
+
+################################ VIRTUAL DEVICES ###############################
+
+devices: general_dev unresponsive_dev foreign_dev
 
 # TODO: Add target for all future virtual devices
 general_dev: client/virtual_devices/general_dev.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
 	gcc $^ -o client/virtual_devices/GeneralTestDevice
+
+# simple_dev: client/virtual_devices/simple_dev.c client/virtual_devices/general_dev.c ../runtime_util/runtime_util.c
+# 	make general_dev
+# 	gcc $^ -o client/virtual_devices/SimpleTestDevice
+
+unresponsive_dev: client/virtual_devices/unresponsive_dev.c
+	gcc $^ -o client/virtual_devices/UnresponsiveTestDevice
+
+foreign_dev: client/virtual_devices/foreign_dev.c
+	gcc $^ -o client/virtual_devices/ForeignTestDevice
+
+##################################### TESTS ####################################
 
 integration/%: $(SRC_FILES)
 	gcc $@.c $(SRC_FILES) -o $* $(LIBS)

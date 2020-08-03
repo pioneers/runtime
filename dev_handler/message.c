@@ -81,7 +81,7 @@ static uint8_t checksum(uint8_t *data, size_t len) {
 /**
  * A macro to help with cobs_encode
  */
-#define finish_block() {		\
+#define finish_block() {        \
     *block_len_loc = block_len; \
     block_len_loc = dst++;      \
     out_len++;                  \
@@ -273,20 +273,30 @@ ssize_t message_to_bytes(message_t *msg, uint8_t cobs_encoded[], size_t len) {
 }
 
 int parse_message(uint8_t data[], message_t *msg_to_fill) {
-    uint8_t *decoded = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->max_payload_length + CHECKSUM_SIZE);
-    int ret = cobs_decode(decoded, &data[2], data[1]);
+    uint8_t cobs_len = data[1];
+    uint8_t *decoded = malloc(cobs_len); // Actual number of bytes populated will be a couple less due to overhead
+    int ret = cobs_decode(decoded, &data[2], cobs_len);
+    if (ret < (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + CHECKSUM_SIZE)) {
+        // Smaller than valid message
+        free(decoded);
+        return 3;
+    } else if (ret > (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE)) {
+        // Larger than the largest valid message
+        free(decoded);
+        return 3;
+    }
     msg_to_fill->message_id = decoded[0];
     msg_to_fill->payload_length = 0;
-    msg_to_fill->max_payload_length = decoded[1];
-    ret = append_payload(msg_to_fill, &decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE], decoded[1]);
+    msg_to_fill->max_payload_length = decoded[MESSAGE_ID_SIZE];
+    ret = append_payload(msg_to_fill, &decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE], msg_to_fill->max_payload_length);
     if (ret != 0) {
-        log_printf(ERROR, "Overwrote to payload\n");
+        log_printf(ERROR, "parse_message: Overwrote to payload\n");
         return 2;
     }
-    char expected_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
-    char received_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
+    uint8_t expected_checksum = checksum(decoded, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length);
+    uint8_t received_checksum = decoded[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg_to_fill->payload_length];
     if (expected_checksum != received_checksum) {
-        log_printf(ERROR, "Expected checksum 0x%02X. Received 0x%02X\n", expected_checksum, received_checksum);
+        log_printf(ERROR, "parse_message: Expected checksum 0x%02X. Received 0x%02X\n", expected_checksum, received_checksum);
     }
     free(decoded);
     return (expected_checksum != received_checksum) ? 1 : 0;
