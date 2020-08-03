@@ -34,13 +34,12 @@ void clean_up() {
     exit(0);
 }
 
-void remove_newline(char * nextcmd) {
+void remove_newline(char *nextcmd) {
     nextcmd[strlen(nextcmd) - 1] = '\0';
 }
 
 void prompt_device_connect() {
-    int is_device = 0;
-    while(!is_device) {
+    while(1) {
         printf("This is the list of devices by name. Type in number on left to use device\n");
         for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
             printf("\t%d    %s\n", i, devices[i]);
@@ -50,7 +49,7 @@ void prompt_device_connect() {
         fflush(stdout);
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-        char * input;
+        char *input;
         long int dev_number; 
         dev_number = strtol(nextcmd, &input, 0);
         if(dev_number >= 0 && dev_number < 5 && strlen(input) == 1 && strlen(nextcmd) > 1) {
@@ -60,18 +59,19 @@ void prompt_device_connect() {
             fgets(nextcmd, MAX_CMD_LEN, stdin);
             uint64_t uid;
             remove_newline(nextcmd);
-            printf("Connecting %s\n with UID of value %llu\n", devices[dev_number], uid);
+            uid = strtoull(nextcmd, NULL, 0);
+            printf("Connecting %s with UID of value %llu\n", devices[dev_number], uid);
             if(connect_device(devices[dev_number], uid) == 0) {
                 fflush(stdout);
                 printf("Device connected!\n");
-                is_device = 1;
+                break;
             } else {
                 printf("Device connection failed!\n");
-                is_device = 1;
+                break;
                 }
         } else if (dev_number == 5) {
             printf("Device connecting cancelled \n");
-            is_device = 1;
+            break;
         } else {
             printf("Invalid Device! \n");
         }
@@ -79,28 +79,27 @@ void prompt_device_connect() {
 }
 
 void prompt_device_disconnect() {
-    int is_port = 0;
-    while(!is_port) {
+    while(1) {
         list_devices();
         printf("Socket Number?\n");
         fflush(stdout);
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         remove_newline(nextcmd);
-        char * input;
+        char *input;
         int port_num = strtol(nextcmd, &input, 0);
         if(strlen(input) == 0 && strlen(input) == 0 && strlen(nextcmd) > 0) {
             printf("Disconnecting port %d\n", port_num);
             if(disconnect_device(port_num) == 0) {
                 printf("Device disconnected!\n");
-                is_port = 1;
+                break;
             } else {
                 printf("Device disconnect unsuccesful!\n");
-                is_port = 1;
+                break;
             }
         } else if(strcmp(input, "cancel") == 0) {
             printf("Cancelling disconnect!\n");
-            is_port = 1;
+            break;
         } else {
             printf("Invalid input!\n");
         }
