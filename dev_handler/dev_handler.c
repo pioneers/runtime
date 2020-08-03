@@ -263,13 +263,13 @@ void *relayer(void *relay_cast) {
     pthread_cond_broadcast(&relay->start_cond);
 
     // If the device disconnects or times out, clean up
-    log_printf(DEBUG, "Relayer monitoring %s", get_device_name(relay->dev_id.type));
+    log_printf(DEBUG, "Monitoring %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
     char port_name[14];
     sprintf(port_name, "%s%d", port_prefix, relay->port_num);
     while (1) {
         // If Arduino port file doesn't exist, it disconnected
         if (access(port_name, F_OK) == -1) {
-            log_printf(INFO, "%s disconnected!", get_device_name(relay->dev_id.type));
+            log_printf(INFO, "%s (0x%016llX) disconnected!", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             relay_clean_up(relay);
             return NULL;
         }
@@ -277,7 +277,7 @@ void *relayer(void *relay_cast) {
         pthread_mutex_lock(&relay->relay_lock);
         if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
             pthread_mutex_unlock(&relay->relay_lock);
-            log_printf(WARN, "%s timed out!", get_device_name(relay->dev_id.type));
+            log_printf(WARN, "%s (0x%016llX) timed out!", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             relay_clean_up(relay);
             return NULL;
         }
@@ -307,10 +307,10 @@ void relay_clean_up(relay_t *relay) {
     pthread_cancel(relay->sender);
     pthread_cancel(relay->receiver);
     if ((ret = pthread_join(relay->sender, NULL)) != 0) {
-        log_printf(ERROR, "relay_clean_up: pthread_join on relay->sender failed with error code %d", ret);
+        log_printf(ERROR, "relay_clean_up: pthread_join on sender failed -- error: %d", ret);
     }
     if ((ret = pthread_join(relay->receiver, NULL)) != 0) {
-        log_printf(ERROR, "relay_clean_up: pthread_join on relay->receiver failed with error code %d", ret);
+        log_printf(ERROR, "relay_clean_up: pthread_join on receiver failed -- error: %d", ret);
     }
 
     // Disconnect the device from shared memory if it's connected
@@ -331,7 +331,11 @@ void relay_clean_up(relay_t *relay) {
     pthread_mutex_unlock(&used_ports_lock);
     pthread_mutex_destroy(&relay->relay_lock);
     pthread_cond_destroy(&relay->start_cond);
-    log_printf(DEBUG, "Cleaned up threads for %s", get_device_name(relay->dev_id.type));
+    if (relay->dev_id.uid == -1) {
+        log_printf(DEBUG, "Cleaned up bad device %s%d\n", port_prefix, relay->port_num);
+    } else {
+        log_printf(DEBUG, "Cleaned up %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
+    }
     free(relay);
 }
 
@@ -369,7 +373,7 @@ void *sender(void *relay_cast) {
             msg = make_device_write(relay->dev_id.type, pmap[1 + relay->shm_dev_idx], params);
             ret = send_message(relay, msg);
             if (ret != 0) {
-                log_printf(WARN, "Couldn't send DEVICE_WRITE to %s", get_device_name(relay->dev_id.type));
+                log_printf(WARN, "Couldn't send DEVICE_WRITE to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             }
             destroy_message(msg);
         }
@@ -379,7 +383,7 @@ void *sender(void *relay_cast) {
             msg = make_ping();
             ret = send_message(relay, msg);
             if (ret != 0) {
-                log_printf(WARN, "Couldn't send PING to %s", get_device_name(relay->dev_id.type));
+                log_printf(WARN, "Couldn't send PING to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             }
             // Update the timestamp at which we sent a PING
             last_sent_ping_time = millis();
@@ -392,7 +396,7 @@ void *sender(void *relay_cast) {
             msg = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
             ret = send_message(relay, msg);
             if (ret != 0) {
-                log_printf(WARN, "Couldn't send SUBSCRIPTION_REQUEST to %s", get_device_name(relay->dev_id.type));
+                log_printf(WARN, "Couldn't send SUBSCRIPTION_REQUEST to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             }
             destroy_message(msg);
         }
@@ -445,9 +449,9 @@ void *receiver(void *relay_cast) {
             device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
         } else if (msg->message_id == LOG) {
             // If received LOG, send it to the logger
-            log_printf(DEBUG, "[%s]: %s", get_device_name(relay->dev_id.type), msg->payload);
+            log_printf(DEBUG, "[%s (0x%016llX)]: %s", get_device_name(relay->dev_id.type), relay->dev_id.uid, msg->payload);
         } else {
-            log_printf(WARN, "Dropping received message of unexpected type %d from %s", msg->message_id, get_device_name(relay->dev_id.type));
+            log_printf(WARN, "Dropped bad message (type %d) from %s (0x%016llX)", msg->message_id, get_device_name(relay->dev_id.type), relay->dev_id.uid);
         }
         // Now that the message is taken care of, clear the message
         msg->message_id = 0x0;
@@ -479,7 +483,7 @@ int send_message(relay_t *relay, message_t *msg) {
     len = message_to_bytes(msg, data, len);
     int transferred = writen(relay->file_descriptor, data, len);
     if (transferred != len) {
-        log_printf(WARN, "Sent only %d out of %d bytes to %d\n", transferred, len, get_device_name(relay->dev_id.type));
+        log_printf(WARN, "Sent only %d out of %d bytes to %d (0x%016llX)\n", transferred, len, get_device_name(relay->dev_id.type), relay->dev_id.uid);
     }
     free(data);
     return (transferred == len) ? 0 : -1;
@@ -510,8 +514,9 @@ int receive_message(relay_t *relay, message_t *msg) {
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
         if (num_bytes_read == -1) {
             log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
+            return 3;
         } else if (num_bytes_read == 0) {  // read() returned due to timeout
-            log_printf(DEBUG, "Timed out when waiting for ACKNOWLEDGEMENT from %s%d!", port_prefix, relay->port_num);
+            log_printf(DEBUG, "Timed out when waiting for ACK from %s%d!", port_prefix, relay->port_num);
             return 3;
         } else if (last_byte_read != 0x00) {
             // If the first thing received isn't a perfect ACK, we won't accept it
@@ -538,6 +543,12 @@ int receive_message(relay_t *relay, message_t *msg) {
     num_bytes_read = readn(relay->file_descriptor, &cobs_len, 1);
     if (num_bytes_read != 1) {
         return 1;
+    } else if (cobs_len > (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE + 1)) { // + 1 for cobs encoding overhead
+        // Got some weird message that is unusually long (longer than a valid message with the longest payload)
+        return 1;
+    } else if (cobs_len < (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + CHECKSUM_SIZE + 1)) { // + 1 for cobs encoding overhead
+        // Got some weird message that is unusually short (shorter than a PING with no payload)
+        return 1;
     }
 
     // Allocate buffer to read message into
@@ -548,7 +559,7 @@ int receive_message(relay_t *relay, message_t *msg) {
     // Read the message
     num_bytes_read = readn(relay->file_descriptor, &data[2], cobs_len);
     if (num_bytes_read != cobs_len) {
-        log_printf(WARN, "Couldn't read the full message. Read only %d out of %d bytes from %s%d\n", num_bytes_read, cobs_len, port_prefix, relay->port_num);
+        log_printf(WARN, "Read only %d out of %d bytes from %s (0x%016llX)\n", num_bytes_read, cobs_len, get_device_name(relay->dev_id.type), relay->dev_id.uid);
         free(data);
         return 1;
     }
@@ -557,7 +568,7 @@ int receive_message(relay_t *relay, message_t *msg) {
     int ret = parse_message(data, msg);
     free(data);
     if (ret != 0) {
-        log_printf(WARN, "Incorrect checksum from %s%d\n", port_prefix, relay->port_num);
+        log_printf(WARN, "Couldn't parse message from %s%d\n", port_prefix, relay->port_num);
         return 2;
     }
     return 0;
@@ -604,14 +615,14 @@ int verify_lowcar(relay_t *relay) {
     if (strcmp(port_prefix, "/dev/ttyACM") == 0) {
         struct termios toptions;
         if (tcgetattr(relay->file_descriptor, &toptions) < 0) { // Get current options
-            log_printf(ERROR, "verify_lowcar: Couldn't get term attributes for %s", get_device_name(relay->dev_id.type));
+            log_printf(ERROR, "verify_lowcar: Couldn't get term attributes for %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             return -1;
         }
         toptions.c_cc[VMIN]  = 1; // read() must read at least a byte before returning
         // Save changes to TOPTIONS immediately using flag TCSANOW
         tcsetattr(relay->file_descriptor, TCSANOW, &toptions);
         if (tcsetattr(relay->file_descriptor, TCSAFLUSH, &toptions) < 0) {
-            log_printf(ERROR, "verify_lowcar: Couldn't set term attributes for %s", get_device_name(relay->dev_id.type));
+            log_printf(ERROR, "verify_lowcar: Couldn't set term attributes for %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             return -1;
         }
     }
@@ -621,8 +632,8 @@ int verify_lowcar(relay_t *relay) {
     memcpy(&relay->dev_id.year, &ack->payload[1], 1);
     memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
     log_printf(INFO, "Connected %s (0x%016llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
-    log_printf(DEBUG, "ACK received! %s%d is type 0x%02X (%s), year 0x%02X, uid 0x%016llX!\n", \
-    port_prefix, relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
+    // log_printf(DEBUG, "ACK received! %s%d is type 0x%02X (%s), year 0x%02X, uid 0x%016llX!\n", \
+    // port_prefix, relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
     relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
     destroy_message(ack);
     return 0;
