@@ -50,8 +50,7 @@ void prompt_device_connect() {
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         char *input;
-        long int dev_number; 
-        dev_number = strtol(nextcmd, &input, 0);
+        long int dev_number = strtol(nextcmd, &input, 0);
         if(dev_number >= 0 && dev_number < 5 && strlen(input) == 1 && strlen(nextcmd) > 1) {
             printf("UID for device?\n");
             fflush(stdout);
@@ -60,7 +59,7 @@ void prompt_device_connect() {
             uint64_t uid;
             remove_newline(nextcmd);
             uid = strtoull(nextcmd, NULL, 0);
-            printf("Connecting %s with UID of value %llu\n", devices[dev_number], uid);
+            printf("Connecting %s with UID of value 0x%016llX\n", devices[dev_number], uid);
             if(connect_device(devices[dev_number], uid) == 0) {
                 fflush(stdout);
                 printf("Device connected!\n");
@@ -116,7 +115,7 @@ int main() {
     printf("Starting Dev Handler CLI in the cloudddd...\n");
     fflush(stdout);
     display_help();
-    printf("Please enter device handler command:\n ");
+    printf("Please enter device handler command:\n");
     fflush(stdout);
     start_dev_handler();
 

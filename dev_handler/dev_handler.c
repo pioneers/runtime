@@ -620,8 +620,8 @@ int verify_lowcar(relay_t *relay) {
     memcpy(&relay->dev_id.type, &ack->payload[0], 1);
     memcpy(&relay->dev_id.year, &ack->payload[1], 1);
     memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
-    log_printf(INFO, "Connected %s (0x%llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
-    log_printf(DEBUG, "ACK received! %s%d is type 0x%02X (%s), year 0x%02X, uid 0x%llX!\n", \
+    log_printf(INFO, "Connected %s (0x%016llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
+    log_printf(DEBUG, "ACK received! %s%d is type 0x%02X (%s), year 0x%02X, uid 0x%016llX!\n", \
     port_prefix, relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
     relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
     destroy_message(ack);
