@@ -4,7 +4,7 @@ dist: bionic # Ubuntu 18
 language: c
 
 env:
-  - DOCKER_CLI_EXPERIMENTAL=enabled
+  - DOCKER_CLI_EXPERIMENTAL=enabled  # Needed to enable experimental features in the CLI, like --platform and buildx
 
 services:
   - docker
@@ -17,26 +17,20 @@ jobs:
     - name: test
       arch: arm64 
       before_script:
-        - echo '{"experimental":true}' | sudo tee /etc/docker/daemon.json   # Need to enable experimental features to choose platform. For some reason, only changing the CLI doesn't work.
+        - echo '{"experimental":true}' | sudo tee /etc/docker/daemon.json   # Need to enable experimental features in the Docker daemon to choose platform. For some reason, only enabling the features in the CLI doesn't work.
         - sudo service docker restart
       script:
-        - docker build --platform linux/arm/v7 -t $DOCKER_REPO:$ARM_TAG -f docker/Dockerfile .  # Build new image with updated code for arm32v7
-        - docker run -d $DOCKER_REPO:$ARM_TAG  # Runs the docker container as detached
+        - docker build --platform linux/arm/v7 -t $DOCKER_REPO:test -f docker/Dockerfile .  # Build new image with updated code for arm32v7
+        - docker run -d $DOCKER_REPO:test  # Runs the docker container as detached
         - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
         - docker kill -s INT $(docker ps -q) # Kill the current container
-        - docker run -t $DOCKER_REPO:$ARM_TAG ./test.sh # Runs the integration tests in a new container
-      deploy:
-        provider: script
-        script: docker push $DOCKER_REPO:$ARM_TAG
-        on:
-          branch: master  # Build and push to arm32 only if this is a master commit
-        edge: true
+        - docker run -t $DOCKER_REPO:test ./test.sh # Runs the integration tests in a new container
 
     - name: push
       arch: amd64
       if: type = push AND branch = master  # Build and push to latest only if this is a master commit
       before_script:
-        # Need to install updated version of Docker 19.03 to get experimental features for buildx
+        # Need to install updated version of Docker 19.03 to get experimental features for buildx, from https://www.docker.com/blog/multi-arch-build-what-about-travis/
         - sudo rm -rf /var/lib/apt/lists/*
         - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
         - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) edge"
