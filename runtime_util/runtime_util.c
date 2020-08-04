@@ -182,6 +182,18 @@ device_t DummyDevice = {
     }
 };
 
+device_t SimpleTestDevice = {
+    .type = 254,
+    .name = "SimpleTestDevice",
+    .num_params = 4,
+    .params = {
+        {.name = "INCREASING"   , .type = INT   , .read = 1, .write = 0},
+        {.name = "DOUBLING"     , .type = FLOAT , .read = 1, .write = 0},
+        {.name = "FLIP_FLOP"    , .type = BOOL  , .read = 1, .write = 0},
+        {.name = "MY_INT"       , .type = INT   , .read = 1, .write = 1},
+    }
+};
+
 device_t GeneralTestDevice = {
     .type = 255,
     .name = "GeneralTestDevice",
@@ -240,6 +252,7 @@ void devices_arr_init() {
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
     DEVICES[DummyDevice.type] = &DummyDevice;
+    DEVICES[SimpleTestDevice.type] = &SimpleTestDevice;
     DEVICES[GeneralTestDevice.type] = &GeneralTestDevice;
 }
 

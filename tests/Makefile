@@ -35,15 +35,15 @@ dev_handler_cli: client/dev_handler_client.c cli/dev_handler_cli.c devices
 
 ################################ VIRTUAL DEVICES ###############################
 
-devices: general_dev unresponsive_dev foreign_dev
+devices: general_dev simple_dev unresponsive_dev foreign_dev
 
-# TODO: Add target for all future virtual devices
-general_dev: client/virtual_devices/general_dev.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
+VIRTUAL_DEVICE_FILES=client/virtual_devices/virtual_device_util.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
+
+general_dev: client/virtual_devices/general_dev.c $(VIRTUAL_DEVICE_FILES)
 	gcc $^ -o client/virtual_devices/GeneralTestDevice
 
-# simple_dev: client/virtual_devices/simple_dev.c client/virtual_devices/general_dev.c ../runtime_util/runtime_util.c
-# 	make general_dev
-# 	gcc $^ -o client/virtual_devices/SimpleTestDevice
+simple_dev: client/virtual_devices/simple_dev.c $(VIRTUAL_DEVICE_FILES)
+	gcc $^ -o client/virtual_devices/SimpleTestDevice
 
 unresponsive_dev: client/virtual_devices/unresponsive_dev.c
 	gcc $^ -o client/virtual_devices/UnresponsiveTestDevice
