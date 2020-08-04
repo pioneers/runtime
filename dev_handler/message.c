@@ -81,12 +81,13 @@ static uint8_t checksum(uint8_t *data, size_t len) {
 /**
  * A macro to help with cobs_encode
  */
-#define finish_block() {        \
-    *block_len_loc = block_len; \
-    block_len_loc = dst++;      \
-    out_len++;                  \
-    block_len = 0x01;           \
-}
+#define finish_block() {\
+    block[0] = (uint8_t) block_len; \
+    block = dst;                    \
+    dst++;                          \
+    dst_len++;                      \
+    block_len = 1;                  \
+};
 
 /**
  * Cobs encodes a byte array into a buffer
@@ -97,28 +98,41 @@ static uint8_t checksum(uint8_t *data, size_t len) {
  * Returns:
  *    The size of the encoded data, DST
  */
-static ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
+static ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len) {
+    uint8_t *start = dst;
     const uint8_t *end = src + src_len;
-    uint8_t *block_len_loc = dst++;
-    uint8_t block_len = 0x01;
-    ssize_t out_len = 0;
+    uint8_t *block = dst; // Advancing pointer to start of each block
+    dst++;
+    size_t block_len = 1;
+    ssize_t dst_len = 0;
 
+    /* Build the DST array in "blocks", copying bytes one-by-one from SRC
+     * until a block ends.
+     * A block ends when
+     * 1) Encountering a 0x00 byte in the source array,
+     * 2) Reaching the max length of 256, or
+     * 3) Source array is fully processed
+     * When a block ends, insert the block length in DST at the beginning of
+     * that block, then start a new block if there are still bytes in SRC to process
+     */
     while (src < end) {
         if (*src == 0) {
             finish_block();
         } else {
-            *dst++ = *src;
+            // Copy non-zero byte over without processing
+            *dst = *src;
+            dst++;
             block_len++;
-            out_len++;
+            dst_len++;
             if (block_len == 0xFF) {
+                // Reached max block length
                 finish_block();
             }
         }
         src++;
     }
     finish_block();
-
-    return out_len;
+    return dst_len;
 }
 
 /**
@@ -130,20 +144,26 @@ static ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
  * Returns:
  *    The size of the decoded data, DST
  */
-static ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, ssize_t src_len) {
+static ssize_t cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len) {
+    // Pointer to end of source array
     const uint8_t *end = src + src_len;
+    // Size counter of decoded array to return
     ssize_t out_len = 0;
 
     while (src < end) {
-        uint8_t code = *src++;
-        for (uint8_t i = 1; i < code; i++) {
-            *dst++ = *src++;
+        int num_bytes_to_copy = *src;
+        src++;
+        for (int i = 1; i < num_bytes_to_copy; i++) {
+            *dst = *src;
+            dst++;
+            src++;
             out_len++;
             if (src > end) { // Bad packet
                 return 0;
             }
         }
-        if (code < 0xFF && src != end) {
+        if (src != end) {
+            // Start decoding a new block, putting back the zero
             *dst++ = 0;
             out_len++;
         }
