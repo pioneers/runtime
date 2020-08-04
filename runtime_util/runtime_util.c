@@ -161,24 +161,33 @@ device_t DummyDevice = {
     .num_params = 16,
     .params = {
         // Read-only
-        {.name = "RUNTIME",     .type = INT   , .read = 1, .write = 0},
-        {.name = "SHEPHERD",    .type = FLOAT , .read = 1, .write = 0},
-        {.name = "DAWN",        .type = BOOL  , .read = 1, .write = 0},
-        {.name = "DEVOPS",      .type = INT   , .read = 1, .write = 0},
-        {.name = "ATLAS",       .type = FLOAT , .read = 1, .write = 0},
-        {.name = "INFRA",       .type = BOOL  , .read = 1, .write = 0},
+        {.name = "RUNTIME"  , .type = INT   , .read = 1, .write = 0},
+        {.name = "SHEPHERD" , .type = FLOAT , .read = 1, .write = 0},
+        {.name = "DAWN"     , .type = BOOL  , .read = 1, .write = 0},
+        {.name = "DEVOPS"   , .type = INT   , .read = 1, .write = 0},
+        {.name = "ATLAS"    , .type = FLOAT , .read = 1, .write = 0},
+        {.name = "INFRA"    , .type = BOOL  , .read = 1, .write = 0},
         // Write-only
-        {.name = "SENS",        .type = INT   , .read = 0, .write = 1},
-        {.name = "PDB",         .type = FLOAT , .read = 0, .write = 1},
-        {.name = "MECH",        .type = BOOL  , .read = 0, .write = 1},
-        {.name = "CPR",         .type = INT   , .read = 0, .write = 1},
-        {.name = "EDU",         .type = FLOAT , .read = 0, .write = 1},
-        {.name = "EXEC",        .type = BOOL  , .read = 0, .write = 1},
+        {.name = "SENS"     , .type = INT   , .read = 0, .write = 1},
+        {.name = "PDB"      , .type = FLOAT , .read = 0, .write = 1},
+        {.name = "MECH"     , .type = BOOL  , .read = 0, .write = 1},
+        {.name = "CPR"      , .type = INT   , .read = 0, .write = 1},
+        {.name = "EDU"      , .type = FLOAT , .read = 0, .write = 1},
+        {.name = "EXEC"     , .type = BOOL  , .read = 0, .write = 1},
         // Read-able and write-able
-        {.name = "PIEF",        .type = INT   , .read = 1, .write = 1},
-        {.name = "FUNTIME",     .type = FLOAT , .read = 1, .write = 1},
-        {.name = "SHEEP",       .type = BOOL  , .read = 1, .write = 1},
-        {.name = "DUSK",        .type = INT   , .read = 1, .write = 1},
+        {.name = "PIEF"     , .type = INT   , .read = 1, .write = 1},
+        {.name = "FUNTIME"  , .type = FLOAT , .read = 1, .write = 1},
+        {.name = "SHEEP"    , .type = BOOL  , .read = 1, .write = 1},
+        {.name = "DUSK"     , .type = INT   , .read = 1, .write = 1},
+    }
+};
+
+device_t UnstableTestDevice = {
+    .type = 253,
+    .name = "UnstableTestDevice",
+    .num_params = 1,
+    .params = {
+        {.name = "NUM_ACTIONS"  , .type = INT   , .read = 1, .write = 0}
     }
 };
 
@@ -252,6 +261,7 @@ void devices_arr_init() {
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
     DEVICES[DummyDevice.type] = &DummyDevice;
+    DEVICES[UnstableTestDevice.type] = &UnstableTestDevice;
     DEVICES[SimpleTestDevice.type] = &SimpleTestDevice;
     DEVICES[GeneralTestDevice.type] = &GeneralTestDevice;
 }

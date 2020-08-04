@@ -188,13 +188,18 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
         incoming_msg->max_payload_length = MAX_PAYLOAD_SIZE;
         memset(incoming_msg->payload, 0, MAX_PAYLOAD_SIZE);
 
+        //  Don't send any other messages until we've sent an ACK
+        if (!sent_ack) {
+            continue;
+        }
+
         // Make sure we're receiving PING messages still
-        if ((now - last_received_ping_time) > TIMEOUT) {
+        if ((now - last_received_ping_time) >= TIMEOUT) {
             printf("DEV_HANDLER timed out!\n");
             exit(1);
         }
         // Check if we should send another PING
-        if ((now - last_sent_ping_time) > PING_FREQ) {
+        if ((now - last_sent_ping_time) >= PING_FREQ) {
             // printf("Sending PING\n");
             outgoing_msg = make_ping();
             send_message(fd, outgoing_msg);
@@ -202,14 +207,14 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
             last_sent_ping_time = now;
         }
         // Check if we should send another DEVICE_DATA
-        if (subscribed_params && ((now - last_sent_data_time) > subscription_interval)) {
+        if (subscribed_params && ((now - last_sent_data_time) >= subscription_interval)) {
             // printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
             outgoing_msg = make_device_data(type, subscribed_params, params);
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
         }
         // Change read-only params every 2 seconds
-        if ((now - last_device_action) > 2000) {
+        if ((now - last_device_action) >= 2000) {
             (*device_actions)(params);
             last_device_action = now;
         }
