@@ -25,7 +25,7 @@ private:
     volatile uint32_t enc_a, enc_b;       // encoder values of motors
     PID *pid_a, *pid_b;                   // PID controllers for motors
     LEDKoala *led;                        // for controlling the KoalaBear LED
-    int prev_led_time;
+    unsigned long prev_led_time;
     int curr_led_mtr;
     
     void drive(float target, uint8_t mtr);

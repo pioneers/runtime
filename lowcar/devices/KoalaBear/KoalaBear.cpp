@@ -255,13 +255,18 @@ void KoalaBear::device_disable () {
 
 void KoalaBear::device_actions () {
     float target_A, target_B;
+    unsigned long curr_time = millis();
     
     // switch between displaying info about MTRA and MTRB every 2 seconds
-    if (millis() - this->prev_led_time > 2000) {
+    if (curr_time - this->prev_led_time > 2000) {
         this->curr_led_mtr = (this->curr_led_mtr == MTRA) ? MTRB : MTRA;
-        this->prev_led_time = millis();
+        this->prev_led_time = curr_time;
     }
-    this->led->ctrl_LEDs(this->target_speed_a, TRUE); // TODO: Consider changing second arg to a condition TODO: FIX first argument to depend on motor
+    if (this->curr_led_mtr == MTRA) {
+        this->led->ctrl_LEDs(this->target_speed_a, this->deadband_a, TRUE);
+    } else {
+        this->led->ctrl_LEDs(this->target_speed_b, this->deadband_b, TRUE);
+    }
     
     if (this->pid_enabled_a) {
         this->pid_a->set_target_speed(this->target_speed_a);
@@ -281,8 +286,10 @@ void KoalaBear::device_actions () {
     digitalWrite(RESET, LOW);
 
     // send target duty cycle to drive function
-    drive(target_A, MTRA);
-    drive(target_B *-1.0, MTRB); // MTRB by default moves in the opposite direction as motor A
+    drive(target_A * -1.0, MTRA); // by default, MTRA drives the wrong way
+    drive(target_B, MTRB);
+    
+    delay(1); // delay 1 millis to slow down the loop
 }
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//
