@@ -1,12 +1,9 @@
 /**
- * A virtual device that behaves like a proper lowcar device
+ * An API of utility functions for virtual devices to communicate with dev handler
  */
 
-#ifndef GEN_DEV_H
-#define GEN_DEV_H
-
-#include <stdlib.h> // for atoi()
-#include <stdio.h>  // for print
+#ifndef VIRTUAL_DEV_UTIL_H
+#define VIRTUAL_DEV_UTIL_H
 
 #include "../../../dev_handler/message.h"
 #include "../../../runtime_util/runtime_util.h"
@@ -73,7 +70,10 @@ message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
  *    year: The device year
  *    uid: The device uid
  *    params: Array of parameters to work with
+ *    device_actions: Function pointer that accepts an array of params and
+ *      modifies the param values
  */
-void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, param_val_t params[]);
+void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
+                     param_val_t params[], void (*device_actions)(param_val_t[]));
 
 #endif
