@@ -7,8 +7,8 @@ typedef enum {
     DEADBAND = 2
 } param;
 
-PolarBear::PolarBea () : Device(DeviceType::POLAR_BEAR, 2) {
-    this->duty_cycle = 0;
+PolarBear::PolarBear () : Device(DeviceType::POLAR_BEAR, 2) {
+    this->duty_cycle = 0.0;
     this->deadband = 0.05;
     
     this->dpwm_dt = 255 / 200000;
@@ -41,7 +41,7 @@ size_t PolarBear::device_write(uint8_t param, uint8_t *data_buf) {
             if (!(float_buf[0] >= -1.0 * this->deadband && float_buf[0] <= this->deadband)) {
                 this->duty_cycle = float_buf[0];
             } else {
-                this->duty_cycle = 0;
+                this->duty_cycle = 0.0;
             }
             return sizeof(this->duty_cycle);
         case MOTOR_CURRENT:
@@ -70,7 +70,7 @@ void PolarBear::device_disable() {
 }
 
 void PolarBear::device_actions() {
-    ctrl_LEDs(this->duty_cycle);
+    ctrl_LEDs(this->duty_cycle, this->deadband);
     drive(this->duty_cycle);
 }
 
@@ -82,7 +82,7 @@ void PolarBear::device_actions() {
  * Make sure that at least one of the pins is set to 255 at all times.
  */
 void PolarBear::drive(float target) {
-    float direction = (target > 0.0) ? 1.0 : -1.0;
+    float direction = (target > 0.0) ? 1.0 : -1.0; // if target == 0.0, direction will be -1 ("backwards")
     int currpwm1 = 255;
     int currpwm2 = 255;
 
@@ -90,10 +90,12 @@ void PolarBear::drive(float target) {
     // Sanity check: If |target| == 1, move max speed --> pwm_difference == 255
     //               If |target| == 0, stop moving    --> pwm_difference == 0
     int pwm_difference = (int)(target * direction * 255.0); // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
-
-    if (direction >= 0) { // Moving forwards
+    
+    // We don't catch direction 0.0 because it will be either 1.0 or -1.0.
+    // If stopped (target == 0.0) then 255 will be written to both drive pins
+    if (direction > 0.0) { // Moving forwards
         currpwm1 -= pwm_difference;
-    } else if (direction < 0) { // Moving backwards
+    } else if (direction < 0.0) { // Moving backwards
         currpwm2 -= pwm_difference;
     }
     
