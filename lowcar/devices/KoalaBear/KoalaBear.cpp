@@ -53,8 +53,8 @@ typedef enum {
 } param;
 
 typedef enum {
-    MTRA = 1,
-    MTRB = 0,
+    MTRA = 0,
+    MTRB = 1,
 } mtrs;
 
 //******************************* ENCODER TICK INTERRPUT HANDLERS ***************************//
@@ -184,7 +184,7 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t *data_buf) {
             return sizeof(float);
         case ENC_A:
             enc_a = ((int32_t *)data_buf)[0];
-            this->pid_a->set_pos_to((float) enc_a);
+            this->pid_a->set_position((float) enc_a);
             return sizeof(int32_t);
             
         // Params for Motor B
@@ -211,7 +211,7 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t *data_buf) {
             return sizeof(float);
         case ENC_B:
             enc_b = ((int32_t *)data_buf)[0];
-            this->pid_b->set_pos_to((float) enc_b);
+            this->pid_b->set_position((float) enc_b);
             return sizeof(int32_t);
         default:
             return 0;
@@ -289,8 +289,6 @@ void KoalaBear::device_actions () {
     // send target duty cycle to drive function
     drive(target_A * -1.0, MTRA); // by default, MTRA drives the wrong way
     drive(target_B, MTRB);
-    
-    delay(1); // delay 1 millis to slow down the loop
 }
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//

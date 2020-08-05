@@ -6,8 +6,9 @@
 #define LED_GREEN	4
 
 // decides when the red LED is on
-static void ctrl_RED(float duty_cycle) {
-    if (duty_cycle < -0.5) {
+static void ctrl_RED(float duty_cycle, float deadband) {
+    // red is on when motor is stopped
+    if ((duty_cycle > deadband * -1.0) && (duty_cycle < deadband)) {
         digitalWrite(LED_RED, HIGH);
     } else {
         digitalWrite(LED_RED, LOW);
@@ -15,8 +16,9 @@ static void ctrl_RED(float duty_cycle) {
 }
 
 // decides when the yellow LED is on
-static void ctrl_YELLOW(float duty_cycle) {
-    if (duty_cycle > -0.5 && duty_cycle < 0.5) {
+static void ctrl_YELLOW(float duty_cycle, float deadband) {
+    // yellow is on when motor moving backwards
+    if (duty_cycle < (deadband * -1.0)) {
         digitalWrite(LED_YELLOW, HIGH);
     } else {
         digitalWrite(LED_YELLOW, LOW);
@@ -24,8 +26,9 @@ static void ctrl_YELLOW(float duty_cycle) {
 }
 
 // decides when the green LED is on
-static void ctrl_GREEN(float duty_cycle) {
-    if (duty_cycle >= 0.5) {
+static void ctrl_GREEN(float duty_cycle, float deadband) {
+    // green is on when motor moving forwards
+    if (duty_cycle > deadband) {
         digitalWrite(LED_GREEN, HIGH);
     } else {
         digitalWrite(LED_GREEN, LOW);
@@ -33,10 +36,10 @@ static void ctrl_GREEN(float duty_cycle) {
 }
 
 // place all LED control functions in here
-void ctrl_LEDs(float duty_cycle) {
-    ctrl_RED(duty_cycle);
-    ctrl_YELLOW(duty_cycle);
-    ctrl_GREEN(duty_cycle);
+void ctrl_LEDs(float duty_cycle, float deadband) {
+    ctrl_RED(duty_cycle, deadband);
+    ctrl_YELLOW(duty_cycle, deadband);
+    ctrl_GREEN(duty_cycle, deadband);
 }
 
 // sets the output modes of the three LEDs to OUTPUT and blinks them to make sure they work

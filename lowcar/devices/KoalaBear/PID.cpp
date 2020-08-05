@@ -17,9 +17,12 @@ PID::PID() {
 float PID::compute(float curr_pos) {
     unsigned long curr_time = micros(); // get the current time
     float interval_secs = ((float)(curr_time - this->prev_time)) / 1000000.0; // compute time passed between loops, in seconds
-    float desired_pos = prev_desired_pos + (duty_cycle_to_tps(this->target_speed) * interval_secs); // compute the desired position at this time
+    float desired_pos = this->prev_desired_pos + (duty_cycle_to_tps(this->target_speed) * interval_secs); // compute the desired position at this time
     float error = desired_pos - curr_pos; // compute the error as the set point (desired position) - process variable (current position)
-    this->integral += error * (interval_secs); //compute the new value of this->integral using right-rectangle approximation
+    this->integral += error * interval_secs; //compute the new value of this->integral using right-rectangle approximation
+    
+    // output = kp * error + ki * integral of error * kd * "derivative" of error
+    float output = (this->kp * error) + (this->ki * this->integral) + (this->kd * ((error - this->prev_error) / interval_secs));
     
     // store the current values into previous values for use on next loop
     this->prev_error = error;
@@ -27,8 +30,7 @@ float PID::compute(float curr_pos) {
     this->prev_desired_pos = desired_pos;
     this->prev_time = curr_time;
     
-    // return kp * error + ki * integral of error * kd * "derivative" of error
-    return (this->kp * error) + (this->ki * this->integral) + (this->kd * (error - this->prev_error));
+    return output;
 }
 
 void PID::set_coefficients(float kp, float ki, float kd) {
@@ -42,7 +44,7 @@ void PID::set_target_speed(float target_speed) {
 }
 
 // used when student sets encoder to a certain value
-void PID::set_pos_to(float curr_pos) {
+void PID::set_position(float curr_pos) {
     this->prev_pos = curr_pos;
     this->prev_error = 0.0; // resets the error too
 }

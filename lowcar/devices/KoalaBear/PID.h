@@ -11,7 +11,7 @@ public:
         
 	void set_coefficients(float kp, float ki, float kd);
 	void set_target_speed(float new_target_speed);
-    void set_pos_to(float curr_pos);
+    void set_position(float curr_pos);
     
 	float get_kp();
 	float get_ki();
