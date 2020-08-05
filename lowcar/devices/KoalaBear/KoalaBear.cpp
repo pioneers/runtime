@@ -28,7 +28,7 @@
 uint16_t ctrl_read_data;
 uint16_t torque_read_data;
 
-volatile float enc_a, enc_b;
+volatile int32_t enc_a, enc_b;
 
 //********************************** labels for useful indices **********************************//
 typedef enum {
@@ -102,6 +102,7 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
 size_t KoalaBear::device_read(uint8_t param, uint8_t *data_buf) {
     float *float_buf = (float *) data_buf;
     bool *bool_buf = (bool *) data_buf;
+    int32_t *int_buf = (int32_t *) data_buf;
 
     switch (param) {
         case DUTY_CYCLE_A:
@@ -126,8 +127,8 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t *data_buf) {
             float_buf[0] = this->pid_a->get_kd();
             return sizeof(float);
         case ENC_A:
-            float_buf[0] = (float) enc_a;
-            return sizeof(float);
+            int_buf[0] = enc_a;
+            return sizeof(int32_t);
             
         // Params for Motor B
         case DUTY_CYCLE_B:
@@ -152,8 +153,8 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t *data_buf) {
             float_buf[0] = this->pid_b->get_kd();
             return sizeof(float);
         case ENC_B:
-            float_buf[0] = (float) enc_b;
-            return sizeof(float);
+            int_buf[0] = enc_b;
+            return sizeof(int32_t);
     }
     return 0;
 }
@@ -182,9 +183,9 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t *data_buf) {
             this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double *)data_buf)[0]);
             return sizeof(float);
         case ENC_A:
-            enc_a = ((float *)data_buf)[0];
-            this->pid_a->set_pos_to(enc_a);
-            return sizeof(float);
+            enc_a = ((int32_t *)data_buf)[0];
+            this->pid_a->set_pos_to((float) enc_a);
+            return sizeof(int32_t);
             
         // Params for Motor B
         case DUTY_CYCLE_B:
@@ -209,9 +210,9 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t *data_buf) {
             this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double *)data_buf)[0]);
             return sizeof(float);
         case ENC_B:
-            enc_b = ((float *)data_buf)[0];
-            this->pid_b->set_pos_to(enc_b);
-            return sizeof(float);
+            enc_b = ((int32_t *)data_buf)[0];
+            this->pid_b->set_pos_to((float) enc_b);
+            return sizeof(int32_t);
         default:
             return 0;
     }
@@ -270,14 +271,14 @@ void KoalaBear::device_actions () {
     
     if (this->pid_enabled_a) {
         this->pid_a->set_target_speed(this->target_speed_a);
-        target_A = this->pid_a->compute(enc_a);
+        target_A = this->pid_a->compute((float) enc_a);
     } else {
         target_A = this->target_speed_a;
     }
 
     if (this->pid_enabled_b) {
         this->pid_b->set_target_speed(this->target_speed_b);
-        target_B = this->pid_b->compute(enc_b);
+        target_B = this->pid_b->compute((float) enc_b);
     } else {
         target_B = this->target_speed_b;
     }
