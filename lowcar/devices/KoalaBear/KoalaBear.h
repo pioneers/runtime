@@ -32,9 +32,6 @@ private:
     void write_current_lim();
     void read_current_lim();
     void electrical_setup();
-    
-    //static void handle_enc_a_tick();
-    //static void handle_enc_b_tick();
 };
 
 #endif
