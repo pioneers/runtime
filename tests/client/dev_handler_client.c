@@ -9,6 +9,9 @@
 // The maximum number of devices that can be connected
 #define MAX_DEVICES 32
 
+// Process id of the dev_handler fork
+pid_t dev_handler_pid;
+
 // Struct grouping a virtual device's process id, socket fd, and name
 typedef struct {
     pid_t pid;          // The process id of the virtual device
@@ -102,30 +105,30 @@ static int connect_socket() {
 // ******************************** Public ********************************* //
 
 void start_dev_handler() {
-
-    // pid_t dev_handler_pid;
-
-    // // Cf someone presses Ctrl-C (SIGINT), stop dev_handler
-    // signal(SIGINT, stop_dev_handler);
-
-    // // Check to see if creation of child is successful
-    // if((dev_handler_pid = fork()) < 0) {
-    //     printf("fork: %s\n", strerror(errno));
-    // } else if (dev_handler_pid == 0) { // child created!
-    //     //redirect to dev handler folder
-    //     if(chdir("../dev_handler") == -1) {
-    //         printf("chdir: %s\n", strerror(errno));
-    //     //execute the device handler process
-    //     if (execlp("./dev_handler", "virtual", (char *) 0) < 0) {
-    //         printf("execlp: %s\n", strerror(errno));
-    //     }
-    //     }
-    // }
+    // Check to see if creation of child is successful
+    if((dev_handler_pid = fork()) < 0) {
+        printf("fork: %s\n", strerror(errno));
+    } else if (dev_handler_pid == 0) { // child created!
+        //redirect to dev handler folder
+        if(chdir("../dev_handler") == -1) {
+            printf("chdir: %s\n", strerror(errno));
+        }
+        //execute the device handler process
+        if (execlp("./dev_handler", "dev_handler", "virtual", (char *) 0) < 0) {
+            printf("execlp: %s\n", strerror(errno));
+        }
+        printf("Connection success!\n");
+    }
 }
 
 void stop_dev_handler(){
-
-    return;
+    //send signal to dev_handler and wait for termination
+	if (kill(dev_handler_pid, SIGINT) < 0) {
+		printf("kill dev_handler:  %s\n", strerror(errno));
+	}
+	if (waitpid(dev_handler_pid, NULL, 0) < 0) {
+		printf("waitpid dev_haandler: %s\n", strerror(errno));
+	}
 }
 
 int connect_device(char *dev_name, uint64_t uid) {
