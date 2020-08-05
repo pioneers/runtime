@@ -12,7 +12,7 @@ PID::PID() {
  * Computes a value between -1 and 1 inclusive to tell how to
  * adjust the motor controller pins.
  * Arguments:
- *    curr_pos: current value of the encoder
+ *    curr_pos: current value of the encoder, as a float
  */
 float PID::compute(float curr_pos) {
     unsigned long curr_time = micros(); // get the current time
