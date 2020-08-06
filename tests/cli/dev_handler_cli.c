@@ -19,7 +19,7 @@ void display_help() {
     printf("This is the list of commands.\n");
     printf("All commands should be typed in all lower case.\n");
     printf("\thelp          show this menu of commands\n");
-    printf("\tstop          stop dev handler process\n");
+    printf("\texit          exit the device handler CLI\n");
     printf("\tconnect       connect specified device\n");
     printf("\tdisconnect    disconnect device from specified socket number\n");
     printf("\tlist          list all currently connected devices and their ports\n");
@@ -125,7 +125,7 @@ int main() {
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         remove_newline(nextcmd); // Strip off \n character
         // Compare input string against the available commands
-        if (strcmp(nextcmd, "stop") == 0) {
+        if (strcmp(nextcmd, "exit") == 0) {
             stop = 0;
         } else if (strcmp(nextcmd, "connect") == 0) {
             prompt_device_connect();
@@ -133,7 +133,7 @@ int main() {
             prompt_device_disconnect();
         } else if (strcmp(nextcmd, "list") == 0) {
             list_devices();
-        } else if (strcmp(nextcmd, "help") == 0) {
+        } else {
             display_help();
         }
     }

@@ -9,7 +9,7 @@
 //give params more readable names
 enum class RFID_Param : uint8_t {
 	ID 			= 0,
-	TAG_DETECT 	= 2		//is 1 if we have a tag; 0 otherwise
+	TAG_DETECT 	= 1		//is 1 if we have a tag; 0 otherwise
 };
 
 class RFID : public Device {
