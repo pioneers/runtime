@@ -24,10 +24,10 @@ void stop_dev_handler();
  *    dev_name: The name of a virtual device's name
  *    uid: The uid to designate the device
  * Returns:
- *    0 on success
+ *    the socket number for the virtual device on success (nonnegative)
  *    -1 on failure
  */
-int connect_device(char *dev_name, uint64_t uid);
+int connect_virtual_device(char *dev_name, uint64_t uid);
 
 /**
  * Disconnects a virtual device from dev handler
@@ -37,7 +37,7 @@ int connect_device(char *dev_name, uint64_t uid);
  *    0 on success
  *    -1 if invalid socket number
  */
-int disconnect_device(int socket_num);
+int disconnect_virtual_device(int socket_num);
 
 /**
  * Disconnects all currently connected virtual devices

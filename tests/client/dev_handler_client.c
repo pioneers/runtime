@@ -73,8 +73,9 @@ static int connect_socket() {
     strcpy(dev_socket_addr.sun_path, socket_name);
 
     // Bind socket address to socket
-    if (bind(server_fd, (struct sockaddr *)&dev_socket_addr, sizeof(dev_socket_addr)) < 0) {
+    if (bind(server_fd, (struct sockaddr *) &dev_socket_addr, sizeof(dev_socket_addr)) < 0) {
         printf("connect_socket: Couldn't bind socket -- %s\n", strerror(errno));
+        remove(socket_name);
         return -1;
     }
 
@@ -131,7 +132,7 @@ void stop_dev_handler(){
 	}
 }
 
-int connect_device(char *dev_name, uint64_t uid) {
+int connect_virtual_device(char *dev_name, uint64_t uid) {
     // Connect a socket
     int socket_num = connect_socket();
     if (socket_num == -1) {
@@ -166,10 +167,10 @@ int connect_device(char *dev_name, uint64_t uid) {
         // Take note of child pid so we can kill it in disconnect_device()
         used_sockets[socket_num]->pid = pid;
     }
-    return 0;
+    return socket_num;
 }
 
-int disconnect_device(int socket_num) {
+int disconnect_virtual_device(int socket_num) {
     // Do nothing if socket is unused
     if ((socket_num < 0) || (socket_num >= MAX_DEVICES) || (used_sockets[socket_num] == NULL)) {
         return -1;
@@ -192,7 +193,7 @@ int disconnect_device(int socket_num) {
 
 void disconnect_all_devices() {
     for (int i = 0; i < MAX_DEVICES; i++) {
-        disconnect_device(i);
+        disconnect_virtual_device(i);
     }
 }
 

@@ -48,7 +48,7 @@ DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
 size_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf)
 {
 	float	*float_buf	= (float *) data_buf;
-	int16_t *int_buf	= (int16_t *) data_buf;
+	int32_t *int_buf	= (int32_t *) data_buf;
 
 	switch (param) {
 
@@ -110,6 +110,7 @@ size_t DummyDevice::device_read (uint8_t param, uint8_t *data_buf)
 			int_buf[0] = this->dusk;
 			return sizeof(this->dusk);
 	}
+	return 0;
 }
 
 //writes the appropriate instance variable; this whole function is also a big lol
@@ -136,7 +137,7 @@ size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 			break;
 
 		case SENS:
-			this->sens = ((int16_t *) data_buf)[0];
+			this->sens = ((int32_t *) data_buf)[0];
 			return sizeof(this->sens);
 
 		case PDB:
@@ -148,7 +149,7 @@ size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 			return sizeof(this->mech);
 
 		case CPR:
-			this->cpr = ((int16_t *) data_buf)[0];
+			this->cpr = ((int32_t *) data_buf)[0];
 			return sizeof(this->cpr);
 
 		case EDU:
@@ -160,7 +161,7 @@ size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 			return sizeof(this->exec);
 
 		case PIEF:
-			this->pief = ((int16_t *) data_buf)[0];
+			this->pief = ((int32_t *) data_buf)[0];
 			return sizeof(this->pief);
 
 		case FUNTIME:
@@ -172,9 +173,10 @@ size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 			return sizeof(this->sheep);
 
 		case DUSK:
-			this->dusk = ((int16_t *) data_buf)[0];
+			this->dusk = ((int32_t *) data_buf)[0];
 			return sizeof(this->dusk);
 	}
+	return 0;
 }
 
 void DummyDevice::device_enable()

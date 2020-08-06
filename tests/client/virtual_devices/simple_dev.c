@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     int fd = atoi(argv[1]);
     uint64_t uid = strtoull(argv[2], NULL, 0);
 
-    uint8_t dev_type = 0xFE;
+    uint8_t dev_type = 62;
     device_t *dev = get_device(dev_type);
 
     param_val_t params[dev->num_params];

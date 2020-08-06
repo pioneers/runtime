@@ -15,6 +15,7 @@ all: $(TEST_FILES) cli
 
 clean:
 	rm -f  $(shell find -type f ! -name "*.*" ! -name "Makefile")
+	rm -f  $(shell find client/virtual_devices -type f ! -name "*.*")
 
 ################################## CLI TARGETS #################################
 
@@ -24,13 +25,13 @@ net_handler_cli: ../net_handler/* client/net_handler_client.* cli/net_handler_cl
 	gcc cli/net_handler_cli.c client/net_handler_client.c ../net_handler/net_util.c ../runtime_util/runtime_util.c \
 		../net_handler/pbc_gen/*.c ../logger/logger.c -o $@ $(LIBS)
 
-shm_cli: ../shm_wrapper/* client/shm_client.* cli/shm_cli.c
+shm_cli: ../shm_wrapper/*.* client/shm_client.* cli/shm_cli.*
 	gcc cli/shm_cli.c client/shm_client.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
-executor_cli: ../executor/* client/executor_client.* cli/executor_cli.c
+executor_cli: ../executor/*.* client/executor_client.* cli/executor_cli.*
 	gcc cli/executor_cli.c client/executor_client.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
-dev_handler_cli: client/dev_handler_client.c cli/dev_handler_cli.c devices
+dev_handler_cli: ../dev_handler/*.* client/dev_handler_client.* cli/dev_handler_cli.* devices
 	gcc client/dev_handler_client.c cli/dev_handler_cli.c -o $@
 
 ################################ VIRTUAL DEVICES ###############################
@@ -56,5 +57,5 @@ unstable_dev: client/virtual_devices/unstable_dev.c $(VIRTUAL_DEVICE_FILES)
 
 ##################################### TESTS ####################################
 
-integration/%: $(SRC_FILES)
+integration/%: $(SRC_FILES) devices
 	gcc $@.c $(SRC_FILES) -o $* $(LIBS)

@@ -60,7 +60,7 @@ void prompt_device_connect() {
             remove_newline(nextcmd);
             uid = strtoull(nextcmd, NULL, 0);
             printf("Connecting %s with UID of value 0x%016llX\n", devices[dev_number], uid);
-            if(connect_device(devices[dev_number], uid) == 0) {
+            if(connect_virtual_device(devices[dev_number], uid) == 0) {
                 fflush(stdout);
                 printf("Device connected!\n");
                 break;
@@ -89,7 +89,7 @@ void prompt_device_disconnect() {
         int port_num = strtol(nextcmd, &input, 0);
         if(strlen(input) == 0 && strlen(input) == 0 && strlen(nextcmd) > 0) {
             printf("Disconnecting port %d\n", port_num);
-            if(disconnect_device(port_num) == 0) {
+            if(disconnect_virtual_device(port_num) == 0) {
                 printf("Device disconnected!\n");
                 break;
             } else {

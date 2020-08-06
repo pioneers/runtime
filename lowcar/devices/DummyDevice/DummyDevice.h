@@ -21,27 +21,27 @@ public:
 	virtual void device_actions();
 
 private:
-	int16_t runtime; //param 0
+	int32_t runtime; //param 0
 	float shepherd;
 	uint8_t dawn;
 
-	int16_t devops; //param 3
+	int32_t devops; //param 3
 	float atlas;
 	uint8_t infra;
 
-	int16_t sens; //param 6
+	int32_t sens; //param 6
 	float pdb;
 	uint8_t mech;
 
-	int16_t cpr; //param 9
+	int32_t cpr; //param 9
 	float edu;
 	uint8_t exec;
 
-	int16_t pief; //param 12
+	int32_t pief; //param 12
 	float funtime;
 	uint8_t sheep;
 
-	int16_t dusk; //param 15
+	int32_t dusk; //param 15
 };
 
 #endif

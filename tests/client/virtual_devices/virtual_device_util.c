@@ -84,14 +84,14 @@ void device_write(uint8_t type, message_t *dev_write, param_val_t params[]) {
     memcpy(&pmap, &dev_write->payload[0], BITMAP_SIZE);
     // Process each parameter
     uint8_t *payload_ptr = &dev_write->payload[BITMAP_SIZE];
-    for (int i = 0; ((pmap >> i) > 0) && (i < 32); i++) {
+    for (int i = 0; ((pmap >> i) > 0) && (i < MAX_PARAMS); i++) {
         if (pmap & (1 << i)) {
             // Write to the corresponding field in params[i]
             switch (dev->params[i].type) {
                 case INT:
                     // TODO: Check int size
-                    params[i].p_i = *((uint16_t *) payload_ptr);
-                    payload_ptr += sizeof(uint16_t);
+                    params[i].p_i = *((int32_t *) payload_ptr);
+                    payload_ptr += sizeof(int32_t);
                     break;
                 case FLOAT:
                     params[i].p_f = *((float *) payload_ptr);
@@ -119,9 +119,9 @@ message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]) {
         if (pmap & (1 << i)) {
             switch(dev->params[i].type) {
                 case INT:
-                    memcpy(payload_ptr, &params[i].p_i, sizeof(uint16_t));
-                    payload_ptr += sizeof(uint16_t);
-                    dev_data->payload_length += sizeof(uint16_t);
+                    memcpy(payload_ptr, &params[i].p_i, sizeof(int32_t));
+                    payload_ptr += sizeof(int32_t);
+                    dev_data->payload_length += sizeof(int32_t);
                     break;
                 case FLOAT:
                     memcpy(payload_ptr, &params[i].p_f, sizeof(float));
