@@ -137,7 +137,7 @@ void poll_connected_devices() {
     while (1) {
         if (get_new_devices(&connected_devs) > 0) {
             // If bit i of CONNECTED_DEVS is on, then it's a new device
-            for (int i = 0; i < MAX_DEVICES; i++) {
+            for (int i = 0; (connected_devs >> i) > 0 && i < MAX_DEVICES; i++) {
                 if (connected_devs & (1 << i)) {
                     communicate(i);
                 }
