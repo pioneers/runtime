@@ -13,7 +13,7 @@
 #define MAX_DEVICES 32          // Maximum number of connected devices
 #define MAX_PARAMS 32           // Maximum number of parameters supported
 
-#define DEVICES_LENGTH 256      // The largest device type number + 1.
+#define DEVICES_LENGTH 64      // The largest device type number + 1.
 
 #define NUM_DESC_FIELDS 5       // Number of fields in the robot description
 

@@ -29,7 +29,7 @@ int main() {
     // Connect MAX_DEVICES
     sleep(1);   // Make sure dev handler starts up
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
-        connect_device("SimpleTestDevice", i);
+        connect_virtual_device("SimpleTestDevice", i);
         if (i % 8 == 0) {
             sleep(1);
         }
@@ -37,7 +37,7 @@ int main() {
     sleep(10);
     print_dev_ids();
     printf("CONNECTED %d DEVICES\n", NUM_TO_CONNECT);
-    connect_device("SimpleTestDevice", NUM_TO_CONNECT);
+    connect_virtual_device("SimpleTestDevice", NUM_TO_CONNECT);
     sleep(2);
     printf("CONNECTED %d + 1 DEVICES\n", NUM_TO_CONNECT);
     print_dev_ids();

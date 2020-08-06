@@ -36,15 +36,6 @@ device_t Potentiometer = {
     }
 };
 
-device_t Encoder = {
-    .type = 3,
-    .name = "Encoder",
-    .num_params = 1,
-    .params = {
-        {.name = "rotation"   , .type = INT , .read = 1 , .write = 0 }
-    }
-};
-
 device_t BatteryBuzzer = {
     .type = 4,
     .name = "BatteryBuzzer",
@@ -113,8 +104,7 @@ device_t RFID = {
     .name = "RFID",
     .num_params = 2,
     .params = {
-        {.name = "id_upper"     , .type = INT     , .read = 1 , .write = 0  },
-        {.name = "id_lower"     , .type = INT     , .read = 1 , .write = 0  },
+        {.name = "id"     		, .type = INT     , .read = 1 , .write = 0  },
         {.name = "tag_detect"   , .type = INT     , .read = 1 , .write = 0  }
     }
 };
@@ -183,7 +173,7 @@ device_t DummyDevice = {
 };
 
 device_t UnstableTestDevice = {
-    .type = 253,
+    .type = 61,
     .name = "UnstableTestDevice",
     .num_params = 1,
     .params = {
@@ -192,7 +182,7 @@ device_t UnstableTestDevice = {
 };
 
 device_t SimpleTestDevice = {
-    .type = 254,
+    .type = 62,
     .name = "SimpleTestDevice",
     .num_params = 4,
     .params = {
@@ -204,7 +194,7 @@ device_t SimpleTestDevice = {
 };
 
 device_t GeneralTestDevice = {
-    .type = 255,
+    .type = 63,
     .name = "GeneralTestDevice",
     .num_params = 32,
     .params = {

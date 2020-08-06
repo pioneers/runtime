@@ -14,10 +14,10 @@ int main() {
 
     // Connect a device then disconnect it
     print_dev_ids();
-    connect_device("SimpleTestDevice", 0x123);
+    int socket_num = connect_virtual_device("SimpleTestDevice", 0x123);
     sleep(1);
     print_dev_ids();
-    disconnect_device(0);   // Device will be at the 0th socket
+    disconnect_virtual_device(socket_num);   // Device will be at the 0th socket
     sleep(1);
     print_dev_ids();
 

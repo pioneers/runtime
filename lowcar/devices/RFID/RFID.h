@@ -8,8 +8,7 @@
 
 //give params more readable names
 enum class RFID_Param : uint8_t {
-	ID_UPPER	= 0,
-	ID_LOWER 	= 1,
+	ID 			= 0,
 	TAG_DETECT 	= 2		//is 1 if we have a tag; 0 otherwise
 };
 
@@ -33,8 +32,7 @@ private:
 	uint8_t delay; //for delaying the reading of the device
 
 	// Outward facing (read-only) params
-	uint16_t id_upper;	// The upper 16 bits of the id
-	uint16_t id_lower;	// The lower 16 bits of the id
+	uint32_t id;
 	uint8_t tag_detect; //tag_detect parameter
 };
 

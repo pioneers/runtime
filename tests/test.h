@@ -4,7 +4,7 @@
 #include "client/net_handler_client.h"
 #include "client/shm_client.h"
 #include "client/executor_client.h"
-//#include "client/dev_handler_client.h" //TODO: Uncomment this when dev_handler_client is done!
+#include "client/dev_handler_client.h" //TODO: Uncomment this when dev_handler_client is done!
 
 // ****************************************** START/END TEST *************************************** //
 

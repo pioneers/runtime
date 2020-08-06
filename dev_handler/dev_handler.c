@@ -137,7 +137,7 @@ void poll_connected_devices() {
     while (1) {
         if (get_new_devices(&connected_devs) > 0) {
             // If bit i of CONNECTED_DEVS is on, then it's a new device
-            for (int i = 0; (connected_devs >> i) > 0; i++) {
+            for (int i = 0; i < MAX_DEVICES; i++) {
                 if (connected_devs & (1 << i)) {
                     communicate(i);
                 }
@@ -258,6 +258,10 @@ void *relayer(void *relay_cast) {
 
     // Connect the lowcar device to shared memory
     device_connect(relay->dev_id, &relay->shm_dev_idx);
+    if (relay->shm_dev_idx == -1) {
+        relay_clean_up(relay);
+        return NULL;
+    }
 
     // Broadcast to the sender and receiver to start work
     pthread_cond_broadcast(&relay->start_cond);
@@ -516,11 +520,11 @@ int receive_message(relay_t *relay, message_t *msg) {
             log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
             return 3;
         } else if (num_bytes_read == 0) {  // read() returned due to timeout
-            log_printf(DEBUG, "Timed out when waiting for ACK from %s%d!", port_prefix, relay->port_num);
+            log_printf(WARN, "Timed out when waiting for ACK from %s%d!", port_prefix, relay->port_num);
             return 3;
         } else if (last_byte_read != 0x00) {
             // If the first thing received isn't a perfect ACK, we won't accept it
-            log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
+            log_printf(WARN, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
             return 1;
         }
     } else { // Receiving from a verified lowcar device
@@ -534,7 +538,7 @@ int receive_message(relay_t *relay, message_t *msg) {
                 break;
             }
             // If we were able to read a byte but it wasn't the delimiter
-            log_printf(DEBUG, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
+            log_printf(WARN, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
         }
     }
 
