@@ -142,7 +142,7 @@ message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]) {
 }
 
 void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
-                     param_val_t params[], void (*device_actions)(param_val_t[])) {
+                     param_val_t params[], void (*device_actions)(param_val_t[]), int32_t action_interval) {
     message_t *incoming_msg = make_empty(MAX_PAYLOAD_SIZE);
     message_t *outgoing_msg;
     uint64_t last_sent_ping_time = 0;
@@ -214,7 +214,7 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
             destroy_message(outgoing_msg);
         }
         // Change read-only params every 2 seconds
-        if ((now - last_device_action) >= 2000) {
+        if ((now - last_device_action) >= action_interval) {
             (*device_actions)(params);
             last_device_action = now;
         }

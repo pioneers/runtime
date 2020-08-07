@@ -36,7 +36,7 @@ dev_handler_cli: ../dev_handler/*.* client/dev_handler_client.* cli/dev_handler_
 
 ################################ VIRTUAL DEVICES ###############################
 
-devices: general_dev simple_dev unresponsive_dev foreign_dev unstable_dev
+devices: general_dev simple_dev unresponsive_dev foreign_dev unstable_dev time_dev
 
 VIRTUAL_DEVICE_FILES=client/virtual_devices/virtual_device_util.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
 
@@ -54,6 +54,9 @@ foreign_dev: client/virtual_devices/foreign_dev.c
 
 unstable_dev: client/virtual_devices/unstable_dev.c $(VIRTUAL_DEVICE_FILES)
 	gcc $^ -o client/virtual_devices/UnstableTestDevice
+
+time_dev: client/virtual_devices/time_dev.c $(VIRTUAL_DEVICE_FILES)
+	gcc $^ -o client/virtual_devices/TimeTestDevice 
 
 ##################################### TESTS ####################################
 
