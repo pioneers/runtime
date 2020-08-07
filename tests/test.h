@@ -4,9 +4,9 @@
 #include "client/net_handler_client.h"
 #include "client/shm_client.h"
 #include "client/executor_client.h"
-#include "client/dev_handler_client.h" //TODO: Uncomment this when dev_handler_client is done!
+#include "client/dev_handler_client.h"
 
-// ****************************************** START/END TEST *************************************** //
+// ***************************** START/END TEST ***************************** //
 
 /*
  * Takes care of setting up the plumbing for the test output to run.
@@ -15,47 +15,70 @@
  *    - char *test_description: a short description of what the test is testing
  * No return value.
  */
-void start_test (char *test_name);
+void start_test(char *test_name);
 
 /*
  * Takes care of resetting the plumbing of the outputs at the end of the test, and
  * prepares internal variables for calling the output comparison functions below.
  * Should be called after the test has called all stop_<process>() functions
  */
-void end_test ();
+void end_test();
 
-// *************************************** OUTPUT COMPARISON FUNCTIONS ***************************** //
+// ********************** OUTPUT COMPARISON FUNCTIONS *********************** //
 
 /*
- * Function returns true (1) if expected_output is somewhere in the output of the test
+ * Verifies that expected_output is somewhere in the output of the test
  * Arguments:
- *    - char *expected_output: string that should be in the output of the test
+ *    expected_output: string that should be in the output of the test
  * No return value. (Will exit with status code 1 if not in output).
  */
-void in_output (char *expected_output);
+void in_output(char *expected_output);
 
 /*
- * Function returns true if expected output is somewhere in the output after most recent call to this function
+ * Verifies that expected output is somewhere in the output after most recent call to this function
  * Arguments:
- *    - char *expected_output: string that should be in the output of the test AFTER most recent  call to this function
+ *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
  * No return value. (Will exit with status code 1 if not in rest of output).
  */
-void in_rest_of_output (char *expected_output);
+void in_rest_of_output(char *expected_output);
 
 /*
- * Function returns true if not_expected_output is not in the output of the test
+ * Verifies that not_expected_output is not in the output of the test
  * Arguments:
- *    - char *not_expected_output: string that should NOT be anywhere in the output of the test
+ *    not_expected_output: string that should NOT be anywhere in the output of the test
  * No return value. (Will exit with status code 1 if it found the string in the output).
  */
-void not_in_output (char *not_expected_output);
+void not_in_output(char *not_expected_output);
 
 /*
- * Function returns true if not_expected_output is not in the output of the test after most recent call to in_rest_of_output
+ * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
  * Arguments:
- *    - char *not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
+ *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
  * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
  */
-void not_in_rest_of_output (char *not_expected_output);
+void not_in_rest_of_output(char *not_expected_output);
+
+/*
+ * Verifies that two input arrays of parameters are the same
+ * Arguments:
+ *    dev_type: The type of the device the parameters are for
+ *    expected: Array of parameter values expected from a test
+ *    received: Array of parameter values received from a test
+ * Returns nothing if they're the same.
+ * Exits with status code 1 if they're different
+ */
+void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]);
+
+/*
+ * Verifies that two parameters have the same value
+ * Arguments:
+ *    param_name: The name of the parameter being compared
+ *    param_type: The data type being compared
+ *    expected: The parameter value expected from a test
+ *    received: The parameter value received from a test
+ * Returns nothing if they're the same.
+ * Exits with status code 1 if they're different
+ */
+void same_param_value(char *param_name, param_type_t param_type, param_val_t expected, param_val_t received);
 
 #endif
