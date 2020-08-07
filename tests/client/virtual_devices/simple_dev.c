@@ -52,12 +52,12 @@ int main(int argc, char *argv[]) {
     int fd = atoi(argv[1]);
     uint64_t uid = strtoull(argv[2], NULL, 0);
 
-    uint8_t dev_type = 62;
+    uint8_t dev_type = device_name_to_type("SimpleTestDevice");
     device_t *dev = get_device(dev_type);
 
     param_val_t params[dev->num_params];
     init_params(params);
 
-    lowcar_protocol(fd, dev_type, dev_type, uid, params, &device_actions);
+    lowcar_protocol(fd, dev_type, dev_type, uid, params, &device_actions, 2000);
     return 0;
 }

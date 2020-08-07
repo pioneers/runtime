@@ -62,7 +62,7 @@ typedef enum param_type {
 
 //hold a single param value. One-to-one mapping to param_val_t enum
 typedef union {
-	int16_t p_i; //data if int
+	int32_t p_i; //data if int
 	float p_f;   //data if float
 	uint8_t p_b; //data if bool
 } param_val_t;

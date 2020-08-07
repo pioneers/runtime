@@ -172,6 +172,16 @@ device_t DummyDevice = {
     }
 };
 
+device_t TimeTestDevice = {
+    .type = 60,
+    .name = "TimeTestDevice",
+    .num_params = 2,
+    .params =  {
+        {.name = "GET_TIME"     , .type = BOOL  , .read = 1, .write = 1},
+        {.name = "TIMESTAMP"    , .type = INT   , .read = 1, .write = 0}
+    }
+};
+
 device_t UnstableTestDevice = {
     .type = 61,
     .name = "UnstableTestDevice",
@@ -251,6 +261,7 @@ void devices_arr_init() {
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
     DEVICES[DummyDevice.type] = &DummyDevice;
+    DEVICES[TimeTestDevice.type] = &TimeTestDevice;
     DEVICES[UnstableTestDevice.type] = &UnstableTestDevice;
     DEVICES[SimpleTestDevice.type] = &SimpleTestDevice;
     DEVICES[GeneralTestDevice.type] = &GeneralTestDevice;
