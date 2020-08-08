@@ -25,7 +25,7 @@
 
 /* The maximum number of milliseconds to wait between each PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
-#define TIMEOUT 2500
+#define TIMEOUT 5000
 
 // The number of milliseconds between each PING sent to the device
 #define PING_FREQ 1000
@@ -532,6 +532,14 @@ int receive_message(relay_t *relay, message_t *msg) {
         while (1) {
             pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
             num_bytes_read = readn(relay->file_descriptor, &last_byte_read, 1);   // Waiting for first byte can block
+            if (num_bytes_read == 0) {
+                sleep(TIMEOUT / 1000 + 1);
+                return 1;
+            }
+            else if (num_bytes_read == -1) {
+                log_printf(ERROR, "receive_message: error reading from file: %s", strerror(errno));
+                return 1;
+            }
             pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
             if (last_byte_read == 0x00) {
                 // Found start of a message
@@ -667,6 +675,7 @@ int connect_socket(const char *socket_name) {
     strcpy(dev_socket_addr.sun_path, socket_name);
     if (connect(fd, (struct sockaddr *) &dev_socket_addr, sizeof(dev_socket_addr)) != 0) {
         log_printf(ERROR, "connect_socket: Couldn't connect socket %s--%s", dev_socket_addr.sun_path, strerror(errno));
+        remove(socket_name);
         return -1;
     }
 

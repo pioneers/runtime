@@ -268,9 +268,9 @@ void same_param_value(char *param_name, param_type_t param_type, param_val_t exp
             if (expected.p_f != received.p_f) {
                 fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
                 fprintf_delimiter(stderr, "Expected:");
-                fprintf(stderr, "%s == %d\n", param_name, expected.p_f);
+                fprintf(stderr, "%s == %f\n", param_name, expected.p_f);
                 fprintf_delimiter(stderr, "Got:");
-                fprintf(stderr, "%s == %d\n", param_name, received.p_f);
+                fprintf(stderr, "%s == %f\n", param_name, received.p_f);
                 exit(1);
             }
             break;
