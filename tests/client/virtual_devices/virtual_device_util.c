@@ -160,7 +160,6 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
             // Got a message
             switch (incoming_msg->message_id) {
                 case PING:
-                    // printf("Got PING\n");
                     last_received_ping_time = now;
                     if (!sent_ack) {
                         // Send an ack
@@ -174,11 +173,9 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
                 case SUBSCRIPTION_REQUEST:
                     memcpy(&subscribed_params, &incoming_msg->payload[0], BITMAP_SIZE);
                     memcpy(&subscription_interval, &incoming_msg->payload[BITMAP_SIZE], INTERVAL_SIZE);
-                    // printf("Now subscribed to 0x%08X every %d milliseconds\n", subscribed_params, subscription_interval);
                     break;
 
                 case DEVICE_WRITE:
-                    // printf("Got DEVICE_WRITE for 0x%08X\n", *((uint32_t *) incoming_msg->payload));
                     device_write(type, incoming_msg, params);
                     break;
             }
@@ -206,17 +203,17 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
             destroy_message(outgoing_msg);
             last_sent_ping_time = now;
         }
+        // Change read-only params periodically
+        if ((now - last_device_action) >= action_interval) {
+            (*device_actions)(params);
+            last_device_action = now;
+        }
         // Check if we should send another DEVICE_DATA
         if (subscribed_params && ((now - last_sent_data_time) >= subscription_interval)) {
             // printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
             outgoing_msg = make_device_data(type, subscribed_params, params);
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
-        }
-        // Change read-only params every 2 seconds
-        if ((now - last_device_action) >= action_interval) {
-            (*device_actions)(params);
-            last_device_action = now;
         }
     }
 }
