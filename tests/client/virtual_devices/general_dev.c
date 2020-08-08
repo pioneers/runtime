@@ -109,6 +109,6 @@ int main(int argc, char *argv[]) {
     param_val_t params[dev->num_params];
     init_params(params);
 
-    lowcar_protocol(fd, dev_type, dev_type, uid, params, &device_actions, 2000);
+    lowcar_protocol(fd, dev_type, dev_type, uid, params, &device_actions, 1000);
     return 0;
 }
