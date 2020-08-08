@@ -30,9 +30,6 @@ int main() {
     sleep(1);   // Make sure dev handler starts up
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         connect_virtual_device("SimpleTestDevice", i);
-        if (i % 8 == 0) {
-            sleep(1);
-        }
     }
     sleep(10);
     print_dev_ids();
