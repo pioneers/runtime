@@ -72,7 +72,7 @@ int main (int argc, char* argv[])
 
 	sleep(3);
 	Text inputs = TEXT__INIT;
-	inputs.n_payload = NUM_CHALLENGES;
+	inputs.n_payload = 2;
 	inputs.payload = malloc(sizeof(char*) * inputs.n_payload);
 	inputs.payload[0] = "2039";
 	inputs.payload[1] = "190172344";

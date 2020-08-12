@@ -6,7 +6,7 @@ pid_t executor_pid;
 char *path_to_test_student_code = "../tests/student_code";
 char *python_path_header = "PYTHONPATH=";
 
-void start_executor (char *student_code)
+void start_executor (char *student_code, char *challenge_code)
 {
 	//fork executor process
 	if ((executor_pid = fork()) < 0) {
@@ -44,9 +44,13 @@ void start_executor (char *student_code)
 		if (student_code[len - 1] == '\n') {
 			student_code[len - 1] = '\0';
 		}
+        len = strlen(challenge_code);
+		if (challenge_code[len - 1] == '\n') {
+			challenge_code[len - 1] = '\0';
+		}
 
 		//exec the actual executor process
-		if (execlp("./executor", "executor", student_code, (char *) 0) < 0) {
+		if (execlp("./executor", "executor", student_code, challenge_code, NULL) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	}
