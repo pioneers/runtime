@@ -18,16 +18,15 @@ clean:
 
 cli: net_handler_cli shm_cli executor_cli
 
-net_handler_cli: ../net_handler/* client/net_handler_client.* cli/net_handler_cli.c
+net_handler_cli: ../net_handler/*.* client/net_handler_client.* cli/net_handler_cli.c
 	gcc cli/net_handler_cli.c client/net_handler_client.c ../net_handler/net_util.c ../runtime_util/runtime_util.c \
 		../net_handler/pbc_gen/*.c ../logger/logger.c -o $@ $(LIBS)
 
-shm_cli: ../shm_wrapper/* client/shm_client.* cli/shm_cli.c
+shm_cli: ../shm_wrapper/*.* client/shm_client.* cli/shm_cli.c
 	gcc cli/shm_cli.c client/shm_client.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
-executor_cli: ../executor/* client/executor_client.* cli/executor_cli.c
+executor_cli: ../executor/*.* client/executor_client.* cli/executor_cli.c
 	gcc cli/executor_cli.c client/executor_client.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
-
 
 integration/%: $(SRC_FILES)
 	gcc $@.c $(SRC_FILES) -o $* $(LIBS)

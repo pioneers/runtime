@@ -243,9 +243,6 @@ static void *output_dump (void *args)
 
 void start_net_handler ()
 {
-	//if someone presses Ctrl-C (SIGINT), stop the net handler before exiting)
-	signal(SIGINT, stop_net_handler);
-
 	//fork net_handler process
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
@@ -416,20 +413,15 @@ void send_gamepad_state (uint32_t buttons, float joystick_vals[4])
 	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
 }
 
-void send_challenge_data (robot_desc_field_t client, char **data)
+void send_challenge_data (robot_desc_field_t client, char **data, int num_challenges)
 {
 	Text challenge_data = TEXT__INIT;
 	uint8_t *send_buf;
 	uint16_t len;
 	
 	//build the message
-	challenge_data.payload = malloc(sizeof(char *) * NUM_CHALLENGES);
-	challenge_data.n_payload = NUM_CHALLENGES;
-	for (int i = 0; i < NUM_CHALLENGES; i++) {
-		len = strlen(data[i]);
-		challenge_data.payload[i] = malloc(sizeof(char) * len);
-		strcpy(challenge_data.payload[i], data[i]);
-	}
+	challenge_data.payload = data;
+	challenge_data.n_payload = num_challenges;
 	len = text__get_packed_size(&challenge_data);
 	send_buf = make_buf(CHALLENGE_DATA_MSG, len);
 	text__pack(&challenge_data, send_buf + BUFFER_OFFSET);
@@ -440,12 +432,6 @@ void send_challenge_data (robot_desc_field_t client, char **data)
 	} else {
 		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
-	
-	//free everything
-	for (int i = 0; i < NUM_CHALLENGES; i++) {
-		free(challenge_data.payload[i]);
-	}
-	free(challenge_data.payload);
 	free(send_buf);
 	sleep(6); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
 }

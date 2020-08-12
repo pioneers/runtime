@@ -8,9 +8,6 @@ char *python_path_header = "PYTHONPATH=";
 
 void start_executor (char *student_code)
 {
-	//if someone presses Ctrl-C (SIGINT), stop executor process
-	signal(SIGINT, stop_executor);
-
 	//fork executor process
 	if ((executor_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
