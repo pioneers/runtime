@@ -34,7 +34,7 @@ int main ()
 	start_test("executor sanity test");
 	start_shm();
 	start_net_handler();
-	start_executor("executor_sanity");
+	start_executor("executor_sanity", "executor_sanity");
 
 	//poke the system
 	//this section checks the autonomous code (should generate some print statements)
@@ -54,7 +54,7 @@ int main ()
 
 	//this section runs the coding challenges (should not error or time out)
 	char *inputs[] = { "2039", "190172344" };
-	send_challenge_data(DAWN, inputs);
+	send_challenge_data(DAWN, inputs, 2);
 
 	//stop all the processes
 	stop_executor();

@@ -19,6 +19,7 @@
 
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
+char* module_name;
 PyObject *pModule, *pAPI, *pRobot, *pGamepad;
 robot_desc_val_t mode = IDLE; // current robot mode
 pid_t pid; // pid for mode process
@@ -87,17 +88,18 @@ void reset_params() {
  *      student_code: string representing the name of the student's Python file, without the .py
  */
 void executor_init(char* student_code) {
-    //initialize Python
+    // initialize Python
     Py_Initialize();
     PyEval_InitThreads();
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
-
-    //imports the student code
-    pModule = PyImport_ImportModule(student_code);
+    
+    // imports the student code
+    module_name = student_code;
+    pModule = PyImport_ImportModule(module_name);
     if (pModule == NULL) {
         PyErr_Print();
-        log_printf(ERROR, "Could not import student code file: %s", student_code);
+        log_printf(ERROR, "Could not import student code file: %s", module_name);
         exit(1);
     }
 
@@ -185,7 +187,7 @@ void executor_init(char* student_code) {
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
+uint8_t run_py_function(const char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
     uint8_t ret = 0;
 	
     //retrieve the Python function from the student code
@@ -267,7 +269,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
         if (PyErr_Occurred()) {
             PyErr_Print();
         }
-        log_printf(ERROR, "Cannot find function in student code: %s", func_name);
+        log_printf(ERROR, "Cannot find function %s in code file %s", func_name, module_name);
         ret = 4;
     }
     return ret;
@@ -304,23 +306,18 @@ void run_mode(robot_desc_val_t mode) {
 /**
  *  Receives inputs from net handler, runs the coding challenges, and sends output back to net handler.
  */
-void run_challenges(char* challenge_file) {
-    uint8_t num_challenges = 0;
-    char file_path[strlen(challenge_file) + 6];
-    sprintf(file_path, "%s.txt", challenge_file);
-    FILE* file = fopen(file_path, "r");
-    if (file == NULL) {
-        log_printf(ERROR, "run_challenges: Can't open the challenge name file %s: %s", file_path, strerror(errno));
+void run_challenges() {
+    PyObject* challenge_list = PyObject_GetAttrString(pModule, "CHALLENGES");
+    if (challenge_list == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "run_challenges: cannot find the CHALLENGES list in challenges file %s", module_name);
         return;
     }
-    char challenge_names[32][CHALLENGE_LEN];
-    while (fgets(challenge_names[num_challenges], CHALLENGE_LEN, file)) {
-        strcpy(challenge_names[num_challenges], strtok(challenge_names[num_challenges], "\n")); // Remove trailing newline character
-        num_challenges++;
-        if (num_challenges == 32) {
-            log_printf(WARN, "run_challenges: Read maximum number of challenges %d from file %s", num_challenges, file_path);
-            break;
-        }
+    uint8_t num_challenges = PyList_Size(challenge_list);
+    if (PyErr_Occurred()) {
+        PyErr_Print();
+        log_printf(ERROR, "run_challenges: cannot get length of CHALLENGES object, not a Python list. %d", num_challenges);
+        return;
     }
 
     // Receive challenge inputs from net_handler
@@ -348,22 +345,37 @@ void run_challenges(char* challenge_file) {
     outputs.payload = malloc(sizeof(char*) * outputs.n_payload);
 
     for (int i = 0; i < num_challenges; i++) {
+        // Get name of the challenge
+        PyObject* pyName = PyList_GetItem(challenge_list, i);
+        if (pyName == NULL) {
+            PyErr_Print();
+            log_printf(ERROR, "run_challenges: cannot get name %d from CHALLENGES list", i);
+            outputs.payload[i] = "Fatal error";
+            continue;
+        }
+        const char* func_name = PyUnicode_AsUTF8(pyName);
+        if (func_name == NULL) {
+            PyErr_Print();
+            log_printf(ERROR, "run_challenges: element %d of CHALLENGES is not a Python string", i);
+            outputs.payload[i] = "Fatal error";
+            continue;
+        }
         // Convert input C string to C long then Python tuple args
         long input = strtol(inputs->payload[i], NULL, 10);
         log_printf(DEBUG, "received inputs for %d: %ld", i, input);
         PyObject* arg = Py_BuildValue("(l)", input);
         if (arg == NULL) {
             PyErr_Print();
-            log_printf(ERROR, "Couldn't decode input string into Python long for challenge %s", challenge_names[i]);
+            log_printf(ERROR, "Couldn't decode input string into Python long for challenge %s", func_name);
+            outputs.payload[i] = "Fatal error";
             continue;
         }
         // Run the challenge
         PyObject* ret = NULL;
-        if (run_py_function(challenge_names[i], NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
+        if (run_py_function(func_name, NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
             for (int j = i; j < num_challenges; j++) {
                 // Set rest of challenge outputs to notify the TCP client
-                outputs.payload[i] = malloc(16);
-                strcpy(outputs.payload[i], "Timed out");
+                outputs.payload[i] = "Timed out";
             }
             break;
         }
@@ -373,7 +385,8 @@ void run_challenges(char* challenge_file) {
         Py_XDECREF(ret);
         if (ret_string == NULL) {
             PyErr_Print();
-            log_printf(ERROR, "Couldn't convert return value to Python string for challenge %s", challenge_names[i]);
+            log_printf(ERROR, "Couldn't convert return value to Python string for challenge %s", func_name);
+            outputs.payload[i] = "Fatal error";
             continue;
         }
         int ret_len;
@@ -398,9 +411,6 @@ void run_challenges(char* challenge_file) {
         log_printf(WARN, "run_challenges: only %d of %d bytes sent to challenge_fd", send_len, len_buf);
     }
 
-    for(int i = 0; i < num_challenges; i++) {
-        free(outputs.payload[i]);
-    }
     free(outputs.payload);
     free(send_buf);
 
@@ -478,7 +488,7 @@ pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
             signal(SIGTERM, exit);
             signal(SIGALRM, python_exit_handler); // Sets interrupt for any long-running challenge
             alarm(challenge_time); // Set timeout for challenges
-            run_challenges(challenge_code);
+            run_challenges();
             robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
         }
         else {
