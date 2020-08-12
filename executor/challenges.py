@@ -7,7 +7,7 @@ def reverse_digits(num):
 def list_prime_factors(num):
     primes = []
     for i in range(2, int(math.sqrt(num))):
-        while num % i == 0:
+        if num % i == 0:
             add = True
             for p in primes:
                 if i % p == 0:
@@ -15,8 +15,9 @@ def list_prime_factors(num):
                     break
             if add:
                 primes.append(i)
-            num = num // i
-    if num not in primes:
+            while num % i == 0:
+                num = num // i
+    if num not in primes and num != 1:
         primes.append(num)
     return primes
 

@@ -28,8 +28,8 @@ struct timespec setup_time = { 2, 0 };    // Max time allowed for setup function
 #define min_freq 10.0 // Minimum number of times per second the main loop should run
 struct timespec main_interval = { 0, (long) ((1.0 / min_freq) * 1e9) };
 #define max_freq 10000.0 // Maximum number of times per second the Python function should run
-uint64_t min_time = (1.0 / max_freq) * 1e9; // Minimum time in nanoseconds that the Python function should take
-int challenge_time = 5; // Max allowed time for running all challenges in seconds
+#define min_time (1.0 / max_freq) * 1e9 // Minimum time in nanoseconds that the Python function should take
+#define challenge_time 5 // Max allowed time for running all challenges in seconds
 
 
 /**
@@ -209,7 +209,7 @@ uint8_t run_py_function(char* func_name, struct timespec* timeout, int loop, PyO
             }
             //if the time the Python function took was less than min_time, sleep to slow down execution
             if (time < min_time) {
-                usleep((min_time - time) / 1000);
+                usleep((min_time - time) / 1000); // Need to convert nanoseconds to microseconds
             }
 
             // Set return value
@@ -517,7 +517,6 @@ int main(int argc, char* argv[]) {
             challenge_code = argv[2];
         }
     }
-    log_printf(DEBUG, "Min time %llu", min_time);
     
     remove(CHALLENGE_SOCKET); // Always remove any old challenge socket
     struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};    //for holding IP addresses (IPv4)

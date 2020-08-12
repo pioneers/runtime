@@ -1,4 +1,3 @@
-#include <signal.h>
 #include "shm_wrapper.h"
 
 char sname[SNAME_SIZE];   //being lazy here but this is for holding all the semaphore names
