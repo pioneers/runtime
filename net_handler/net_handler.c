@@ -66,7 +66,7 @@ int listening_socket_setup (int *sockfd)
 */
 void sigint_handler (int sig_num)
 {
-	log_printf(DEBUG, "stopping net_handler");
+	log_printf(DEBUG, "Stopping net_handler...");
 	stop_udp_conn();
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
 		stop_tcp_conn(SHEPHERD);

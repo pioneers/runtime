@@ -97,7 +97,7 @@ void init() {
 
 // Disconnect devices from shared memory and destroy mutexes
 void stop() {
-	log_printf(INFO, "Ctrl+C pressed. Safely terminating program\n");
+	log_printf(DEBUG, "Interrupt received, terminating dev_handler\n");
 	// For each tracked lowcar device, disconnect from shared memory
 	uint32_t connected_devs = 0;
 	get_catalog(&connected_devs);
