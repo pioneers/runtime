@@ -1,11 +1,5 @@
 #include "virtual_device_util.h"
 
-// How often we send PING to dev handler
-#define PING_FREQ 1000
-
-// Longest time period we tolerate not having a PING
-#define TIMEOUT 2500
-
 message_t *make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
     message_t *msg = malloc(sizeof(message_t));
     msg->message_id = ACKNOWLEDGEMENT;

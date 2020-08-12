@@ -17,6 +17,13 @@
 #include "../runtime_util/runtime_util.h"
 #include "../logger/logger.h"
 
+/* The maximum number of milliseconds to wait between each PING from a device
+ * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
+#define TIMEOUT 1000
+
+// The number of milliseconds between each PING sent to the device
+#define PING_FREQ 300
+
 // The size in bytes of the message delimiter
 #define DELIMITER_SIZE 1
 // The size in bytes of the section specifying the length of the cobs encoded message

@@ -6,24 +6,13 @@
  */
 #include "../test.h"
 
-char no_device[] = "no connected devices";
-
-void stop_test() {
-    printf("Cleaning up\n");
-    disconnect_all_devices();
-    sleep(2);
-    stop_dev_handler();
-    stop_shm();
-    end_test();
-}
-
 #define NUM_TO_CONNECT MAX_DEVICES
 
 int main() {
     // Setup
-    signal(SIGINT, stop_test);
     start_test("Hotplug MAX_DEVICES + 1");
     start_shm();
+    start_net_handler();
     start_dev_handler();
 
     // Connect MAX_DEVICES
@@ -31,16 +20,24 @@ int main() {
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         connect_virtual_device("SimpleTestDevice", i);
     }
-    sleep(10);
+    sleep(2);   // Make sure all devices connect
     print_dev_ids();
     printf("CONNECTED %d DEVICES\n", NUM_TO_CONNECT);
+    printf("Letting devices sit\n");
+    sleep(5);  // Let devices sit to make sure runtime can handle it
     connect_virtual_device("SimpleTestDevice", NUM_TO_CONNECT);
-    sleep(2);
-    printf("CONNECTED %d + 1 DEVICES\n", NUM_TO_CONNECT);
+    sleep(2);   // Let device connect
     print_dev_ids();
+    printf("CONNECTED %d + 1 DEVICES\n", NUM_TO_CONNECT);
+    sleep(2);   // Let last device sit
 
     // Stop all processes
-    stop_test();
+    disconnect_all_devices();
+    sleep(1);
+    stop_dev_handler();
+    stop_net_handler();
+    stop_shm();
+    end_test();
 
     // Check outputs
     char expected_output[64];

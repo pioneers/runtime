@@ -23,13 +23,6 @@
 
 // ********************************* CONFIG ********************************* //
 
-/* The maximum number of milliseconds to wait between each PING from a device
- * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
-#define TIMEOUT 5000
-
-// The number of milliseconds between each PING sent to the device
-#define PING_FREQ 1000
-
 // The interval (ms) at which we want DEVICE_DATA messages for subscribed params
 #define SUB_INTERVAL 1
 
@@ -50,8 +43,8 @@ typedef struct {
     int file_descriptor;                // Obtained from opening port. Used to close port.
     int shm_dev_idx;                    // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     dev_id_t dev_id;                    // set by relayer once ACKNOWLEDGEMENT is received
-    uint64_t last_received_ping_time;   // set by receiver: Timestamp of the most recent PING from the device
-    pthread_mutex_t relay_lock;         // Mutex on relay->last_received_ping_time
+    uint64_t last_received_msg_time;    // set by receiver: Timestamp of the most recent message from the device
+    pthread_mutex_t relay_lock;         // Mutex on relay->last_received_msg_time
     pthread_cond_t start_cond;          // Conditional variable for relayer to broadcast to sender and receiver to start work
 } relay_t;
 
@@ -216,7 +209,7 @@ void communicate(uint8_t port_num) {
     relay->dev_id.type = -1;
     relay->dev_id.year = -1;
     relay->dev_id.uid = -1;
-    relay->last_received_ping_time = 0;
+    relay->last_received_msg_time = 0;
     pthread_mutex_init(&relay->relay_lock, NULL);
     pthread_cond_init(&relay->start_cond, NULL);
 
@@ -277,9 +270,9 @@ void *relayer(void *relay_cast) {
             relay_clean_up(relay);
             return NULL;
         }
-        // If it took too long to receive a Ping, the device timed out
+        // If it took too long to receive a message, the device timed out
         pthread_mutex_lock(&relay->relay_lock);
-        if ((millis() - relay->last_received_ping_time) >= TIMEOUT) {
+        if ((millis() - relay->last_received_msg_time) >= TIMEOUT) {
             pthread_mutex_unlock(&relay->relay_lock);
             log_printf(WARN, "%s (0x%016llX) timed out!", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             relay_clean_up(relay);
@@ -415,7 +408,7 @@ void *sender(void *relay_cast) {
 
 /**
  * Continuously attempts to parse incoming data over serial and send to shared memory
- * Sets relay->last_received_ping_time upon receiving a PING
+ * Sets relay->last_received_msg_time upon receiving a message
  * Arguments:
  *    relay_cast: uncasted relay_t struct containing device info
  */
@@ -442,19 +435,21 @@ void *receiver(void *relay_cast) {
             // Message was broken... try to read the next message
             continue;
         }
-        if (msg->message_id == PING) {
-            // If received PING, update relay->last_received_ping_time
+        if (msg->message_id == PING || msg->message_id == DEVICE_DATA || msg->message_id != LOG) {
+            // Update last received message time
             pthread_mutex_lock(&relay->relay_lock);
-            relay->last_received_ping_time = millis();
+            relay->last_received_msg_time = millis();
             pthread_mutex_unlock(&relay->relay_lock);
-        } else if (msg->message_id == DEVICE_DATA) {
-            // If received DEVICE_DATA, write to shared memory
-            parse_device_data(relay->dev_id.type, msg, vals); // Get param values from payload
-            device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
-        } else if (msg->message_id == LOG) {
-            // If received LOG, send it to the logger
-            log_printf(DEBUG, "[%s (0x%016llX)]: %s", get_device_name(relay->dev_id.type), relay->dev_id.uid, msg->payload);
-        } else {
+            // Handle message
+            if (msg->message_id == DEVICE_DATA) {
+                // If received DEVICE_DATA, write to shared memory
+                parse_device_data(relay->dev_id.type, msg, vals); // Get param values from payload
+                device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t *)msg->payload), vals);
+            } else if (msg->message_id == LOG) {
+                // If received LOG, send it to the logger
+                log_printf(DEBUG, "[%s (0x%016llX)]: %s", get_device_name(relay->dev_id.type), relay->dev_id.uid, msg->payload);
+            }
+        } else { // Invalid message type
             log_printf(WARN, "Dropped bad message (type %d) from %s (0x%016llX)", msg->message_id, get_device_name(relay->dev_id.type), relay->dev_id.uid);
         }
         // Now that the message is taken care of, clear the message
@@ -644,9 +639,7 @@ int verify_lowcar(relay_t *relay) {
     memcpy(&relay->dev_id.year, &ack->payload[1], 1);
     memcpy(&relay->dev_id.uid , &ack->payload[2], 8);
     log_printf(INFO, "Connected %s (0x%016llX) from year %d!", get_device_name(relay->dev_id.type), relay->dev_id.uid, relay->dev_id.year);
-    // log_printf(DEBUG, "ACK received! %s%d is type 0x%02X (%s), year 0x%02X, uid 0x%016llX!\n", \
-    // port_prefix, relay->port_num, relay->dev_id.type, get_device_name(relay->dev_id.type), relay->dev_id.year, relay->dev_id.uid);
-    relay->last_received_ping_time = millis(); // Treat the ACK as a ping to prevent timeout
+    relay->last_received_msg_time = millis();
     destroy_message(ack);
     return 0;
 }
