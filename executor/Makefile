@@ -8,12 +8,12 @@ LIBS=-pthread -lrt -export-dynamic -fPIC -lprotobuf-c
 #-rdynamic or -export-dynamic to make it dynamically linked
 
 
-all: executor studentapi
+all: executor studentapi.c
 
 executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/net_util.c ../net_handler/pbc_gen/text.pb-c.c
 	gcc $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
-studentapi: studentapi.pyx runtime.pxd
+studentapi.c: studentapi.pyx runtime.pxd
 	$(py) setup.py build_ext -i
 
 test_api: studentapi test_studentapi.py

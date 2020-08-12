@@ -7,9 +7,9 @@ TEST_FOLDER=protobuf_tests
 GEN_FILES:=$(GEN_FOLDER)/*.c
 
 
-all: gen_proto net_handler udp_client tcp_client
+all: $(GEN_FOLDER)/* net_handler udp_client tcp_client
 
-gen_proto: $(wildcard protos/*.proto)
+$(GEN_FOLDER)/*: $(wildcard protos/*.proto)
 	cd protos && protoc-c --c_out ../$(GEN_FOLDER) *.proto
 
 clean:
@@ -19,7 +19,7 @@ clean:
 	rm -f tcp_client
 	rm -f udp_client
 
-proto_tests: gen_proto log runmode gpstate devdata
+proto_tests: $(GEN_FOLDER)/* log runmode gpstate devdata
 
 log: log_in log_out
 runmode: runmode_in runmode_out
