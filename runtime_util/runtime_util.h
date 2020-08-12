@@ -21,7 +21,6 @@
 
 #define MAX_LOG_LEN 512
 
-#define NUM_CHALLENGES 2
 #define CHALLENGE_LEN 128
 #define CHALLENGE_SOCKET "/tmp/challenge.sock"
 
