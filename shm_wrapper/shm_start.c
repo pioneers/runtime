@@ -115,6 +115,8 @@ int main ()
 	rd_shm_ptr->fields[START_POS] = LEFT;
 
 	memset(log_data_shm_ptr, 0, sizeof(log_data_shm_t));
+
+	log_printf(INFO, "SHM created");
 	
 	return 0; //returns to start everything
 }
