@@ -8,6 +8,7 @@
 #include <sys/stat.h>                      //for some of the flags that are used (the mode constants)
 #include <fcntl.h>                         //for flags used for opening and closing files (O_* constants)
 #include <unistd.h>                        //for standard symbolic constants
+#include <signal.h>						   // for signal handlers
 #include <semaphore.h>                     //for semaphores
 #include <sys/mman.h>                      //for posix shared memory
 #include <limits.h>						   //for UCHAR_MAX

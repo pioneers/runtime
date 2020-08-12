@@ -4,9 +4,6 @@ pid_t shm_pid;
 
 void start_shm ()
 {
-	//if someone presses Ctrl-C (SIGINT), stop shared memory before exiting
-	signal(SIGINT, stop_shm);
-
 	//fork shm_start process
 	if ((shm_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
