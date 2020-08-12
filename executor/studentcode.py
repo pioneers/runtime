@@ -123,8 +123,6 @@ def wait():
 
 ########################################### Code Challenges ###########################################
 
-
-
 def reverse_digits(num):
     return int(str(num)[::-1])
 
@@ -144,4 +142,3 @@ def list_prime_factors(num):
     if num not in primes:
         primes.append(num)
     return primes
-

@@ -28,8 +28,6 @@ cdef extern from "../runtime_util/runtime_util.h":
         CONNECTED, DISCONNECTED, LEFT, RIGHT, AUTO, TELEOP
     char** get_button_names() nogil
     char** get_joystick_names() nogil
-    param_desc_t* get_param_desc(uint8_t dev_type, char* param_name) nogil
-    int8_t get_param_idx(uint8_t dev_type, char* param_name) nogil
     device_t* get_device(uint8_t dev_type) nogil
 
 

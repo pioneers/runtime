@@ -1,0 +1,2 @@
+reverse_digits
+list_prime_factors
