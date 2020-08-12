@@ -1,5 +1,7 @@
 import math
 
+CHALLENGES = ['reverse_digits', 'list_prime_factors']
+
 def reverse_digits(num):
     return int(str(num)[::-1])
 
