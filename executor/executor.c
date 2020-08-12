@@ -15,6 +15,7 @@
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 #include "../logger/logger.h"              // for runtime logger
+#include "../net_handler/net_util.h"       // For Text protobuf message and buffer utilities
 
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
@@ -321,28 +322,34 @@ void run_challenges(char* challenge_file) {
             break;
         }
     }
-    if(num_challenges != NUM_CHALLENGES) {
-        log_printf(ERROR, "run_challenges: number of challenge names %d is not equal to predefined number of challenges %d", num_challenges, NUM_CHALLENGES);
+
+    // Receive challenge inputs from net_handler
+    struct sockaddr_un address;
+    socklen_t addrlen = sizeof(address);
+    int buf_size = 256;
+    uint8_t read_buf[buf_size];
+
+    int recv_len = recvfrom(challenge_fd, read_buf, buf_size, 0, (struct sockaddr*) &address, &addrlen);
+    if (recv_len == buf_size) {
+        log_printf(WARN, "run_challenges: Read length matches read buffer size %d", recv_len);
+    }
+    if (recv_len <= 0) {
+        log_printf(ERROR, "run_challenges: socket read from challenge_fd failed: recvfrom %s", strerror(errno));
+        return;
+    }
+    Text* inputs = text__unpack(NULL, recv_len, read_buf);
+    if(num_challenges != inputs->n_payload) {
+        log_printf(ERROR, "run_challenges: number of challenge names %d is not equal to number of inputs %d", num_challenges, inputs->n_payload);
         return;
     }
 
-    char read_buf[CHALLENGE_LEN];
-    struct sockaddr_un address;
-    socklen_t addrlen = sizeof(address);
-    char send_buf[num_challenges][CHALLENGE_LEN];
- 
+    Text outputs = TEXT__INIT;
+    outputs.n_payload = num_challenges;
+    outputs.payload = malloc(sizeof(char*) * outputs.n_payload);
+
     for (int i = 0; i < num_challenges; i++) {
-        // Receive challenge inputs from net_handler
-        int recvlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, (struct sockaddr*) &address, &addrlen);
-        if (recvlen == CHALLENGE_LEN) {
-            log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
-        }
-        if (recvlen <= 0) {
-            log_printf(ERROR, "Socket read from challenge_fd failed: recvfrom %s", strerror(errno));
-            return;
-        }
         // Convert input C string to C long then Python tuple args
-        long input = strtol(read_buf, NULL, 10);
+        long input = strtol(inputs->payload[i], NULL, 10);
         log_printf(DEBUG, "received inputs for %d: %ld", i, input);
         PyObject* arg = Py_BuildValue("(l)", input);
         if (arg == NULL) {
@@ -353,12 +360,10 @@ void run_challenges(char* challenge_file) {
         // Run the challenge
         PyObject* ret = NULL;
         if (run_py_function(challenge_names[i], NULL, 0, arg, &ret) == 3) { // Check if challenge got timed out
-            strcpy(send_buf[i], "Timed out");
-            for (int j = i+1; j < num_challenges; j++) {
-                // Read rest of inputs to clear the challenge socket
-                recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, NULL, NULL);
+            for (int j = i; j < num_challenges; j++) {
                 // Set rest of challenge outputs to notify the TCP client
-                strcpy(send_buf[j], "Timed out");
+                outputs.payload[i] = malloc(16);
+                strcpy(outputs.payload[i], "Timed out");
             }
             break;
         }
@@ -374,21 +379,31 @@ void run_challenges(char* challenge_file) {
         int ret_len;
         const char* c_ret = PyUnicode_AsUTF8AndSize(ret_string, &ret_len);
         Py_DECREF(ret_string);
-        if (ret_len >= CHALLENGE_LEN) {
-            log_printf(ERROR, "Size of return string %d from challenge %s is greater than allocated %d", ret_len, challenge_names[i], CHALLENGE_LEN);
-        }
-        strncpy(send_buf[i], c_ret, CHALLENGE_LEN); // Need to copy since pointer data is reset each iteration
-        memset(read_buf, 0 , CHALLENGE_LEN); // Need to reset read buffer for next read
+        outputs.payload[i] = malloc(ret_len + 1);
+        strcpy(outputs.payload[i], c_ret); // Need to copy since pointer data is reset each iteration
     }
+    text__free_unpacked(inputs, NULL);
 
     // Send all results back to net handler
-    for (int i = 0; i < num_challenges; i++) {
-        int len = strlen(send_buf[i]) + 1;
-        int sendlen = sendto(challenge_fd, send_buf[i], len, 0, (struct sockaddr*) &address, addrlen);
-        if (sendlen <= 0 || sendlen != len) {
-            log_printf(ERROR, "Socket send to challenge_fd failed: %s", strerror(errno));
-        }
+    uint16_t len_pb = text__get_packed_size(&outputs);
+    uint8_t* send_buf = make_buf(CHALLENGE_DATA_MSG, len_pb);
+    uint16_t len_buf = len_pb + BUFFER_OFFSET;
+    text__pack(&outputs, send_buf + BUFFER_OFFSET);
+
+    int send_len = sendto(challenge_fd, send_buf, len_buf, 0, (struct sockaddr*) &address, addrlen);
+    if (send_len <= 0) {
+        log_printf(ERROR, "run_challenges: socket send to challenge_fd failed: %s", strerror(errno));
     }
+    else if (send_len != len_buf) {
+        log_printf(WARN, "run_challenges: only %d of %d bytes sent to challenge_fd", send_len, len_buf);
+    }
+
+    for(int i = 0; i < num_challenges; i++) {
+        free(outputs.payload[i]);
+    }
+    free(outputs.payload);
+    free(send_buf);
+
     alarm(0);
 }
 

@@ -13,7 +13,7 @@
  *        Ex. for a file called example.py, the argument would be "example"
  * No return value.
  */
-void start_executor (char *student_code);
+void start_executor (char *student_code, char *challenge_code);
 
 /*
  * Stops the executor spawned by start_executor
