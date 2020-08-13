@@ -19,10 +19,14 @@ typedef struct dev_data {
 void start_net_handler ();
 
 /*
- * Sends SIGINT to the net handler process
- * Cleans up threads and closes open file descriptors
+ * Sends SIGINT to the net handler process and then calls close_output()
  */
 void stop_net_handler ();
+
+/* 
+ * Cleans up threads and closes open file descriptors 
+ */
+void close_output();
 
 /*
  * Sends a Run Mode message from the specified client with the specified mode

@@ -364,8 +364,7 @@ void display_help()
 
 void sigint_handler (int signum)
 {
-	stop_net_handler();
-	remove(CHALLENGE_SOCKET);
+	close_output();
 	exit(0);
 }
 
@@ -409,6 +408,7 @@ int main ()
 			printf("Invalid command %s", nextcmd);
 			display_help();
 		}
+		usleep(500000);
 	}
 	
 	printf("Exiting Net Handler CLI...\n");

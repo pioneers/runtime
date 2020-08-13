@@ -17,12 +17,6 @@ void display_help()
 
 // ********************************** MAIN PROCESS ****************************************** //
 
-void sigint_handler (int signum)
-{
-	stop_executor();
-	exit(0);
-}
-
 void change_student_code() {
 	printf("Please enter the name of the file to use as student code (do not enter the \".py\"): ");
 	fgets(student_code, MAX_CMD_LEN, stdin);
@@ -41,9 +35,7 @@ int main ()
 {
 	char nextcmd[MAX_CMD_LEN]; //to hold nextline
 	int stop = 0;
-	
-	signal(SIGINT, sigint_handler);
-	
+		
 	printf("Starting Executor CLI...\n");
     strcpy(student_code, "studentcode");
     strcpy(challenge_code, "challenges");
