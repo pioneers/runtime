@@ -528,6 +528,7 @@ int receive_message(relay_t *relay, message_t *msg) {
             pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
             num_bytes_read = readn(relay->file_descriptor, &last_byte_read, 1);   // Waiting for first byte can block
             if (num_bytes_read == 0) {
+                // received EOF so sleep to make device disconnected
                 sleep(TIMEOUT / 1000 + 1);
                 return 1;
             }
