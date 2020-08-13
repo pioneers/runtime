@@ -118,7 +118,6 @@ void start_dev_handler() {
         if (execlp("./dev_handler", "dev_handler", "virtual", (char *) 0) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
-        printf("Connection success!\n");
     }
 }
 

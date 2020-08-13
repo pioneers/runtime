@@ -44,14 +44,14 @@ void prompt_device_connect() {
         for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
             printf("\t%d    %s\n", i, devices[i]);
         }
-        printf("\t5    Cancel\n");
+        printf("\t%d    Cancel\n", NUMBER_OF_TEST_DEVICES);
         printf("Device?\n");
         fflush(stdout);
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         char *input;
         long int dev_number = strtol(nextcmd, &input, 0);
-        if(dev_number >= 0 && dev_number < 5 && strlen(input) == 1 && strlen(nextcmd) > 1) {
+        if(dev_number >= 0 && dev_number < NUMBER_OF_TEST_DEVICES && strlen(input) == 1 && strlen(nextcmd) > 1) {
             printf("UID for device?\n");
             fflush(stdout);
             printf("> ");
@@ -60,15 +60,14 @@ void prompt_device_connect() {
             remove_newline(nextcmd);
             uid = strtoull(nextcmd, NULL, 0);
             printf("Connecting %s with UID of value 0x%016llX\n", devices[dev_number], uid);
-            if(connect_virtual_device(devices[dev_number], uid) == 0) {
-                fflush(stdout);
-                printf("Device connected!\n");
-                break;
-            } else {
+            if(connect_virtual_device(devices[dev_number], uid) == -1) {
                 printf("Device connection failed!\n");
-                break;
-                }
-        } else if (dev_number == 5) {
+            } else {
+                printf("Device connected!\n");
+            }
+            fflush(stdout);
+            break;
+        } else if (dev_number == NUMBER_OF_TEST_DEVICES) {
             printf("Device connecting cancelled \n");
             break;
         } else {
