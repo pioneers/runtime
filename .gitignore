@@ -23,12 +23,15 @@ lowcar/Device
 
 # Cython build files
 studentapi.c
+tester.c
 
 # Python build files
 *.pyc
 *.pyo
 __pycache__/
 build/
+*.egg-info/
+dist/
 
 # VS Code
 .vscode

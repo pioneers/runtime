@@ -76,11 +76,13 @@ static void recv_udp_data (int udp_fd)
 	//receive message from udp socket
 	if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
 		fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
+		return;
 	}
 	// fprintf(udp_output_fp, "Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
 	DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
 	if (dev_data == NULL) {
-		printf("Error unpacking incoming message\n");
+		printf("Error unpacking incoming UDP message\n");
+		return;
 	}
 	
 	// display the message's fields.

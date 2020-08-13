@@ -29,17 +29,6 @@ typedef enum process {
 	DEV_HANDLER, EXECUTOR, NET_HANDLER, SHM, TEST
 } process_t;
 
-//enumerated names for the buttons on the gamepad
-typedef enum gp_buttons {
-	A_BUTTON, B_BUTTON, X_BUTTON, Y_BUTTON, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER,
-	BACK_BUTTON, START_BUTTON, L_STICK, R_STICK, UP_DPAD, DOWN_DPAD, LEFT_DPAD, RIGHT_DPAD, XBOX_BUTTON
-} gp_button_t;
-
-//enumerated names for the joystick params of the gamepad
-typedef enum gp_joysticks {
-	X_LEFT_JOYSTICK, Y_LEFT_JOYSTICK, X_RIGHT_JOYSTICK, Y_RIGHT_JOYSTICK
-} gp_joystick_t;
-
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
 	IDLE, AUTO, TELEOP, CHALLENGE,   //values for robot.run_mode

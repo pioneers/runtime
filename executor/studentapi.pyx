@@ -206,9 +206,8 @@ cdef class Robot:
         if err == -1:
             raise IndexError(f"Maximum number of 255 log data keys reached. can't add key {key}")
         
-
-
     cpdef get_value(self, str device_id, str param_name):
+
         """ 
         Get a device value. 
         
