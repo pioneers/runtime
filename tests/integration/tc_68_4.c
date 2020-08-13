@@ -19,7 +19,6 @@ char check_output_1[] =
 	"\t\tY_RIGHT_JOYSTICK = 0.990000\n";
 
 char check_output_2[] =
-	"Raspi IP is 127.0.0.1:9000\n"
 	"Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n";
 
 int main ()

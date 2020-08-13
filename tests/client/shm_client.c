@@ -14,7 +14,7 @@ void start_shm ()
 		}
 
 		//exec the shm_start process
-		if (execlp("./shm_start", "shm", (char *) 0) < 0) {
+		if (execlp("./shm_start", "shm", NULL) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
@@ -40,7 +40,7 @@ void stop_shm ()
 		}
 
 		//exec the shm_stop process
-		if (execlp("./shm_stop", "shm", (char *) 0) < 0) {
+		if (execlp("./shm_stop", "shm", NULL) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	} else { //parent
