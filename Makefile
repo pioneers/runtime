@@ -14,7 +14,7 @@ clean:
 	pushd executor && make clean && popd
 	pushd net_handler && make clean && popd
 	pushd shm_wrapper && make clean && popd
-	pushd dev_handler && make clena && popd
+	pushd dev_handler && make clean && popd
 
 test:
 	./test.sh
