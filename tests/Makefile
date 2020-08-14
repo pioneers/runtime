@@ -28,6 +28,5 @@ shm_cli: cli/shm_cli.c client/shm_client.c ../shm_wrapper/shm_wrapper.c $(UTILS)
 executor_cli: cli/executor_cli.c client/executor_client.c $(UTILS)
 	gcc $^ -o $@ $(LIBS)
 
-tester.c: tester.pyx $(SRC_FILES)
-	# python3 setup.py build_ext -i
+tester.c: tester.pyx
 	python3 setup.py install --user

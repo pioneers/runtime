@@ -19,6 +19,11 @@ cpdef enum robot_desc_field_t:
     RUN_MODE, DAWN, SHEPHERD, GAMEPAD, START_POS
 cpdef enum robot_desc_val_t:
     IDLE, AUTO, TELEOP, CHALLENGE, CONNECTED, DISCONNECTED, LEFT, RIGHT
+cpdef enum gp_gamepad:
+    BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER, \
+	BUTTON_BACK, BUTTON_START, L_STICK, R_STICK, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, BUTTON_XBOX
+cpdef enum gp_joystick:
+    JOYSTICK_LEFT_X, JOYSTICK_LEFT_Y, JOYSTICK_RIGHT_X, JOYSTICK_RIGHT_Y
 
 cdef extern from "client/executor_client.h":
     void c_start_executor "start_executor" (char* student_code)
@@ -64,9 +69,11 @@ cpdef send_challenge_data(robot_desc_field_t client, list data):
 
 cpdef send_device_data(list data):
     cdef dev_data_t* device_data = <dev_data_t*> PyMem_Malloc(sizeof(dev_data_t) * len(data))
+    cdef bytes temp
     for i in range(len(data)):
         device_data[i].uid = data[i][0]
-        device_data[i].name = data[i][1]
+        temp = data[i][1].encode('utf-8')
+        device_data[i].name = temp
         device_data[i].params = data[i][2]
     c_send_device_data(device_data, len(data))
     PyMem_Free(device_data)
@@ -76,27 +83,86 @@ cpdef send_device_data(list data):
 import sys
 import io
 import os
+import re
+import threading
+import time
+from typing import List, Optional
 
 terminal_fd = os.dup(sys.stdout.fileno())
-test_output = None # Populated by end_test()
 TEMP_FILE = '/tmp/temp_logs.txt'
 
+test_output = None # Populated by end_test()
+current_idx = 0
+check_num = 0
+stop_print = threading.Event()
+
+def output_print():
+    with open(TEMP_FILE, 'r') as f:
+        while not stop_print.is_set():
+            # print(f.readline(), end='', file=sys.stderr)
+            pass
+
+thread = threading.Thread(target=output_print)
+
+
 def start_test(desc: str):
-    print("Starting test:", desc)
+    print(f"################ Starting test: {desc} ################")
     with open(TEMP_FILE, 'w') as f:
-        os.dup2(f.fileno(), sys.stdout.fileno())
+        os.dup2(f.fileno(), sys.stdout.fileno()) # Redirect stdout to the temp file we opened
+    thread.start()
+
 
 def end_test():
+    stop_print.set()
+    thread.join()
     with open(TEMP_FILE, 'r') as f:
+        global test_output
         test_output = f.readlines()
-    os.dup2(terminal_fd, sys.stdout.fileno())
-    print(f"All test output:\n{test_output}")
+    os.remove(TEMP_FILE)
+    os.dup2(terminal_fd, sys.stdout.fileno()) # Revert stdout back to the terminal screen
+    print()
+    print(f"\n{''.join(test_output)}")
 
-def in_output(expected: str):
-    expected = expected.strip()
-    for line in test_output:
-        line = line.strip()
-        if expected in line:
-            return True
-    return False
+
+def _clean_string(string: str):
+    string = string.strip()
+    string = re.sub(r"\s+", '', string)
+    return string
+
+
+def assert_output(expected: str, remaining: bool = False, exclude: bool = False):
+    global check_num
+    check_num += 1
+
+    expected_lines: List[str] = expected.split('\n')
+    start: str = _clean_string(expected_lines[0])
+    failed_line: Optional[str] = None
+    last_found: Optional[str] = None
+
+    for i in range(current_idx if remaining else 0, len(test_output)):
+        line = _clean_string(test_output[i])
+        if ((start not in line) if exclude else (start in line)): # Find the first location where `expected` does/doesn't occur
+            passed = True
+            for j in range(len(expected_lines)):
+                line = _clean_string(expected_lines[j])
+                output = _clean_string(test_output[i + j])
+                if ((line in output) if exclude else (line not in output)):
+                    passed = False
+                    failed_line = line
+                    last_found = output
+                    # print(f"Expected: {line}\nActual: {output}")
+                    break
+            if remaining:
+                global current_idx
+                current_idx = i + len(expected_lines)
+            if passed:
+                print(f"Check {check_num} passed")
+                return
+
+    print(f"Check {check_num} failed\n")
+    print(f"Last failed while{' not' if exclude else ''} expecting:\n{failed_line or start}\n")
+    if last_found:
+        print(f"Instead found:\n{last_found}")
+    print()
+    sys.exit(1)
 

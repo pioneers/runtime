@@ -17,7 +17,6 @@ sourcefiles = [
 pbc_path = "../net_handler/pbc_gen"
 pb_generated = os.listdir(pbc_path)
 pb_generated = [os.path.join(pbc_path, file) for file in pb_generated if file.endswith('.c')]
-print(pb_generated)
 
 sourcefiles.extend(pb_generated)
 

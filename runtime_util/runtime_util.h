@@ -10,14 +10,14 @@
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
-#define MAX_DEVICES 32         //maximum number of connected devices
-#define MAX_PARAMS 32          //maximum number of parameters supported
+#define MAX_DEVICES 32          // Maximum number of connected devices
+#define MAX_PARAMS 32           // Maximum number of parameters supported
 
-#define DEVICES_LENGTH 15      // The largest device type number + 1.
+#define DEVICES_LENGTH 64      // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 5      //number of fields in the robot description
+#define NUM_DESC_FIELDS 5       // Number of fields in the robot description
 
-#define NUM_GAMEPAD_BUTTONS 17 //number of gamepad buttons
+#define NUM_GAMEPAD_BUTTONS 17  // Number of gamepad buttons
 
 #define MAX_LOG_LEN 512
 
@@ -28,6 +28,17 @@
 typedef enum process {
 	DEV_HANDLER, EXECUTOR, NET_HANDLER, SHM, TEST
 } process_t;
+
+//enumerated names for the buttons on the gamepad
+typedef enum gp_buttons {
+	BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER,
+	BUTTON_BACK, BUTTON_START, L_STICK, R_STICK, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, BUTTON_XBOX
+} gp_button_t;
+
+//enumerated names for the joystick params of the gamepad
+typedef enum gp_joysticks {
+	JOYSTICK_LEFT_X, JOYSTICK_LEFT_Y, JOYSTICK_RIGHT_X, JOYSTICK_RIGHT_Y
+} gp_joystick_t;
 
 //enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {

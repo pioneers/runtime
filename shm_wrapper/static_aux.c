@@ -20,10 +20,10 @@ int main() {
 	float joystick_vals[4];
 
     buttons = 34788247; //push some random buttons
-	joystick_vals[X_LEFT_JOYSTICK] = -0.4854;
-	joystick_vals[Y_LEFT_JOYSTICK] = 0.58989;
-	joystick_vals[X_RIGHT_JOYSTICK] = 0.9898;
-	joystick_vals[Y_RIGHT_JOYSTICK] = -0.776;
+	joystick_vals[0] = -0.4854;
+	joystick_vals[1] = 0.58989;
+	joystick_vals[2] = 0.9898;
+	joystick_vals[3] = -0.776;
 	
 	gamepad_write(buttons, joystick_vals);
 	print_gamepad_state();
