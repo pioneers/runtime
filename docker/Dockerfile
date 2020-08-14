@@ -6,7 +6,7 @@ WORKDIR /root/runtime
 ADD ./ ./
 
 # Build Runtime processes
-RUN ./build.sh
+RUN make build
 
 # Set run.sh as command that runs with docker run
 CMD ./run.sh
