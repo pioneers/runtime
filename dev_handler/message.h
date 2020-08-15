@@ -22,7 +22,7 @@
 #define TIMEOUT 1000
 
 // The number of milliseconds between each PING sent to the device
-#define PING_FREQ 300
+#define PING_FREQ 250
 
 // The size in bytes of the message delimiter
 #define DELIMITER_SIZE 1

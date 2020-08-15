@@ -20,7 +20,7 @@ public:
 	 * calls device_enable to enable the device
 	 * dev_id and dev_year are the device type and device year of the device
 	 */
-	Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 2500, uint32_t ping_interval = 1000);
+	Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000, uint32_t ping_interval = 250);
 
 	/* Sets the UID of the Device */
 	void set_uid (uint64_t uid);
@@ -90,9 +90,7 @@ private:
 	uint32_t params;                  // Bitmap of parameters subscribed to by dev handler
 	uint16_t sub_interval;            // Time between sending new DEVICE_DATA messages
 	uint32_t timeout;                 // Maximum time (ms) we'll wait between PING messages from dev handler
-	uint32_t ping_interval;           // Time (ms) between each PING message we send out
-	uint64_t last_sub_time;           // Timestamp of last time we sent DEVICE_DATA due to Subscription
-	uint64_t last_sent_ping_time;     // Timestamp of last time we sent a PING
+	uint64_t last_sent_data_time;     // Timestamp of last time we sent DEVICE_DATA due to Subscription
 	uint64_t last_received_ping_time; // Timestamp of last time we received a PING
 	uint64_t curr_time;               // The current time
 	message_t curr_msg;               // current message being processed
