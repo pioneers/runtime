@@ -113,6 +113,7 @@ static void send_challenge_results(int conn_fd, int challenge_fd) {
 	}
 	if (read_len < 0) {
 		log_printf(ERROR, "send_challenge_results: socket recv from challenge_fd failed: %s", strerror(errno));
+		return;
 	}
 
 	// Send results to client
@@ -153,12 +154,15 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		exec_addr.sun_family = AF_UNIX;
 		strcpy(exec_addr.sun_path, CHALLENGE_SOCKET);
 
-		int sendlen = sendto(challenge_fd, buf, len_pb, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
-		if (sendlen < 0 || sendlen != len_pb) {
+		int send_len = sendto(challenge_fd, buf, len_pb, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
+		if (send_len < 0) {
 			log_printf(ERROR, "recv_new_msg: socket send to challenge_fd failed: %s", strerror(errno));
 			return -2;
 		}
-		
+		if (send_len != len_pb) {
+			log_printf(WARN, "recv_new_msg: socket send len %d is not equal to intended protobuf length %d", send_len, len_pb);
+		}
+
 		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
 		robot_desc_write(RUN_MODE, CHALLENGE);
 	}

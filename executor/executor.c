@@ -335,6 +335,10 @@ void run_challenges() {
         return;
     }
     Text* inputs = text__unpack(NULL, recv_len, read_buf);
+    if (inputs == NULL) {
+        log_printf(ERROR, "run_challenges: failed to unpack challenge input protobuf");
+        return;
+    }
     if(num_challenges != inputs->n_payload) {
         log_printf(ERROR, "run_challenges: number of challenge names %d is not equal to number of inputs %d", num_challenges, inputs->n_payload);
         return;
