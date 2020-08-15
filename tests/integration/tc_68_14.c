@@ -1,9 +1,8 @@
 /**
  * Hotplugging/Performance
- * Since forming a connection with shm requires a virutal device to
- * disconnect then reconnect, not stay connected like in real situations,
- * we are looping a hot plug of bad devices to see if dev handler handles the devices
- * correctly and cleans up any threads for bad devices
+ * Connecting different types of devices to "stress test" dev_handler
+ * and see if it properly handles the multiple bad devies
+ * (Ideally we would connect more devices but the "phenomenom" has said no)
  */
 #include "../test.h"
 
@@ -15,36 +14,31 @@ int main(){
     // Setup
     start_test("Multiple Unstable Hotplug");
     start_shm();
+    start_net_handler();
     start_dev_handler();
+    uint64_t uid = 0;
 
-    // Connect a device then disconnect it
+    // Connect general devices
     print_dev_ids();
     for(int i = 0; i < 3; i++){
-        int j = 100 + i;
-        connect_virtual_device("GeneralTestDevice", j);
+        uid++;
+        connect_virtual_device("GeneralTestDevice", uid);
     }
     sleep(1);
     print_dev_ids();
+    
+    //connect unstable devices then sleep for 8 seconds
     for(int i = 0; i < 3; i++){
-        int k = 150 + i;
-        connect_virtual_device("UnstableTestDevice", k);
+        uid++;
+        connect_virtual_device("UnstableTestDevice", uid);
     }
     print_dev_ids();
     sleep(8);
     print_dev_ids();
+    connect_virtual_device("ForeignTestDevice", uid);
+    uid++;
+    connect_virtual_device("UnresponsiveTestDevice", uid);
 
-    for(int i = 0; i < 2; i++){
-        int z = 50 + i;
-        switch(i){
-            
-            case 0:
-            connect_virtual_device("ForeignTestDevice", z);
-
-            case 1:
-            connect_virtual_device("UnresponsiveTestDevice", z);
-
-        }
-    }
     sleep(8);
     print_dev_ids();
 
@@ -52,15 +46,17 @@ int main(){
     disconnect_all_devices();
     sleep(1);
     print_dev_ids();
+    sleep(1);
     stop_dev_handler();
+    stop_net_handler();
     stop_shm();
     end_test();
 
     in_rest_of_output(no_device);  // No device connected
     char expected_output[64];
-    in_rest_of_output("UnstableTestDevice (0x0000000000000096) timed out!");
-    in_rest_of_output("UnstableTestDevice (0x0000000000000097) timed out!");
-    in_rest_of_output("UnstableTestDevice (0x0000000000000098) timed out!");
+    in_rest_of_output("UnstableTestDevice (0x0000000000000004) timed out!");
+    in_rest_of_output("UnstableTestDevice (0x0000000000000005) timed out!");
+    in_rest_of_output("UnstableTestDevice (0x0000000000000006) timed out!");
     in_rest_of_output(unknown_device);
     in_rest_of_output(unknown_device);
     for (int i = 0; i < 3; i++) {
