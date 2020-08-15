@@ -1,6 +1,4 @@
 #include "shm_wrapper.h"
-#include <stdint.h>
-#include <stdlib.h>
 
 // *********************************** WRAPPER-SPECIFIC GLOBAL VARS **************************************** //
 
@@ -15,50 +13,10 @@ robot_desc_shm_t *rd_shm_ptr;  //points to memory-mapped shared memory block for
 sem_t *gp_sem;                 //semaphore used as a mutex on the gamepad
 sem_t *rd_sem;                 //semaphore used as a mutex on the robot description
 
-// ******************************************* SEMAPHORE UTILITIES **************************************** //
-
-static void my_sem_wait (sem_t *sem, char *sem_desc)
-{
-	if (sem_wait(sem) == -1) {
-		log_printf(ERROR, "sem_wait: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
-static void my_sem_post (sem_t *sem, char *sem_desc)
-{
-	if (sem_post(sem) == -1) {
-		log_printf(ERROR, "sem_post: %s. %s", sem_desc, strerror(errno));
-	}
-}
-
-static sem_t *my_sem_open (char *sem_name, char *sem_desc)
-{
-	sem_t *ret;
-	if ((ret = sem_open(sem_name, 0, 0, 0)) == SEM_FAILED) {
-		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
-		exit(1);
-	}
-	return ret;
-}
-
-static void my_sem_close (sem_t *sem, char *sem_desc)
-{
-	if (sem_close(sem) == -1) {
-		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
-	}
-}
+log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
+sem_t *log_data_sem;			   //semaphore used as a mutex on the log data
 
 // ******************************************** HELPER FUNCTIONS ****************************************** //
-
-//function for generating device data and command semaphore names
-static void generate_sem_name (stream_t stream, int dev_ix, char *name)
-{
-	if (stream == DATA) {
-		sprintf(name, "/data_sem_%d", dev_ix);
-	} else if (stream == COMMAND) {
-		sprintf(name, "/command_sem_%d", dev_ix);
-	}
-}
 
 //function for printing bitmap that is NUM_BITS long
 static void print_bitmap (int num_bits, uint32_t bitmap)
@@ -156,6 +114,58 @@ static void device_write_helper (int dev_ix, process_t process, stream_t stream,
 		my_sem_post(sems[dev_ix].data_sem, "data sem @device_write");
 	} else {
 		my_sem_post(sems[dev_ix].command_sem, "command sem @device_write");
+	}
+}
+
+// ************************************* PUBLIC SEMAPHORE UTILITIES *************************************** //
+
+void generate_sem_name (stream_t stream, int dev_ix, char *name)
+{
+	if (stream == DATA) {
+		sprintf(name, "/data_sem_%d", dev_ix);
+	} else if (stream == COMMAND) {
+		sprintf(name, "/command_sem_%d", dev_ix);
+	}
+}
+
+void my_sem_wait (sem_t *sem, char *sem_desc)
+{
+	if (sem_wait(sem) == -1) {
+		log_printf(ERROR, "sem_wait: %s. %s", sem_desc, strerror(errno));
+	}
+}
+
+void my_sem_post (sem_t *sem, char *sem_desc)
+{
+	if (sem_post(sem) == -1) {
+		log_printf(ERROR, "sem_post: %s. %s", sem_desc, strerror(errno));
+	}
+}
+
+sem_t *my_sem_open (char *sem_name, char *sem_desc)
+{
+	sem_t *ret;
+	if ((ret = sem_open(sem_name, 0, 0, 0)) == SEM_FAILED) {
+		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
+		exit(1);
+	}
+	return ret;
+}
+
+sem_t *my_sem_open_create (char *sem_name, char *sem_desc)
+{
+	sem_t *ret;
+	if ((ret = sem_open(sem_name, O_CREAT, 0660, 1)) == SEM_FAILED) {
+		log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
+		exit(1);
+	}
+	return ret;
+}
+
+void my_sem_close (sem_t *sem, char *sem_desc)
+{
+	if (sem_close(sem) == -1) {
+		log_printf(ERROR, "sem_close: %s. %s", sem_desc, strerror(errno));
 	}
 }
 
@@ -359,6 +369,31 @@ void print_gamepad_state ()
 	my_sem_post(gp_sem, "gamepad_mutex (in print)");
 }
 
+/*
+ *	Prints the current custom logged data.
+ */
+void print_custom_data() {
+	my_sem_wait(log_data_sem, "log_data_mutex (in print)");
+
+	printf("Custom logged data (Device %d):\n", MAX_DEVICES);
+	for (int i = 0; i < log_data_shm_ptr->num_params; i++) {
+		printf("\t%s: ", log_data_shm_ptr->names[i]);
+		switch (log_data_shm_ptr->types[i]) {
+			case INT:
+				printf("%d\n", log_data_shm_ptr->params[i].p_i);
+				break;
+			case FLOAT:
+				printf("%f\n", log_data_shm_ptr->params[i].p_f);
+				break;
+			case BOOL:
+				printf("%s\n", log_data_shm_ptr->params[i].p_b == 1 ? "True" : "False");
+				break;
+		}
+	}
+
+	my_sem_post(log_data_sem, "log_data_mutex (in print)");
+}
+
 // ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
 
 /*
@@ -376,6 +411,7 @@ void shm_init ()
 	sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
 	gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
 	rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
+	log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
 	for (int i = 0; i < MAX_DEVICES; i++) {
 		generate_sem_name(DATA, i, sname); //get the data name
 		if ((sems[i].data_sem = sem_open((const char *) sname, 0, 0, 0)) == SEM_FAILED) {
@@ -426,6 +462,19 @@ void shm_init ()
 		log_printf(ERROR, "close: robot_desc_shm. %s", strerror(errno));
 	}
 
+		//create log data shm block
+	if ((fd_shm = shm_open(LOG_DATA_SHM, O_RDWR | O_CREAT, 0660)) == -1) {
+		log_printf(FATAL, "shm_open log_data_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if ((log_data_shm_ptr = mmap(NULL, sizeof(log_data_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
+		log_printf(FATAL, "mmap log_data_shm: %s", strerror(errno));
+		exit(1);
+	}
+	if (close(fd_shm) == -1) {
+		log_printf(ERROR, "close log_data_shm: %s", strerror(errno));
+	}
+
 	atexit(shm_stop);
 }
 
@@ -446,6 +495,7 @@ void shm_stop ()
 	my_sem_close(sub_map_sem, "sub map sem");
 	my_sem_close(gp_sem, "gamepad_mutex");
 	my_sem_close(rd_sem, "robot_desc_mutex");
+	my_sem_close(log_data_sem, "log data mutex");
 
 	//unmap all shared memory blocks
 	if (munmap(dev_shm_ptr, sizeof(dev_shm_t)) == -1) {
@@ -456,6 +506,9 @@ void shm_stop ()
 	}
 	if (munmap(rd_shm_ptr, sizeof(robot_desc_shm_t)) == -1) {
 		log_printf(ERROR, "munmap: robot_desc_shm. %s", strerror(errno));
+	}
+	if (munmap(log_data_shm_ptr, sizeof(log_data_shm_t)) == -1) {
+		log_printf(ERROR, "munmap: log_data_shm_ptr. %s", strerror(errno));
 	}
 }
 
@@ -916,4 +969,66 @@ int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4])
 
 	return 0;
 }
+
+
+/**
+* 	Write the given custom parameter to shared memory. 
+*	Args:
+*		- key is name of the parameter
+*		- type is type of the parameter
+*		- value is the value of the parameter, with the corresponding type filled with data
+*	Returns:
+*		0 if successful
+*		-1 if the maximum number of custom parameters is reached so this parameter isn't written
+*/
+int log_data_write(char* key,  param_type_t type, param_val_t value) {
+	my_sem_wait(log_data_sem, "log_data_mutex");
+
+	int idx = 0;
+	for (; idx < log_data_shm_ptr->num_params; idx++) {
+		if (strcmp(key, log_data_shm_ptr->names[idx]) == 0) {
+			break;
+		}
+	}
+
+	if (idx == UCHAR_MAX) {
+		log_printf(ERROR, "Maximum number of %d log data keys reached. can't add key %s", UCHAR_MAX, key);
+		return -1;
+	}
+	
+	strcpy(log_data_shm_ptr->names[idx], key);
+	log_data_shm_ptr->types[idx] = type;
+	log_data_shm_ptr->params[idx] = value;
+
+	if (idx == log_data_shm_ptr->num_params) {
+		log_data_shm_ptr->num_params++;
+	}
+
+	my_sem_post(log_data_sem, "log_data_mutex");
+	return 0;
+}
+
+
+/**
+*	Reads the custom log data from shared memory.
+*	Args:
+*		- num_params is a pointer to an int that will get filled with the number of custom parameters
+*		- names is a 2D char array that will be filled with the parameter names, up to `num_params`. Assumes that every parameter name is less than 64 characters long
+*		- types is an array and will be filled with the parameter types, up to `num_params`
+*		- values is an array and will be filled with the parameter values, up to `num_params`
+*/
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]) {
+	my_sem_wait(log_data_sem, "log_data_mutex");
+
+	*num_params = log_data_shm_ptr->num_params;
+	for (int i = 0; i < *num_params; i++) {
+		strcpy(names[i], log_data_shm_ptr->names[i]);
+		types[i] = log_data_shm_ptr->types[i];
+		values[i] = log_data_shm_ptr->params[i];
+	}
+
+	my_sem_post(log_data_sem, "log_data_mutex");
+}
+
+
 

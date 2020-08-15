@@ -1,0 +1,14 @@
+[Unit]
+Description=Shared memory cleanup process for Runtime
+After=dev_handler.service executor.service net_handler.service
+OnFailure=dev_handler.service executor.service net_handler.service shm_stop.service
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/c-runtime/shm_wrapper
+ExecStart=/home/pi/c-runtime/shm_wrapper/shm_stop
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 #include "../client/net_handler_client.h"
 
-#define MAX_CMD_LEN 32
+#define MAX_CMD_LEN 64
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
@@ -184,7 +184,8 @@ void prompt_challenge_data ()
 {
 	int client = SHEPHERD;
 	char nextcmd[MAX_CMD_LEN];
-	char **inputs = malloc(sizeof(char *) * NUM_CHALLENGES);
+	int MAX_CHALLENGES = 32;
+	char **inputs = malloc(sizeof(char *) * MAX_CHALLENGES);
 	
 	//get client to send as
 	while (1) {
@@ -204,26 +205,31 @@ void prompt_challenge_data ()
 	}
 	
 	//get challenge inputs to send
-	for (int i = 1; i <= NUM_CHALLENGES; i++) {
+	int num_challenges;
+	for (num_challenges = 0; num_challenges < MAX_CHALLENGES; num_challenges++) {
 		//TODO: if we ever put the current names of challenges in runtime_util, make this print better
-		printf("Provide input for challenge %d of %d: ", i, NUM_CHALLENGES); 
+		printf("Provide input for challenge %d (or done or abort): ", num_challenges); 
 		fgets(nextcmd, MAX_CMD_LEN, stdin);
 		
-		if (strcmp(nextcmd, "abort\n") == 0) {
+		if (strcmp(nextcmd, "done\n") == 0) {
+			break;
+		}
+		else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
 		}
 		
 		//we need to do this because nextcmd has a newline at the end
 		nextcmd[strlen(nextcmd) -1] = '\0';
-		strcpy(inputs[i - 1], nextcmd);
+		inputs[num_challenges] = malloc(strlen(nextcmd) + 1);
+		strcpy(inputs[num_challenges], nextcmd);
 	}
 	
 	//send
 	printf("Sending Challenge Data message!\n\n");
-	send_challenge_data(client, inputs);
+	send_challenge_data(client, inputs, num_challenges);
 	
 	//free pointers
-	for (int i = 0; i < NUM_CHALLENGES; i++) {
+	for (int i = 0; i < num_challenges; i++) {
 		free(inputs[i]);
 	}
 	free(inputs);
@@ -358,8 +364,7 @@ void display_help()
 
 void sigint_handler (int signum)
 {
-	stop_net_handler();
-	remove(CHALLENGE_SOCKET);
+	close_output();
 	exit(0);
 }
 
@@ -403,6 +408,7 @@ int main ()
 			printf("Invalid command %s", nextcmd);
 			display_help();
 		}
+		usleep(500000);
 	}
 	
 	printf("Exiting Net Handler CLI...\n");

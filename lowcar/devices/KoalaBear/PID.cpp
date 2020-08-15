@@ -1,125 +1,63 @@
 #include "PID.h"
 
-#define encoder0PinA	14
-#define encoder0PinB	15
-
-PID::PID(float SetPoint, float KP, float KI, float KD, float initTime) {
-	this->kp = KP;
-	this->ki = KI;
-	this->kd = KD;
-	this->setPoint = SetPoint;
-	this->lastTime = initTime;
-
-	this->enc = new Encoder(encoder0PinA, encoder0PinB);
-	this->enc->write(0); //reset the encoder because why not
-	this->prevPos = enc->read();
-	this->prevVel = 0.0;
+PID::PID() {
+    this->kp = this->ki = this->kd = 0.0;
+    this->prev_error = this->prev_pos = this->prev_desired_pos = 0.0;
+    this->integral = 0.0;
+    this->target_speed = 0.0;
+    this->prev_time = micros();
 }
 
-/* Computes a value between -1 and 1 inclusive to tell how to
+/* 
+ * Computes a value between -1 and 1 inclusive to tell how to
  * adjust the motor controller pins.
- * This is called continually by PolarBear.
- * Also updates the encoder position and velocity with each call. */
-float PID::compute() {
-	//updateVel();
-	float currTime = (float)(millis());
-	float deltaTime = currTime - this->lastTime;
-
-
-	//float goalPos = prevPos + (prevVel + setPoint)*(deltaTime) / 2
-	//float error = goalPos - enc->read();	//uses encoder reading as current position
-	float error = this->setPoint - this->enc->read();	//uses encoder reading as current position
-
-
-	this->errorSum += error * deltaTime;
-	float deriv = (error - this->lastError) / deltaTime;
-	this->lastTime = currTime;
-	float out = (this->kp * error) + (this->ki * this->errorSum) + (this->kd * deriv);
-
-
-	this->prevPos = this->enc->read();
-	//prevVel = setPoint;
-	if (out > 1)
-	{
-		return 1;
-	}
-	else if (out < -1)
-	{
-		return -1;
-	}
-	return out;
+ * Arguments:
+ *    curr_pos: current value of the encoder, as a float
+ */
+float PID::compute(float curr_pos) {
+    unsigned long curr_time = micros(); // get the current time
+    float interval_secs = ((float)(curr_time - this->prev_time)) / 1000000.0; // compute time passed between loops, in seconds
+    float desired_pos = this->prev_desired_pos + (duty_cycle_to_tps(this->target_speed) * interval_secs); // compute the desired position at this time
+    float error = desired_pos - curr_pos; // compute the error as the set point (desired position) - process variable (current position)
+    this->integral += error * interval_secs; //compute the new value of this->integral using right-rectangle approximation
+    
+    // output = kp * error + ki * integral of error * kd * "derivative" of error
+    float output = (this->kp * error) + (this->ki * this->integral) + (this->kd * ((error - this->prev_error) / interval_secs));
+    
+    // store the current values into previous values for use on next loop
+    this->prev_error = error;
+    this->prev_pos = curr_pos;
+    this->prev_desired_pos = desired_pos;
+    this->prev_time = curr_time;
+    
+    return output;
 }
 
-void PID::setCoefficients(float KP, float KI, float KD) {
-	this->kp = KP;
-	this->ki = KI;
-	this->kd = KD;
+void PID::set_coefficients(float kp, float ki, float kd) {
+    this->kp = kp;
+    this->ki = ki;
+    this->kd = kd;
 }
 
-void PID::setSetpoint(float sp) { this->setPoint = sp; }
-
-float PID::getKP() { return this->kp; }
-float PID::getKI() { return this->ki; }
-float PID::getKD() { return this->kd; }
-
-float PID::readPos() { return this->enc->read(); }
-float PID::readVel() { return 0.00; }
-
-/****************************************************
-* 				ENCODER FUNCTIONS
-****************************************************/
-long res = 100;
-long interval_us = res*(2500/11); //interval in us; 2500/11 == 1000000 (1 sec) / 4400 (tick range)
-
-void PID::encoderSetup() {
-  pinMode(encoder0PinA,INPUT);
-  pinMode(encoder0PinB,INPUT);
+void PID::set_target_speed(float target_speed) {
+    this->target_speed = target_speed;
 }
 
-void PID::resetEncoder() {
-  enc->write(0);
+// used when student sets encoder to a certain value
+void PID::set_position(float curr_pos) {
+    this->prev_pos = curr_pos;
+    this->prev_error = 0.0; // resets the error too
 }
 
-// Updates the encoder's velocity by calculating the position slope.
-void PID::updateVel() {
-  float enc_reading = this->enc->read();
-  this->prevVel = ((enc_reading - this->prevPos)*1000000)/((float) interval_us);
-  this->prevPos = enc_reading; // Save the current pos
-}
+// three getter functions for the three coefficients
+float PID::get_kp() { return this->kp; }
+float PID::get_ki() { return this->ki; }
+float PID::get_kd() { return this->kd; }
 
-/**************
-Original Encoder
-**************/
-/*
-long res = 100;
-long interval_us = res*(2500/11); //interval in us; 2500/11 == 1000000 (1 sec) / 4400 (tick range)
-float pos = 0;
-float vel = 0;
-volatile signed long old_encoder0Pos = 0;
+// *********************** HELPER FUNCTIONS *********************** //
 
-void PID::updateEncoder() {
-  updatePos();
-  updateVel();
+// converts speed in units of duty cycle (-1.0 to 1.0)
+// to units of encoder ticks per second, tps
+float PID::duty_cycle_to_tps(float duty_cycle) {
+    return 300.0 * duty_cycle; // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
 }
-
-void PID::encoderSetup() {
-  pinMode(encoder0PinA,INPUT);
-  pinMode(encoder0PinB,INPUT);
-}
-
-void PID::resetEncoder() {
-  enc->write(0);
-}
-
-float PID::readPos() {
-  return pos;
-}
-
-float PID::readVel() {
-  return vel;
-}
-
-void PID::updatePos() {
-  pos = enc->read();
-}
-*/

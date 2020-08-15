@@ -77,17 +77,15 @@ static void recv_udp_data (int udp_fd)
 	if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
 		fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
 	}
-	fprintf(udp_output_fp, "Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
-	fprintf(udp_output_fp, "Received data size %d\n", recv_size);
+	// fprintf(udp_output_fp, "Raspi IP is %s:%d\n", inet_ntoa(recvaddr.sin_addr), ntohs(recvaddr.sin_port));
 	DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
 	if (dev_data == NULL) {
 		printf("Error unpacking incoming message\n");
 	}
 	
 	// display the message's fields.
-	fprintf(udp_output_fp, "Received:\n");
 	for (int i = 0; i < dev_data->n_devices; i++) {
-		fprintf(udp_output_fp, "Device No. %d: ", i);
+		fprintf(udp_output_fp, "Device No. %d:", i);
 		fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
 		fprintf(udp_output_fp, "\tParams:\n");
 		for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
@@ -168,7 +166,7 @@ static int recv_tcp_data (robot_desc_field_t client, int tcp_fd)
 //dumps output from net handler stdout to this process's standard out
 static void *output_dump (void *args)
 {
-	const int sample_size = 10; //number of messages that need to come in before disabling output
+	const int sample_size = 20; //number of messages that need to come in before disabling output
 	const uint64_t disable_threshold = 50; //if the interval between each of the past sample_size messages has been less than this many milliseconds, disable output
 	const uint64_t enable_threshold = 1000; //if this many milliseconds have passed between now and last received message, enable output
 	uint64_t last_received_time = 0, curr_time;
@@ -245,9 +243,6 @@ static void *output_dump (void *args)
 
 void start_net_handler ()
 {
-	//if someone presses Ctrl-C (SIGINT), stop the net handler before exiting)
-	signal(SIGINT, stop_net_handler);
-
 	//fork net_handler process
 	if ((nh_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
@@ -258,7 +253,7 @@ void start_net_handler ()
 		}
 
 		//exec the actual net_handler process
-		if (execlp("./net_handler", "net_handler", (char *) 0) < 0) {
+		if (execlp("./net_handler", "net_handler", NULL) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 		
@@ -291,7 +286,7 @@ void start_net_handler ()
 		if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
 			printf("pthread_create: output dump\n");
 		}
-		sleep(1); //allow time for thread to dump output before returning to client
+		usleep(400000); //allow time for thread to dump output before returning to client
 	}
 }
 
@@ -305,6 +300,10 @@ void stop_net_handler ()
 		printf("waitpid net handler: %s\n", strerror(errno));
 	}
 	
+	close_output();
+}
+
+void close_output() {
 	//killing net handler should cause dump thread to return, so join with it
 	if (pthread_join(dump_tid, NULL) != 0) {
 		printf("pthread_join: output dump\n");
@@ -355,7 +354,7 @@ void send_run_mode (robot_desc_field_t client, robot_desc_val_t mode)
 		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
 	free(send_buf);
-	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
+	usleep(400000); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_start_pos (robot_desc_field_t client, robot_desc_val_t pos)
@@ -388,7 +387,7 @@ void send_start_pos (robot_desc_field_t client, robot_desc_val_t pos)
 		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
 	free(send_buf);
-	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
+	usleep(400000); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_gamepad_state (uint32_t buttons, float joystick_vals[4])
@@ -415,23 +414,18 @@ void send_gamepad_state (uint32_t buttons, float joystick_vals[4])
 	//free everything
 	free(gp_state.axes);
 	free(send_buf);
-	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
+	usleep(400000); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
-void send_challenge_data (robot_desc_field_t client, char **data)
+void send_challenge_data (robot_desc_field_t client, char **data, int num_challenges)
 {
 	Text challenge_data = TEXT__INIT;
 	uint8_t *send_buf;
 	uint16_t len;
 	
 	//build the message
-	challenge_data.payload = malloc(sizeof(char *) * NUM_CHALLENGES);
-	challenge_data.n_payload = NUM_CHALLENGES;
-	for (int i = 0; i < NUM_CHALLENGES; i++) {
-		len = strlen(data[i]);
-		challenge_data.payload[i] = malloc(sizeof(char) * len);
-		strcpy(challenge_data.payload[i], data[i]);
-	}
+	challenge_data.payload = data;
+	challenge_data.n_payload = num_challenges;
 	len = text__get_packed_size(&challenge_data);
 	send_buf = make_buf(CHALLENGE_DATA_MSG, len);
 	text__pack(&challenge_data, send_buf + BUFFER_OFFSET);
@@ -442,14 +436,8 @@ void send_challenge_data (robot_desc_field_t client, char **data)
 	} else {
 		writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
 	}
-	
-	//free everything
-	for (int i = 0; i < NUM_CHALLENGES; i++) {
-		free(challenge_data.payload[i]);
-	}
-	free(challenge_data.payload);
 	free(send_buf);
-	sleep(6); //allow time for net handler and runtime to react and generate output before returning to client (executor timeout is currently set to 5 seconds)
+	usleep(400000); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_device_data (dev_data_t *data, int num_devices)
@@ -506,8 +494,7 @@ void send_device_data (dev_data_t *data, int num_devices)
 		free(dev_data.devices[i]);
 	}
 	free(dev_data.devices);
-	
-	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
+	usleep(400000); //allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void print_next_dev_data ()
@@ -515,6 +502,5 @@ void print_next_dev_data ()
 	pthread_mutex_lock(&print_udp_mutex);
 	print_next_udp = 1;
 	pthread_mutex_unlock(&print_udp_mutex);
-	
-	sleep(1); //allow time for net handler and runtime to react and generate output before returning to client
+	usleep(400000); //allow time for output_dump to react and generate output before returning to client
 }

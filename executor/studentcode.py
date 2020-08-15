@@ -7,15 +7,15 @@ def autonomous_actions(n=1000):
     print('Running autonomous action ...')
     for i in range(n):
         print(f'Doing action computation ({i+1}/{n}) ...')
-        time.sleep(0.5)
+        Robot.sleep(0.5)
 
 
 def set_motor():
     Robot.set_value(MOTOR, 'duty_cycle_a', 0.5)
-    time.sleep(1)
+    Robot.sleep(1)
     print("after first sleep")
     Robot.set_value(MOTOR, 'duty_cycle_b', 0)
-    time.sleep(2)
+    Robot.sleep(2)
     print("after second sleep")
     while True:
         Robot.set_value(MOTOR, 'pid_kp_a', 0.237)
@@ -23,7 +23,7 @@ def set_motor():
 def constant_print(msg):
     while True:
         print(f"{msg} printing again")
-        time.sleep(2)
+        Robot.sleep(2)
 
 
 def autonomous_setup():
@@ -39,15 +39,16 @@ def autonomous_setup():
     Robot.run(constant_print, "auton")
     global i
     i = 0
-    # time.sleep(10)
+    Robot.sleep(10)
 
 def autonomous_main():
-    # time.sleep(10)
+    # Robot.sleep(10)
     # Robot.run(wait)
     Robot.get_value(MOTOR, 'duty_cycle_b')
     global i, start
     if i % 10000 == 0:
         print("Iteration:", i, time.time() - start)
+        Robot.log("iteration time", time.time() - start)
         start = time.time()
         # Robot.run(double, 5.0)
     i += 1
@@ -60,7 +61,7 @@ def autonomous_main():
     # print('I wrote an infinite loop')
     # while True:
     #     print(f'Teleop main has been running for {round(time.time() - start, 3)}s')
-    #     time.sleep(0.1)
+    #     Robot.sleep(0.1)
     #
     # x()
     #
@@ -117,30 +118,3 @@ def wait():
     while True:
         Robot.get_value(MOTOR, 'enc_b')
         # print('of course')
-
-
-
-########################################### Code Challenges ###########################################
-
-
-
-def reverse_digits(num):
-    return int(str(num)[::-1])
-
-
-def list_prime_factors(num):
-    primes = []
-    for i in range(2, int(math.sqrt(num))):
-        while num % i == 0:
-            add = True
-            for p in primes:
-                if i % p == 0:
-                    add = False
-                    break
-            if add:
-                primes.append(i)
-            num = num // i
-    if num not in primes:
-        primes.append(num)
-    return primes
-

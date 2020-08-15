@@ -19,10 +19,14 @@ typedef struct dev_data {
 void start_net_handler ();
 
 /*
- * Sends SIGINT to the net handler process
- * Cleans up threads and closes open file descriptors
+ * Sends SIGINT to the net handler process and then calls close_output()
  */
 void stop_net_handler ();
+
+/* 
+ * Cleans up threads and closes open file descriptors 
+ */
+void close_output();
 
 /*
  * Sends a Run Mode message from the specified client with the specified mode
@@ -55,10 +59,11 @@ void send_gamepad_state (uint32_t buttons, float joystick_vals[4]);
  * Sends a Challenge Data message from the specified client with the specified data
  * Arguments:
  *    - robot_desc_field_t client: one of SHEPHERD or DAWN
- *    - char **data: array of NUM_CHALLENGES strings, each containing the input to the corresponding challenge
+ *    - char **data: array of strings, each containing the input to the corresponding challenge
+ *	  - num_challenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
  * No return value.
  */
-void send_challenge_data (robot_desc_field_t client, char **data);
+void send_challenge_data (robot_desc_field_t client, char **data, int num_challenges);
 
 /*
  * Sends a Device Data message from Dawn over TCP with the specified device subscriptions

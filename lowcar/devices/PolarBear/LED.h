@@ -5,10 +5,7 @@
 #include "defs.h"
 
 //function prototypes
-void ctrl_LEDs();
-void ctrl_RED();
-void ctrl_YELLOW();
-void ctrl_GREEN();
+void ctrl_LEDs(float duty_cycle, float deadband);
 void test_LEDs();
 void setup_LEDs();
 

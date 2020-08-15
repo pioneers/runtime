@@ -7,15 +7,17 @@ from cpython.mem cimport PyMem_Malloc, PyMem_Free
 import threading
 import sys
 import builtins
-import inspect
 import traceback
+import time
+import re
+import importlib
+from collections import defaultdict
 
-include "code_parser.pyx"
 
 """Student API written in Cython. """
 
+# Maximum number of concurrent student actions
 MAX_THREADS = 8
-
 
 ## Tools used for logging
 
@@ -96,7 +98,7 @@ cdef class Gamepad:
         for i in range(4):
             if param == joystick_names[i]:
                 return joysticks[i]
-        raise DeviceError(f"Invalid gamepad parameter {param_name}")
+        raise KeyError(f"Invalid gamepad parameter {param_name}")
 
 
 class ThreadWrapper(threading.Thread):
@@ -123,6 +125,8 @@ cdef class Robot:
     cdef dict running_actions
     cdef public str start_pos
     cdef public error_event
+    cdef public sleep_event
+    cdef int64_t main_thread
 
 
     def __cinit__(self):
@@ -130,6 +134,8 @@ cdef class Robot:
         self.running_actions = {}
         self.start_pos = 'left' if robot_desc_read(START_POS) == LEFT else 'right'
         self.error_event = threading.Event()
+        self.sleep_event = threading.Event()
+        self.main_thread = threading.get_ident()
 
 
     def run(self, action, *args, **kwargs) -> None:
@@ -144,7 +150,7 @@ cdef class Robot:
             _print(f"Calling action {action.__name__} when it is still running won't do anything. Use Robot.is_running to check if action is over.", level=ERROR)
             return
         if threading.active_count() > MAX_THREADS:
-            _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=WARN)
+            _print(f"Number of Python threads {threading.active_count()} exceeds the limit {MAX_THREADS} so action won't be scheduled. Make sure your actions are returning properly.", level=ERROR)
             return
         thread = ThreadWrapper(action, self.error_event, args, kwargs)
         thread.daemon = True
@@ -162,6 +168,44 @@ cdef class Robot:
         if thread:
             return thread.is_alive()
         return False
+
+
+    cpdef void sleep(self, float timeout) except *:
+        """Make the current thread inactive for `timeout` seconds."""
+        if threading.current_thread().ident == self.main_thread:
+            self.sleep_event.wait(timeout)
+        else: # For action threads
+            time.sleep(timeout)
+
+
+    cpdef void log(self, str key, value) except *:
+        """
+        Log a parameter to send back to Dawn.
+
+        Args:
+            key: name of the parameter
+            value: value of the parameter. Must be an int, float, or bool.
+        
+        """
+        cdef param_val_t param
+        cdef param_type_t param_type
+        cdef bytes key_bytes = key.encode('utf-8')
+        if type(value) == int:
+            param.p_i = value
+            param_type = INT
+        elif type(value) == float:
+            param.p_f = value
+            param_type = FLOAT
+        elif type(value) == bool:
+            param.p_b = int(value)
+            param_type = BOOL
+        else:
+            raise ValueError(f"Cannot log parameter {key} with type {type(value).__name__} since it's not an int, float, or bool.")
+
+        cdef int err = log_data_write(key_bytes, param_type, param)
+        if err == -1:
+            raise IndexError(f"Maximum number of 255 log data keys reached. can't add key {key}")
+        
 
 
     cpdef get_value(self, str device_id, str param_name):
@@ -183,7 +227,6 @@ cdef class Robot:
         # Getting parameter info from the name
         cdef device_t* device = get_device(device_type)
         if not device:
-            # _print("Got device none: ", device == NULL, f"device type {device_type} device uid {device_uid}")
             raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
         cdef param_type_t param_type
         cdef int8_t param_idx = -1
@@ -262,4 +305,80 @@ cdef class Robot:
         PyMem_Free(param_value)
         if err == -1:
             raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
+
+
+### Functions to parse student code for device parameter subscriptions
+
+cpdef void make_device_subs(str code_file) except *:
+    """
+    Reads all parameters using get_all_params and then sends the corresponding device subscriptions.
+    
+    Args:
+        code_file: name of student code file, without the .py
+
+    """
+    cdef device_t* device
+    cdef uint32_t request
+    cdef int err
+    params = get_all_params(code_file)
+    for id in params:
+        splits = id.split('_')
+        type, uid = int(splits[0]), int(splits[1])
+        device = get_device(type)
+        if not device:
+            log_printf(WARN, f"Code parser: device with uid {uid} has invalid type {type}".encode('utf-8'))
+            continue
+        request = 0
+        for p in params[id]:
+            for i in range(device.num_params):
+                if device.params[i].name == p.encode('utf-8'):
+                    # log_printf(DEBUG, f"adding request for device {id} param {p} at index {i}".encode('utf-8'))
+                    request |= (1 << i)
+        err = place_sub_request(uid, EXECUTOR, request)
+        if err == -1:
+            log_printf(WARN, f"Code parser: device with type {type} and uid {uid} is not connected to the robot".encode('utf-8'))
+
+
+def get_all_params(code_file):
+    """
+    Reads the given code file and returns dict of any usage of device parameters.
+
+    Args:
+        code_file: name of student code file, without the .py
+
+    Returns:
+        Dict mapping device id (type_uid) to list of all param names used in the code
+
+    """
+    code = importlib.import_module(code_file)
+    # Finds all global variables in student code
+    var = [n for n in dir(code) if not n.startswith("_")]
+    mod = sys.modules[__name__]
+    # Sets them in current global namespace
+    for v in var:
+        setattr(mod, v, getattr(code, v))
+    param_dict = defaultdict(set)
+
+    # Open the code file into f (try the executor directory and the test student code directory)
+    try:
+        f = open(f"{code_file}.py", "r")
+    except FileNotFoundError as e:
+        f = open(f"../tests/student_code/{code_file}.py", "r")	
+	
+    for i, line in enumerate(f):
+        line = line.lstrip() # Remove whitespace
+        comment = line.find("#")
+        if comment != -1:
+            line = line[:comment] # Remove commented lines
+        # Find regex of exact functions and get their arguments
+        matches = [re.search(r"Robot.set_value\((.*)\)", line), re.search(r"Robot.get_value\((.*)\)", line)]
+        for res in matches:
+            if res:
+                try:
+                    # Find parameters by splitting by optional space and comma or parenthesis
+                    params = re.split(r"\s?[,\(\)]\s?", res[1])
+                    param_dict[eval(params[0])].add(eval(params[1]))
+                except Exception as e:
+                    log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
+    return param_dict
 

@@ -1,6 +1,6 @@
 #include "test.h"
 
-#define TEMP_FILE "temp.txt"
+#define TEMP_FILE "/tmp/temp_logs.txt"
 
 #define DELIMITER_WIDTH 80
 

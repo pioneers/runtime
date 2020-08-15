@@ -1,4 +1,4 @@
-/**
+/*
  * Class defining a lowcar device, receiving/sending messages and performing actions based on received messages.
  */
 
@@ -78,8 +78,8 @@ public:
 	virtual void device_actions ();
 
 protected:
-	Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
-	uint8_t enabled;
+    Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
+    uint8_t enabled;
 
 private:
 	const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
