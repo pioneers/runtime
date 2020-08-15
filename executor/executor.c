@@ -27,11 +27,11 @@ int challenge_fd;  // challenge socket
 
 // Timings for all modes
 struct timespec setup_time = { 2, 0 };    // Max time allowed for setup functions
-#define min_freq 10.0 // Minimum number of times per second the main loop should run
-struct timespec main_interval = { 0, (long) ((1.0 / min_freq) * 1e9) };
-#define max_freq 10000.0 // Maximum number of times per second the Python function should run
-#define min_time (1.0 / max_freq) * 1e9 // Minimum time in nanoseconds that the Python function should take
-#define challenge_time 5 // Max allowed time for running all challenges in seconds
+#define MIN_FREQ 10.0 // Minimum number of times per second the main loop should run
+struct timespec main_interval = { 0, (long) ((1.0 / MIN_FREQ) * 1e9) };
+#define MAX_FREQ 10000.0 // Maximum number of times per second the Python function should run
+uint64_t min_time = (1.0 / MAX_FREQ) * 1e9; // Minimum time in nanoseconds that the Python function should take
+#define CHALLENGE_TIME 5 // Max allowed time for running all challenges in seconds
 
 
 /**
@@ -487,7 +487,7 @@ pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
             executor_init(challenge_code);
             signal(SIGTERM, exit);
             signal(SIGALRM, python_exit_handler); // Sets interrupt for any long-running challenge
-            alarm(challenge_time); // Set timeout for challenges
+            alarm(CHALLENGE_TIME); // Set timeout for challenges
             run_challenges();
             robot_desc_write(RUN_MODE, IDLE); // Will tell parent to call kill_subprocess
         }
