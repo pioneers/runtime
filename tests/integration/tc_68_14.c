@@ -8,13 +8,17 @@
 
 char no_device[] = "no connected devices";
 char unknown_device[] = "A non-PiE device was recently plugged in. Please unplug immediately";
-char bad_message[] = "Couldn't parse message from /tmp/ttyACM0";
 
 #define NUM_GENERAL 16
-#define NUM_UNSTABLE 16
+#define NUM_UNSTABLE 3
+#define NUM_BAD_DEVS 10
 
 int main(){
     // Setup
+    if(NUM_GENERAL + NUM_UNSTABLE > MAX_DEVICES){
+        printf("Invalid Number Of Devices Connected");
+        exit(1);
+    }
     start_test("Hotplug Variety");
     start_shm();
     start_net_handler();
@@ -23,8 +27,9 @@ int main(){
     uint8_t unstable_dev_type = device_name_to_type("UnstableTestDevice");
     uint64_t uid = 0;
 
-    // Connect general devices
+    
     print_dev_ids(); // No devices
+    // Connect NUM_GENERAL devices
     for (int i = 0; i < NUM_GENERAL; i++) {
         connect_virtual_device("GeneralTestDevice", uid);
         uid++;
@@ -32,22 +37,24 @@ int main(){
     sleep(1);
     print_dev_ids(); // Only General Devices Connected
     
-    // Connect 16 unstable devices then sleep for 8 seconds
+    // Connect NUM_UNSTABLE unstable devices then sleep for 5 seconds
     for(int i = 0; i < NUM_UNSTABLE; i++){
         connect_virtual_device("UnstableTestDevice", uid);
         uid++;
-        sleep(1); // Make sure device is registered
     }
-    sleep(7); // Unstable Devices should timeout
+    sleep(2);
+    print_dev_ids();
+    sleep(5); // Unstable Devices should timeout
     
     // Disconnect the unstable devices
-    for(int i = 16; i < 32; i++){
+    for(int i = NUM_GENERAL; i < NUM_UNSTABLE; i++){
         disconnect_virtual_device(i);
     }
+    sleep(1);
     print_dev_ids();
 
     // Connect "bad" devices from the ports of disconnected unstable devices
-    for(int i = 0; i < 10; i++){
+    for(int i = 0; i < NUM_BAD_DEVS; i++){
         if(uid % 2){
             connect_virtual_device("ForeignTestDevice", uid);
         }
@@ -72,24 +79,49 @@ int main(){
 
     in_rest_of_output(no_device);  // No devices initially connected
     char expected_output[64];
-    // Only NUM_GENERAL GeneralTestDevices
+    char unexpected_output[64];
+    //Only NUM_GENERAL GeneralTestDevices
     for (int i = 0; i < NUM_GENERAL; i++) {
         sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
+        in_rest_of_output(expected_output);
+    }
+    // Check NUM_GENERAL devices are connected then NUM_UNSTABLE
+    for (int i = 0; i < NUM_GENERAL; i++) {
+        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
+        in_rest_of_output(expected_output);
+    }
+    for (int i = NUM_GENERAL; i < NUM_UNSTABLE; i++) {
+        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, unstable_dev_type, unstable_dev_type, i);
         in_rest_of_output(expected_output);
     }
     // After all UnstableTestDevices timed out
-    for (int i = 0; i < NUM_GENERAL; i++) {
-        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (i + NUM_UNSTABLE)); 
+    for (int i = 0; i < NUM_UNSTABLE; i++) {
+        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (i + NUM_GENERAL)); 
         in_rest_of_output(expected_output);
     }
-    // Only GeneralTestDevices remain
+    // Only GeneralTestDevices remain after disconnecting UnstableTestDevices
     for (int i = 0; i < NUM_GENERAL; i++) {
         sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
         in_rest_of_output(expected_output);
     }
-    for (int i = 0; i < 16; i++) {
-        sprintf(expected_output, "dev_ix = %d", i); // Check that the only device connetcted are generalTestDevice
+    // Make sure there are no other devices in SHM
+    for (int i = NUM_GENERAL; i < MAX_DEVICES; i++) {
+        sprintf(unexpected_output, "dev_ix = %d", i);
+        not_in_rest_of_output(unexpected_output);
+    }
+    // Error message when non pie devices are connected
+    for (int i = 0; i < NUM_BAD_DEVS; i++){
+        in_rest_of_output(unknown_device);
+    }
+    // Only GeneralTestDevices are in SHM after bad devices are handled
+    for (int i = 0; i < NUM_GENERAL; i++) {
+        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
         in_rest_of_output(expected_output);
+    }
+    // Make sure there are no other devices in SHM
+    for (int i = NUM_GENERAL; i < MAX_DEVICES; i++) {
+        sprintf(unexpected_output, "dev_ix = %d", i);
+        not_in_rest_of_output(unexpected_output);
     }
     in_rest_of_output(no_device); // All Devices Disconnected
     return 0;
