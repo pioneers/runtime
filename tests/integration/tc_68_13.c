@@ -1,49 +1,48 @@
 /**
  * Hotplugging
- * Test to make sure that dev_handler can clean up
- * threads properly even when multiple unresponsive devices are connected
- * then disconnected
+ * Verify that dev handler can properly recognize multiple UnstableTestDevices
+ * timing out and cleans them up
  */
 #include "../test.h"
+
+#define NUM_TO_CONNECT 4
 
 char no_device[] = "no connected devices";
 char unknown_message[] = "Couldn't parse message from /tmp/ttyACM0";
 
-int main(){
+int main() {
     // Setup
-    start_test("Multiple unstable Hotplug");
+    start_test("Hotplug Multiple UnstableTestDevices");
     start_shm();
+    start_net_handler();
     start_dev_handler();
 
-    // Connect a device then disconnect it
-    print_dev_ids();
-    connect_virtual_device("UnstableTestDevice", 0x123);
-    connect_virtual_device("UnstableTestDevice", 0x124);
-    connect_virtual_device("UnstableTestDevice", 0x125);
-    connect_virtual_device("UnstableTestDevice", 0x126);
-    connect_virtual_device("UnstableTestDevice", 0x127);
+    // Connect multiple UnstableTestDevices
+    for (int i = 0; i < NUM_TO_CONNECT; i++) {
+        connect_virtual_device("UnstableTestDevice", i);
+    }
     sleep(1);
-    print_dev_ids();
-    sleep(8);
-    print_dev_ids();
+    print_dev_ids(); // All devices should be present
+    sleep(5);        // All devices will time out
+    print_dev_ids(); // No devices
 
-
+    // Clean up
     disconnect_all_devices();
     stop_dev_handler();
+    stop_net_handler();
     stop_shm();
     end_test();
 
-    in_rest_of_output(no_device);  // No device read
+    // Check output
     char expected_output[64];
-    for (int i = 0; i < 5; i++) {
-        sprintf(expected_output, "dev_ix = %d", i); // check each unstable device is connected
+    for (int i = 0; i < NUM_TO_CONNECT; i++) {
+        sprintf(expected_output, "dev_ix = %d: type = %d", i, device_name_to_type("UnstableTestDevice")); // check each unstable device is connected
         in_rest_of_output(expected_output);
     }
-    in_rest_of_output("UnstableTestDevice (0x0000000000000123) timed out!");
-    in_rest_of_output("UnstableTestDevice (0x0000000000000124) timed out!");
-    in_rest_of_output("UnstableTestDevice (0x0000000000000125) timed out!");
-    in_rest_of_output("UnstableTestDevice (0x0000000000000126) timed out!");
-    in_rest_of_output("UnstableTestDevice (0x0000000000000127) timed out!");
+    for (int i = 0; i < NUM_TO_CONNECT; i++) {
+        sprintf("UnstableTestDevice (0x%016llu) timed out!", i);
+        in_rest_of_output(expected_output);
+    }
     in_rest_of_output(no_device);
     return 0;
 }

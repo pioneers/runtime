@@ -10,6 +10,7 @@ int main() {
     // Setup
     start_test("Simple Device Read");
     start_shm();
+    start_net_handler();
     start_dev_handler();
 
     // Connect a device
@@ -20,7 +21,7 @@ int main() {
     device_t *dev = get_device(device_name_to_type("SimpleTestDevice"));
     param_val_t vals_before[dev->num_params];
     device_read_uid(UID, EXECUTOR, DATA, 0b1111, vals_before);
-    sleep(2);   // Device values will change in this time
+    sleep(1);   // Device values will change in this time
 
     // Get parameters again
     param_val_t vals_after[dev->num_params];
@@ -29,6 +30,7 @@ int main() {
     // Stop all processes
     disconnect_all_devices();
     stop_dev_handler();
+    stop_net_handler();
     stop_shm();
     end_test();
 

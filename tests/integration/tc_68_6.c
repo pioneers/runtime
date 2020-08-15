@@ -14,20 +14,20 @@ int main() {
     start_shm();
     start_net_handler();
     start_dev_handler();
+    sleep(1);
 
     // Connect MAX_DEVICES
-    sleep(1);   // Make sure dev handler starts up
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         connect_virtual_device("SimpleTestDevice", i);
     }
     sleep(2);   // Make sure all devices connect
-    print_dev_ids();
+    print_dev_ids(); // Should show MAX_DEVICES
     printf("CONNECTED %d DEVICES\n", NUM_TO_CONNECT);
     printf("Letting devices sit\n");
-    sleep(5);  // Let devices sit to make sure runtime can handle it
+    sleep(5);   // Let devices sit to make sure runtime can handle it
     connect_virtual_device("SimpleTestDevice", NUM_TO_CONNECT);
     sleep(2);   // Let device connect
-    print_dev_ids();
+    print_dev_ids(); // Should show MAX_DEVICES (same as last print_dev_ids())
     printf("CONNECTED %d + 1 DEVICES\n", NUM_TO_CONNECT);
     sleep(2);   // Let last device sit
 
@@ -39,11 +39,13 @@ int main() {
     stop_shm();
     end_test();
 
-    // Check outputs
+    // Check outputs. Same output TWICE because the extra device should have no effect
     char expected_output[64];
-    for (int i = 0; i < NUM_TO_CONNECT; i++) {
-        sprintf(expected_output, "dev_ix = %d", i); // MAX_DEVICES connected
-        in_rest_of_output(expected_output);
+    for (int j = 0; j < 2; j++) {
+        for (int i = 0; i < NUM_TO_CONNECT; i++) {
+            sprintf(expected_output, "dev_ix = %d", i); // MAX_DEVICES connected
+            in_rest_of_output(expected_output);
+        }
     }
     return 0;
 }
