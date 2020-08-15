@@ -10,8 +10,8 @@ char no_device[] = "no connected devices";
 char unknown_device[] = "A non-PiE device was recently plugged in. Please unplug immediately";
 char bad_message[] = "Couldn't parse message from /tmp/ttyACM0";
 
-#define NUM_GENERAL 3
-#define NUM_UNSTABLE 3
+#define NUM_GENERAL 16
+#define NUM_UNSTABLE 16
 
 int main(){
     // Setup
@@ -30,55 +30,56 @@ int main(){
         uid++;
     }
     sleep(1);
-    print_dev_ids(); // Only GeneralTestDevices
-
-    // connect unstable devices then sleep for 8 seconds
-    for (int i = 0; i < NUM_UNSTABLE; i++) {
+    print_dev_ids(); // Only General Devices Connected
+    
+    // Connect 16 unstable devices then sleep for 8 seconds
+    for(int i = 0; i < NUM_UNSTABLE; i++){
         connect_virtual_device("UnstableTestDevice", uid);
         uid++;
+        sleep(1); // Make sure device is registered
     }
-    sleep(1);           // Make sure all devices are registered
-    print_dev_ids();    // NUM_GENERAL + NUM_UNSTABLE devices
-    sleep(5);           // All UnstableTestDevices should time out
-    print_dev_ids();    // Only GeneralTestDevice
-    connect_virtual_device("ForeignTestDevice", uid);
-    uid++;
-    connect_virtual_device("UnresponsiveTestDevice", uid);
-    uid++;
+    sleep(7); // Unstable Devices should timeout
+    
+    // Disconnect the unstable devices
+    for(int i = 16; i < 32; i++){
+        disconnect_virtual_device(i);
+    }
+    print_dev_ids();
 
-    sleep(4);           // ForeignTestDevice and UnresponsiveTestDevice should be denied
-    print_dev_ids();    // Only GeneralTestDevice
+    // Connect "bad" devices from the ports of disconnected unstable devices
+    for(int i = 0; i < 10; i++){
+        if(uid % 2){
+            connect_virtual_device("ForeignTestDevice", uid);
+        }
+        else{
+            connect_virtual_device("UnresponsiveTestDevice", uid);
+        }
+        uid++;
+        sleep(1); // Let Dev_Handler properly handlt the device before connecting another
+    }
+    sleep(2);
+    print_dev_ids(); // Only general devices should be connected
+
 
     // Clean up
     disconnect_all_devices();
-    sleep(2);
-    print_dev_ids();    // All devices should be properly disconnected
-    sleep(1);
+    sleep(8);
+    print_dev_ids(); // All Devices should be disconnected
     stop_dev_handler();
     stop_net_handler();
     stop_shm();
     end_test();
 
-    // Check outputs
-    in_rest_of_output(no_device);  // No device connected
+    in_rest_of_output(no_device);  // No devices initially connected
     char expected_output[64];
     // Only NUM_GENERAL GeneralTestDevices
     for (int i = 0; i < NUM_GENERAL; i++) {
         sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
         in_rest_of_output(expected_output);
     }
-    // After connecting NUM_UNSTABLE UnstableTestDevices
+    // After all UnstableTestDevices timed out
     for (int i = 0; i < NUM_GENERAL; i++) {
-        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
-        in_rest_of_output(expected_output);
-    }
-    for (int i = 0; i < NUM_UNSTABLE; i++) {
-        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i + NUM_GENERAL, unstable_dev_type, unstable_dev_type, i + NUM_GENERAL);
-        in_rest_of_output(expected_output);
-    }
-    // All UnstableTestDevices time out
-    for (int i = 0; i < NUM_UNSTABLE; i++) {
-        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", i + NUM_GENERAL);
+        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (i + NUM_UNSTABLE)); 
         in_rest_of_output(expected_output);
     }
     // Only GeneralTestDevices remain
@@ -86,15 +87,10 @@ int main(){
         sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
         in_rest_of_output(expected_output);
     }
-    // ForeignTestDevice and UnresponsiveTestDevice should be denied
-    in_rest_of_output(unknown_device);
-    in_rest_of_output(unknown_device);
-    // Only GeneralTestDevice remain
-    for (int i = 0; i < NUM_GENERAL; i++) {
-        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
+    for (int i = 0; i < 16; i++) {
+        sprintf(expected_output, "dev_ix = %d", i); // Check that the only device connetcted are generalTestDevice
         in_rest_of_output(expected_output);
     }
-    // Disconnecting all device should show no devices
-    in_rest_of_output(no_device);
+    in_rest_of_output(no_device); // All Devices Disconnected
     return 0;
 }
