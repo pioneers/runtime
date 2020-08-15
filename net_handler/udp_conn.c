@@ -1,9 +1,11 @@
 #include "udp_conn.h"
 
-pthread_t gp_thread, device_thread;
-int socket_fd = -1;
-struct sockaddr_in dawn_addr = {0};
-socklen_t addr_len = sizeof(struct sockaddr_in);
+pthread_t gp_thread, device_thread;					// thread IDs for receiving gamepad data and sending device data
+int socket_fd = -1;									// the UDP socket's file descriptor
+struct sockaddr_in dawn_addr = {0};					// the address of our client, which should be Dawn
+socklen_t addr_len = sizeof(struct sockaddr_in);	// length of the address
+
+uint64_t start_time;	// the time that Runtime/net_handler was started, in milliseconds since the UNIX epoch
 
 
 void* send_device_data(void* args) {
@@ -19,6 +21,11 @@ void* send_device_data(void* args) {
 	dev_id_t dev_ids[MAX_DEVICES];
 	int valid_dev_idxs[MAX_DEVICES];
 	uint32_t catalog;
+
+	param_val_t custom_params[UCHAR_MAX];
+	param_type_t custom_types[UCHAR_MAX];
+	char custom_names[UCHAR_MAX][64];
+	uint8_t num_params;
 
 	while (1) {
 		DevData dev_data = DEV_DATA__INIT;
@@ -36,7 +43,7 @@ void* send_device_data(void* args) {
 				num_devices++;
 			}
 		}
-		dev_data.devices = malloc(num_devices * sizeof(Device *));
+		dev_data.devices = malloc((num_devices + 1) * sizeof(Device *)); // + 1 is for custom data
 
 		//populate dev_data.device[i]
 		int dev_idx = 0;
@@ -86,7 +93,46 @@ void* send_device_data(void* args) {
 			}
 			dev_idx++;
 		}
-		dev_data.n_devices = dev_idx;
+
+		// Add custom log data to protobuf
+		Device* custom = malloc(sizeof(Device));
+		device__init(custom);
+		dev_data.devices[dev_idx] = custom;
+		log_data_read(&num_params, custom_names, custom_types, custom_params);
+		custom->n_params = num_params + 1; // + 1 is for the current time
+		custom->params = malloc(sizeof(Param*) * custom->n_params);
+		custom->name = "CustomData";
+		custom->type = MAX_DEVICES;
+		custom->uid = 0;
+		for (int i = 0; i < custom->n_params; i++) {
+			Param* param = malloc(sizeof(Param));
+			param__init(param);
+			custom->params[i] = param;
+			param->name = custom_names[i];
+			switch (custom_types[i]) {
+				case INT:
+					param->val_case = PARAM__VAL_IVAL;
+					param->ival = custom_params[i].p_i;
+					break;
+				case FLOAT:
+					param->val_case = PARAM__VAL_FVAL;
+					param->fval = custom_params[i].p_f;
+					break;
+				case BOOL:
+					param->val_case = PARAM__VAL_BVAL;
+					param->bval = custom_params[i].p_b;
+					break;
+			}
+		}
+		Param* time = malloc(sizeof(Param));
+		param__init(time);
+		custom->params[num_params] = time;
+		time->name = "time_ms";
+		time->val_case = PARAM__VAL_IVAL;
+		time->ival = millis() - start_time; // Can only give difference in millisecond since robot start since it is int32, not int64
+
+		dev_data.n_devices = dev_idx + 1; // + 1 is for custom data
+
 		len = dev_data__get_packed_size(&dev_data);
 		// log_printf(DEBUG, "Number of actual devices: %d, total size %d, DevData size %d", dev_idx, len, sizeof(DevData));
 		buffer = malloc(len);
@@ -121,7 +167,7 @@ void* update_gamepad_state(void* args) {
 
 	while (1) {
 		recvlen = recvfrom(socket_fd, buffer, size, 0, (struct sockaddr*) &dawn_addr, &addr_len);
-		log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
+		// log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
 		if (recvlen == size) {
 			log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
 		}
@@ -139,11 +185,11 @@ void* update_gamepad_state(void* args) {
 		}
 		else {
 			// display the message's fields.
-			//log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
-			//for (int i = 0; i < gp_state->n_axes; i++) {
-			//	log_printf(PYTHON, "\t%f", gp_state->axes[i]);
-			//}
-			//log_printf(PYTHON, "\n");
+			// log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
+			// for (int i = 0; i < gp_state->n_axes; i++) {
+			// 	log_printf(PYTHON, "\t%f", gp_state->axes[i]);
+			// }
+			// log_printf(PYTHON, "\n");
 
 			robot_desc_write(GAMEPAD,  gp_state->connected ? CONNECTED : DISCONNECTED);
 			if (gp_state->connected) {
@@ -175,6 +221,8 @@ void start_udp_conn ()
 		log_printf(ERROR, "udp socket bind failed: %s", strerror(errno));
 		return;
 	}
+
+	start_time = millis();
 
 	//create threads
 	if (pthread_create(&gp_thread, NULL, update_gamepad_state, NULL) != 0) {

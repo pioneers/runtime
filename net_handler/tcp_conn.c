@@ -1,5 +1,4 @@
 #include "tcp_conn.h"
-#include "pbc_gen/device.pb-c.h"
 
 //used for creating and cleaning up TCP connection
 typedef struct {
@@ -105,42 +104,22 @@ static void send_log_msg (int conn_fd, FILE *log_file)
  */
 static void send_challenge_results(int conn_fd, int challenge_fd) {
 	// Get results from executor
-	Text results = TEXT__INIT;
-	results.n_payload = NUM_CHALLENGES;
-	results.payload = malloc(sizeof(char*) * NUM_CHALLENGES);
-	
-	char read_buf[CHALLENGE_LEN];
+	int buf_size = 256;
+	char read_buf[buf_size];
 
-	// read results from executor, line by line
-	for (int i = 0; i < NUM_CHALLENGES; i++) {
-		int readlen = recvfrom(challenge_fd, read_buf, CHALLENGE_LEN, 0, NULL, NULL);
-		if (readlen == CHALLENGE_LEN) {
-			log_printf(WARN, "challenge_fd: Read length matches size of read buffer %d", readlen);
-		}
-		if (readlen < 0) {
-			perror("recvfrom");
-			log_printf(ERROR, "Socket recv from challenge_fd failed");
-		}
-		results.payload[i] = malloc(readlen);
-		strcpy(results.payload[i], read_buf);
-		memset(read_buf, 0, CHALLENGE_LEN);
+	int read_len = recvfrom(challenge_fd, read_buf, buf_size, 0, NULL, NULL);
+	if (read_len == buf_size) {
+		log_printf(WARN, "send_challenge_results: read length matches size of read buffer %d", read_len);
+	}
+	if (read_len < 0) {
+		log_printf(ERROR, "send_challenge_results: socket recv from challenge_fd failed: %s", strerror(errno));
+		return;
 	}
 
 	// Send results to client
-	uint16_t len_pb = text__get_packed_size(&results);
-	uint8_t* send_buf = make_buf(CHALLENGE_DATA_MSG, len_pb);
-	text__pack(&results, send_buf + BUFFER_OFFSET);
-	if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
-		perror("write");
-		log_printf(ERROR, "sending challenge data message failed");
+	if (writen(conn_fd, read_buf, read_len) == -1) {
+		log_printf(ERROR, "send_challenge_results: sending challenge data message failed: %s", strerror(errno));
 	}
-
-	// free allocated memory
-	for (int i = 0; i < results.n_payload; i++) {
-		free(results.payload[i]);
-	}
-	free(results.payload);
-	free(send_buf);
 }
 
 
@@ -174,28 +153,16 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 		struct sockaddr_un exec_addr = {0};
 		exec_addr.sun_family = AF_UNIX;
 		strcpy(exec_addr.sun_path, CHALLENGE_SOCKET);
-		
-		Text* inputs = text__unpack(NULL, len_pb, buf);
-		if (inputs == NULL) {
-			log_printf(ERROR, "Cannot unpack challenge_data msg");
+
+		int send_len = sendto(challenge_fd, buf, len_pb, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
+		if (send_len < 0) {
+			log_printf(ERROR, "recv_new_msg: socket send to challenge_fd failed: %s", strerror(errno));
 			return -2;
 		}
-		if (inputs->n_payload != NUM_CHALLENGES) {
-			log_printf(ERROR, "Number of challenge inputs %d is not equal to number of challenges %d", inputs->n_payload, NUM_CHALLENGES);
-			return -2;
+		if (send_len != len_pb) {
+			log_printf(WARN, "recv_new_msg: socket send len %d is not equal to intended protobuf length %d", send_len, len_pb);
 		}
-		// Send to executor
-		for (int i = 0; i < NUM_CHALLENGES; i++) {
-			int input_len = strlen(inputs->payload[i]) + 1;
-			int sendlen = sendto(challenge_fd, inputs->payload[i], input_len, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
-			if (sendlen < 0 || sendlen != input_len) {
-				perror("sendto");
-				log_printf(ERROR, "Socket send to challenge_fd failed");
-				return -2;
-			}
-		}
-		text__free_unpacked(inputs, NULL);
-		
+
 		log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
 		robot_desc_write(RUN_MODE, CHALLENGE);
 	}

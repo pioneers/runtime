@@ -335,11 +335,11 @@ char** get_joystick_names() {
 
 /* Returns the number of milliseconds since the Unix Epoch */
 uint64_t millis() {
-    struct timeval time; // Holds the current time in seconds + microsecondsx
-    gettimeofday(&time, NULL);
-    uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
-    uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
-    return s1 + s2;
+	struct timeval time; // Holds the current time in seconds + microseconds
+	gettimeofday(&time, NULL);
+	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
+	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
+	return s1 + s2;
 }
 
 /*

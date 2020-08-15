@@ -1,47 +1,46 @@
 #include "DummyDevice.h"
 
 typedef enum {
-	RUNTIME = 0,
-	SHEPHERD = 1,
-	DAWN = 2,
-	DEVOPS = 3,
-	ATLAS = 4,
-	INFRA = 5,
-	SENS = 6,
-	PDB = 7,
-	MECH = 8,
-	CPR = 9,
-	EDU = 10,
-	EXEC = 11,
-	PIEF = 12,
-	FUNTIME = 13,
-	SHEEP = 14,
-	DUSK = 15,
+    RUNTIME = 0,
+    SHEPHERD = 1,
+    DAWN = 2,
+    DEVOPS = 3,
+    ATLAS = 4,
+    INFRA = 5,
+    SENS = 6,
+    PDB = 7,
+    MECH = 8,
+    CPR = 9,
+    EDU = 10,
+    EXEC = 11,
+    PIEF = 12,
+    FUNTIME = 13,
+    SHEEP = 14,
+    DUSK = 15,
 } param;
 
-DummyDevice::DummyDevice () : Device (DeviceType::DUMMY_DEVICE, 13)
-{
-	this->runtime = 1;
-	this->shepherd = 0.1;
-	this->dawn = TRUE;
+DummyDevice::DummyDevice() : Device(DeviceType::DUMMY_DEVICE, 13) {
+    this->runtime = 1;
+    this->shepherd = 0.1;
+    this->dawn = TRUE;
 
-	this->devops = 1;
-	this->atlas = 0.1;
-	this->infra = TRUE;
+    this->devops = 1;
+    this->atlas = 0.1;
+    this->infra = TRUE;
 
-	this->sens = 0;
-	this->pdb = -0.1;
-	this->mech = FALSE;
+    this->sens = 0;
+    this->pdb = -0.1;
+    this->mech = FALSE;
 
-	this->cpr = 0;
-	this->edu = 0.0;
-	this->exec = FALSE;
+    this->cpr = 0;
+    this->edu = 0.0;
+    this->exec = FALSE;
 
-	this->pief = 0;
-	this->funtime = -0.1;
-	this->sheep = FALSE;
+    this->pief = 0;
+    this->funtime = -0.1;
+    this->sheep = FALSE;
 
-	this->dusk = 0;
+    this->dusk = 0;
 }
 
 //retrieves the appropriate instance variable, this whole function is a big lol
@@ -179,47 +178,43 @@ size_t DummyDevice::device_write (uint8_t param, uint8_t *data_buf)
 	return 0;
 }
 
-void DummyDevice::device_enable()
-{
-	this->msngr->lowcar_printf("DUMMY DEVICE ENABLED");
+void DummyDevice::device_enable() {
+    this->msngr->lowcar_printf("DUMMY DEVICE ENABLED");
 }
 
-void DummyDevice::device_disable()
-{
-	this->msngr->lowcar_printf("DUMMY DEVICE DISABLED");
+void DummyDevice::device_disable() {
+    this->msngr->lowcar_printf("DUMMY DEVICE DISABLED");
 }
 
-void DummyDevice::device_actions()
-{
-	static uint64_t last_update_time = 0;
-	//static uint64_t last_count_time = 0;
-	uint64_t curr = millis();
-	
-	// Simulate read-only params changing
-	if (curr - last_update_time > 500) {
+void DummyDevice::device_actions() {
+    static uint64_t last_update_time = 0;
+    // static uint64_t last_count_time = 0;
+    uint64_t curr = millis();
 
-		this->runtime += 2;
-		this->shepherd += 1.9;
-		this->dawn = !this->dawn;
+    // Simulate read-only params changing
+    if (curr - last_update_time > 500) {
 
-		this->devops++;
-		this->atlas += 0.9;
-		this->infra = TRUE;
+        this->runtime += 2;
+        this->shepherd += 1.9;
+        this->dawn = !this->dawn;
 
-		//this->msngr->lowcar_print_float("funtime", this->funtime);
-		//this->msngr->lowcar_print_float("atlas", this->atlas);
-		//this->msngr->lowcar_print_float("pdb", this->pdb);
+        this->devops++;
+        this->atlas += 0.9;
+        this->infra = TRUE;
 
-		last_update_time = curr;
-	}
-	
-	// this->dusk++;
-//
-// 	//use dusk as a counter to see how fast this loop is going
-// 	if (curr - last_count_time > 1000) {
-// 		last_count_time = curr;
-// 		this->msngr->lowcar_printf("loops in past second: %d", this->dusk);
-// 		this->dusk = 0;
-// 	}
+        // this->msngr->lowcar_print_float("funtime", this->funtime);
+        // this->msngr->lowcar_print_float("atlas", this->atlas);
+        // this->msngr->lowcar_print_float("pdb", this->pdb);
 
+        last_update_time = curr;
+    }
+
+    // this->dusk++;
+    //
+    // 	//use dusk as a counter to see how fast this loop is going
+    // 	if (curr - last_count_time > 1000) {
+    // 		last_count_time = curr;
+    // 		this->msngr->lowcar_printf("loops in past second: %d", this->dusk);
+    // 		this->dusk = 0;
+    // 	}
 }

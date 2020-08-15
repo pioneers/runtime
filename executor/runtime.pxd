@@ -12,7 +12,7 @@ cdef extern from "../runtime_util/runtime_util.h":
         uint8_t num_params
         param_desc_t* params
     ctypedef union param_val_t:
-        int p_i
+        int32_t p_i
         float p_f
         uint8_t p_b
     ctypedef enum param_type_t:
@@ -20,14 +20,14 @@ cdef extern from "../runtime_util/runtime_util.h":
     ctypedef struct param_desc_t:
         char* name
         param_type_t type
+        uint8_t read
+        uint8_t write
     ctypedef enum robot_desc_field_t:
         GAMEPAD, START_POS, RUN_MODE
     ctypedef enum robot_desc_val_t:
         CONNECTED, DISCONNECTED, LEFT, RIGHT, AUTO, TELEOP
     char** get_button_names() nogil
     char** get_joystick_names() nogil
-    param_desc_t* get_param_desc(uint8_t dev_type, char* param_name) nogil
-    int8_t get_param_idx(uint8_t dev_type, char* param_name) nogil
     device_t* get_device(uint8_t dev_type) nogil
 
 
@@ -49,3 +49,4 @@ cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
     int gamepad_read (uint32_t *pressed_buttons, float *joystick_vals)
     robot_desc_val_t robot_desc_read (robot_desc_field_t field)
     int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_sub)
+    int log_data_write(char* key, param_type_t type, param_val_t value)

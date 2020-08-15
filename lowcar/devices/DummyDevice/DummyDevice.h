@@ -4,14 +4,14 @@
 #include "Device.h"
 #include "defs.h"
 
-//DOES NOT REPRESENT ANY ACTUAL DEVICE
-//Use to exercise the full extent of possible params and functionality of a lowcar device from runtime
-//Flashable onto bare Arduino micro for testing
+// DOES NOT REPRESENT ANY ACTUAL DEVICE
+// Use to exercise the full extent of possible params and functionality of a lowcar device from runtime
+// Flashable onto bare Arduino micro for testing
 
 class DummyDevice : public Device
 {
 public:
-	//construct a Dummy device
+	// construct a Dummy device
 	DummyDevice();
 
 	virtual size_t device_read (uint8_t param, uint8_t *data_buf);

@@ -8,10 +8,13 @@
 #include <sys/stat.h>                      //for some of the flags that are used (the mode constants)
 #include <fcntl.h>                         //for flags used for opening and closing files (O_* constants)
 #include <unistd.h>                        //for standard symbolic constants
+#include <signal.h>						   // for signal handlers
 #include <semaphore.h>                     //for semaphores
 #include <sys/mman.h>                      //for posix shared memory
+#include <limits.h>						   //for UCHAR_MAX
 #include "../logger/logger.h"              //for logger
 #include "../runtime_util/runtime_util.h"  //for runtime constants
+
 
 //names of various objects used in shm_wrapper; should not be used outside of shm_wrapper and shm.c
 #define CATALOG_MUTEX_NAME "/ct-mutex"  //name of semaphore used as a mutex on the catalog
@@ -23,6 +26,9 @@
 #define ROBOT_DESC_SHM_NAME "/rd-shm"   //name of shared memory block for robot description
 #define GP_MUTEX_NAME "/gp-sem"         //name of semaphore used as mutex over gamepad shm
 #define RD_MUTEX_NAME "/rd-sem"         //name of semaphore used as mutex over robot description shm
+
+#define LOG_DATA_SHM "/log-data-shm"
+#define LOG_DATA_MUTEX "/log-data-sem"
 
 #define SNAME_SIZE 32 //size of buffers that hold semaphore names, in bytes
 
@@ -57,6 +63,32 @@ typedef struct gp_shm {
 typedef struct robot_desc_shm {
 	uint8_t fields[NUM_DESC_FIELDS];   //array to hold the robot state (each is a uint8_t)
 } robot_desc_shm_t;
+
+typedef struct {
+	uint8_t num_params;
+	param_val_t params[UCHAR_MAX];
+	char names[UCHAR_MAX][64];
+	param_type_t types[UCHAR_MAX];
+} log_data_shm_t;
+
+// *********************************** SHM EXTERNAL VARIABLES  ******************************************** //
+
+// DO NOT USE THESE UNDER NORMAL CIRCUMSTANCES
+// THESE ARE ONLY USED TO SIMPLIFY CODE IN SHM_START AND SHM_STOP
+
+extern dual_sem_t sems[MAX_DEVICES];      //array of semaphores, two for each possible device (one for data and one for commands)
+extern dev_shm_t *dev_shm_ptr;            //points to memory-mapped shared memory block for device data and commands
+extern sem_t *catalog_sem;                //semaphore used as a mutex on the catalog
+extern sem_t *cmd_map_sem;                //semaphore used as a mutex on the command bitmap
+extern sem_t *sub_map_sem;                //semaphore used as a mutex on the subscription bitmap
+
+extern gamepad_shm_t *gp_shm_ptr;         //points to memory-mapped shared memory block for gamepad
+extern robot_desc_shm_t *rd_shm_ptr;      //points to memory-mapped shared memory block for robot description
+extern sem_t *gp_sem;                     //semaphore used as a mutex on the gamepad
+extern sem_t *rd_sem;                     //semaphore used as a mutex on the robot description
+
+extern log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
+extern sem_t *log_data_sem;			      //semaphore used as a mutex on the log data
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
 
@@ -94,6 +126,67 @@ void print_robot_desc ();
  * Prints the current state of the gamepad in a human-readable way
  */
 void print_gamepad_state ();
+
+
+/*
+ *	Prints the current custom logged data.
+ */
+void print_custom_data();
+
+// ****************************************** SEMAPHORE UTILITIES ***************************************** //
+
+/*
+ * Function that generates a semaphore name for the data and command streams
+ * Arguments:
+ *    stream: stream for which the semaphore is created (one of DATA or COMMAND)
+ *    dev_ix: index of device whose STREAM is being created
+ *    name: pointer to a buffer of size SNAME_SIZE into which the name of the semaphore will be put
+ */
+void generate_sem_name (stream_t stream, int dev_ix, char *name);
+
+/*
+ * Custom wrapper function for sem_wait. Prints out descriptive logging message on failure
+ * Arguments:
+ *    sem: pointer to a semaphore to wait on
+ *    sem_desc: string that describes the semaphore being waited on, displayed with error message
+ */
+void my_sem_wait (sem_t *sem, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_post. Prints out descriptive logging message on failure
+ * Arguments:
+ *    sem: pointer to a semaphore to post
+ *    sem_desc: string that describes the semaphore being posted, displayed with error message
+ */
+void my_sem_post (sem_t *sem, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_open. Prints out descriptive logging message on failure
+ * exits (not being able to open a semaphore is fatal to Runtime).
+ * Arguments:
+ *    sem_name: name of a semaphore to be opened
+ *    sem_desc: string that describes the semaphore being opened, displayed with error message
+ * Returns a pointer to the semaphore that was opened.
+ */
+sem_t *my_sem_open (char *sem_name, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_open with create flag. Prints out descriptive logging message on failure
+ * exits (not being able to create and open a semaphore is fatal to Runtime).
+ * Arguments:
+ *    sem_name: name of a semaphore to be created and opened
+ *    sem_desc: string that describes the semaphore being created and opened, displayed with error message
+ * Returns a pointer to the semaphore that was created and opened.
+ */
+sem_t *my_sem_open_create (char *sem_name, char *sem_desc);
+
+/*
+ * Custom wrapper function for sem_close. Prints out descriptive logging message on failure
+ * Arguments:
+ *    sem: pointer to a semaphore to close
+ *    sem_desc: string that describes the semaphore being closed, displayed with error message
+ */
+void my_sem_close (sem_t *sem, char *sem_desc);
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
@@ -259,5 +352,27 @@ int gamepad_read (uint32_t *pressed_buttons, float joystick_vals[4]);
  * Returns 0 on success, -1 on failure (if gamepad is not connected)
  */
 int gamepad_write (uint32_t pressed_buttons, float joystick_vals[4]);
+
+/**
+* 	Write the given custom parameter to shared memory. 
+*	Args:
+*		- key is name of the parameter
+*		- type is type of the parameter
+*		- value is the value of the parameter, with the corresponding type filled with data
+*	Returns:
+*		0 if successful
+*		-1 if the maximum number of custom parameters is reached so this parameter isn't written
+*/
+int log_data_write(char* key, param_type_t type, param_val_t value);
+
+/**
+*	Reads the custom log data from shared memory.
+*	Args:
+*		- num_params is a pointer to an int that will get filled with the number of custom parameters
+*		- names is a 2D char array that will be filled with the parameter names, up to `num_params`. Assumes that every parameter name is less than 64 characters long
+*		- types is an array and will be filled with the parameter types, up to `num_params`
+*		- values is an array and will be filled with the parameter values, up to `num_params`
+*/
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
 
 #endif

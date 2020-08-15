@@ -1,0 +1,10 @@
+[Unit]
+Description=test5 service for script5.py
+
+[Service]
+Type=oneshot
+ExecStart=/home/pi/c-runtime/systemd/script5.py
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

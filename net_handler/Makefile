@@ -1,21 +1,15 @@
-
 CFLAGS=$(shell pkg-config --cflags libprotobuf-c)
 LDFLAGS=$(shell pkg-config --libs libprotobuf-c)
+LIBS=-pthread -lrt -Wall
+
 GEN_FOLDER=pbc_gen
 TEST_FOLDER=protobuf_tests
 GEN_FILES:=$(GEN_FOLDER)/*.c
 
-UNAME=$(shell uname)
-ifeq ($(UNAME), Linux)
-LIBS=-pthread -lrt -Wall
-endif
-ifeq ($(UNAME), Darwin)
-LIBS=-Wall
-endif
 
-all: gen_proto net_handler udp_client tcp_client
+all: $(GEN_FOLDER)/* net_handler udp_client tcp_client
 
-gen_proto: $(wildcard protos/*.proto)
+$(GEN_FOLDER)/*: $(wildcard protos/*.proto)
 	cd protos && protoc-c --c_out ../$(GEN_FOLDER) *.proto
 
 clean:
@@ -25,7 +19,7 @@ clean:
 	rm -f tcp_client
 	rm -f udp_client
 
-proto_tests: gen_proto log runmode gpstate devdata
+proto_tests: $(GEN_FOLDER)/* log runmode gpstate devdata
 
 log: log_in log_out
 runmode: runmode_in runmode_out
@@ -47,7 +41,7 @@ server: protobuf_tests/tcp_pb_server.c pbc_gen/text.pb-c.c
 	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
 
 net_handler: net_util.c net_handler.c udp_conn.c tcp_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c 
-	gcc $^ $(GEN_FILES) -o net_handler $(LIBS) $(LDFLAGS) 
+	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS) 
 
 udp_client: test/udp_client.c ../logger/logger.c ../runtime_util/runtime_util.c
 	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS)

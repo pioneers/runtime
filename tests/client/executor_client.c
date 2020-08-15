@@ -4,13 +4,10 @@ pid_t executor_pid;
 
 //for adding student code directory to PYTHONPATH
 char *path_to_test_student_code = "../tests/student_code";
-char *python_path_header = "PYTHONPATH=";
+char* PYTHONPATH = "PYTHONPATH";
 
-void start_executor (char *student_code)
+void start_executor (char *student_code, char *challenge_code)
 {
-	//if someone presses Ctrl-C (SIGINT), stop executor process
-	signal(SIGINT, stop_executor);
-
 	//fork executor process
 	if ((executor_pid = fork()) < 0) {
 		printf("fork: %s\n", strerror(errno));
@@ -23,33 +20,39 @@ void start_executor (char *student_code)
 			printf("chdir: %s\n", strerror(errno));
 		}
 
-		//add the directory with all the student code to PYTHONPATH if it's not already there
-		if ((python_path = getenv("PYTHONPATH")) == NULL) { //if PYTHONPATH is not defined
-			new_python_path = malloc(strlen(python_path_header) + strlen(path_to_test_student_code) + 1);
+		// add the directory with all the student code to PYTHONPATH if it's not already there
+		if ((python_path = getenv(PYTHONPATH)) == NULL) { // if PYTHONPATH is not defined
+			new_python_path = malloc(strlen(PYTHONPATH) + 1 + strlen(path_to_test_student_code) + 1);
 			new_python_path[0] = '\0';
-			strcat(new_python_path, python_path_header);
+			strcat(new_python_path, PYTHONPATH);
+			strcat(new_python_path, "=");
 			strcat(new_python_path, path_to_test_student_code);
-		} else if (strstr(python_path, "tests/student_code") == NULL) { //if PYTHONPATH is defined but the path we want isn't there
-			new_python_path = malloc(strlen(python_path) + strlen(path_to_test_student_code) + strlen(python_path_header) + 1);
+		} else { // if PYTHONPATH is defined
+			new_python_path = malloc(strlen(PYTHONPATH) + 1 + strlen(python_path) + 1 + strlen(path_to_test_student_code) + 1);
 			new_python_path[0] = '\0';
-			strcat(new_python_path, python_path_header);
+			strcat(new_python_path, PYTHONPATH);
+			strcat(new_python_path, "=");
 			strcat(new_python_path, python_path);
+			strcat(new_python_path, ":");
 			strcat(new_python_path, path_to_test_student_code);
 		}
-		if (new_python_path != NULL) { //if one of the two above cases occurred, putenv the new PYTHONPATH
-			if (putenv(new_python_path) != 0) {
-				printf("putenv: %s\n", strerror(errno));
-			}
+		if (setenv(PYTHONPATH, new_python_path, 1) != 0) {
+			printf("start_executor: failed to set PYTHONPATH: %s\n", strerror(errno));
 		}
+		free(new_python_path); // setenv copies the strings so we need to free the allocated pointer
 
-		//get rid of the newline at the end of student_code, if it's there
+		// get rid of the newline at the end of the file name, if it's there
 		len = strlen(student_code);
 		if (student_code[len - 1] == '\n') {
 			student_code[len - 1] = '\0';
 		}
+		len = strlen(challenge_code);
+		if (challenge_code[len - 1] == '\n') {
+			challenge_code[len - 1] = '\0';
+		}
 
 		//exec the actual executor process
-		if (execlp("./executor", "executor", student_code, (char *) 0) < 0) {
+		if (execlp("./executor", "executor", student_code, challenge_code, NULL) < 0) {
 			printf("execlp: %s\n", strerror(errno));
 		}
 	}
