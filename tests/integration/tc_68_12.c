@@ -9,6 +9,7 @@ int main() {
     // Setup
     start_test("Invalid Write");
     start_shm();
+    start_net_handler();
     start_dev_handler();
 
     // Connect a device
@@ -28,7 +29,7 @@ int main() {
     param_val_t vals_to_write[dev->num_params];
     vals_to_write[doubling_idx].p_f = -1;
     device_write_uid(UID, EXECUTOR, COMMAND, (1 << doubling_idx), vals_to_write);
-    sleep(2);   // Device values will change in this time
+    sleep(1);   // Device values will change in this time
 
     // Get parameters again
     param_val_t vals_after[dev->num_params];
@@ -37,6 +38,7 @@ int main() {
     // Stop all processes
     disconnect_all_devices();
     stop_dev_handler();
+    stop_net_handler();
     stop_shm();
     end_test();
 

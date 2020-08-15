@@ -1,6 +1,11 @@
 /**
- * Simple Hotplugging test to verify a single device connect/disconnect
- * registers in shared memory
+ * Performance test.
+ * Calculates the latency between net handler receiving a button input and
+ * lowcar processing a device write due to that button press.
+ * Pressing "A" will write to "GET_TIME" param of TimeTestDevice
+ * When TimeTestDevice's "GET_TIME" is set to 1, it populates its "TIMESTAMP"
+ * param, which can be read from shared memory.
+ * The latency should be no more than a couple milliseconds.
  */
 #include "../test.h"
 
@@ -10,8 +15,8 @@ int main() {
     // Setup
     start_test("Latency Test");
     start_shm();
-    start_dev_handler();
     start_net_handler();
+    start_dev_handler();
     start_executor("runtime_latency");
     sleep(1);   // Let processes boot up
 
@@ -51,8 +56,8 @@ int main() {
     // Stop all processes
     disconnect_all_devices();
     stop_executor();
-    stop_net_handler();
     stop_dev_handler();
+    stop_net_handler();
     stop_shm();
     end_test();
 
