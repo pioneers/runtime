@@ -9,7 +9,7 @@
 char no_device[] = "no connected devices";
 char unknown_device[] = "A non-PiE device was recently plugged in. Please unplug immediately";
 
-#define NUM_GENERAL 16
+#define NUM_GENERAL 15
 #define NUM_UNSTABLE 3
 #define NUM_BAD_DEVS 10
 
@@ -81,22 +81,22 @@ int main(){
     char expected_output[64];
     char unexpected_output[64];
     //Only NUM_GENERAL GeneralTestDevices
-    for (int i = 0; i < NUM_GENERAL; i++) {
-        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
-        in_rest_of_output(expected_output);
-    }
-    // Check NUM_GENERAL devices are connected then NUM_UNSTABLE
-    for (int i = 0; i < NUM_GENERAL; i++) {
-        sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
-        in_rest_of_output(expected_output);
-    }
+    // for (int i = 0; i < NUM_GENERAL - 1; i++) {
+    //     sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
+    //     in_rest_of_output(expected_output);
+    // }
+    // // Check NUM_GENERAL devices are connected then NUM_UNSTABLE
+    // for (int i = 0; i < NUM_GENERAL; i++) {
+    //     sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, general_dev_type, general_dev_type, i);
+    //     in_rest_of_output(expected_output);
+    // }
     for (int i = NUM_GENERAL; i < NUM_UNSTABLE; i++) {
         sprintf(expected_output, "dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, unstable_dev_type, unstable_dev_type, i);
         in_rest_of_output(expected_output);
     }
     // After all UnstableTestDevices timed out
-    for (int i = 0; i < NUM_UNSTABLE; i++) {
-        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (i + NUM_GENERAL)); 
+    for (int i = NUM_GENERAL; i < NUM_UNSTABLE + NUM_GENERAL; i++) {
+        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (i)); 
         in_rest_of_output(expected_output);
     }
     // Only GeneralTestDevices remain after disconnecting UnstableTestDevices
