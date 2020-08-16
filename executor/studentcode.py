@@ -118,3 +118,6 @@ def wait():
     while True:
         Robot.get_value(MOTOR, 'enc_b')
         # print('of course')
+
+
+from challenges import CHALLENGES, reverse_digits, list_prime_factors  # Needed for now while default file is "studentcode". Will remove once Dawn separate challenges to new file

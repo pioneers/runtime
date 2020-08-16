@@ -366,7 +366,7 @@ void run_challenges() {
         }
         // Convert input C string to C long then Python tuple args
         long input = strtol(inputs->payload[i], NULL, 10);
-        log_printf(DEBUG, "received inputs for %d: %ld", i, input);
+        log_printf(DEBUG, "received inputs for challenge %d %s: %ld", i, func_name, input);
         PyObject* arg = Py_BuildValue("(l)", input);
         if (arg == NULL) {
             PyErr_Print();
@@ -539,12 +539,12 @@ int main(int argc, char* argv[]) {
     shm_init();
 
     char* student_code = "studentcode";
-    char* challenge_code = "challenges";
     if (argc > 1) {
         student_code = argv[1];
-        if (argc > 2) {
-            challenge_code = argv[2];
-        }
+    }
+    char* challenge_code = student_code; // = "challenges"; change default to "challenges" once Dawn separates challenges into a new Python file
+    if (argc > 2) {
+        challenge_code = argv[2];
     }
     
     remove(CHALLENGE_SOCKET); // Always remove any old challenge socket

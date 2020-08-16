@@ -217,6 +217,10 @@ void prompt_challenge_data ()
 		else if (strcmp(nextcmd, "abort\n") == 0) {
 			return;
 		}
+		else if (strcmp(nextcmd, "\n") == 0) {
+			num_challenges--;
+			continue;
+		}
 		
 		//we need to do this because nextcmd has a newline at the end
 		nextcmd[strlen(nextcmd) -1] = '\0';

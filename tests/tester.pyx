@@ -26,7 +26,7 @@ cpdef enum gp_joystick:
     JOYSTICK_LEFT_X, JOYSTICK_LEFT_Y, JOYSTICK_RIGHT_X, JOYSTICK_RIGHT_Y
 
 cdef extern from "client/executor_client.h":
-    void c_start_executor "start_executor" (char* student_code)
+    void c_start_executor "start_executor" (char* student_code, char* challenge_code)
     cpdef void stop_executor()
 
 cdef extern from "client/shm_client.h":
@@ -44,13 +44,13 @@ cdef extern from "client/net_handler_client.h":
     cpdef void send_run_mode(robot_desc_field_t, robot_desc_val_t)
     cpdef void send_start_pos(robot_desc_field_t, robot_desc_val_t)
     void c_send_gamepad_state "send_gamepad_state" (uint32_t buttons, float joystick_vals[4])
-    void c_send_challenge_data "send_challenge_data" (robot_desc_field_t client, char **data)
+    void c_send_challenge_data "send_challenge_data" (robot_desc_field_t client, char **data, int num_challenges)
     void c_send_device_data "send_device_data" (dev_data_t *data, int num_devices)
     cpdef void print_next_dev_data ()
 
 
-cpdef start_executor(str student_code):
-    c_start_executor(student_code.encode('utf-8'))
+cpdef start_executor(str student_code, str challenge_code=None):
+    c_start_executor(student_code.encode('utf-8'), (challenge_code or student_code).encode('utf-8'))
 
 cpdef send_gamepad_state(int buttons, list joystick):
     cdef float joy_array[4]
@@ -64,7 +64,7 @@ cpdef send_challenge_data(robot_desc_field_t client, list data):
     for i in range(len(data)):
         temp = data[i].encode('utf-8')
         inputs[i] = temp
-    c_send_challenge_data(client, inputs)
+    c_send_challenge_data(client, inputs, len(data))
     PyMem_Free(inputs)
 
 cpdef send_device_data(list data):
