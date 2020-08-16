@@ -13,7 +13,7 @@ int main() {
     start_shm();
     start_net_handler();
     start_dev_handler();
-    start_executor("sanity_write");
+    start_executor("sanity_write", "");
     sleep(1);
 
     // Connect GeneralTestDevice

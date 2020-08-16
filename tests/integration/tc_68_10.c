@@ -17,11 +17,11 @@ int main() {
     start_shm();
     start_net_handler();
     start_dev_handler();
-    start_executor("runtime_latency");
+    start_executor("runtime_latency", "");
     sleep(1);   // Let processes boot up
 
     // Connect TimeTestDevice
-    int socket_num = connect_virtual_device("TimeTestDevice", TIME_DEV_UID);
+    connect_virtual_device("TimeTestDevice", TIME_DEV_UID);
     sleep(1);   // Wait for ACK exchange
 
     // Connect gamepad
