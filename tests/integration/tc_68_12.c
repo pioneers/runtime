@@ -13,7 +13,7 @@ int main() {
     start_dev_handler();
 
     // Connect a device
-    int socket_num = connect_virtual_device("SimpleTestDevice", UID);
+    connect_virtual_device("SimpleTestDevice", UID);
     sleep(1);
 
     // Get identifiers

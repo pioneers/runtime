@@ -7,7 +7,6 @@
 
 char no_device[] = "no connected devices";
 char unknown_device[] = "A non-PiE device was recently plugged in. Please unplug immediately";
-char bad_message[] = "Couldn't parse message from /tmp/ttyACM0";
 
 int main() {
     // Setup
@@ -19,7 +18,7 @@ int main() {
 
     // Connect a ForeignTestDevice
     print_dev_ids(); // No device
-    connect_virtual_device("ForeignTestDevice", 0x123); // Bad message, then unknown device
+    connect_virtual_device("ForeignTestDevice", 0x123); // Unknown device
     sleep(2);
     print_dev_ids(); // No device
 
@@ -32,7 +31,6 @@ int main() {
 
     // Check outputs
     in_rest_of_output(no_device);
-    in_rest_of_output(bad_message);
     in_rest_of_output(unknown_device);
     in_rest_of_output(no_device);
     return 0;

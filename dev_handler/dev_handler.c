@@ -553,9 +553,11 @@ int receive_message(relay_t *relay, message_t *msg) {
         return 1;
     } else if (cobs_len > (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE + 1)) { // + 1 for cobs encoding overhead
         // Got some weird message that is unusually long (longer than a valid message with the longest payload)
+        log_printf(WARN, "Received a cobs length that is too large");
         return 1;
     } else if (cobs_len < (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + CHECKSUM_SIZE + 1)) { // + 1 for cobs encoding overhead
         // Got some weird message that is unusually short (shorter than a PING with no payload)
+        log_printf(WARN, "Received a cobs length that is too small");
         return 1;
     }
 
