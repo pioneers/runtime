@@ -5,7 +5,7 @@
  */
 #include "../test.h"
 
-#define NUM_TO_CONNECT 4
+#define NUM_TO_CONNECT 3
 
 char no_device[] = "no connected devices";
 char unknown_message[] = "Couldn't parse message from /tmp/ttyACM0";
@@ -40,7 +40,7 @@ int main() {
         in_rest_of_output(expected_output);
     }
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
-        sprintf("UnstableTestDevice (0x%016llu) timed out!", i);
+        sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (uint64_t) i);
         in_rest_of_output(expected_output);
     }
     in_rest_of_output(no_device);
