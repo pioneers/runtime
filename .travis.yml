@@ -14,6 +14,10 @@ if: (type = pull_request) OR (type = push AND branch = master)
 
 jobs:
   include:
+    - name: format
+      arch: amd64
+      script:
+        - scripts/run_clang_format.py -r . # Runs clang-format checker to see if code is formatted properly
     - name: test
       arch: arm64 
       before_script:
