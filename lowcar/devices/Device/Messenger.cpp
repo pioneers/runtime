@@ -38,9 +38,9 @@ Status Messenger::send_message(MessageID msg_id, message_t *msg, dev_id_t *dev_i
     // Fill MessageID field
     msg->message_id = msg_id;
 
-    /* 
+    /*
      * Build the message
-     * All other Message Types (PING, DEVICE_DATA, LOG) should already be built (if needed) 
+     * All other Message Types (DEVICE_DATA, LOG) should already be built (if needed) 
      */
     if (msg_id == MessageID::ACKNOWLEDGEMENT) {
         int status = 0;

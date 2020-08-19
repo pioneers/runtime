@@ -3,18 +3,7 @@
  * acts as the interface between the devices and shared memory
  */
 
-#include <pthread.h>    // for sender, receiver, and relayer threads
 #include <termios.h>    // for POSIX terminal control definitions in serialport_open()
-#include <sys/un.h>     // for sockaddr_un
-#include <sys/socket.h> // for binding to a virtual device's socket
-#include <string.h>     // for strcpy()
-#include <stdio.h>      // for sprintf()
-#include <stdlib.h>     // for malloc()
-#include <stdint.h>     // for ints with specified sizes (uint8_t, uint16_t, etc.)
-#include <signal.h>     // for SIGINT (Ctrl+C)
-#include <unistd.h>     // for sleep()
-#include <string.h>     // for strerror()
-#include <errno.h>      // for errno with sockets
 
 #include "message.h"
 #include "../shm_wrapper/shm_wrapper.h"
@@ -145,8 +134,10 @@ void poll_connected_devices() {
 
 /**
  * Finds which Arduinos are newly connected since the last call to this function
- * bitmap: Bit i will be turned on if <port_prefix>[i] is a newly connected device
- * Return the number of devices that were found
+ * Arguments:
+ *    bitmap: Bit i will be turned on if <port_prefix>[i] is a newly connected device
+ * Returns:
+ *    the number of devices that were found
  */
 int get_new_devices(uint32_t *bitmap) {
     char port_name[14];
@@ -435,7 +426,7 @@ void *receiver(void *relay_cast) {
             // Message was broken... try to read the next message
             continue;
         }
-        if (msg->message_id == PING || msg->message_id == DEVICE_DATA || msg->message_id != LOG) {
+        if (msg->message_id == DEVICE_DATA || msg->message_id != LOG) {
             // Update last received message time
             pthread_mutex_lock(&relay->relay_lock);
             relay->last_received_msg_time = millis();
