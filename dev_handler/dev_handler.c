@@ -126,7 +126,7 @@ void poll_connected_devices() {
             }
         }
         connected_devs = 0;
-        sleep(1);   // Save CPU usage by checking for new devices only every other second
+        usleep(50000);   // Save CPU usage by checking for new devices at 20 hertz
     }
 }
 
@@ -270,7 +270,7 @@ void *relayer(void *relay_cast) {
             return NULL;
         }
         pthread_mutex_unlock(&relay->relay_lock);
-        sleep(1);
+        usleep(50000);
     }
 }
 

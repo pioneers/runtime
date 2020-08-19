@@ -3,150 +3,8 @@
 /*
  * Definition of each lowcar device and their params
  */
-device_t LimitSwitch = {
-    .type = 0,
-    .name = "LimitSwitch",
-    .num_params = 3,
-    .params = {
-        {.name = "switch0"    , .type = BOOL    , .read = 1 , .write = 0 },
-        {.name = "switch1"    , .type = BOOL    , .read = 1 , .write = 0 },
-        {.name = "switch2"    , .type = BOOL    , .read = 1 , .write = 0 }
-    }
-};
-
-device_t LineFollower = {
-    .type = 1,
-    .name = "LineFollower",
-    .num_params = 3,
-    .params = {
-        {.name = "left"       , .type = FLOAT   , .read = 1 , .write = 0 },
-        {.name = "center"     , .type = FLOAT   , .read = 1 , .write = 0 },
-        {.name = "right"      , .type = FLOAT   , .read = 1 , .write = 0 }
-    }
-};
-
-device_t Potentiometer = {
-    .type = 2,
-    .name = "Potentiometer",
-    .num_params = 3,
-    .params = {
-        {.name = "pot0"       , .type = FLOAT   , .read = 1 , .write = 0 },
-        {.name = "pot1"       , .type = FLOAT   , .read = 1 , .write = 0 },
-        {.name = "pot2"       , .type = FLOAT   , .read = 1 , .write = 0 }
-    }
-};
-
-device_t BatteryBuzzer = {
-    .type = 4,
-    .name = "BatteryBuzzer",
-    .num_params = 8,
-    .params = {
-        {.name = "is_unsafe"  , .type = BOOL     , .read = 1 , .write = 0 },
-        {.name = "calibrated" , .type = BOOL     , .read = 1 , .write = 0  },
-        {.name = "v_cell1"    , .type = FLOAT    , .read = 1 , .write = 0 },
-        {.name = "v_cell2"    , .type = FLOAT    , .read = 1 , .write = 0 },
-        {.name = "v_cell3"    , .type = FLOAT    , .read = 1 , .write = 0 },
-        {.name = "v_batt"     , .type = FLOAT    , .read = 1 , .write = 0 },
-        {.name = "dv_cell2"   , .type = FLOAT    , .read = 1 , .write = 0 },
-        {.name = "dv_cell3"   , .type = FLOAT    , .read = 1 , .write = 0 }
-    }
-};
-
-device_t TeamFlag = {
-    .type = 5,
-    .name = "TeamFlag",
-    .num_params = 7,
-    .params = {
-        {.name = "mode"  , .type = BOOL    , .read = 1 , .write = 1},
-        {.name = "blue"  , .type = BOOL    , .read = 1 , .write = 1},
-        {.name = "yellow", .type = BOOL    , .read = 1 , .write = 1},
-        {.name = "led1"  , .type = BOOL    , .read = 1 , .write = 1},
-        {.name = "led2"  , .type = BOOL    , .read = 1 , .write = 1},
-        {.name = "led3"  , .type = BOOL    , .read = 1 , .write = 1},
-        {.name = "led4"  , .type = BOOL    , .read = 1 , .write = 1}
-    }
-};
-
-device_t ServoControl = {
-    .type = 7,
-    .name= "ServoControl",
-    .num_params = 2,
-    .params = {
-        {.name = "servo0"     , .type = FLOAT , .read = 1 , .write = 1  },
-        {.name = "servo1"     , .type = FLOAT , .read = 1 , .write = 1  }
-    }
-};
-
-device_t YogiBear = {
-    .type = 10,
-    .name = "YogiBear",
-    .num_params = 14,
-    .params = {
-        {.name = "duty_cycle"          , .type = FLOAT    , .read = 1 , .write = 1  },
-        {.name = "pid_pos_setpoint"    , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_pos_kp"          , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_pos_ki"          , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_pos_kd"          , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_vel_setpoint"    , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_vel_kp"          , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_vel_ki"          , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "pid_vel_kd"          , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "current_thresh"      , .type = FLOAT    , .read = 0 , .write = 1  },
-        {.name = "enc_pos"             , .type = FLOAT    , .read = 1 , .write = 1  },
-        {.name = "enc_vel"             , .type = FLOAT    , .read = 1 , .write = 0  },
-        {.name = "motor_current"       , .type = FLOAT    , .read = 1 , .write = 0  },
-        {.name = "deadband"            , .type = FLOAT    , .read = 1 , .write = 1  }
-    }
-};
-
-device_t RFID = {
-    .type = 11,
-    .name = "RFID",
-    .num_params = 2,
-    .params = {
-        {.name = "id"     		, .type = INT     , .read = 1 , .write = 0  },
-        {.name = "tag_detect"   , .type = INT     , .read = 1 , .write = 0  }
-    }
-};
-
-device_t PolarBear = {
-    .type = 12,
-    .name = "PolarBear",
-    .num_params = 3,
-    .params = {
-        {.name = "duty_cycle"          , .type = FLOAT    , .read = 1 , .write = 1  },
-        {.name = "motor_current"       , .type = FLOAT    , .read = 1 , .write = 0  },
-        {.name = "deadband"            , .type = FLOAT    , .read = 1 , .write = 1  }
-    }
-};
-
-device_t KoalaBear = {
-    .type = 13,
-    .name = "KoalaBear",
-    .num_params = 16,
-    .params = {
-        {.name = "duty_cycle_a"     , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "deadband_a"       , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "current_a"        , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "pid_enabled_a"    , .type = BOOL       , .read = 1 , .write = 1  },
-        {.name = "pid_kp_a"         , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "pid_ki_a"         , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "pid_kd_a"         , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "enc_a"            , .type = FLOAT      , .read = 1 , .write = 1  },
-        // Same params as above except for motor b
-        {.name = "duty_cycle_b"     , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "deadband_b"       , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "current_b"        , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "pid_enabled_b"    , .type = BOOL       , .read = 1 , .write = 1  },
-        {.name = "pid_kp_b"         , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "pid_ki_b"         , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "pid_kd_b"         , .type = FLOAT      , .read = 1 , .write = 1  },
-        {.name = "enc_b"            , .type = FLOAT      , .read = 1 , .write = 1  },
-    }
-};
-
 device_t DummyDevice = {
-    .type = 14,
+    .type = 0,
     .name = "DummyDevice",
     .num_params = 16,
     .params = {
@@ -172,6 +30,93 @@ device_t DummyDevice = {
     }
 };
 
+device_t LimitSwitch = {
+    .type = 1,
+    .name = "LimitSwitch",
+    .num_params = 3,
+    .params = {
+        {.name = "switch0"    , .type = BOOL    , .read = 1 , .write = 0 },
+        {.name = "switch1"    , .type = BOOL    , .read = 1 , .write = 0 },
+        {.name = "switch2"    , .type = BOOL    , .read = 1 , .write = 0 }
+    }
+};
+
+device_t LineFollower = {
+    .type = 2,
+    .name = "LineFollower",
+    .num_params = 3,
+    .params = {
+        {.name = "left"       , .type = FLOAT   , .read = 1 , .write = 0 },
+        {.name = "center"     , .type = FLOAT   , .read = 1 , .write = 0 },
+        {.name = "right"      , .type = FLOAT   , .read = 1 , .write = 0 }
+    }
+};
+
+device_t BatteryBuzzer = {
+    .type = 3,
+    .name = "BatteryBuzzer",
+    .num_params = 8,
+    .params = {
+        {.name = "is_unsafe"  , .type = BOOL     , .read = 1 , .write = 0 },
+        {.name = "calibrated" , .type = BOOL     , .read = 1 , .write = 0  },
+        {.name = "v_cell1"    , .type = FLOAT    , .read = 1 , .write = 0 },
+        {.name = "v_cell2"    , .type = FLOAT    , .read = 1 , .write = 0 },
+        {.name = "v_cell3"    , .type = FLOAT    , .read = 1 , .write = 0 },
+        {.name = "v_batt"     , .type = FLOAT    , .read = 1 , .write = 0 },
+        {.name = "dv_cell2"   , .type = FLOAT    , .read = 1 , .write = 0 },
+        {.name = "dv_cell3"   , .type = FLOAT    , .read = 1 , .write = 0 }
+    }
+};
+
+device_t ServoControl = {
+    .type = 4,
+    .name= "ServoControl",
+    .num_params = 2,
+    .params = {
+        {.name = "servo0"     , .type = FLOAT , .read = 1 , .write = 1  },
+        {.name = "servo1"     , .type = FLOAT , .read = 1 , .write = 1  }
+    }
+};
+
+device_t PolarBear = {
+    .type = 5,
+    .name = "PolarBear",
+    .num_params = 3,
+    .params = {
+        {.name = "duty_cycle"          , .type = FLOAT    , .read = 1 , .write = 1  },
+        {.name = "motor_current"       , .type = FLOAT    , .read = 1 , .write = 0  },
+        {.name = "deadband"            , .type = FLOAT    , .read = 1 , .write = 1  }
+    }
+};
+
+device_t KoalaBear = {
+    .type = 6,
+    .name = "KoalaBear",
+    .num_params = 16,
+    .params = {
+        {.name = "duty_cycle_a"     , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "deadband_a"       , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "current_a"        , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "pid_enabled_a"    , .type = BOOL       , .read = 1 , .write = 1  },
+        {.name = "pid_kp_a"         , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "pid_ki_a"         , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "pid_kd_a"         , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "enc_a"            , .type = FLOAT      , .read = 1 , .write = 1  },
+        // Same params as above except for motor b
+        {.name = "duty_cycle_b"     , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "deadband_b"       , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "current_b"        , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "pid_enabled_b"    , .type = BOOL       , .read = 1 , .write = 1  },
+        {.name = "pid_kp_b"         , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "pid_ki_b"         , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "pid_kd_b"         , .type = FLOAT      , .read = 1 , .write = 1  },
+        {.name = "enc_b"            , .type = FLOAT      , .read = 1 , .write = 1  },
+    }
+};
+
+/*
+ * Definition of each Test devices and their params
+ */
 device_t TimeTestDevice = {
     .type = 60,
     .name = "TimeTestDevice",
@@ -250,17 +195,13 @@ device_t* DEVICES[DEVICES_LENGTH] = {0};
 // A hack to initialize DEVICES. https://stackoverflow.com/a/6991475
 __attribute__((constructor))
 void devices_arr_init() {
+    DEVICES[DummyDevice.type] = &DummyDevice;
     DEVICES[LimitSwitch.type] = &LimitSwitch;
     DEVICES[LineFollower.type] = &LineFollower;
-    DEVICES[Potentiometer.type] = &Potentiometer;
     DEVICES[BatteryBuzzer.type] = &BatteryBuzzer;
-    DEVICES[TeamFlag.type] = &TeamFlag;
     DEVICES[ServoControl.type] = &ServoControl;
-    DEVICES[YogiBear.type] = &YogiBear;
-    DEVICES[RFID.type] = &RFID;
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
-    DEVICES[DummyDevice.type] = &DummyDevice;
     DEVICES[TimeTestDevice.type] = &TimeTestDevice;
     DEVICES[UnstableTestDevice.type] = &UnstableTestDevice;
     DEVICES[SimpleTestDevice.type] = &SimpleTestDevice;
