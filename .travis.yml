@@ -21,10 +21,10 @@ jobs:
         - sudo service docker restart
       script:
         - docker build --platform linux/arm/v7 -t $DOCKER_REPO:test -f docker/Dockerfile .  # Build new image with updated code for arm32v7
-        - docker run -d $DOCKER_REPO:test  # Runs the docker container as detached
+        - docker run -d $DOCKER_REPO:test scripts/run.sh # Runs the docker container as detached
         - docker exec -t $(docker ps -q) bash -c "sleep 5 && cd net_handler && ./tcp_client 1 && ./udp_client"  # Run both test clients
         - docker kill -s INT $(docker ps -q) # Kill the current container
-        - docker run -t $DOCKER_REPO:test ./test.sh # Runs the integration tests in a new container
+        - docker run -t $DOCKER_REPO:test scripts/test.sh # Runs the integration tests in a new container
 
     - name: push
       arch: amd64
