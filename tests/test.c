@@ -1,11 +1,8 @@
 #include "test.h"
 
-#define TEMP_FILE "/tmp/temp_logs.txt"
-
 #define DELIMITER_WIDTH 80
 
-pid_t output_redirect;          // holds process ID of output redirection process
-FILE *temp_fp;                  // file pointer of open temp file
+pthread_t output_handler_tid;   // holds thread ID of output handler thread
 int save_std_out;               // saved standard output file descriptor to return to normal printing after test
 int pipe_fd[2];                 // read and write ends of the pipe created between the parent and child processes
 char *test_output = NULL;       // holds the contents of temp file
@@ -13,49 +10,45 @@ char *rest_of_test_output;      // holds the rest of the test output as we're pe
 int check_num = 0;              // increments to report status each time a check is performed
 char *global_test_name = NULL;  // name of test
 
-// child process sigint handler
-static void child_sigint_handler (int signum) {
-    fclose(temp_fp);   // close temp file
-    close(pipe_fd[0]); // close read end of pipe
-    exit(0);
-}
-
-// child process main function that just allows stdout to go to the temp file and waits for SIGINT
-static void child_main_function () {
+/**
+ * This thread prints output to terminal and also copies it to standard output
+ * It constantly reads from the read end of the pipe, and then prints it to stderr
+ * and stores in test_output. It is canceled by the test in the function end_test().
+ * Arguments:
+ *    args: always NULL
+ * Returns: NULL
+ */
+static void *output_handler(void *args) {
+    size_t curr_size = MAX_LOG_LEN;
+    size_t num_total_bytes_read = 0;
     char nextline[MAX_LOG_LEN];
-
-    // register sigint handler
-    signal(SIGINT, child_sigint_handler);
-
-    // wait for SIGINT to come from parent
+    char *curr_ptr = malloc(curr_size);
+    test_output = curr_ptr;
+	
+    // loops until it is canceled
     while (1) {
-        fgets(nextline, MAX_LOG_LEN, stdin);
+        fgets(nextline, MAX_LOG_LEN, stdin);  // get the next line from stdin (attached to read end of pipe, which is attached to stdout)
         fprintf(stderr, "%s", nextline);      // print to standard error (attached to terminal)
-        fprintf(temp_fp, "%s", nextline);     // print to temp file
+		
+        // copy the newly read string into curr_ptr
+        strcpy(curr_ptr, nextline);
+        
+        // increment both num_total_bytes_read and curr_ptr by how long this last line was
+        num_total_bytes_read += strlen(curr_ptr);
+        curr_ptr += strlen(curr_ptr);
+		
+        // double the length of test_output if necessary
+        if (curr_size - num_total_bytes_read <= MAX_LOG_LEN) {
+            test_output = realloc(test_output, curr_size * 2);
+            curr_size *= 2;
+            curr_ptr = test_output + num_total_bytes_read;
+        }
     }
+    return NULL; // never reached
 }
 
-// this function kills and waits for child process
-static void kill_child () {
-    // flush standard output buffer
-    fflush(stdout);
-
-    // kill and wait for the child process
-    if (kill(output_redirect, SIGINT) < 0) {
-        printf("kill test output redirect: %s\n", strerror(errno));
-    }
-    if (waitpid(output_redirect, NULL, 0) < 0) {
-        printf("waitpid test output redirect: %s\n", strerror(errno));
-    }
-}
-
-// cleanup done for main process
-static void cleanup_handler () {
-    free(global_test_name);
-    free(test_output);
-}
-
-/* Prints a delimiter with clean formatting
+/**
+ * Prints a delimiter with clean formatting
  * Ex: Input string "Expected:" will print
  * ********** Expected: **********
  *
@@ -83,6 +76,7 @@ static void fprintf_delimiter(FILE *stream, char *format, ...) {
     // Print string
     fprintf(stream, " %s ", str);
     chars_remaining -= strlen(str) + num_spaces;
+    
     // Print stars on right
     for (int i = 0; i < chars_remaining; i++) {
         fprintf(stream, "*");
@@ -90,91 +84,58 @@ static void fprintf_delimiter(FILE *stream, char *format, ...) {
     fprintf(stream, "\n");
 }
 
-// creates a child process that duplicates the output from the test to both standard out and to a temp file
-void start_test (char *test_name) {
-    fprintf_delimiter(stdout, "Starting test: \"%s\"", test_name);
+// ********************************************** PUBLIC TEST FRAMEWORK FUNCTIONS ************************************** //
+
+// creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
+void start_test (char *test_description) {
+    printf("************************************** Starting test: \"%s\" **************************************\n", test_description);
     fflush(stdout);
-
+    
     // save the test name
-    global_test_name = malloc(strlen(test_name) + 1);
-    strcpy(global_test_name, test_name);
-
+    global_test_name = malloc(strlen(test_description) + 1);
+    strcpy(global_test_name, test_description);
+    
     // create a pipe
     if (pipe(pipe_fd) < 0) {
         printf("pipe: %s\n", strerror(errno));
     }
-
-    // fork this process; in the child, route stdin to read end of pipe; in parent, route stdout to write end of pipe
-    if ((output_redirect = fork()) < 0) {
-        printf("fork: %s\n", strerror(errno));
-    } else if (output_redirect == 0) { // child
-        // open the temp file
-        if ((temp_fp = fopen(TEMP_FILE, "w")) == NULL) {
-            printf("open: cannot create temp file: %s\n", strerror(errno));
-        }
-
-        // route stdin to read end of pipe
-        if (dup2(pipe_fd[0], fileno(stdin)) == -1) {
-            fprintf(stderr, "dup2 stdin to read end of pipe: %s\n", strerror(errno));
-        }
-        close(pipe_fd[1]); // don't need write end
-
-        child_main_function();
-    } else { // parent
-        // save the standard out attached to the terminal for later
-        save_std_out = dup(fileno(stdout));
-
-        // route stdout to write end of pipe
-        if (dup2(pipe_fd[1], fileno(stdout)) == -1) {
-            fprintf(stderr, "dup2 stdout to write end of pipe: %s\n", strerror(errno));
-        }
-        close(pipe_fd[0]); // don't need read end
-
-        // kill the child on Ctrl-C (SIGINT)
-        signal(SIGINT, kill_child);
-
-        // register the clean up handler
-        atexit(cleanup_handler);
+    // save the standard out attached to the terminal for later
+    save_std_out = dup(fileno(stdout));
+    
+    // route read end of pipe to stdin
+    if (dup2(pipe_fd[0], fileno(stdin)) == -1) {
+        fprintf(stderr, "dup2 stdin to read end of pipe: %s\n", strerror(errno));
+    }
+    // route write end of pipe to stdout
+    if (dup2(pipe_fd[1], fileno(stdout)) == -1) {
+        fprintf(stderr, "dup2 stdout to write end of pipe: %s\n", strerror(errno));
+    }
+    
+    // create the output handler thread
+    int status;
+    if ((status = pthread_create(&output_handler_tid, NULL, output_handler, NULL)) != 0) {
+        fprintf(stderr, "pthread_create: output handler thread: %s\n", strerror(status));
     }
 }
 
 // this is called when the test has shut down all runtime processes and is ready to compare output
-// kills the child process, then reads in the entire contents of the temporary file into a string
+// cancels the output handling thread and resets output
 void end_test () {
-    size_t curr_size = 1024;
-    size_t num_total_bytes_read = 0;
-    char *curr_ptr = test_output = malloc(curr_size);
-
-    // kill the child process
-    kill_child();
-
-    // now pull the standard output back to the file descriptor that we saved earlier
+    // cancel the output handler thread
+    if (pthread_cancel(output_handler_tid) != 0) {
+        fprintf(stderr, "pthread_cancel: output handler thread\n");
+    }
+    
+    // pull the standard output back to the file descriptor that we saved earlier
     if (dup2(save_std_out, fileno(stdout)) == -1) {
         fprintf(stderr, "dup2 stdout back to terminal: %s\n", strerror(errno));
     }
-    close(save_std_out);
     // now we are back to normal output
-
-    // open the temp file as a file pointer
-    FILE *temp_fp = fopen(TEMP_FILE, "r");
-
-    // while we haven't encountered EOF yet, read the next line
-    while (fgets(curr_ptr, MAX_LOG_LEN, temp_fp) != NULL) {
-        // increment both total bytes read and current pointer by how long the newly read line was
-        num_total_bytes_read += strlen(curr_ptr);
-        curr_ptr += strlen(curr_ptr);
-
-        // expand test_output to twice as large as before if necessary
-        if (curr_size - num_total_bytes_read <= MAX_LOG_LEN) {
-            test_output = realloc(test_output, curr_size * 2);
-            curr_size *= 2;
-            curr_ptr = test_output + num_total_bytes_read;
-        }
-    }
+	
+    // set the rest_of_test_output to beginning of test_output to be ready for output comparison
     rest_of_test_output = test_output;
-    fclose(temp_fp);
-    remove(TEMP_FILE);
-    fprintf_delimiter(stdout, "Running Checks...");
+    // we can use printf now and this will go the terminal
+    printf("************************************** Running Checks... ******************************************\n");
 }
 
 // Verifies that expected_output is somewhere in the output

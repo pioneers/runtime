@@ -12,10 +12,6 @@ function sigint_handler {
 	if [[ -f ../logger/logger.config.orig ]]; then
         clean_up
 	fi
-	# if temp.txt exists, we Ctrl-C'ed in the middle of a running test and we need to remove it
-	if [[ -f /tmp/temp_logs.txt ]]; then
-		rm /tmp/temp_logs.txt
-	fi
 	exit 1
 }
 
