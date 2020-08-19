@@ -93,7 +93,11 @@ Then, extract the files with `tar -xvf protobuf-cpp-<release>.tar.gz`.
 
 You might need to install `wget` and `tar` with `sudo apt-get -y install wget tar`.
 
-## Building Runtime
+## Building and Running Runtime
+
+First, we need to add the `runtime` function to our shell by doing `source runtime.sh`. You will need to do this for every shell so if you want to avoid that, add the following to your `~/.bashrc` file:
+
+	source ~/runtime/runtime.sh
 
 Assuming you've installed all dependencies, do `./build.sh`
 
