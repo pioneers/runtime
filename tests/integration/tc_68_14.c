@@ -44,7 +44,7 @@ int main(){
         connect_virtual_device("UnstableTestDevice", uid);
         uid++;
     }
-    sleep(2);
+    sleep(1);
     print_dev_ids(); // NUM_GENERAL + NUM_UNSTABLE devices
     sleep(5);        // Unstable Devices should timeout
     print_dev_ids(); // Only GeneralTestDevices
