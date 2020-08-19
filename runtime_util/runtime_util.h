@@ -1,12 +1,21 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-#include <stdio.h>    // perror()
-#include <stdint.h>
-#include <string.h>   // strcmp
-#include <errno.h>
-#include <unistd.h>   // read() and write()
-#include <sys/time.h> // Used in millis()
+// ************************* COMMON STANDARD HEADERS ************************ //
+
+#include <stdio.h>    // for printf, perror, fprintf, fopen, etc.
+#include <stdlib.h>   // for malloc, free
+#include <stdint.h>   // for uint32_t, int16_t, uint8_t, etc.
+#include <string.h>   // for strcmp, strcpy, strlen, memset, etc.
+#include <errno.h>    // for various error numbers (EINTR, EAGAIN, EPIPE, etc.) and errno
+#include <pthread.h>  // for thread-functions: pthread_create, pthread_cancel, pthread_join, etc.
+#include <unistd.h>   // for F_OK, R_OK, SEEK_SET, SEEK_END, access, ftruncate, read, write, etc.
+#include <signal.h>   // for setting signal function (setting signal handler)
+#include <sys/time.h> // for time-related structures and time functions
+#include <fcntl.h>    // for file opening constants (O_CREAT, O_RDONLY, O_RDWR, etc.)
+#include <sys/stat.h> // for various system-related types and functions (sem_t, mkfifo)
+#include <sys/socket.h> // for bind, listen, accept, socket
+#include <sys/un.h> 	// for struct sockaddr_un
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
