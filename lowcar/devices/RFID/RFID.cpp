@@ -14,13 +14,9 @@ RFID::RFID () : Device (DeviceType::RFID, 1), tag_detector (RFID::SS_PIN, RFID::
 
 size_t RFID::device_read (uint8_t param, uint8_t *data_buf) {
 	switch ((RFID_Param) param) { //switch the incoming parameter (cast to RFID_Param)
-		case RFID_Param::ID_UPPER:
-			((int16_t *)data_buf)[0] = this->id_upper;
-			return sizeof(this->id_upper);
-
-		case RFID_Param::ID_LOWER:
-			((int16_t *)data_buf)[0] = this->id_lower;
-			return sizeof(this->id_lower);
+		case RFID_Param::ID:
+			((int32_t *)data_buf)[0] = this->id;
+			return sizeof(this->id);
 
 		case RFID_Param::TAG_DETECT:
 			data_buf[0] = this->tag_detect;
@@ -44,8 +40,7 @@ void RFID::device_actions () {
 	 */
 	if (!this->tag_detector->PICC_IsNewCardPresent() || !this->tag_detector->PICC_ReadCardSerial()) {
 		if (this->delay) {
-			this->id_upper = 0; //clear the id to invalidate it
-			this->id_lower = 0;
+			this->id = 0; //clear the id to invalidate it
 			this->tag_detect = 0; //no tag detected
 		}
 		this->delay = TRUE;
@@ -54,12 +49,10 @@ void RFID::device_actions () {
 
 	//Otherwise, if there is a card that we can read the UID from, we grab the data
 	//and set tag_detect to 1 to signal that we have a new tag UID
-	uint32_t id = (uint32_t)(this->tag_detector->uid.uidByte[2]) << 16 |
+	uint32_t uid = (uint32_t)(this->tag_detector->uid.uidByte[2]) << 16 |
                   (uint32_t)(this->tag_detector->uid.uidByte[1]) << 8  |
                   (uint32_t)(this->tag_detector->uid.uidByte[0]);
-	// TODO: Verify that this is correct
-	memcpy(&this->id_upper, &id, 2);		// Upper 2 bytes of id
-	memcpy(&this->id_lower, &id + 2, 2);	// Lower 2 bytes of id
+	this->id = uid;
 	this->tag_detect = 1;
 	this->delay = FALSE; //reset the delay
 }

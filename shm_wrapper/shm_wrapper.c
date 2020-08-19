@@ -533,7 +533,7 @@ void device_connect (dev_id_t dev_id, int *dev_ix)
 		}
 	}
 	if (*dev_ix == MAX_DEVICES) {
-		log_printf(ERROR, "too many devices, connection unsuccessful");
+		log_printf(ERROR, "device_connect: maximum device limit %d reached, connection refused", MAX_DEVICES);
 		my_sem_post(catalog_sem, "catalog_sem"); //release the catalog semaphore
 		*dev_ix = -1;
 		return;
