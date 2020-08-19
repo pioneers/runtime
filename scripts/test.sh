@@ -76,10 +76,6 @@ cp -p tests/logger.config logger/logger.config
 
 cd tests
 
-export PYTHONPATH="$PYTHONPATH:$PWD/student_code" # modify PYTHONPATH so that executor can find the test student code
-
-make clean
-
 ALL_TESTS=$(ls integration/*.c | awk -F'.' '{ print $1 }')
 
 # if no first argument specified, run all the tests
