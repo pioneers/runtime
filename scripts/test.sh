@@ -68,7 +68,7 @@ function run_tests {
 trap 'sigint_handler' INT
 
 # build all of Runtime
-./build.sh
+./scripts/build.sh
 
 # do some setup work with the log file
 mv logger/logger.config logger/logger.config.orig
