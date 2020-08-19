@@ -8,7 +8,7 @@
 
 // ***************************** START/END TEST ***************************** //
 
-/*
+/**
  * Takes care of setting up the plumbing for the test output to run.
  * Should be the first function called in EVERY test!
  * Arguments:
@@ -17,7 +17,7 @@
  */
 void start_test(char *test_name);
 
-/*
+/**
  * Takes care of resetting the plumbing of the outputs at the end of the test, and
  * prepares internal variables for calling the output comparison functions below.
  * Should be called after the test has called all stop_<process>() functions
@@ -26,7 +26,7 @@ void end_test();
 
 // ********************** OUTPUT COMPARISON FUNCTIONS *********************** //
 
-/*
+/**
  * Verifies that expected_output is somewhere in the output of the test
  * Arguments:
  *    expected_output: string that should be in the output of the test
@@ -34,7 +34,7 @@ void end_test();
  */
 void in_output(char *expected_output);
 
-/*
+/**
  * Verifies that expected output is somewhere in the output after most recent call to this function
  * Arguments:
  *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
@@ -42,7 +42,7 @@ void in_output(char *expected_output);
  */
 void in_rest_of_output(char *expected_output);
 
-/*
+/**
  * Verifies that not_expected_output is not in the output of the test
  * Arguments:
  *    not_expected_output: string that should NOT be anywhere in the output of the test
@@ -50,7 +50,7 @@ void in_rest_of_output(char *expected_output);
  */
 void not_in_output(char *not_expected_output);
 
-/*
+/**
  * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
  * Arguments:
  *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
@@ -58,7 +58,7 @@ void not_in_output(char *not_expected_output);
  */
 void not_in_rest_of_output(char *not_expected_output);
 
-/*
+/**
  * Verifies that two input arrays of parameters are the same
  * Arguments:
  *    dev_type: The type of the device the parameters are for
@@ -69,7 +69,7 @@ void not_in_rest_of_output(char *not_expected_output);
  */
 void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]);
 
-/*
+/**
  * Verifies that two parameters have the same value
  * Arguments:
  *    param_name: The name of the parameter being compared
