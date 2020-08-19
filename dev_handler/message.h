@@ -10,10 +10,6 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
-#include <stdlib.h> // for malloc()
-#include <stdio.h>  // for print()
-#include <stdint.h> // for ints with specified sizes (uint8_t, uint16_t, etc.)
-
 #include "../runtime_util/runtime_util.h"
 #include "../logger/logger.h"
 
@@ -46,7 +42,7 @@
 // The types of messages
 typedef enum {
     NOP                     = 0x00, // Dummy message
-    PING                    = 0x01, // Bidirectional
+    PING                    = 0x01, // To lowcar
     ACKNOWLEDGEMENT         = 0x02, // To dev handler
     SUBSCRIPTION_REQUEST    = 0x03, // To lowcar
     DEVICE_WRITE            = 0x04, // To lowcar
@@ -64,7 +60,8 @@ typedef struct {
 
 // ******************************** Utility ********************************* //
 
-/* Prints a byte array byte by byte in hex
+/**
+ * Prints a byte array byte by byte in hex
  * Arguments:
  *    data: Byte array to be printed
  *    len: The length of the data array

@@ -38,7 +38,7 @@ enum class Digital : uint8_t {
 /* The types of messages */
 enum class MessageID : uint8_t {
     NOP                     = 0x00, // Dummy message
-    PING                    = 0x01, // Bidirectional
+    PING                    = 0x01, // To lowcar
     ACKNOWLEDGEMENT         = 0x02, // To dev handler
     SUBSCRIPTION_REQUEST    = 0x03, // To lowcar
     DEVICE_WRITE            = 0x04, // To lowcar
@@ -48,24 +48,14 @@ enum class MessageID : uint8_t {
 
 // identification for device types
 enum class DeviceType : uint16_t {
-    LIMIT_SWITCH      = 0x00,
-    LINE_FOLLOWER     = 0x01,
-    //POTENTIOMETER     = 0x02,
-    //ENCODER           = 0x03,
-    BATTERY_BUZZER    = 0x04,
-    //TEAM_FLAG         = 0x05,
-    //GRIZZLY           = 0x06,
-    SERVO_CONTROL     = 0x07,
-    //LINEAR_ACTUATOR   = 0x08,
-    //COLOR_SENSOR      = 0x09,
-    //YOGI_BEAR         = 0x0A,
-    RFID              = 0x0B,
-    POLAR_BEAR        = 0x0C,
-    KOALA_BEAR        = 0x0D,
-    DUMMY_DEVICE      = 0x0E
-    //DISTANCE_SENSOR   = 0x10,
-    //METAL_DETECTOR    = 0x11,
-    //EXAMPLE_DEVICE    = 0xFF,
+    DUMMY_DEVICE      = 0x00,
+    LIMIT_SWITCH      = 0x01,
+    LINE_FOLLOWER     = 0x02,
+    BATTERY_BUZZER    = 0x03,
+    SERVO_CONTROL     = 0x04,
+    POLAR_BEAR        = 0x05,
+    KOALA_BEAR        = 0x06
+    // DISTANCE_SENSOR   = 0x07 Uncomment when implemented
 };
 
 // identification for resulting status types
