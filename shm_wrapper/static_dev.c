@@ -20,8 +20,8 @@ int main()
 	shm_init();
 	signal(SIGINT, ctrl_c_handler); //hopefully fails gracefully when pressing Ctrl-C in the terminal
 	//connect as many devices as possible
-	for (int i = 0; i < DEVICES_LENGTH; i++) {
-		if (i == 3 || i == 6 || i == 8 || i == 9) { // Invalid device types
+	for (int i = 0; i < 32; i++) {
+		if (get_device(i) == NULL) { // Invalid device types
 			continue;
 		}
 		//randomly chosen quadratic function that is positive and integral in range [0, 32] for the lols
