@@ -8,25 +8,24 @@ char check_output_3[] = "no device at dev_uid = 100, sub request failed\n";
 
 char check_output_4[] = "Invalid device subscription: device uid 100 is invalid\n";
 
-int main ()
-{
-	//setup
+int main() {
+	// setup
 	start_test("nonexistent device subscription");
 	start_shm();
 	start_net_handler();
 
-	//poke
+	// poke
 	dev_data_t data1 = { .uid = 50, .name = "ServoControl", .params = 0b11 };
 	dev_data_t data2 = { .uid = 100, .name = "LimitSwitch", .params = 0b101 };
 	dev_data_t data_total[2] = { data1, data2 };
 	send_device_data(data_total, 2);
 
-	//stop
+	// stop
 	stop_net_handler();
 	stop_shm();
 	end_test();
 
-	//check output
+	// check output
 	in_rest_of_output(check_output_1);
 	in_rest_of_output(check_output_2);
 	in_rest_of_output(check_output_3);

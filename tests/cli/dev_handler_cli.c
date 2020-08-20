@@ -1,16 +1,16 @@
 #include "../client/dev_handler_client.h"
 
-#define MAX_CMD_LEN 64
+#define MAX_CMD_LEN 64              // maximum length of a CLI command
 
-#define NUMBER_OF_TEST_DEVICES 5
-#define MAX_STRING_SIZE 64
+#define NUMBER_OF_TEST_DEVICES 5    // number of test devices to connect
+#define MAX_STRING_SIZE 64          // maximum length of a device name
 
-char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] =
-{ "GeneralTestDevice",
-"SimpleTestDevice",
-"UnresponsiveTestDevice",
-"ForeignTestDevice",
-"UnstableTestDevice"
+char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] = { 
+    "GeneralTestDevice",
+    "SimpleTestDevice",
+    "UnresponsiveTestDevice",
+    "ForeignTestDevice",
+    "UnstableTestDevice"
 };
 
 char nextcmd[MAX_CMD_LEN];
@@ -24,6 +24,8 @@ void display_help() {
     printf("\tdisconnect    disconnect device from specified socket number\n");
     printf("\tlist          list all currently connected devices and their ports\n");
 }
+
+
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
 void clean_up() {
@@ -34,12 +36,14 @@ void clean_up() {
     exit(0);
 }
 
+// removes trailing newline from commands entered in by user
 void remove_newline(char *nextcmd) {
     nextcmd[strlen(nextcmd) - 1] = '\0';
 }
 
 void prompt_device_connect() {
     while(1) {
+        // prints out list of available test devices
         printf("This is the list of devices by name. Type in number on left to use device\n");
         for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
             printf("\t%d    %s\n", i, devices[i]);
@@ -48,10 +52,13 @@ void prompt_device_connect() {
         printf("Device?\n");
         fflush(stdout);
         printf("> ");
+        
+        // get next command entered by user and process it
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         char *input;
         long int dev_number = strtol(nextcmd, &input, 0);
-        if(dev_number >= 0 && dev_number < NUMBER_OF_TEST_DEVICES && strlen(input) == 1 && strlen(nextcmd) > 1) {
+        if (dev_number >= 0 && dev_number < NUMBER_OF_TEST_DEVICES && strlen(input) == 1 && strlen(nextcmd) > 1) {
+            // get the UID of the device
             printf("UID for device?\n");
             fflush(stdout);
             printf("> ");
@@ -59,15 +66,17 @@ void prompt_device_connect() {
             uint64_t uid;
             remove_newline(nextcmd);
             uid = strtoull(nextcmd, NULL, 0);
+            
+            // connect the virtual device
             printf("Connecting %s with UID of value 0x%016llX\n", devices[dev_number], uid);
-            if(connect_virtual_device(devices[dev_number], uid) == -1) {
+            if (connect_virtual_device(devices[dev_number], uid) == -1) {
                 printf("Device connection failed!\n");
             } else {
                 printf("Device connected!\n");
             }
             fflush(stdout);
             break;
-        } else if (dev_number == NUMBER_OF_TEST_DEVICES) {
+        } else if (dev_number == NUMBER_OF_TEST_DEVICES) { // if we connected too many devices
             printf("Device connecting cancelled \n");
             break;
         } else {
@@ -78,7 +87,10 @@ void prompt_device_connect() {
 
 void prompt_device_disconnect() {
     while(1) {
+        // list the connected virtual devices
         list_devices();
+        
+        // ask for the device to disconnect
         printf("Socket Number?\n");
         fflush(stdout);
         printf("> ");
@@ -86,7 +98,9 @@ void prompt_device_disconnect() {
         remove_newline(nextcmd);
         char *input;
         int port_num = strtol(nextcmd, &input, 0);
-        if(strlen(input) == 0 && strlen(input) == 0 && strlen(nextcmd) > 0) {
+        
+        // perform some validation on the input, then disconnect the virtual device
+        if (strlen(input) == 0 && strlen(input) == 0 && strlen(nextcmd) > 0) {
             printf("Disconnecting port %d\n", port_num);
             if(disconnect_virtual_device(port_num) == 0) {
                 printf("Device disconnected!\n");
@@ -95,7 +109,7 @@ void prompt_device_disconnect() {
                 printf("Device disconnect unsuccesful!\n");
                 break;
             }
-        } else if(strcmp(input, "cancel") == 0) {
+        } else if (strcmp(input, "cancel") == 0) { // break immediately if cancelling
             printf("Cancelling disconnect!\n");
             break;
         } else {
@@ -107,17 +121,19 @@ void prompt_device_disconnect() {
 // ********************************** MAIN PROCESS ****************************************** //
 
 int main() {
+    // setup
     signal(SIGINT, clean_up);
-
     int stop = 1;
-
+    
+    // start dev handler
     printf("Starting Dev Handler CLI in the cloudddd...\n");
     fflush(stdout);
     display_help();
     printf("Please enter device handler command:\n");
     fflush(stdout);
     start_dev_handler();
-
+    
+    // main loop
     while (stop) {
         // Get the next command
         printf("> ");
