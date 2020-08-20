@@ -70,11 +70,13 @@ trap 'sigint_handler' INT
 # build all of Runtime
 ./scripts/build.sh
 
-# do some setup work with the log file
+# replace the logger config with the production config
 mv logger/logger.config logger/logger.config.orig
 cp -p tests/logger.config logger/logger.config
 
 cd tests
+
+make devices
 
 ALL_TESTS=$(ls integration/*.c | awk -F'.' '{ print $1 }')
 
