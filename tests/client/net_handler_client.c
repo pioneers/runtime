@@ -103,17 +103,17 @@ static void recv_udp_data(int udp_fd) {
             fprintf(udp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
             switch (dev_data->devices[i]->params[j]->val_case) {
                 case (PARAM__VAL_FVAL):
-                fprintf(udp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
-                break;
+                    fprintf(udp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
+                    break;
                 case (PARAM__VAL_IVAL):
-                fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
-                break;
+                    fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
+                    break;
                 case (PARAM__VAL_BVAL):
-                fprintf(udp_output_fp, "BOOL with value %d\n", dev_data->devices[i]->params[j]->bval);
-                break;
+                    fprintf(udp_output_fp, "BOOL with value %d\n", dev_data->devices[i]->params[j]->bval);
+                    break;
                 default:
-                fprintf(udp_output_fp, "ERROR: no param value");
-                break;
+                    fprintf(udp_output_fp, "ERROR: no param value");
+                    break;
             }
         }
     }
@@ -385,13 +385,13 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
     // set the right mode
     switch (pos) {
         case (LEFT):
-        start_pos.pos = POS__LEFT;
-        break;
+            start_pos.pos = POS__LEFT;
+            break;
         case (RIGHT):
-        start_pos.pos = POS__RIGHT;
-        break;
+            start_pos.pos = POS__RIGHT;
+            break;
         default:
-        printf("ERROR: sending run mode message\n");
+            printf("ERROR: sending run mode message\n");
     }
 	
     // build the message
