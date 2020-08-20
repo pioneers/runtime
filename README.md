@@ -1,4 +1,4 @@
-Travis CI Master Build ![](https://travis-ci.org/pioneers/c-runtime.svg?branch=master)
+Travis CI Master Build ![](https://travis-ci.org/pioneers/runtime.svg?branch=master)
 
 # PiE C-Runtime
 
@@ -6,7 +6,7 @@ Welcome to the PiE Runtime repo! This README will only cover how to install, bui
 
 This is a diagram of the entirety of Runtime. To download and view in detail, see `images/Runtime-Diagram.png`:
 
-![runtime-diagram](images/Runtime-Diagram.png)
+![runtime-diagram](docs/Runtime-Diagram.png)
 
 ## Overall Structure
 

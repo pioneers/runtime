@@ -12,12 +12,7 @@ char check_1_output[] =
 	"\tGAMEPAD = DISCONNECTED\n"
 	"\tSTART_POS = LEFT\n\n"
 	"Current Gamepad State:\n"
-	"\tPushed Buttons:\n"
-	"\tJoystick Positions:\n"
-	"\t\tjoystick_left_x = 0.000000\n"
-	"\t\tjoystick_left_y = 0.000000\n"
-	"\t\tjoystick_right_x = 0.000000\n"
-	"\t\tjoystick_right_y = 0.000000\n";
+	"\tNo gamepad currently connected\n";
 
 char check_2_output[] =
 	"Changed devices: 00000000000000000000000000000000\n"
@@ -31,12 +26,7 @@ char check_2_output[] =
 	"\tGAMEPAD = DISCONNECTED\n"
 	"\tSTART_POS = RIGHT\n\n"
 	"Current Gamepad State:\n"
-	"\tPushed Buttons:\n"
-	"\tJoystick Positions:\n"
-	"\t\tjoystick_left_x = 0.000000\n"
-	"\t\tjoystick_left_y = 0.000000\n"
-	"\t\tjoystick_right_x = 0.000000\n"
-	"\t\tjoystick_right_y = 0.000000\n";
+	"\tNo gamepad currently connected\n";
 
 int main() {
 	// setup
