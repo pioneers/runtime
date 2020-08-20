@@ -370,22 +370,26 @@ void print_gamepad_state() {
 	char **joystick_names = get_joystick_names();
 	uint32_t buttons;
 	float joysticks[4];
-	gamepad_read(&buttons, joysticks);
 
-	// only print pushed buttons (so we don't print out many lines of output each time we all this function)
-	printf("Current Gamepad State:\n\tPushed Buttons:\n");
-	for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-		if (buttons & (1 << i)) {
-			printf("\t\t%s\n", button_names[i]);
-		}
+	printf("Current Gamepad State:\n");
+	if (gamepad_read(&buttons, joysticks) == -1) {
+        printf("\tNo gamepad currently connected\n");
+    } else {
+        printf("\tPushed Buttons:\n");
+	    // only print pushed buttons (so we don't print out many lines of output each time we all this function)
+	    for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
+		    if (buttons & (1 << i)) {
+			    printf("\t\t%s\n", button_names[i]);
+		    }
+	    }
+	    printf("\tJoystick Positions:\n");
+	    // print joystick positions
+	    for (int i = 0; i < 4; i++) {
+		    printf("\t\t%s = %f\n", joystick_names[i], joysticks[i]);
+	    }
+	    printf("\n");
 	}
-	printf("\tJoystick Positions:\n");
-	// print joystick positions
-	for (int i = 0; i < 4; i++) {
-		printf("\t\t%s = %f\n", joystick_names[i], joysticks[i]);
-	}
-	printf("\n");
-	fflush(stdout);
+    fflush(stdout);
 }
 
 void print_custom_data() {
