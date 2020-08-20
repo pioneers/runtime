@@ -32,8 +32,7 @@ static void my_sem_unlink(char *sem_name, char *sem_desc) {
  * This program unlinks all of the shared memory blocks and associated semaphores.
  * Must run after net_handler, dev_handler, or executor terminate during reboot
  */
-int main ()
-{
+int main() {
     // init the logger and shared memory
     logger_init(SHM);
     shm_init();

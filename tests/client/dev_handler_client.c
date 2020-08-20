@@ -110,11 +110,11 @@ void start_dev_handler() {
     if((dev_handler_pid = fork()) < 0) {
         printf("fork: %s\n", strerror(errno));
     } else if (dev_handler_pid == 0) { // child created!
-        //redirect to dev handler folder
+        // redirect to dev handler folder
         if(chdir("../dev_handler") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
-        //execute the device handler process
+        // execute the device handler process
         if (execlp("./dev_handler", "dev_handler", "virtual", (char *) 0) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
@@ -122,13 +122,13 @@ void start_dev_handler() {
 }
 
 void stop_dev_handler(){
-    //send signal to dev_handler and wait for termination
-	if (kill(dev_handler_pid, SIGINT) < 0) {
-		printf("kill dev_handler:  %s\n", strerror(errno));
-	}
-	if (waitpid(dev_handler_pid, NULL, 0) < 0) {
-		printf("waitpid dev_haandler: %s\n", strerror(errno));
-	}
+    // send signal to dev_handler and wait for termination
+    if (kill(dev_handler_pid, SIGINT) < 0) {
+        printf("kill dev_handler:  %s\n", strerror(errno));
+    }
+    if (waitpid(dev_handler_pid, NULL, 0) < 0) {
+        printf("waitpid dev_haandler: %s\n", strerror(errno));
+    }
 }
 
 int connect_virtual_device(char *dev_name, uint64_t uid) {
