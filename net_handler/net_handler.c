@@ -11,24 +11,20 @@
 *    - 0: all steps completed successfully
 *    - 1: listening socket setup failed
 */
-int listening_socket_setup (int *sockfd)
+int socket_setup (int *sockfd)
 {
 	struct sockaddr_in serv_addr = {0}; //initialize everything to 0
 		
 	//create socket
 	if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		perror("socket");
-		log_printf(ERROR, "failed to create listening socket");
+		log_printf(ERROR, "socket_setup: failed to create listening socket: %s", strerror(errno));
 		return 1;
-	} else {
-		log_printf(DEBUG, "socket: successfully created listening socket");
 	}
-	
+
 	//set the socket option SO_REUSEPORT on so that if raspi terminates and restarts it can immediately reopen the same port
 	int optval = 1;
 	if ((setsockopt(*sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(int))) != 0) {
-		perror("setsockopt");
-		log_printf(ERROR, "failed to set listening socket for reuse of port");
+		log_printf(ERROR, "socket_setup: failed to set listening socket for reuse of port: %s", strerror(errno));
 	}
 	
 	//set the elements of serv_addr
@@ -38,22 +34,16 @@ int listening_socket_setup (int *sockfd)
 	
 	//bind socket to well-known IP_addr:port
 	if ((bind(*sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr_in))) != 0) {
-		perror("bind");
-		log_printf(ERROR, "failed to bind listening socket to raspi port");
+		log_printf(ERROR, "socket_setup: failed to bind listening socket to raspi port: %s", strerror(errno));
 		close(*sockfd);
 		return 1;
-	} else {
-		log_printf(DEBUG, "bind: successfully bound listening socket to raspi port");
 	}
 	
 	//set the socket to be in listening mode (since the robot is the server)
 	if ((listen(*sockfd, 2)) != 0) {
-		perror("listen");
-		log_printf(ERROR, "failed to set listening socket to listen mode");
+		log_printf(ERROR, "socket_setup: failed to set listening socket to listen mode: %s", strerror(errno));
 		close(*sockfd);
 		return 1;
-	} else {
-		log_printf(DEBUG, "listen: successfully set listening socket to listen mode");
 	}
 	return 0;
 }
@@ -66,7 +56,7 @@ int listening_socket_setup (int *sockfd)
 */
 void sigint_handler (int sig_num)
 {
-	log_printf(DEBUG, "Stopping net_handler...");
+	log_printf(INFO, "Stopping net_handler...");
 	stop_udp_conn();
 	if (robot_desc_read(SHEPHERD) == CONNECTED) {
 		stop_tcp_conn(SHEPHERD);
@@ -90,13 +80,15 @@ int main ()
 	//setup
 	logger_init(NET_HANDLER);
 	signal(SIGINT, sigint_handler);
-	if (listening_socket_setup(&sockfd) != 0) {
+	if (socket_setup(&sockfd) != 0) {
 		if (sockfd != -1) {
 			close(sockfd);
 		}
 		return 1;
 	}
 	shm_init();
+
+	log_printf(INFO, "Net handler initialized");
 
 	//start UDP connection with Dawn
 	start_udp_conn(); 
@@ -105,8 +97,7 @@ int main ()
 	while (1) {
 		//wait for a client to make a request to the robot, and accept it
 		if ((connfd = accept(sockfd, (struct sockaddr *) &cli_addr, &cli_addr_len)) < 0) {
-			perror("accept");
-			log_printf(ERROR, "listen socket failed to accept a connection");
+			log_printf(ERROR, "main: listen socket failed to accept a connection: %s", strerror(errno));
 			continue;
 		}
 		cli_addr_len = sizeof(struct sockaddr_in);
