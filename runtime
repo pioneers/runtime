@@ -40,6 +40,9 @@ case $1 in
         pushd executor && make clean && popd
         pushd dev_handler && make clean && popd
         pushd tests && make clean && popd
+        rm -f /tmp/log-fifo
+        rm -f /tmp/challenge.sock
+        rm -f /tmp/ttyACM*
         ;;
 
     flash)
