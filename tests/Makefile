@@ -60,5 +60,5 @@ time_dev: client/virtual_devices/time_dev.c $(VIRTUAL_DEVICE_FILES)
 
 ##################################### TESTS ####################################
 
-integration/%: $(SRC_FILES) devices
+integration/%: $(SRC_FILES)
 	gcc $@.c $(SRC_FILES) -o $* $(LIBS)
