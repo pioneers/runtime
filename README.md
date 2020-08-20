@@ -95,24 +95,23 @@ You might need to install `wget` and `tar` with `sudo apt-get -y install wget ta
 
 ## Building and Running Runtime
 
-First, we need to add the `runtime` function to our shell by doing `source runtime.sh`. You will need to do this for every shell so if you want to avoid that, add the following to your `~/.bashrc` file:
+We use the bash script `runtime` in this root directory as the entrypoint to our code. You can call it with `./runtime <args>` in this folder. However, you can also have it be callable from any directory by adding it to your `PATH` variable. This can be done automatically adding the following to your `~/.bashrc` file:
 
-	source ~/runtime/runtime.sh
+	export PATH="$PATH:<path to runtime folder>"
 
-Assuming you've installed all dependencies, do `./build.sh`
+Then either close and reopen the terminal, or do `source ~/.bashrc`.
 
-## Running Runtime
-
-Assuming you've built the code, do `./run.sh`
+Assuming you've installed all dependencies, do `runtime build` to build the code. Then you can do `runtime run` to start up Runtime.
 
 ## Authors
 
-The first version of `c-runtime` was written in the summer of 2020 (when we all had lots of time.... fuck covid and trump) nearly entirely by four people (all class of 2022):
+The first version of `c-runtime` was written in the summer of 2020 (when we all had lots of time.... fuck covid and trump) nearly entirely by:
 
 * Ben Liao
 * Ashwin Vangipuram
 * Vincent Le
 * Daniel Molina
+* James Shi
 
 Some inspiration and design was drawn from previous iterations of Runtime and Lowcar, written mostly by:
 
