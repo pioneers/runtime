@@ -6,3 +6,4 @@ Dockerfile
 .vscode/
 images/
 */build/
+docs/

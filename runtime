@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 
-# This file is meant to be sourced by the user, who can then run commands corresponding
-# to the name of the script to be run, e.g.
+# This executable file is meant to be run with a specific command like build, run, or test.
+# You can make this file available everywhere by adding it to your PATH with
+#   export PATH="$PATH:<path to runtime dir>"
+# Examples:
 #     runtime build                      (to run build.sh)
 #     runtime run                        (to run run.sh)
 #     runtime test integration/tc_68_2   (to run the automated test tc_68_2)
 
-# To source this file to make this function available, issue the command
-#     source runtime.sh
-
 set -e  # Makes any errors exit the script
 
 RUNTIME_DIR=$(dirname "${BASH_SOURCE[0]}")
-SCRIPTS=$(ls $RUNTIME_DIR/scripts/ | awk -F '.' '{ print $1 }')
 
 cd $RUNTIME_DIR
 
@@ -27,7 +25,6 @@ case $1 in
     run)
         scripts/run.sh
         ;;
-    
 
     test)
         shift 1
@@ -45,8 +42,14 @@ case $1 in
         pushd tests && make clean && popd
         ;;
 
+    flash)
+        shift 1
+        scripts/flash.sh $@
+        ;;
+
     *)
-        printf "Runtime script needs another argument from:\n\n$SCRIPTS \n\n"
+        commands="build run test format clean flash"
+        printf "Runtime script needs another argument from:\n\n$commands\n\n"
         ;;
 esac
 
