@@ -514,7 +514,7 @@ pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
  *  Handler for keyboard interrupts SIGINT (Ctrl + C)
  */
 void exit_handler(int signum) {
-    log_printf(DEBUG, "Shutting down executor...");
+    log_printf(INFO, "Shutting down executor...");
     if (mode != IDLE) {
         kill_subprocess();
     }
@@ -554,10 +554,11 @@ int main(int argc, char* argv[]) {
         log_printf(FATAL, "could not create challenge socket: %s", strerror(errno));
 		return 1;
 	}
-	if (bind(challenge_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_un)) < 0) {
+	if (bind(challenge_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_un)) < 0) {
         log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
 		return 1;
 	}
+    log_printf(INFO, "Executor initialized");
 
     robot_desc_val_t new_mode = IDLE;
     // Main loop that checks for new run mode in shared memory from the network handler
@@ -568,7 +569,6 @@ int main(int argc, char* argv[]) {
             if (mode != IDLE) {
                 kill_subprocess();
             }
-            log_printf(DEBUG, "New mode %d", new_mode);
             if (new_mode != IDLE) {
                 mode = new_mode;
                 pid = start_mode_subprocess(student_code, challenge_code);

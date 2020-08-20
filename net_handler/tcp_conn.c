@@ -69,8 +69,7 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 		} else if (errno == EAGAIN || errno == EWOULDBLOCK) { // No more to read on pipe (would block in a blocking read)
 			break;
 		} else { // Error occurred
-			perror("fgets");
-			log_printf(ERROR, "Error reading from log fifo\n");
+			log_printf(ERROR, "send_log_msg: Error reading from log fifo: %s", strerror(errno));
 			return;
 		}
 	}
@@ -82,8 +81,7 @@ static void send_log_msg (int conn_fd, FILE *log_file)
 	
 	//send message on socket
 	if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
-		perror("writen");
-		log_printf(ERROR, "sending log message failed");
+		log_printf(ERROR, "send_log_msg: sending log message over socket failed: %s", strerror(errno));
 	}
 	
 	//free all allocated memory
@@ -344,8 +342,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	
 	// open challenge socket to read and write
 	if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
-		perror("socket");
-		log_printf(ERROR, "failed to create challenge socket");
+		log_printf(ERROR, "start_tcp_conn: failed to create challenge socket: %s", strerror(errno));
 		return;
 	}
 	struct sockaddr_un my_addr = {0};
@@ -360,14 +357,12 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	if (send_logs) {
 		int log_fd;
 		if ((log_fd = open(LOG_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
-			perror("fifo open");
-			log_printf(ERROR, "could not open log FIFO on %d", args->client);
+			log_printf(ERROR, "start_tcp_conn: could not open log FIFO on %d: %s", args->client, strerror(errno));
 			close(args->challenge_fd);
 			return;
 		}
 		if ((args->log_file = fdopen(log_fd, "r")) == NULL) {
-			perror("fdopen");
-			log_printf(ERROR, "could not open log file from fd");
+			log_printf(ERROR, "start_tcp_conn: could not open log file from fd: %s", strerror(errno));
 			close(args->challenge_fd);
 			close(log_fd);
 			return;
@@ -376,8 +371,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	
 	//create the main control thread for this client
 	if (pthread_create(tid, NULL, tcp_process, args) != 0) {
-		perror("pthread_create");
-		log_printf(ERROR, "Failed to create main TCP thread for %d", client);
+		log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread for %d: %s", client, strerror(errno));
 		return;
 	}
 	robot_desc_write(client, CONNECTED);
@@ -397,11 +391,9 @@ void stop_tcp_conn (robot_desc_field_t client)
 	pthread_t tid = (client == DAWN) ? dawn_tid : shepherd_tid;
 	
 	if (pthread_cancel(tid) != 0) {
-		perror("pthread_cancel");
-		log_printf(ERROR, "Failed to cancel TCP client thread for %d", client);
+		log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client thread for %d: %s", client, strerror(errno));
 	}
 	if (pthread_join(tid, NULL) != 0) {
-		perror("pthread_join");
-		log_printf(ERROR, "Failed to join on TCP client thread for %d", client);
+		log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client thread for %d: %s", client, strerror(errno));
 	}
 }

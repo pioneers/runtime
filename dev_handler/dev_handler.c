@@ -93,7 +93,7 @@ void init() {
 
 // Disconnect devices from shared memory and destroy mutexes
 void stop() {
-    log_printf(DEBUG, "Interrupt received, terminating dev_handler\n");
+    log_printf(INFO, "Interrupt received, terminating dev_handler\n");
     // For each tracked lowcar device, disconnect from shared memory
     uint32_t connected_devs = 0;
     get_catalog(&connected_devs);
@@ -114,7 +114,7 @@ void stop() {
  */
 void poll_connected_devices() {
     // Poll for newly connected devices and open threads for them
-    log_printf(INFO, "Polling now for %s*.\n", port_prefix);
+    log_printf(DEBUG, "Polling now for %s*.\n", port_prefix);
     uint32_t connected_devs = 0;
     while (1) {
         if (get_new_devices(&connected_devs) > 0) {
