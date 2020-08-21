@@ -6,16 +6,25 @@
 // Handles the PID controller on one motor
 class PID {
 public:
-	PID();
-	float compute(float curr_pos);
-        
-	void set_coefficients(float kp, float ki, float kd);
-	void set_target_speed(float new_target_speed);
+    PID();
+
+    /**
+     * Computes a value between -1 and 1 inclusive to tell how to
+     * adjust the motor controller pins.
+     * Arguments:
+     *    curr_pos: current value of the encoder, as a float
+     */
+    float compute(float curr_pos);
+
+    // Private field setters
+    void set_coefficients(float kp, float ki, float kd);
+    void set_target_speed(float new_target_speed);
     void set_position(float curr_pos);
-    
-	float get_kp();
-	float get_ki();
-	float get_kd();
+
+    // Private field getters
+    float get_kp();
+    float get_ki();
+    float get_kd();
 
 private:
 	float kp, ki, kd;
@@ -23,9 +32,17 @@ private:
     float target_speed;
     float integral;
     unsigned long prev_time;
-    
-    // *********************** HELPER FUNCTIONS *********************** //
-    
+
+    // ************************** HELPER FUNCTIONS ************************** //
+
+    /**
+     * Converts speed (in duty cycle units from -1.0 to 1.0) to
+     * encoder ticks per second (tps)
+     * Arguments:
+     *    duty_cycle: The duty cycle to convert to encoder ticks
+     * Returns:
+     *    the converted value to encoder ticks
+     */
     float duty_cycle_to_tps(float duty_cycle);
 };
 
