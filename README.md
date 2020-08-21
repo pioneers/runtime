@@ -24,12 +24,12 @@ Runtime can be divided into a few neatly containerized parts:
 
 In addition to these parts, there are a number of configuration files for Runtime to manage the various tools that we use. They are listed here, with a brief explanation about what they do:
 
-* **`.dockerignore`: this file lists out all of the directories, files, and other information that we do not want to include when building Runtime's Docker image.
-* **`.gitignore`: this file lists out all of the directories and files that we don't want in our Git repository. This includes things like executables, build files, and `.DS_Store`.
-* **`.gitattributes`: this file is purely for aesthetic purposes. It tells Github which files to exclude when calculating the repository language makeup you see in the repo (below the "Contributors" section in the sidebar on the web page that you're probably looking at right now).
-* **`.travis.yml`: this file tells Travis (the continuous integration tool that we use) what to run when checking if Runtime is working properly before a new feature is merged into the master branch. It is essentially responsible for running the integration tests and for updating Runtime's Docker image.
-* **`docker-compose.yml`: this file is used to give meaning to the command `docker-compose up`, which we have defined here to be a combination of the commands `docker build` and then `docker run`.
-* **`runtime`: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, and allows us to issue intuitive commmands like `runtime build`, for example, which (expectedly) builds Runtime.
+* **`.dockerignore`**: this file lists out all of the directories, files, and other information that we do not want to include when building Runtime's Docker image.
+* **`.gitignore`**: this file lists out all of the directories and files that we don't want in our Git repository. This includes things like executables, build files, and `.DS_Store`.
+* **`.gitattributes`**: this file is purely for aesthetic purposes. It tells Github which files to exclude when calculating the repository language makeup you see in the repo (below the "Contributors" section in the sidebar on the web page that you're probably looking at right now).
+* **`.travis.yml`**: this file tells Travis (the continuous integration tool that we use) what to run when checking if Runtime is working properly before a new feature is merged into the master branch. It is essentially responsible for running the integration tests and for updating Runtime's Docker image.
+* **`docker-compose.yml`**: this file is used to give meaning to the command `docker-compose up`, which we have defined here to be a combination of the commands `docker build` and then `docker run`.
+* **`runtime`**: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, and allows us to issue intuitive commmands like `runtime build`, for example, which (expectedly) builds Runtime.
 
 This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/runtime/wiki. However, we will describe briefly the data that flows between the various parts, and the manner in which that data is sent:
 
@@ -105,9 +105,11 @@ You might need to install `wget` and `tar` with `sudo apt-get -y install wget ta
 
 ## Building and Running Runtime
 
-We use the bash script `runtime` in this root directory as the entrypoint to our code. You can call it with `./runtime <args>` in this folder. However, you can also have it be callable from any directory by adding it to your `PATH` variable. This can be done automatically adding the following to your `~/.bashrc` file:
+We use the bash script `runtime` in this root directory as the entrypoint to our code. You can call it with `./runtime <args>` in this folder. However, you can also have it be callable from any directory by adding it to your `PATH` variable. This can be done automatically adding the following line to your `~/.bashrc` file:
 
-	export PATH="$PATH:<path to runtime folder>"
+```
+export PATH="$PATH:<path to runtime folder>"
+```
 
 Then either close and reopen the terminal, or do `source ~/.bashrc`.
 
