@@ -8,28 +8,22 @@ PID::PID() {
     this->prev_time = micros();
 }
 
-/* 
- * Computes a value between -1 and 1 inclusive to tell how to
- * adjust the motor controller pins.
- * Arguments:
- *    curr_pos: current value of the encoder, as a float
- */
 float PID::compute(float curr_pos) {
     unsigned long curr_time = micros(); // get the current time
     float interval_secs = ((float)(curr_time - this->prev_time)) / 1000000.0; // compute time passed between loops, in seconds
     float desired_pos = this->prev_desired_pos + (duty_cycle_to_tps(this->target_speed) * interval_secs); // compute the desired position at this time
     float error = desired_pos - curr_pos; // compute the error as the set point (desired position) - process variable (current position)
-    this->integral += error * interval_secs; //compute the new value of this->integral using right-rectangle approximation
-    
+    this->integral += error * interval_secs; // compute the new value of this->integral using right-rectangle approximation
+
     // output = kp * error + ki * integral of error * kd * "derivative" of error
     float output = (this->kp * error) + (this->ki * this->integral) + (this->kd * ((error - this->prev_error) / interval_secs));
-    
+
     // store the current values into previous values for use on next loop
     this->prev_error = error;
     this->prev_pos = curr_pos;
     this->prev_desired_pos = desired_pos;
     this->prev_time = curr_time;
-    
+
     return output;
 }
 
@@ -56,8 +50,6 @@ float PID::get_kd() { return this->kd; }
 
 // *********************** HELPER FUNCTIONS *********************** //
 
-// converts speed in units of duty cycle (-1.0 to 1.0)
-// to units of encoder ticks per second, tps
 float PID::duty_cycle_to_tps(float duty_cycle) {
     return 300.0 * duty_cycle; // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
 }

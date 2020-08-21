@@ -80,20 +80,20 @@ static void handle_enc_b_tick() {
 //*********************************** MAIN KOALABEAR CODE ***********************************//
 
 KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
-    // initialize motor values    
+    // initialize motor values
     this->target_speed_a = this->target_speed_b = 0.0;
     this->deadband_a = this->deadband_b = 0.05;
-    
+
     // initialize encoders
     enc_a = enc_b = 0.0;
     attachInterrupt(digitalPinToInterrupt(AENC1), handle_enc_a_tick, RISING); // set interrupt service routines for encoder pins
     attachInterrupt(digitalPinToInterrupt(BENC1), handle_enc_b_tick, RISING);
-    
+
     // initialize PID controllers
     this->pid_a = new PID();
     this->pid_b = new PID();
     this->pid_enabled_a = this->pid_enabled_b = FALSE; // TODO: change to true when PID written
-    
+
     this->led = new LEDKoala();
     this->prev_led_time = millis();
     this->curr_led_mtr = MTRA;
@@ -129,7 +129,7 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t *data_buf) {
         case ENC_A:
             int_buf[0] = enc_a;
             return sizeof(int32_t);
-            
+
         // Params for Motor B
         case DUTY_CYCLE_B:
             float_buf[0] = this->target_speed_b;
@@ -186,7 +186,7 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t *data_buf) {
             enc_a = ((int32_t *)data_buf)[0];
             this->pid_a->set_position((float) enc_a);
             return sizeof(int32_t);
-            
+
         // Params for Motor B
         case DUTY_CYCLE_B:
             this->pid_enabled_b = FALSE; //remove later for PID functionality
@@ -219,45 +219,45 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t *data_buf) {
     return 0;
 }
 
-void KoalaBear::device_enable () {
+void KoalaBear::device_enable() {
     electrical_setup(); // ask electrical about this function (it's hardware setup for the motor controller)
-    
+
     // set up encoders
     pinMode(AENC1, INPUT);
     pinMode(AENC2, INPUT);
     pinMode(BENC1, INPUT);
     pinMode(BENC2, INPUT);
-    
+
     this->pid_enabled_a = FALSE; // TODO: change to true once implemented
     this->pid_enabled_b = FALSE;
-    
+
     this->led->setup_LEDs();
     this->led->test_LEDs();
-    
+
     pinMode(AIN1, OUTPUT);
     pinMode(AIN2, OUTPUT);
     pinMode(BIN1, OUTPUT);
     pinMode(BIN2, OUTPUT);
 }
 
-void KoalaBear::device_disable () {
+void KoalaBear::device_disable() {
     // digitalWrite(SLEEP, HIGH);
     //this->pid->setCoefficients(1, 0, 0);
     //this->pid->resetEncoder();
-    
+
     this->pid_a->set_coefficients(0.0, 0.0, 0.0);
     this->pid_b->set_coefficients(0.0, 0.0, 0.0);
-    
+
     this->target_speed_a = 0.0;
     this->target_speed_b = 0.0;
     this->pid_enabled_a = FALSE;
     this->pid_enabled_b = FALSE;
 }
 
-void KoalaBear::device_actions () {
+void KoalaBear::device_actions() {
     float target_A, target_B;
     unsigned long curr_time = millis();
-    
+
     // switch between displaying info about MTRA and MTRB every 2 seconds
     if (curr_time - this->prev_led_time > 2000) {
         this->curr_led_mtr = (this->curr_led_mtr == MTRA) ? MTRB : MTRA;
@@ -268,7 +268,7 @@ void KoalaBear::device_actions () {
     } else {
         this->led->ctrl_LEDs(this->target_speed_b, this->deadband_b, TRUE);
     }
-    
+
     if (this->pid_enabled_a) {
         this->pid_a->set_target_speed(this->target_speed_a);
         target_A = this->pid_a->compute((float) enc_a);
@@ -293,35 +293,33 @@ void KoalaBear::device_actions () {
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//
 
-// used for setup; ask electrical for how it works / what it does
-void KoalaBear::write_current_lim() {
-    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
-    digitalWrite(SCS, HIGH);
-    SPI.transfer16((0 << 15) + (CTRL_REG << 12) + (DTIME_410_ns << 10) + (ISGAIN_20 << 8) + ENABLE);
-    SPI.endTransaction();
-    digitalWrite(SCS, LOW);
-    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
-    digitalWrite(SCS, HIGH);
-    SPI.transfer16((0 << 15) + (TORQUE_REG << 12) + TORQUE);
-    SPI.endTransaction();
-    digitalWrite(SCS, LOW);
+void KoalaBear::drive (float target, uint8_t mtr) {
+    int pin1 = (mtr == MTRA) ? AIN1 : BIN1; // select the correct pins based on the motor
+    int pin2 = (mtr == MTRA) ? AIN2 : BIN2;
+
+    float direction = (target > 0.0) ? 1.0 : -1.0;
+    /* If moving forwards, set pwm2 to 255 (stop), then move pwm1 down
+     * If moving backwards, set pwm1 to 255, then move pwm2 down
+     * Make sure that at least one of the pins is set to 255 at all times.
+     */
+    int currpwm1 = 255;
+    int currpwm2 = 255;
+
+    // Determine how much to move the pins down from 255
+    // Sanity check: If |target| == 1, move max speed --> pwm_difference == 255
+    //               If |target| == 0, stop moving    --> pwm_difference == 0
+    int pwm_difference = (int)(target * direction * 255.0); // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
+
+    if (direction > 0) { // Moving forwards
+        currpwm1 -= pwm_difference;
+    } else if (direction < 0) { // Moving backwards
+        currpwm2 -= pwm_difference;
+    }
+
+    analogWrite(pin1, currpwm1);
+    analogWrite(pin2, currpwm2);
 }
 
-// used for setup; ask electrical for how it works / what it does
-void KoalaBear::read_current_lim() {
-    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
-    digitalWrite(SCS, HIGH);
-    ctrl_read_data = (uint16_t) SPI.transfer16((1 << 15) + (CTRL_REG << 12));
-    SPI.endTransaction();
-    digitalWrite(SCS, LOW);
-    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
-    digitalWrite(SCS, HIGH);
-    torque_read_data = (uint16_t) SPI.transfer16((1 << 15) + (TORQUE_REG << 12));
-    SPI.endTransaction();
-    digitalWrite(SCS, LOW);
-}
-
-// used for setup; ask electrical for how it works / what it does
 void KoalaBear::electrical_setup() {
     SPI.begin();
 
@@ -342,33 +340,28 @@ void KoalaBear::electrical_setup() {
     read_current_lim();
 }
 
-/*
- * Given a TARGET between -1 and 1 inclusive, and a motor MTR,
- * analogWrite to the appropriate pins to accelerate/decelerate
- * Negative indicates moving backwards; Positive indicates moving forwards.
- * If moving forwards, set pwm2 to 255 (stop), then move pwm1 down
- * If moving backwards, set pwm1 to 255, then move pwm2 down
- * Make sure that at least one of the pins is set to 255 at all times.
- */
-void KoalaBear::drive (float target, uint8_t mtr) {
-    int pin1 = (mtr == MTRA) ? AIN1 : BIN1; // select the correct pins based on the motor
-    int pin2 = (mtr == MTRA) ? AIN2 : BIN2;
+void KoalaBear::write_current_lim() {
+    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
+    digitalWrite(SCS, HIGH);
+    SPI.transfer16((0 << 15) + (CTRL_REG << 12) + (DTIME_410_ns << 10) + (ISGAIN_20 << 8) + ENABLE);
+    SPI.endTransaction();
+    digitalWrite(SCS, LOW);
+    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
+    digitalWrite(SCS, HIGH);
+    SPI.transfer16((0 << 15) + (TORQUE_REG << 12) + TORQUE);
+    SPI.endTransaction();
+    digitalWrite(SCS, LOW);
+}
 
-    float direction = (target > 0.0) ? 1.0 : -1.0;
-    int currpwm1 = 255;
-    int currpwm2 = 255;
-
-    // Determine how much to move the pins down from 255
-    // Sanity check: If |target| == 1, move max speed --> pwm_difference == 255
-    //				 If |target| == 0, stop moving	  --> pwm_difference == 0
-    int pwm_difference = (int)(target * direction * 255.0); // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
-
-    if (direction > 0) { // Moving forwards
-        currpwm1 -= pwm_difference;
-    } else if (direction < 0) { // Moving backwards
-        currpwm2 -= pwm_difference;
-    }
-
-    analogWrite(pin1, currpwm1);
-    analogWrite(pin2, currpwm2);
+void KoalaBear::read_current_lim() {
+    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
+    digitalWrite(SCS, HIGH);
+    ctrl_read_data = (uint16_t) SPI.transfer16((1 << 15) + (CTRL_REG << 12));
+    SPI.endTransaction();
+    digitalWrite(SCS, LOW);
+    SPI.beginTransaction(SPISettings(100000, MSBFIRST, SPI_MODE0));
+    digitalWrite(SCS, HIGH);
+    torque_read_data = (uint16_t) SPI.transfer16((1 << 15) + (TORQUE_REG << 12));
+    SPI.endTransaction();
+    digitalWrite(SCS, LOW);
 }
