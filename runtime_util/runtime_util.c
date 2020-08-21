@@ -1,8 +1,7 @@
 #include "runtime_util.h"
 
-/*
- * Definition of each lowcar device and their params
- */
+// *************************** LOWCAR DEFINITIONS *************************** //
+
 device_t DummyDevice = {
     .type = 0,
     .name = "DummyDevice",
@@ -114,9 +113,8 @@ device_t KoalaBear = {
     }
 };
 
-/*
- * Definition of each Test devices and their params
- */
+// *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
+
 device_t TimeTestDevice = {
     .type = 60,
     .name = "TimeTestDevice",
@@ -189,6 +187,8 @@ device_t GeneralTestDevice = {
         {.name = "YELLOW_BOOL"      , .type = BOOL  , .read = 1, .write = 1}
     }
 };
+
+// ************************ DEVICE UTILITY FUNCTIONS ************************ //
 
 // An array that holds pointers to the structs of each lowcar device
 device_t* DEVICES[DEVICES_LENGTH] = {0};
@@ -274,26 +274,19 @@ char** get_joystick_names() {
     return JOYSTICK_NAMES;
 }
 
+// ********************************** TIME ********************************** //
+
 /* Returns the number of milliseconds since the Unix Epoch */
 uint64_t millis() {
-	struct timeval time; // Holds the current time in seconds + microseconds
-	gettimeofday(&time, NULL);
-	uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
-	uint64_t s2 = (time.tv_usec / 1000);		   // Convert microseconds to milliseconds
-	return s1 + s2;
+    struct timeval time; // Holds the current time in seconds + microseconds
+    gettimeofday(&time, NULL);
+    uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;   // Convert seconds to milliseconds
+    uint64_t s2 = (time.tv_usec / 1000);            // Convert microseconds to milliseconds
+    return s1 + s2;
 }
 
-/*
- * Read n bytes from fd into buf; return number of bytes read into buf (deals with interrupts and unbuffered reads)
- * Arguments:
- *    - int fd: file descriptor to read from
- *    - void *buf: pointer to location to copy read bytes into
- *    - size_t n: number of bytes to read
- * Return:
- *    - > 0: number of bytes read into buf
- *    - 0: read EOF on fd
- *    - -1: read errored out
- */
+// ********************* READ/WRITE TO FILE DESCRIPTOR ********************** //
+
 int readn (int fd, void *buf, uint16_t n) {
     uint16_t n_remain = n;
     uint16_t n_read;
@@ -301,13 +294,13 @@ int readn (int fd, void *buf, uint16_t n) {
 
     while (n_remain > 0) {
         if ((n_read = read(fd, curr, n_remain)) < 0) {
-            if (errno == EINTR) { //read interrupted by signal; read again
+            if (errno == EINTR) { // read interrupted by signal; read again
                 n_read = 0;
             } else {
                 perror("read");
                 return -1;
             }
-        } else if (n_read == 0) { //received EOF
+        } else if (n_read == 0) { // received EOF
             return 0;
         }
         n_remain -= n_read;
@@ -316,16 +309,6 @@ int readn (int fd, void *buf, uint16_t n) {
     return (n - n_remain);
 }
 
-/*
- * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
- * Arguments:
- *    - int fd: file descriptor to write to
- *    - void *buf: pointer to location to read from
- *    - size_t n: number of bytes to write
- * Return:
- *    - >= 0: number of bytes written into buf
- *    - -1: write errored out
- */
 int writen (int fd, void *buf, uint16_t n) {
     uint16_t n_remain = n;
     uint16_t n_written;
@@ -333,7 +316,7 @@ int writen (int fd, void *buf, uint16_t n) {
 
     while (n_remain > 0) {
         if ((n_written = write(fd, curr, n_remain)) <= 0) {
-            if (n_written < 0 && errno == EINTR) { //write interrupted by signal, write again
+            if (n_written < 0 && errno == EINTR) { // write interrupted by signal, write again
                 n_written = 0;
             } else {
                 perror("write");
