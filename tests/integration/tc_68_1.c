@@ -1,5 +1,11 @@
 #include "../test.h"
 
+/**
+ * This test is a sanity test for testing the testing framework
+ * It sends the system into Auto mode and sets the robot to the Right starting position
+ * and checks that those actions are reflected in shared memory.
+ */
+
 char check_1_output[] =
 	"Changed devices: 00000000000000000000000000000000\n"
 	"Changed params:\n"

@@ -1,5 +1,12 @@
 #include "../test.h"
 
+/**
+ * This test is a decently comprehensive executor sanity check (and a demonstration of the test framework's executor-testing abilities)
+ * It tests to make sure the testing framework can load student code from our testing folder, runs two coding challenges, does a basic
+ * test of Robot.run(), checks that both auto and teleop mode work, and checks that an error is outputted to the screen when a Python
+ * exception occurs.
+ */
+
 char check_output_1[] = "Autonomous setup has begun!\n";
 
 char check_output_2[] = "autonomous printing again\n";

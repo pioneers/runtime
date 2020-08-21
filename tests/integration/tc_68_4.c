@@ -1,5 +1,11 @@
 #include "../test.h"
 
+/**
+ * This test ensures that with no devices connected to the system, the
+ * shared memory starts sending custom data back to Dawn as soon as the 
+ * first Gamepad State packet arrives on Runtime from Dawn.
+ */
+
 char check_output_1[] =
 	"Current Robot Description:\n"
 	"\tRUN_MODE = IDLE\n"
