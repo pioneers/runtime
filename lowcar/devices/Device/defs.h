@@ -4,9 +4,10 @@
 #include "Arduino.h"
 #include <stdint.h>
 
-#define PARAM_BITMAP_BYTES  4
-
-#define MAX_PARAMS          32
+// The maximum number of parameters for a lowcar device
+#define MAX_PARAMS 32
+// The size of the param bitmap used in various messages (8 bits in a byte)
+#define PARAM_BITMAP_BYTES  (MAX_PARAMS / 8)
 
 // Maximum size of a message payload
 // achieved with a DEVICE_WRITE/DEVICE_DATA of MAX_PARAMS of all floats

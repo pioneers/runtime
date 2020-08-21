@@ -1,6 +1,7 @@
-/*
- * Class defining a lowcar device, receiving/sending messages and performing actions based on received messages.
- */
+/**
+* Class defining a lowcar device, receiving/sending messages
+* and performing actions based on received messages.
+*/
 
 #ifndef DEVICE_H
 #define DEVICE_H
@@ -12,94 +13,117 @@
 class Device {
 
 public:
-	//******************************************* UNIVERSAL DEVICE METHODS ************************************** //
+    // ********************** UNIVERSAL DEVICE METHODS ********************** //
 
-	/* Constructor with default args (times in ms)
-	 * set timeout to 0 if no disable on lack of PING
-	 * set ping_interval to 0 if don't PING
-	 * calls device_enable to enable the device
-	 * dev_id and dev_year are the device type and device year of the device
-	 */
-	Device (DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000, uint32_t ping_interval = 250);
+    /**
+     *  Constructor with default args
+     * Calls device_enable to enable the device.
+     * Arguments:
+     *    dev_type: The type of device (ex: LimitSwitch)
+     *    dev_year: The device year
+     *    timeout: the maximum number of milliseconds to wait for a PING from
+     *      dev handler before disabling
+     */
+    Device(DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000);
 
-	/* Sets the UID of the Device */
-	void set_uid (uint64_t uid);
+    // Sets the UID of the Device
+    void set_uid(uint64_t uid);
 
-	/* Generic device loop function that wraps all device actions
-	 * Asks messenger to read any incoming messages and responds appropriately
-	 * Sends PING and DEVICE_DATA at specified interval
-	 * Sends log messages if any
-	 * calls device_actions() to do device-type-specific actions
-	 */
-	void loop ();
+    /**
+     * Generic device loop function that wraps all device actions.
+     * Asks Messenger to read any incoming messages and responds appropriately.
+     * Sends DEVICE_DATA at specified interval.
+     * Sends log messages if any are queued.
+     * Processes inocming DEVICE_WRITE messages.
+     * Calls device_actions() to do device-type-specific actions.
+     */
+    void loop();
 
-	//************************************** DEVICE-SPECIFIC METHODS ************************************** //
-	/* These functions are meant to be overridden by overridden by each device as it sees fit.
-	* There are default dummy implementations of all these functions that do nothing so that the program will not
-	* crash if they are not overwritten (for example, you don't need to overwrite device_write for a device that
-	* has only read-only parameters).
-	*/
+    // ********************** DEVICE-SPECIFIC METHODS *********************** //
 
-	/* This function is called periodically to build a DEVICE_DATA message
-	 * It modifies DATA_BUF to contain the most recent value of parameter PARAM.
-	 * param      -   Parameter index (0, 1, 2, 3 ...)
-	 * data_buf   -   Buffer to return data in, little-endian
-	 * buf_len    -   Number of bytes available in data_buf to store data
-	 *
-	 * return     -   sizeof(<parameter_value>) on success; 0 otherwise
-	 */
-	virtual size_t device_read (uint8_t param, uint8_t *data_buf);
+    /* These functions are meant to be overridden by overridden by each device.
+     * The default implementations do nothing.
+     * For example, you don't need to overwrite device_write() for a device that
+     * has only read-only parameters).
+     */
 
-	/* This function is called when the device receives a DEVICE_WRITE message
-	 * Updates PARAM to new value contained in DATA_BUF.
-	 * param      -   Parameter index (0, 1, 2, 3 ...)
-	 * data_buf   -   Contains value to write, little-endian
-	 *
-	 * return     -   sizeof(<parameter_value>) on success; 0 otherwise
-	 */
-	virtual size_t device_write (uint8_t param, uint8_t *data_buf);
+    /**
+     * Reads the value of a paramter into a buffer.
+     * Helper function used to build a DEVICE_DATA message.
+     * Arguments:
+     *    param: The 0-indexed index of the parameter to read
+     *    data_buf: The buffer to read the parameter value into
+     * Returns:
+     *    the size of the parameter read into the buffer, or
+     *    0 on failure
+     */
+    virtual size_t device_read(uint8_t param, uint8_t *data_buf);
 
-	/* This function is called in the Device constructor
-	 * It should do whatever setup is necessary for the device to operate.
-	 */
-	virtual void device_enable ();
+    /**
+     * Writes the value of a parameter from a buffer into the device
+     * Helper function used to process a DEVICE_WRITE message.
+     * Arguments:
+     *    param: The 0-indexed index of the parameter being written
+     *    data_buf: Buffer containing the parameter value being written
+     * Returns:
+     *    the size of the parameter that was written, or
+     *    0 on failure.
+     */
+    virtual size_t device_write(uint8_t param, uint8_t *data_buf);
 
-	/* This function is called when the device hasn't received a PING message
-	 * from dev handler for the specified timeout duration.
-	 * It should do whatever cleanup is necessary for the device to disable.
-	 */
-	virtual void device_disable ();
+    /**
+     * Performs necessary setup for the device to operate.
+     * Called in the Device constructor
+     */
+    virtual void device_enable();
 
-	/* This function is called each time the device goes through the main loop.
-	 * Any continuously updating actions the device needs to do should be placed
-	 * in this function.
-	 * IMPORTANT: This function should not block!
-	 */
-	virtual void device_actions ();
+    /**
+     * Performs necessary cleanup to disable the device
+     * Called when the device hasn't received a PING message from dev handler
+     * for the specified timeout duration.
+     */
+    virtual void device_disable();
+
+    /**
+     * The "main" function of a device, performing continuously updating actions.
+     * This function SHOULD NOT block. It is called in each iteration of
+     * Device::loop().
+     * It performs continuous actions that the device should do
+     * For example, the motor controller would move the motors
+     */
+    virtual void device_actions();
 
 protected:
     Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
     uint8_t enabled;
 
 private:
-	const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
-	const static float MIN_SUB_INTERVAL_MS;  // Minimum tolerable subscription delay, in ms
+    const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
+    const static float MIN_SUB_INTERVAL_MS;  // Minimum tolerable subscription delay, in ms
 
-	StatusLED *led;                   // The LED on the Arduino
-	dev_id_t dev_id;                  // dev_id of this device determined when flashing
-	uint32_t params;                  // Bitmap of parameters subscribed to by dev handler
-	uint16_t sub_interval;            // Time between sending new DEVICE_DATA messages
-	uint32_t timeout;                 // Maximum time (ms) we'll wait between PING messages from dev handler
-	uint64_t last_sent_data_time;     // Timestamp of last time we sent DEVICE_DATA due to Subscription
-	uint64_t last_received_ping_time; // Timestamp of last time we received a PING
-	uint64_t curr_time;               // The current time
-	message_t curr_msg;               // current message being processed
+    StatusLED *led;                   // The LED on the Arduino
+    dev_id_t dev_id;                  // dev_id of this device determined when flashing
+    uint32_t params;                  // Bitmap of parameters subscribed to by dev handler
+    uint16_t sub_interval;            // Time between sending new DEVICE_DATA messages
+    uint32_t timeout;                 // Maximum time (ms) we'll wait between PING messages from dev handler
+    uint64_t last_sent_data_time;     // Timestamp of last time we sent DEVICE_DATA due to Subscription
+    uint64_t last_received_ping_time; // Timestamp of last time we received a PING
+    uint64_t curr_time;               // The current time
+    message_t curr_msg;               // current message being processed
 
-	//Builds a DEVICE_DATA message by reading all subscribed params
-	void device_read_params (message_t *msg);
+    /**
+     * Builds a DEVICE_DATA message by reading all subscribed parameters.
+     * Arguments:
+     *    msg: An empty message to be populated with parameter values ready for sending.
+     */
+    void device_read_params(message_t *msg);
 
-	//Writes to device parameters using input MSG of type DEVICE_WRITE
-	void device_write_params (message_t *msg);
+    /**
+     * Writes to device parameters given a DEVICE_WRITE message.
+     * Arguments:
+     *    msg: A DEVICE_WRITE message containing parameters to write to the device.
+     */
+    void device_write_params(message_t *msg);
 };
 
 #endif

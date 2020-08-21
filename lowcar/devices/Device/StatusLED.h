@@ -1,6 +1,5 @@
-/*
+/**
  * A class to handle whether to turn on or off the LED on the Arduino.
- * The LED's state is toggled when there are parsing errors (See Device.cpp)
  */
 
 #ifndef STATUSLED_H
@@ -21,12 +20,12 @@ public:
 
     // Blink slowly NUM times
     void slow_blink(int num);
-    
+
 private:
     const static int LED_PIN = 17; // pin to control the LED
     bool led_enabled; // keeps track of whether LED is on or off
 
-    // Blinks NUM times, waiting DURATION milliseconds between the toggles, and SPACE milliseconds between each blink
+    // Blinks NUM times, waiting MS ms between the toggles, and SPACE ms between each blink
     void blink(int num, int ms, int space);
 };
 
