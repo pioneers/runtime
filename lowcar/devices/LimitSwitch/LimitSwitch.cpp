@@ -1,6 +1,7 @@
 #include "LimitSwitch.h"
 
-const int LimitSwitch::NUM_SWITCHES = 3; // number of switches on a limit switch (how many input pins)
+// number of switches on a limit switch (how many input pins)
+const int LimitSwitch::NUM_SWITCHES = 3;
 const uint8_t LimitSwitch::pins[] = {
     (const uint8_t) Analog::IO0,
     (const uint8_t) Analog::IO1,

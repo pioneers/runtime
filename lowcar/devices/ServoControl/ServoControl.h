@@ -7,12 +7,20 @@
 
 class ServoControl : public Device {
 public:
-    // Constructor
+    /**
+     * Initializes servos and disables them
+     */
     ServoControl();
 
     // Overridden functions
     // Comments/descriptions can be found in source file and in Device.h
     virtual size_t device_read(uint8_t param, uint8_t *data_buf);
+
+    /**
+     * Updates provided servo position.
+     * Updates pulse width associated with specified servo
+     * Attaches servo at param to corresponding pin if not attached yet
+     */
     virtual size_t device_write(uint8_t param, uint8_t *data_buf);
     virtual void device_disable(); // calls helper disableAll() to detach all servos
 
@@ -24,7 +32,7 @@ private:
     float *positions;
 
     // detaches all servos
-    void disable_all ();
+    void disable_all();
 };
 
 #endif
