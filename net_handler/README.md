@@ -10,7 +10,6 @@ The communication streams can be split into a TCP connection and UDP connection.
 * protos/ - contains the Protobuf definitions of all our network messages
 * pbc_gen/ - the corresponding C code that is generated from the Protobufs using protobuf-c
 * protobuf_tests/ - contains several test files to ensure that the Protobuf message passing/reading works
-* test/ - contains test clients for TCP and UDP that imitate Dawn and Shepherd
 * net_handler.c - main entry file that starts UDP and accepts TCP connections
 * net_util.c - helper functions to communicate with the TCP sockets
 * tcp_conn.c - handles the TCP connection
@@ -66,9 +65,8 @@ The challenge inputs and outputs are communicated with the executor using UNIX s
 
 ## Building
 
-You can make all files with `make`. If you want to make them individually, first make the protobuf definitions with `make gen_proto`. Then make the `net_handler` with `make net_handler`. Finally if you want to make the test clients, do `make tcp_client` or `make udp_client`.
+You can make all files with `make`. If you want to make them individually, first make the protobuf definitions with `make gen_proto`. Then make the `net_handler` with `make net_handler`. 
 
 ## Testing
 
-The device handler must be running before the network handler starts. You can do this using a dummy `dev_handler` by doing `cd ../shm_wrapper && make static` then `./static`. Then you can spawn the `net_handler` and `executor` with `./net_handler` in one terminal and `./executor` in another. Make sure that you've built the `executor` first, instructions can be found in the `executor` README. Finally you can test either TCP or UDP by running `./tcp_client` or `./udp_client` respectively.
-
+The `net_handler` can be tested using the `net_handler_cli` in the `tests` directory; many automated tests in `tests/integration` also work to test the `net_handler`'s functionality. Shared memory must exist before `net_handler` can be run successfully. See the `README` in the `tests` folder, as well as the [testing framework wiki page](https://github.com/pioneers/runtime/wiki/Test-Framework) for more information.

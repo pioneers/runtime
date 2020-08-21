@@ -6,8 +6,7 @@ GEN_FOLDER=pbc_gen
 TEST_FOLDER=protobuf_tests
 GEN_FILES:=$(GEN_FOLDER)/*.c
 
-
-all: $(GEN_FOLDER)/* net_handler udp_client tcp_client
+all: $(GEN_FOLDER)/* net_handler
 
 $(GEN_FOLDER)/*: $(wildcard protos/*.proto)
 	cd protos && protoc-c --c_out ../$(GEN_FOLDER) *.proto
@@ -16,8 +15,6 @@ clean:
 	rm -f $(GEN_FOLDER)/*
 	rm -f $(shell find protobuf_tests -type f ! -name "*.*")
 	rm -f net_handler
-	rm -f tcp_client
-	rm -f udp_client
 
 proto_tests: $(GEN_FOLDER)/* log runmode gpstate devdata
 
@@ -41,10 +38,4 @@ server: protobuf_tests/tcp_pb_server.c pbc_gen/text.pb-c.c
 	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
 
 net_handler: net_util.c net_handler.c udp_conn.c tcp_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c 
-	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS) 
-
-udp_client: test/udp_client.c ../logger/logger.c ../runtime_util/runtime_util.c
-	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS)
-
-tcp_client: test/tcp_client.c net_util.c ../logger/logger.c ../runtime_util/runtime_util.c
 	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS)
