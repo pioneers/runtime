@@ -35,25 +35,23 @@ static void ctrl_GREEN(float duty_cycle, float deadband) {
     }
 }
 
-// place all LED control functions in here
 void ctrl_LEDs(float duty_cycle, float deadband) {
     ctrl_RED(duty_cycle, deadband);
     ctrl_YELLOW(duty_cycle, deadband);
     ctrl_GREEN(duty_cycle, deadband);
 }
 
-// sets the output modes of the three LEDs to OUTPUT and blinks them to make sure they work
 void setup_LEDs() {
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_RED, OUTPUT);
     pinMode(LED_YELLOW, OUTPUT);
-    
+
     digitalWrite(LED_GREEN,HIGH);
     digitalWrite(LED_RED,HIGH);
     digitalWrite(LED_YELLOW,HIGH);
-    
+
     delay(1000);
-    
+
     digitalWrite(LED_GREEN,LOW);
     digitalWrite(LED_RED,LOW);
     digitalWrite(LED_YELLOW,LOW);
