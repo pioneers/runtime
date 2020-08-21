@@ -1,10 +1,10 @@
 Travis CI Master Build ![](https://travis-ci.org/pioneers/runtime.svg?branch=master)
 
-# PiE C-Runtime
+# PiE Runtime
 
 Welcome to the PiE Runtime repo! This README will only cover how to install, build, and run Runtime. If you want to learn more info about how Runtime works, or are a new member, please check out our wiki https://github.com/pioneers/c-runtime/wiki.
 
-This is a diagram of the entirety of Runtime. To download and view in detail, see `images/Runtime-Diagram.png`:
+This is a diagram of the entirety of Runtime. To download and view in detail, see `docs/Runtime-Diagram.png`:
 
 ![runtime-diagram](docs/Runtime-Diagram.png)
 
@@ -20,8 +20,18 @@ Runtime can be divided into a few neatly containerized parts:
 * **The Device Code**: codenamed "`lowcar`" <sup id="return1">[1](#footnote1)</sup> this is the set of all the code on the Arduinos that directly control an individual device that is connected to the robot. All of this code is collectively called the "lowcar library".
 * **The Systemd Services**: this is a collection of system services that allow Runtime to start automatically when the Raspberry Pi is turned on, recover when Runtime crashes, and automatically get and install new Runtime updates from this Github.
 * **The Runtime Utility**: this is a collection of helper functions and defined constants that are used throughout Runtime. Most of them have to do with certain Runtime configuration values, maximum sizes for certain messages, or retrieving information about the different types of `lowcar` devices.
+* **The Scripts**: this is a collection of shell scripts that do general things to all of Runtime, such as build it, run it, and test it. There is also a tool to flash `lowcar` devices. All of them are called by the `runtime` script in the root directory.
 
-This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/c-runtime/wiki. However, we will describe briefly the data that flows between the various parts, and the manner in which that data is sent:
+In addition to these parts, there are a number of configuration files for Runtime to manage the various tools that we use. They are listed here, with a brief explanation about what they do:
+
+* **`.dockerignore`: this file lists out all of the directories, files, and other information that we do not want to include when building Runtime's Docker image.
+* **`.gitignore`: this file lists out all of the directories and files that we don't want in our Git repository. This includes things like executables, build files, and `.DS_Store`.
+* **`.gitattributes`: this file is purely for aesthetic purposes. It tells Github which files to exclude when calculating the repository language makeup you see in the repo (below the "Contributors" section in the sidebar on the web page that you're probably looking at right now).
+* **`.travis.yml`: this file tells Travis (the continuous integration tool that we use) what to run when checking if Runtime is working properly before a new feature is merged into the master branch. It is essentially responsible for running the integration tests and for updating Runtime's Docker image.
+* **`docker-compose.yml`: this file is used to give meaning to the command `docker-compose up`, which we have defined here to be a combination of the commands `docker build` and then `docker run`.
+* **`runtime`: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, and allows us to issue intuitive commmands like `runtime build`, for example, which (expectedly) builds Runtime.
+
+This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/runtime/wiki. However, we will describe briefly the data that flows between the various parts, and the manner in which that data is sent:
 
 * `net_handler` communicates with both Dawn and Shepherd. It receives start and stop commands, input data for the coding challenge, and information about the gamepad state. It sends log messages, data about the connected devices, and output data for the coding challenge. This data is sent over both TCP and UDP connections (depending on the type of data) to Shepherd and Dawn, and the data is packaged using Google Protocol Buffers.
 * `dev_handler` and `net_handler` are connected via `shm_wrapper`. This connection is used for the `net_handler` to fetch the most recent state of the connected devices, which is then sent to Dawn for the students to see.
@@ -72,19 +82,19 @@ On Debian/Raspbian Linux:
 3. You may need to install some tools (`libtool`, `pkg-config`, `g++`). To check if you have them already, run `which <tool-name>`, and if the computer spits out a path, then you don't have to install it. For example, to check if you have `libtool`, run `which libtool` and if you have it you should get something like `/usr/bin/libtool` or `/usr/local/bin/libtool`
 	1. to install a tool you don't have, run `sudo apt-get -y install <tool-name>`, replace `<tool-name>` with what you want to install.
 4. `cd` into the folder for `protobuf-cpp-<release>.tar.gz` and run:
-	2. `./configure`
-	3. `make` (this takes a while)
-	4. `make check` (this takes a while)
-	5. `sudo make install`
+	1. `./configure`
+	2. `make` (this takes a while)
+	3. `make check` (this takes a while)
+	4. `sudo make install`
 5. `cd` into the folder for `protobuf-c-<release>.tar.gz` and run:
-	6. `./configure`
-	7. `make`
-	8. `sudo make install`
+	1. `./configure`
+	2. `make`
+	3. `sudo make install`
 6. (optional) Check to make sure it works by recreating the example `AMessage` at the protobuf-c wiki: https://github.com/protobuf-c/protobuf-c/wiki/Examples
 7. (optional) To view `protobuf-c` documentation:
-	9. Install `doxygen`: `sudo apt-get -y install doxygen`
-	10. Repeat steps 5.i and 5.ii from above in the `protobuf-c` directory, then do `make html`
-	11. Then do `open -a <web_browser> html/index.html` to see the documentation in your web browser (replace `<web_browser>` with your favorite browser: `Opera`, `Safari`, `Chrome`, etc.)
+	1. Install `doxygen`: `sudo apt-get -y install doxygen`
+	2. Repeat steps 5.i and 5.ii from above in the `protobuf-c` directory, then do `make html`
+	3. Then do `open -a <web_browser> html/index.html` to see the documentation in your web browser (replace `<web_browser>` with your favorite browser: `Opera`, `Safari`, `Chrome`, etc.)
 
 #### To download and extract a `tar` file <a name="extract"> </a>
 First, download the tar archive into your current working directory with `wget https://github.com/protocolbuffers/protobuf/releases/download/<release>.tar.gz`. 
@@ -105,7 +115,7 @@ Assuming you've installed all dependencies, do `runtime build` to build the code
 
 ## Authors
 
-The first version of `c-runtime` was written in the summer of 2020 (when we all had lots of time.... fuck covid and trump) nearly entirely by:
+The first version of `runtime` in C was written in the summer of 2020 (when we all had lots of time.... fuck covid and trump) nearly entirely by:
 
 * Ben Liao
 * Ashwin Vangipuram

@@ -1,5 +1,10 @@
 #include "../test.h"
 
+/**
+ * This test checks to make sure that device subscriptions made to nonexistent devices
+ * from Dawn are rejected by shared memory and an error message is sent back to Dawn.
+ */
+
 char check_output_1[] = "no device at dev_uid = 50, sub request failed\n";
 
 char check_output_2[] = "Invalid device subscription: device uid 50 is invalid\n";

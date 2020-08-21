@@ -109,7 +109,7 @@ static void recv_udp_data(int udp_fd) {
                     fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
                     break;
                 case (PARAM__VAL_BVAL):
-                    fprintf(udp_output_fp, "BOOL with value %d\n", dev_data->devices[i]->params[j]->bval);
+                    fprintf(udp_output_fp, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
                     break;
                 default:
                     fprintf(udp_output_fp, "ERROR: no param value");
