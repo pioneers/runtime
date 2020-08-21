@@ -29,7 +29,7 @@ def constant_print(msg):
 def autonomous_setup():
     print('Autonomous setup has begun!')
     print(f"Starting position: {Robot.start_pos}")
-    
+
     # Robot.run(autonomous_actions)
     # Robot.run(set_motor)
     Robot.set_value(MOTOR, 'duty_cycle_a', 0.2)
@@ -53,7 +53,7 @@ def autonomous_main():
         # Robot.run(double, 5.0)
     i += 1
     Robot.set_value(MOTOR, 'enc_b', .12)
-    
+
     # while True: pass
     # print("testing whether thread dies", time.time())
     # print('Running autonomous main ...')
@@ -79,22 +79,22 @@ def teleop_setup():
 def teleop_main():
     # print('Running teleop main ...')
     # print(Gamepad.get_value('a'))
-    # print('A -> ', Gamepad.get_value('button_a'))
-    # print('B -> ', Gamepad.get_value('button_b'))
-    # print('X -> ', Gamepad.get_value('button_x'))
-    # print('Y -> ', Gamepad.get_value('button_y'))
-    # print('Xbox -> ', Gamepad.get_value('button_xbox'))
-    # print('Dpad up -> ', Gamepad.get_value('dpad_up'))
-    # print('joystick_left_x -> ', Gamepad.get_value('joystick_left_x'))
-    # print('joystick_right_y -> ', Gamepad.get_value('joystick_right_y'))
+    # print('A -> ', Gamepad.get_value('a_button'))
+    # print('B -> ', Gamepad.get_value('b_button'))
+    # print('X -> ', Gamepad.get_value('x_button'))
+    # print('Y -> ', Gamepad.get_value('y_button'))
+    # print('Xbox -> ', Gamepad.get_value('xbox_button'))
+    # print('Up Dpad -> ', Gamepad.get_value('up_dpad'))
+    # print('x_left_joystick -> ', Gamepad.get_value('x_left_joystick'))
+    # print('y_right_joystick -> ', Gamepad.get_value('y_right_joystick'))
 
     # print('=>', Robot.get_value('my_rfid', 'id'), Robot.get_value('my_rfid2', 'tag_detect'))
-    
-    Robot.set_value(MOTOR, 'duty_cycle_b', Gamepad.get_value('joystick_left_x'))
+
+    Robot.set_value(MOTOR, 'duty_cycle_b', Gamepad.get_value('x_left_joystick'))
     pos = Robot.get_value(MOTOR, 'enc_a')
 
-    if Gamepad.get_value('button_a'):
-        global i, start 
+    if Gamepad.get_value('a_button'):
+        global i, start
         if i % 10000 == 0:
             print("Iteration:", i, time.time() - start)
             start = time.time()
