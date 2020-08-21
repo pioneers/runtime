@@ -4,7 +4,7 @@
 #define Serial SERIAL_PORT_USBVIRTUAL // Patch to work with Sparkfun Razor IMU
 #endif
 
-//************************************* MESSENGER CLASS CONSTANTS *********************************** //
+// ************************ MESSENGER CLASS CONSTANTS *********************** //
 
 // Final encoded data sizes
 const int Messenger::DELIMITER_BYTES = 1;       // Bytes of the delimiter
@@ -20,7 +20,7 @@ const int Messenger::DEV_ID_TYPE_BYTES = 2;     // Bytes in device type field of
 const int Messenger::DEV_ID_YEAR_BYTES = 1;     // Bytes in year field of dev id
 const int Messenger::DEV_ID_UID_BYTES = 8;      // Bytes in uid field of dev id
 
-//************************************** MESSENGER CLASS METHODS ************************************//
+// ************************* MESSENGER CLASS METHODS ************************ //
 
 Messenger::Messenger() {
     Serial.begin(115200); // open Serial (USB) connection
@@ -40,7 +40,7 @@ Status Messenger::send_message(MessageID msg_id, message_t *msg, dev_id_t *dev_i
 
     /*
      * Build the message
-     * All other Message Types (DEVICE_DATA, LOG) should already be built (if needed) 
+     * All other Message Types (DEVICE_DATA, LOG) should already be built (if needed)
      */
     if (msg_id == MessageID::ACKNOWLEDGEMENT) {
         int status = 0;
@@ -129,11 +129,6 @@ Status Messenger::read_message (message_t *msg) {
     return Status::SUCCESS;
 }
 
-/*
- *  Used to printf from Arduino.
- *  Adds the formatted string to a queue to be sent over serial on lowcar_flush()
- *  DEV_HANDLER will process the log and send to runtime logger
- */
 void Messenger::lowcar_printf(char* format, ...) {
     // Double the queue size if it's full
     if (this->num_logs == this->log_queue_max_size) {
@@ -152,22 +147,12 @@ void Messenger::lowcar_printf(char* format, ...) {
     this->num_logs++;
 }
 
-/*
- *  Workaround to queue a log with a float value
- *  Using lowcar_printf() on a float causes the character "?"
- *  to print instead of the real value
- *  Sends a log with the string: "<name>: <val>"
- *  Where val is displayed up to the thousandths place
- */
 void Messenger::lowcar_print_float(char *name, float val) {
     int whole_val = (int) val;  // Part of val to the left of the decimal point
     int thousandths = (int) ((val - whole_val) * 1000); // The 3 digits to the right of the decimal point
     this->lowcar_printf("%s: %d.%03d", name, whole_val, thousandths);
 }
 
-/*
- *  Sends strings in the log queue to DEV_HANDLER and clears the queue
- */
 void Messenger::lowcar_flush() {
     // don't send anything if no logs
     if (this->num_logs == 0) {
@@ -187,14 +172,8 @@ void Messenger::lowcar_flush() {
     this->num_logs = 0;
 }
 
-//************************************** HELPER METHODS *****************************************//
+// ***************************** HELPER METHODS ***************************** //
 
-/*
- *  Appends DATA of length LENGTH bytes to the end of MSG->PAYLOAD
- *  MSG->payload_length is incremented accordingly
- *  Returns 0 on success
- *  Returns -1 if LENGTH is too large
- */
 int Messenger::append_payload(message_t *msg, uint8_t *data, uint8_t length) {
     if (msg->payload_length + length > MAX_PAYLOAD_SIZE) {
         return -1;
@@ -204,15 +183,12 @@ int Messenger::append_payload(message_t *msg, uint8_t *data, uint8_t length) {
     return 0;
 }
 
-// Serializes the fields in MSG into byte array DATA
 void Messenger::message_to_byte(uint8_t *data, message_t *msg) {
     data[0] = (uint8_t) msg->message_id;
     data[1] = msg->payload_length;
     memcpy(&data[2], msg->payload, msg->payload_length);
 }
 
-// returns an 8-bit checksum of data array, computed by
-// bitwise-XOR'ing each byte in order with the checksum
 uint8_t Messenger::checksum (uint8_t *data, int length) {
     uint8_t chk = data[0];
     for (int i = 1; i < length; i++) {
@@ -221,12 +197,7 @@ uint8_t Messenger::checksum (uint8_t *data, int length) {
     return chk;
 }
 
-//******************************** COBS ENCODING ********************************//
-
-/*
- * Cobs, short for Consistent Overhead Byte Stuffing, is an algorithm for preparing / encoding data for
- * transport. Read more here: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
- */
+// ***************************** COBS ENCODING ****************************** //
 
 #define finish_block() {        \
     *block_len_loc = block_len; \
@@ -235,8 +206,6 @@ uint8_t Messenger::checksum (uint8_t *data, int length) {
     block_len = 0x01;           \
 }
 
-// Encodes src into dst and returns the size of dst. Note that dst will have no
-// more overhead than 1 byte per 254 bytes. src must not overlap dst.
 size_t Messenger::cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len) {
     const uint8_t *end = src + src_len;
     uint8_t *block_len_loc = dst++;
@@ -260,7 +229,6 @@ size_t Messenger::cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len) 
     return out_len;
 }
 
-// Decodes src into dst and returns the size of dst. src may overlap dst.
 size_t Messenger::cobs_decode(uint8_t *dst, const uint8_t *src, size_t src_len) {
     const uint8_t *end = src + src_len;
     size_t out_len = 0;
