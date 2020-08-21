@@ -6,7 +6,7 @@
 
 class LimitSwitch : public Device {
 public:
-    // constructs a LimitSwitch; simply calls generic Device constructor with device type and year
+    // Simply calls generic Device constructor with device type and year
     LimitSwitch();
 
     // overridden functions from Device class; see descriptions in Device.h
@@ -14,8 +14,10 @@ public:
     virtual void device_enable();
 
 private:
-    const static int NUM_SWITCHES; // number of switches (one switch per pin) on a limit switch
-    const static uint8_t pins[]; // pins that the limit switch reads data from (defined in defs.h)
+    // number of switches (one switch per pin) on a limit switch
+    const static int NUM_SWITCHES;
+    // pins that the limit switch reads data from (defined in defs.h)
+    const static uint8_t pins[];
 };
 
 #endif
