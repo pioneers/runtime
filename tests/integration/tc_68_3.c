@@ -7,11 +7,11 @@
 
 char check_output_1[] = "no device at dev_uid = 50, sub request failed\n";
 
-char check_output_2[] = "Invalid device subscription: device uid 50 is invalid\n";
+char check_output_2[] = "recv_new_msg: Invalid device subscription, device uid 50 is invalid\n";
 
 char check_output_3[] = "no device at dev_uid = 100, sub request failed\n";
 
-char check_output_4[] = "Invalid device subscription: device uid 100 is invalid\n";
+char check_output_4[] = "recv_new_msg: Invalid device subscription, device uid 100 is invalid\n";
 
 int main() {
 	// setup
