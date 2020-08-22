@@ -1,8 +1,6 @@
-Travis CI Master Build ![](https://travis-ci.org/pioneers/c-runtime.svg?branch=master)
+# PiE Runtime [![Build Status](https://travis-ci.org/pioneers/runtime.svg?branch=master)](https://travis-ci.org/pioneers/runtime)
 
-# PiE Runtime
-
-Welcome to the PiE Runtime repo! This README will only cover how to install, build, and run Runtime. If you want to learn more info about how Runtime works, or are a new member, please check out our wiki https://github.com/pioneers/c-runtime/wiki.
+Welcome to the PiE Runtime repo! This README will only cover how to install, build, and run Runtime. If you want to learn more info about how Runtime works, or are a new member, please check out our wiki https://github.com/pioneers/runtime/wiki.
 
 This is a diagram of the entirety of Runtime. To download and view in detail, see `docs/Runtime-Diagram.png`:
 
@@ -31,43 +29,29 @@ In addition to these parts, there are a number of configuration files for Runtim
 * **`docker-compose.yml`**: this file is used to describe to the `docker-compose` command what to run.
 * **`runtime`**: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, and allows us to issue intuitive commmands like `runtime build`, for example, which (expectedly) builds Runtime.
 
-This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/runtime/wiki. However, we will describe briefly the data that flows between the various parts, and the manner in which that data is sent:
-
-* `net_handler` communicates with both Dawn and Shepherd. It receives start and stop commands, input data for the coding challenge, and information about the gamepad state. It sends log messages, data about the connected devices, and output data for the coding challenge. This data is sent over both TCP and UDP connections (depending on the type of data) to Shepherd and Dawn, and the data is packaged using Google Protocol Buffers.
-* `dev_handler` and `net_handler` are connected via `shm_wrapper`. This connection is used for the `net_handler` to fetch the most recent state of the connected devices, which is then sent to Dawn for the students to see.
-* `executor` and `net_handler` are connected via `shm_wrapper_aux` and a UNIX Socket. The connections are used to pass information about the coding challenge (both inputs to the functions and the student's outputs), and for `executor` to know what to run at any given time (autonomous mode, teleop mode, coding challenges, or idle).
-* `executor` and `dev_handler` are connected via `shm_wrapper`. This connection is used for `executor` to send commands to the attached devices (tell a motor to run at a certain speed, move a servo to certain position, etc.), and for `dev_handler` to serve `executor` with the device data that it needs to run the student code.
-* `dev_handler` communicates with `lowcar` via serial connection. This connection is used to poll for new devices, detect when devices have disconnected, and send device data and commands between the Raspberry Pi and the Arduinos.
-* All three processes output log messages through the `logger` tool. If logs are to be sent over the network to Dawn, those logs are put into a FIFO pipe which is opened by `net_handler`, where the logs are processed and sent to Dawn.
-
+This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/runtime/wiki.
 
 ## Dependencies
 
-Runtime is a complex system and will require effort to learn and understand. Hopefully this list does not seem too daunting to you!
+Runtime is designed to be used on the Raspberry Pi, and with a distribution of Linux called Raspbian, a slight variant of the extremely popular Debian. We tested Runtime to work well on Linux systems. If you do not have a Linux system, please instead use Docker (which might even be easier than using Linux). The major benefit of using Docker is you can skip this entire dependency section. To learn more about it, check out the README in the `docker/` folder.
 
 ### Commonly Used Tools
 
 As a baseline, Runtime uses the following commonly used tools that should already be installed on your machine (if you don't have these, ask the Runtime Project Manager to help you install them):
 
-* Python 3.7 or later: we wrote `executor` using Python 3.7, so we only guarantee that these versions work as of now (although Python 3.6 should also work).
+* Python 3.7 or later: While Python 3.6 will work, we recommend using Python 3.7 as that's what the Raspberry Pis are using.
 * `gcc`: short for "GNU C Compiler", we use this compiler to generate executables from C source code.
-
-Runtime is designed to be used on the Raspberry Pi, and with a distribution of the Linux operating system (OS) called "Raspbian", a slight variant of the extremely popular "Debian" Linux. We tested Runtime to work well on Linux systems. If you do not have a Linux system, please instead use Docker (might even be easier than using Linux). To learn more about it, check out the README in the `docker/` folder.
 
 ### Third-party Library Dependencies
 
 Runtime has the following third-party library dependencies:
 
 * `Cython`: this library is used by `executor` to implement the Student API in a way that is both callable from Runtime (which is written in C) and from student code (which is written in Python)
-    * Documentation: https://cython.readthedocs.io/en/latest/
-* Google `protobuf` and `protobuf-c`: Google `protobuf` is the library that we use to serialize our messages between Runtime and Shepherd, and Runtime and Dawn. The brief explanation of how it works is this: the user defines the structure of a message in "protobuf language", and saves it as a `.proto` file. Google's protobuf compiler will then take that `.proto` file and generate code that can be used in a desired target language to serialize and deserialize ("pack" and "unpack" in the language of protobufs) messages of that type. Since Google's protobuf compiler does not have native support for C, we need to use the third party library `protobuf-c` to generate C code. (But `protobuf-c` makes use of Google's library, so we still need it).
-    * `proto3` language documentation / guide: https://developers.google.com/protocol-buffers/docs/proto3
-	* `protobuf` Github: https://github.com/protocolbuffers/protobuf
-	* `protobuf-c` Github: https://github.com/protobuf-c/protobuf-c
+    * Read more here https://github.com/pioneers/runtime/wiki/Cython
+* Google `protobuf` and `protobuf-c`: Google `protobuf` is the library that we use to serialize our messages between Runtime and Shepherd, and Runtime and Dawn. 
+	* Read more here https://github.com/pioneers/runtime/wiki/Protobufs
 
 #### Installing Cython
-
-On Debian / Raspbian Linux:
 
 1. `sudo apt-get -y install python3-dev`       (get `<Python.h>`, `libpython3.7m.so`)
 2. `sudo apt-get -y install python3-pip`       (get `pip`)
@@ -75,31 +59,33 @@ On Debian / Raspbian Linux:
 
 #### Installing Google Protobufs and `protobuf-c`
 
-On Debian/Raspbian Linux:
-
 1. From `https://github.com/protocolbuffers/protobuf/releases`, download the latest `protobuf-cpp-<release>.tar.gz` and extract it (for help, click [here](#extract))
 2. From `https://github.com/protobuf-c/protobuf-c/releases` download the latest `protobuf-c-<release>.tar.gz` and extract it (for help, click [here](#extract))
-3. You may need to install some tools (`libtool`, `pkg-config`, `g++`). To check if you have them already, run `which <tool-name>`, and if the computer spits out a path, then you don't have to install it. For example, to check if you have `libtool`, run `which libtool` and if you have it you should get something like `/usr/bin/libtool` or `/usr/local/bin/libtool`
-	1. to install a tool you don't have, run `sudo apt-get -y install <tool-name>`, replace `<tool-name>` with what you want to install.
+3. You may need to install some tools (`libtool`, `pkg-config`, `g++`). To install a tool you don't have, run `sudo apt-get -y install <tool-name>`, replace `<tool-name>` with what you want to install.
+
 4. `cd` into the folder for `protobuf-cpp-<release>.tar.gz` and run:
 	1. `./configure`
-	2. `make` (this takes a while)
-	3. `make check` (this takes a while)
-	4. `sudo make install`
+	2. `make` (this takes a long time)
+	3. `sudo make install`
+	4. `sudo ldconfig`
 5. `cd` into the folder for `protobuf-c-<release>.tar.gz` and run:
 	1. `./configure`
 	2. `make`
 	3. `sudo make install`
-6. (optional) Check to make sure it works by recreating the example `AMessage` at the protobuf-c wiki: https://github.com/protobuf-c/protobuf-c/wiki/Examples
-7. (optional) To view `protobuf-c` documentation:
+	4. `sudo ldconfig`
+6. (optional) To view `protobuf-c` documentation:
 	1. Install `doxygen`: `sudo apt-get -y install doxygen`
 	2. Repeat steps 5.i and 5.ii from above in the `protobuf-c` directory, then do `make html`
-	3. Then do `open -a <web_browser> html/index.html` to see the documentation in your web browser (replace `<web_browser>` with your favorite browser: `Opera`, `Safari`, `Chrome`, etc.)
+	3. Then navigate to that directory in Explorer/Finder and open the HTML file by double clicking on it
 
-#### To download and extract a `tar` file <a name="extract"> </a>
-First, download the tar archive into your current working directory with `wget https://github.com/protocolbuffers/protobuf/releases/download/<release>.tar.gz`. 
+#### To download and extract a `tar` file from the command line <a name="extract"> </a>
+First, download the tar archive into your current working directory with 
 
-Then, extract the files with `tar -xvf protobuf-cpp-<release>.tar.gz`.
+	wget https://github.com/protocolbuffers/protobuf/releases/download/<release>.tar.gz 
+
+Then, extract the files with 
+
+	tar -xzf protobuf-cpp-<release>.tar.gz
 
 You might need to install `wget` and `tar` with `sudo apt-get -y install wget tar`.
 

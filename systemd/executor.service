@@ -7,8 +7,8 @@ OnFailure=shm_stop.service
 [Service]
 Type=oneshot
 User=pi
-WorkingDirectory=/home/pi/c-runtime/executor
-ExecStart=/home/pi/c-runtime/executor/executor
+WorkingDirectory=/home/pi/runtime/executor
+ExecStart=/home/pi/runtime/executor/executor
 KillSignal=SIGINT
 
 [Install]

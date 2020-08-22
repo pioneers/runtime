@@ -36,10 +36,9 @@ int main() {
 		
     printf("Starting Executor CLI...\n");
     strcpy(student_code, "studentcode");
-    strcpy(challenge_code, "challenges");
-	
-    // start executor process
-    start_executor(student_code, challenge_code);
+	strcpy(challenge_code, student_code); // Change to "challenges" once Dawn separates challenges into another Python file	
+	//start executor process
+	start_executor(student_code, challenge_code);
 	
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {

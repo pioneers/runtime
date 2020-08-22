@@ -2,6 +2,7 @@
 .dockerignore
 .travis.yml
 */*.log
+docker/
 Dockerfile
 .vscode/
 images/

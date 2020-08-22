@@ -6,7 +6,7 @@ OnFailure=test1.service
 
 [Service]
 Type=oneshot
-ExecStart=/home/pi/c-runtime/systemd/script2.py
+ExecStart=/home/pi/runtime/systemd/script2.py
 KillSignal=SIGINT
 
 [Install]
