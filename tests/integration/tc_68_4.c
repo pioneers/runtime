@@ -2,7 +2,7 @@
 
 /**
  * This test ensures that with no devices connected to the system, the
- * shared memory starts sending custom data back to Dawn as soon as the 
+ * shared memory starts sending custom data back to Dawn as soon as the
  * first Gamepad State packet arrives on Runtime from Dawn.
  */
 
@@ -33,8 +33,8 @@ int main() {
 	start_shm();
 	start_net_handler();
 
-	// poke system
-	uint32_t buttons = (1 << A_BUTTON) | (1 << L_TRIGGER) | (1 << DOWN_DPAD);
+	//poke system
+	uint32_t buttons = (1 << BUTTON_A) | (1 << L_TRIGGER) | (1 << DPAD_DOWN);
 	float joystick_vals[] = { -0.1, 0.0, 0.1, 0.99 };
 	send_gamepad_state(buttons, joystick_vals);
 	print_shm();

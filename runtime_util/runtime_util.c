@@ -259,11 +259,11 @@ int8_t get_param_idx(uint8_t dev_type, char* param_name) {
 }
 
 char* BUTTON_NAMES[] = {
-    "a_button", "b_button", "x_button", "y_button", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
-    "back_button", "start_button", "l_stick", "r_stick", "up_dpad", "down_dpad", "left_dpad", "right_dpad", "xbox_button"
+    "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
+    "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"
 };
 char* JOYSTICK_NAMES[] = {
-    "x_left_joystick", "y_left_joystick", "x_right_joystick", "y_right_joystick"
+    "joystick_left_x", "joystick_left_y", "joystick_right_x", "joystick_right_y"
 };
 
 char** get_button_names() {

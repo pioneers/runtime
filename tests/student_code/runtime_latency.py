@@ -12,5 +12,5 @@ def teleop_setup():
     pass
 
 def teleop_main():
-    if Gamepad.get_value('a_button'):
+    if Gamepad.get_value('button_a'):
         Robot.set_value(time_dev, "GET_TIME", True)
