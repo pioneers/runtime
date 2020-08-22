@@ -10,9 +10,9 @@
 #define UID2 0x4321
 
 // global variables to hold device subscriptions
-dev_data_t dev1_subs = { UID1, "SimpleTestDevice", 0 };
-dev_data_t dev2_subs = { UID2, "SimpleTestDevice", 0 };
-dev_data_t dev_subs[2];
+dev_subs_t dev1_subs = { UID1, "SimpleTestDevice", 0 };
+dev_subs_t dev2_subs = { UID2, "SimpleTestDevice", 0 };
+dev_subs_t dev_subs[2];
 
 // check that certain names of parameters appear
 
@@ -35,7 +35,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
     // send the subscriptions
     dev_subs[0].params = dev1_params;
     dev_subs[1].params = dev2_params;
-    send_device_data(dev_subs, 2);
+    send_device_subs(dev_subs, 2);
     
     // verify that we're receiving only those parameters
     sleep(1);

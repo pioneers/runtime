@@ -515,7 +515,7 @@ void device_connect(dev_id_t dev_id, int *dev_ix) {
 		}
 	}
 	if (*dev_ix == MAX_DEVICES) {
-		log_printf(ERROR, "too many devices, connection unsuccessful");
+        log_printf(ERROR, "device_connect: maximum device limit %d reached, connection refused", MAX_DEVICES);
 		my_sem_post(catalog_sem, "catalog_sem"); // release the catalog semaphore
 		*dev_ix = -1;
 		return;
@@ -747,7 +747,7 @@ robot_desc_val_t robot_desc_read(robot_desc_field_t field) {
 	// wait on rd_sem
 	my_sem_wait(rd_sem, "robot_desc_mutex");
 
-	//r ead the value out, and turn off the appropriate element
+	// read the value out, and turn off the appropriate element
 	ret = rd_shm_ptr->fields[field];
 
 	// release rd_sem

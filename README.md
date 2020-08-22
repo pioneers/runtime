@@ -1,4 +1,4 @@
-Travis CI Master Build ![](https://travis-ci.org/pioneers/runtime.svg?branch=master)
+Travis CI Master Build ![](https://travis-ci.org/pioneers/c-runtime.svg?branch=master)
 
 # PiE Runtime
 
@@ -28,7 +28,7 @@ In addition to these parts, there are a number of configuration files for Runtim
 * **`.gitignore`**: this file lists out all of the directories and files that we don't want in our Git repository. This includes things like executables, build files, and `.DS_Store`.
 * **`.gitattributes`**: this file is purely for aesthetic purposes. It tells Github which files to exclude when calculating the repository language makeup you see in the repo (below the "Contributors" section in the sidebar on the web page that you're probably looking at right now).
 * **`.travis.yml`**: this file tells Travis (the continuous integration tool that we use) what to run when checking if Runtime is working properly before a new feature is merged into the master branch. It is essentially responsible for running the integration tests and for updating Runtime's Docker image.
-* **`docker-compose.yml`**: this file is used to give meaning to the command `docker-compose up`, which we have defined here to be a combination of the commands `docker build` and then `docker run`.
+* **`docker-compose.yml`**: this file is used to describe to the `docker-compose` command what to run.
 * **`runtime`**: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, and allows us to issue intuitive commmands like `runtime build`, for example, which (expectedly) builds Runtime.
 
 This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/runtime/wiki. However, we will describe briefly the data that flows between the various parts, and the manner in which that data is sent:

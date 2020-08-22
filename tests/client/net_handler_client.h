@@ -6,11 +6,11 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 
-typedef struct dev_data {
+typedef struct {
 	uint64_t uid;    // what the uid of this device is
 	char *name;      // name of this device ("KoalaBear", "LimitSwitch", etc.)
 	uint32_t params; // which params to subscribe to
-} dev_data_t;
+} dev_subs_t;
 
 /**
  * Starts the real net handler process and connects to all of its outputs
@@ -60,19 +60,19 @@ void send_gamepad_state(uint32_t buttons, float joystick_vals[4]);
  * Arguments:
  *    - client: one of SHEPHERD or DAWN
  *    - data: array of strings, each containing the input to the corresponding challenge
- *	  - num_hallenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
+ *	  - num_challenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
  * No return value.
  */
 void send_challenge_data(robot_desc_field_t client, char **data, int num_challenges);
 
 /**
- * Sends a Device Data message from Dawn over TCP with the specified device subscriptions
+ * Sends device subscriptions from Dawn over TCP with the specified device subscriptions
  * Arguments:
- *    - data: contains the subscriptions for the devices' parameters
+ *    - subs: contains the subscriptions for the devices' parameters
  *    - num_devices: contains number of devices for which we are sending subscription requests
  * No return value.
  */
-void send_device_data(dev_data_t *data, int num_devices);
+void send_device_subs(dev_subs_t *subs, int num_devices);
 
 /**
  * Calling this function will let the next device data packet coming into Dawn from Runtime
