@@ -237,13 +237,6 @@ static void *output_dump(void *args) {
             last_received_time = curr_time;
         }
 		
-        // if we were asked to print the next UDP, set the UDP pointer
-        pthread_mutex_lock(&print_udp_mutex);
-        if (print_next_udp) {
-            udp_output_fp = stdout;
-        }
-        pthread_mutex_unlock(&print_udp_mutex);
-
         // print stuff from whichever file descriptors are ready for reading...
         if (FD_ISSET(nh_tcp_shep_fd, &read_set)) {
             if (recv_tcp_data(SHEPHERD, nh_tcp_shep_fd) == -1) {
@@ -516,6 +509,7 @@ void send_device_subs(dev_subs_t *subs, int num_devices) {
 void print_next_dev_data() {
     pthread_mutex_lock(&print_udp_mutex);
     print_next_udp = 1;
+    udp_output_fp = stdout;
     pthread_mutex_unlock(&print_udp_mutex);
     usleep(400000); // allow time for output_dump to react and generate output before returning to client
 }
