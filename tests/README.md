@@ -1,6 +1,6 @@
 # Test Framework
 
-This folder contains all the files that we use for manual testing, interacting with Runtime without Dawn, and writing automated tests. The script `scripts/test.sh` is the file that actually runs the automated tests, and is also part of the test framework. For a more thorough discussion of testing philosophy and how these test clients work, see the [corresponding page in the Wiki](https://github.com/pioneers/runtime/wiki/Test-Framework).
+This folder contains all the files that we use for manual testing, interacting with Runtime without Dawn, and writing automated tests. The script `scripts/test.sh` is the file that actually runs the automated tests, and is also part of the test framework. To run the script, run the command `runtime test <test number>` (see the last section of this README). For a more thorough discussion of testing philosophy and how these test clients work, see the [corresponding page in the Wiki](https://github.com/pioneers/runtime/wiki/Test-Framework).
 
 
 ## Contents
@@ -28,6 +28,6 @@ First, do `make cli` in this directory. This will create four executables: `net_
 
 Automated tests should never be run from this directory; just use the shell script in the top-level directory. The test script has some built-in cleanup functions if you press `Ctrl-C` in the middle of running a test, and helpful error messages and status messages that will be helpful in understanding what's going on. It also builds Runtime for you before running the test, so that you can make sure you're running the test with the latest code changes you may have made locally on your machine.
 
-To run all tests, simply run `runtime test` from the top-level directory. This will take a while to run, so you usually don't need to run this unless you're about to push some major updates to the code to Github and want to verify that the tests pass before you push.
+To run all tests, simply run `runtime test` from any directory. This will take a while to run, so you usually don't need to run this unless you're about to push some major updates to the code to Github and want to verify that the tests pass before you push.
 
 To run one or more tests, run `runtime test integration/tc_<num> <... list all tests you want to run ... >` from the top-level directory.
