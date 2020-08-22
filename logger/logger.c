@@ -1,6 +1,4 @@
 #include "logger.h"
-#include <bits/stdint-uintn.h>
-#include <wordexp.h>
 
 // bit flags for setting logger output location
 #define LOG_STDOUT (1 << 0)
@@ -213,7 +211,7 @@ void logger_init(process_t process) {
     // if we want to log to log file, open it for appending
     if (OUTPUTS & LOG_FILE) {
         wordexp_t words;
-        wordexp(log_file_path, &words, 0);
+        wordexp(log_file_path, &words, 0); // Perform bash expansion to convert ~/ to the $HOME directory
         if (words.we_wordc == 0) {
             printf("ERROR: log file name %s has invalid format", log_file_path);
             exit(1);
