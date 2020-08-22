@@ -6,7 +6,7 @@ services:
             context: .
             dockerfile: docker/Dockerfile
         image: pierobotics/runtime:latest
-        command: bash -c "runtime build && runtime run"
+        command: bash -c "./runtime build && ./runtime run"
         volumes:
             # Changes in local runtime/ and container /root/runtime are synced
             - .:/root/runtime

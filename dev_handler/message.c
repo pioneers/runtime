@@ -98,7 +98,6 @@ static uint8_t checksum(uint8_t *data, size_t len) {
  *    The size of the encoded data, DST
  */
 static ssize_t cobs_encode(uint8_t *dst, const uint8_t *src, size_t src_len) {
-    uint8_t *start = dst;
     const uint8_t *end = src + src_len;
     uint8_t *block = dst; // Advancing pointer to start of each block
     dst++;

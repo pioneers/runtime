@@ -16,7 +16,7 @@ clean:
 	rm -f $(shell find protobuf_tests -type f ! -name "*.*")
 	rm -f net_handler
 
-proto_tests: $(GEN_FOLDER)/* log runmode gpstate devdata
+proto_tests: $(GEN_FOLDER)/* log runmode gpstate devdata client server
 
 log: log_in log_out
 runmode: runmode_in runmode_out

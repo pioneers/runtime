@@ -8,7 +8,7 @@ Our latest Docker images will be stored on Docker Hub here https://hub.docker.co
 
 To install Docker, go here https://docs.docker.com/get-docker/. Note that to install Docker for Windows 10 Home, you first need to install WSL 2 here https://docs.microsoft.com/en-us/windows/wsl/install-win10.
 
-# Basic Usage with Docker Compose
+# Usage with Docker Compose (Recommended)
 
 ## Installing
 
@@ -20,7 +20,7 @@ If you are on Windows/Mac, you will be using Docker Desktop which will already h
 
 If you are just starting out and want to get into development quickly, go to the `runtime` folder and do
 
-    docker-compose run runtime bash
+    docker-compose run --rm runtime bash
 
 which will begin a bash shell in the Docker container. From there you can call `runtime run` and the other `runtime` commands mentioned in the root README. Also, in another terminal you can do
 
@@ -30,12 +30,11 @@ to run/test other things within the container. By default, the `runtime/` git fo
 
 ## Stopping
 
-To stop the container, do 
+To stop the container, just exit all your shells or do 
 
     docker-compose down
 
-
-# Usage with Docker CLI
+# Usage with Docker CLI (Intermediate)
 
 ## Pulling
 
@@ -47,7 +46,7 @@ To get the image with the code from the `master` branch, do
 
 To build your own image instead of using the one on Docker Hub, so that it uses your up to date code instead of code on `master`, do
     
-    docker build -t pierobotics/runtime:latest -f docker/Dockerfile .
+    docker build -t pierobotics/runtime:latest -f docker/Dockerfile ./
 
 ## Running
 
@@ -67,9 +66,9 @@ If you want to mount the `runtime` folder to the Docker container, add the flag 
 
 ## Stopping
 
-To stop the container, either exit from the `./run.sh` shell with Ctrl+C or do `docker stop -t 5 $(docker ps -q)`.
+To stop the container, either exit from the `./runtime run` shell with Ctrl+C or do `docker stop -t 5 $(docker ps -q)` in a separate shell.
 
-# Advanced
+# Advanced Topics
 
 ## Multi-Architecture Images
 
@@ -77,7 +76,7 @@ The Raspberry Pi 4 uses the arm32/v7 architecture while most consumer computers 
 
 If you're on a x64 machine and would like to run the arm32 images instead though (other direction isn't possible), you first need to have QEMU, a binary emulator, installed. If you are on Windows/Mac and so have Docker Desktop, QEMU is already installed for you. If you are on Linux, you can install QEMU on Linux with `docker run --rm --privileged multiarch/qemu-user-static --reset -p yes`. Now you can build the `arm32` image with
 
-    DOCKER_CLI_EXPERIMENTAL=enabled docker build --platform linux/arm/v7 -t pierobotics/runtime:latest -f docker/Dockerfile .
+    DOCKER_CLI_EXPERIMENTAL=enabled docker build --platform linux/arm/v7 -t pierobotics/runtime:latest -f docker/Dockerfile ./
 
 ## Base Image (only for PMs)
 
@@ -85,6 +84,6 @@ We use a base image to make sure that the building of the actual image is fast. 
 
     cd docker/base
     DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --use      # Only needed the very first time on a computer
-    DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --platform linux/amd64,linux/arm/v7 --build-arg BUILDKIT_INLINE_CACHE=1 -t pierobotics/runtime:base --push .
+    DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --platform linux/amd64,linux/arm/v7 --build-arg BUILDKIT_INLINE_CACHE=1 -t pierobotics/runtime:base --push ./
 
 If you haven't run this already on your machine and so don't have local caches, it will take several hours. Importantly, this can only be run on x64 machines that have QEMU, a binary emulator, installed. If you're on Windows/Mac, Docker Desktop already has QEMU preinstalled. If you are using Linux, you will need to install QEMU before building by doing `docker run --rm --privileged multiarch/qemu-user-static --reset -p yes`.

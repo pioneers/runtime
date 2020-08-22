@@ -1,4 +1,6 @@
 #include "logger.h"
+#include <bits/stdint-uintn.h>
+#include <wordexp.h>
 
 // bit flags for setting logger output location
 #define LOG_STDOUT (1 << 0)
@@ -6,7 +8,7 @@
 #define LOG_NETWORK (1 << 2)
 
 #define NUM_CONFIGS 7             // number of configuration parameters in the config file
-#define MAX_CONFIG_LINE_LEN 512   // maximum length of a configuration file line, in chars
+#define MAX_CONFIG_LINE_LEN 256   // maximum length of a configuration file line, in chars
 
 #define PROCESS_STR_SIZE 32       // size in bytes of the process string
 
@@ -65,7 +67,7 @@ static void set_log_level(log_level_t *level, char *important) {
 static void open_fifo() {
     if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
         if (errno != ENXIO) { // don't show error if open failed because net_handler has not opened pipe for reading yet
-            perror("open: logger open FIFO failed");
+            printf("ERROR: logger open FIFO failed: %s", strerror(errno));
         }
     } else {
         fifo_up = 1;
@@ -90,72 +92,71 @@ static void read_config_file() {
     strcpy(last + 1, CONFIG_FILE); // append CONFIG_FILE to that path to get the path to logger file
 
     if ((conf_fd = fopen(file_buf, "r")) == NULL) {  // open the config file for reading
-        fprintf(stderr, "fopen: logger could not open config file %s: %s", file_buf, strerror(errno));
+        printf("ERROR: logger could not open config file %s: %s", file_buf, strerror(errno));
         exit(1);
     }
-
+    
     for (int i = 0; i < NUM_CONFIGS; i++) {
         // read until the next line read is not a comment or a blank line
         while (1)  {
             if (fgets(nextline, MAX_CONFIG_LINE_LEN, conf_fd) == NULL) {
                 if (feof(conf_fd)) {
-                    fprintf(stderr, "fgets: end of config file reached before all logger configurations read; exiting...");
+                    printf("ERROR: end of config file reached before all logger configurations read");
                     exit(1);
+                }
+                printf("ERROR: fgets error when reading logger config file %s: %s", file_buf, strerror(errno));
+                exit(1);
             }
-            perror("fgets: error when reading logger config file; exiting...");
-            exit(1);
+            // check if blank line
+            if (nextline[0] == '\n') {
+                continue;
+            }
+            // check if comment line
+            if (nextline[0] == '/' && nextline[1] == '/') {
+                continue;
+            }
+            break;
         }
-        // check if blank line
-        if (nextline[0] == '\n') {
-            continue;
-        }
-        // check if comment line
-        if (nextline[0] == '/' && nextline[1] == '/') {
-            continue;
-        }
-        break;
-    }
     
-    // get the configuration parameter in nextline sequentially
-    switch (i) {
-        case 0:
-            sscanf(nextline, "LOG_TO_STDOUT: %c%s", &important_char, not_important);
-            if (important_char == 'Y' || important_char == 'y') {
-                OUTPUTS |= LOG_STDOUT;
+        // get the configuration parameter in nextline sequentially
+        switch (i) {
+            case 0:
+                sscanf(nextline, "LOG_TO_STDOUT: %c%s", &important_char, not_important);
+                if (important_char == 'Y' || important_char == 'y') {
+                    OUTPUTS |= LOG_STDOUT;
+                }
+                break;
+            case 1:
+                sscanf(nextline, "LOG_TO_FILE: %c%s", &important_char, not_important);
+                if (important_char == 'Y' || important_char == 'y') {
+                    OUTPUTS |= LOG_FILE;
+                }
+                break;
+            case 2:
+                sscanf(nextline, "LOG_TO_NETWORK: %c%s", &important_char, not_important);
+                if (important_char == 'Y' || important_char == 'y') {
+                    OUTPUTS |= LOG_NETWORK;
+                }
+                break;
+            case 3:
+                sscanf(nextline, "STDOUT_LOG_LEVEL: %s", important);
+                set_log_level(&stdout_level, important);
+                break;
+            case 4:
+                sscanf(nextline, "FILE_LOG_LEVEL: %s", important);
+                set_log_level(&file_level, important);
+                break;
+            case 5:
+                sscanf(nextline, "NETWORK_LOG_LEVEL: %s", important);
+                set_log_level(&network_level, important);
+                break;
+            case 6:
+                sscanf(nextline, "LOG_FILE_LOC: %s", important);
+                strcpy(log_file_path, important);
+                break;
+            default:
+                printf("ERROR: unknown configuration line: %s\n", nextline);
             }
-            break;
-        case 1:
-            sscanf(nextline, "LOG_TO_FILE: %c%s", &important_char, not_important);
-            if (important_char == 'Y' || important_char == 'y') {
-                OUTPUTS |= LOG_FILE;
-            }
-            break;
-        case 2:
-            sscanf(nextline, "LOG_TO_NETWORK: %c%s", &important_char, not_important);
-            if (important_char == 'Y' || important_char == 'y') {
-                OUTPUTS |= LOG_NETWORK;
-            }
-            break;
-        case 3:
-            sscanf(nextline, "STDOUT_LOG_LEVEL: %s", important);
-            set_log_level(&stdout_level, important);
-            break;
-        case 4:
-            sscanf(nextline, "FILE_LOG_LEVEL: %s", important);
-            set_log_level(&file_level, important);
-            break;
-        case 5:
-            sscanf(nextline, "NETWORK_LOG_LEVEL: %s", important);
-            set_log_level(&network_level, important);
-            break;
-        case 6:
-            sscanf(nextline, "LOG_FILE_LOC: %s", important);
-            strcpy(log_file_path, important);
-            log_file_path[strlen(log_file_path)] = '\0'; // overwrite the newline at the end
-            break;
-        default:
-            fprintf(stderr, "unknown configuration line: %s\n", nextline);
-        }
     }
     
     // set the log level of an output location that isn't being used to FATAL
@@ -176,14 +177,14 @@ static void logger_exit() {
     // if outputting to file, close file stream
     if (OUTPUTS & LOG_FILE) {
         if (fclose(log_file) != 0) {
-            perror("fclose: log file close failed");
+            printf("ERROR: log file close failed: %s", strerror(errno));
         }
     }
     
     // if outputting to network, close file descriptor
     if ((OUTPUTS & LOG_NETWORK) && (fifo_up == 1)) {
         if (close(fifo_fd) != 0) {
-            perror("logger close FIFO failed");
+            printf("ERROR: logger close FIFO failed: %s", strerror(errno));
         }
     }
     
@@ -211,16 +212,25 @@ void logger_init(process_t process) {
     
     // if we want to log to log file, open it for appending
     if (OUTPUTS & LOG_FILE) {
+        wordexp_t words;
+        wordexp(log_file_path, &words, 0);
+        if (words.we_wordc == 0) {
+            printf("ERROR: log file name %s has invalid format", log_file_path);
+            exit(1);
+        }
+        strcpy(log_file_path, words.we_wordv[0]);
+        wordfree(&words);
+
         // call open first with O_CREAT to make sure the log file is created if it doesn't exist
         if ((temp_fd = open(log_file_path, O_RDWR | O_CREAT, 0666)) == -1) {
-            perror("open: logger could not create and/or open log file; exiting...");
+            printf("ERROR: logger could not create and/or open log file %s: %s\n", log_file_path, strerror(errno));
             exit(1);
         }
         close(temp_fd);
         
         // open with fopen to use stdio functions instead
         if ((log_file = fopen(log_file_path, "a")) == NULL) {  // open the config file for reading
-            perror("fopen: logger could not open log file; exiting...");
+            printf("ERROR: logger could not open log file %s: %s\n", log_file_path, strerror(errno));
             exit(1);
         }
     }
@@ -229,7 +239,7 @@ void logger_init(process_t process) {
     if (OUTPUTS & LOG_NETWORK) {
         if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
             if (errno != EEXIST) { // don't show error if mkfifo failed because it already exists
-                perror("mkfifo: logger create FIFO failed");
+                printf("ERROR: logger create FIFO failed: %s", strerror(errno));
             }
         }
         open_fifo();
@@ -309,7 +319,7 @@ void log_printf(log_level_t level, char *format, ...) {
             if (writen(fifo_fd, final_msg, strlen(final_msg)) == -1) {
                 // net_handler crashed or was terminated (sent SIGPIPE which was handled)
                 if (errno != EPIPE) {
-                    perror("write: writing to FIFO failed unexpectedly");
+                    printf("ERROR: writing to FIFO failed unexpectedly: %s", strerror(errno));
                 }
             }
         }
