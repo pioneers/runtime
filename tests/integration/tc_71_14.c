@@ -96,7 +96,7 @@ int main() {
     // All UnstableTestDevices should time out
     for (int i = NUM_GENERAL; i < NUM_UNSTABLE + NUM_GENERAL; i++) {
         sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_output(expected_output);
     }
     // GeneralTestDevices remain in shm after UnstableTestDevices time out
     for (int i = 0; i < NUM_GENERAL; i++) {
