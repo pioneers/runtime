@@ -83,11 +83,11 @@ static void read_config_file() {
     char important_char;
     FILE *conf_fd;
 
-    // this logic gets the absolute path of the logger config file
+    // this logic gets the path of the logger config file
     char file_buf[128] = {0};
     sprintf(file_buf, "%s", __FILE__); // __FILE__ is the path of this file on the system
     char *last = strrchr(file_buf, '/'); // use strrchr to get location of last '/' in path
-    strcpy(last + 1, CONFIG_FILE); // append CONFIG_FILE to that path to get absolute path to logger file
+    strcpy(last + 1, CONFIG_FILE); // append CONFIG_FILE to that path to get the path to logger file
 
     if ((conf_fd = fopen(file_buf, "r")) == NULL) {  // open the config file for reading
         fprintf(stderr, "fopen: logger could not open config file %s: %s", file_buf, strerror(errno));
@@ -157,6 +157,13 @@ static void read_config_file() {
             fprintf(stderr, "unknown configuration line: %s\n", nextline);
         }
     }
+    
+    // set the log level of an output location that isn't being used to FATAL
+    // this is to ensure that log_printf() actually returns early when no logs
+    // will be output due to the log level check at the beginning of the function
+    if (!(OUTPUTS & LOG_STDOUT))  { stdout_level  = FATAL; }
+    if (!(OUTPUTS & LOG_FILE))    { file_level    = FATAL; }
+    if (!(OUTPUTS & LOG_NETWORK)) { network_level = FATAL; }
 
     // close the file descriptor for config file
     fclose(conf_fd);
@@ -241,17 +248,17 @@ void logger_init(process_t process) {
 }
 
 void log_printf(log_level_t level, char *format, ...) {
+    // first, don't do anything with this message if less than all set levels
+    if (level < network_level && level < file_level && level < stdout_level) {
+        return;
+    }
+    
     static time_t now;                   // for holding system time
     static char *time_str;               // for string representation of system time
     static char final_msg[MAX_LOG_LEN];  // final message to be logged to requested locations
     static int len;                      // holding lengths of various strings
     static char msg[MAX_LOG_LEN - 100];  // holds the expanded format string (100 to make room for log header)
     va_list args;                        // this holds the variable-length argument list
-    
-    // don't do anything with this message if less than all set levels
-    if (level < network_level && level < file_level && level < stdout_level) {
-        return;
-    }
 
     // lock the mutex around all output functions
     pthread_mutex_lock(&log_mutex);

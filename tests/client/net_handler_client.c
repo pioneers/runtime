@@ -457,7 +457,7 @@ void send_challenge_data(robot_desc_field_t client, char **data, int num_challen
     usleep(400000); // allow time for net handler and runtime to react and generate output before returning to client
 }
 
-void send_device_data(dev_data_t *data, int num_devices) {
+void send_device_subs(dev_subs_t *subs, int num_devices) {
     DevData dev_data = DEV_DATA__INIT;
     uint8_t *send_buf;
     uint16_t len;
@@ -470,15 +470,15 @@ void send_device_data(dev_data_t *data, int num_devices) {
 	
     // set each device
     for (int i = 0; i < num_devices; i++) {
-        if ((curr_type = device_name_to_type(data[i].name)) == (uint8_t) -1) {
-            printf("ERROR: no such device \"%s\"\n", data[i].name);
+        if ((curr_type = device_name_to_type(subs[i].name)) == (uint8_t) -1) {
+            printf("ERROR: no such device \"%s\"\n", subs[i].name);
         }
         // fill in device fields
         curr_device = get_device(curr_type);
         Device *dev = malloc(sizeof(Device));
         device__init(dev);
         dev->name = curr_device->name;
-        dev->uid = data[i].uid;
+        dev->uid = subs[i].uid;
         dev->type = curr_type;
         dev->n_params = curr_device->num_params;
         dev->params = malloc(sizeof(Param *) * curr_device->num_params);
@@ -489,7 +489,7 @@ void send_device_data(dev_data_t *data, int num_devices) {
             Param *prm = malloc(sizeof(Param));
             param__init(prm);
             prm->val_case = PARAM__VAL_BVAL;
-            prm->bval = (data[i].params & (1 << j)) ? 1 : 0;
+            prm->bval = (subs[i].params & (1 << j)) ? 1 : 0;
             dev->params[j] = prm;
         }
         dev_data.devices[i] = dev;

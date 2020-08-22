@@ -21,8 +21,6 @@ jobs:
         - sudo service docker restart
       script:
         - docker build --platform linux/arm/v7 -t $DOCKER_REPO:test -f docker/Dockerfile .  # Build new image with updated code for arm32v7
-        - docker run -d $DOCKER_REPO:test  # Runs the docker container as detached
-        - docker kill -s INT $(docker ps -q) # Kill the current container
         - docker run -t $DOCKER_REPO:test ./runtime test # Runs the integration tests in a new container
 
     - name: push

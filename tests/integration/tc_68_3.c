@@ -20,10 +20,10 @@ int main() {
 	start_net_handler();
 
 	// poke
-	dev_data_t data1 = { .uid = 50, .name = "ServoControl", .params = 0b11 };
-	dev_data_t data2 = { .uid = 100, .name = "LimitSwitch", .params = 0b101 };
-	dev_data_t data_total[2] = { data1, data2 };
-	send_device_data(data_total, 2);
+	dev_subs_t data1 = { .uid = 50, .name = "ServoControl", .params = 0b11 };
+	dev_subs_t data2 = { .uid = 100, .name = "LimitSwitch", .params = 0b101 };
+	dev_subs_t data_total[2] = { data1, data2 };
+	send_device_subs(data_total, 2);
 
 	// stop
 	stop_net_handler();

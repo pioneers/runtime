@@ -12,7 +12,7 @@ char sname[SNAME_SIZE];   // being lazy here but this is for holding all the sem
  *    sem_desc: string that describes the semaphore being created and opened, displayed with error message
  * Returns a pointer to the semaphore that was created and opened.
  */
-sem_t *my_sem_open_create(char *sem_name, char *sem_desc) {
+static sem_t *my_sem_open_create(char *sem_name, char *sem_desc) {
     sem_t *ret;
     if ((ret = sem_open(sem_name, O_CREAT, 0660, 1)) == SEM_FAILED) {
         log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
