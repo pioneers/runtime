@@ -41,7 +41,7 @@ int main() {
     }
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_output(expected_output);
     }
     in_rest_of_output(no_device);
     return 0;

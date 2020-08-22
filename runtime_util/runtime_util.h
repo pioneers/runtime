@@ -34,7 +34,7 @@
 #define CHALLENGE_SOCKET "/tmp/challenge.sock"
 
 // The interval (microseconds) at which we wait between detecting connects/disconnects
-#define POLL_INTERVAL 100000
+#define POLL_INTERVAL 200000
 
 // enumerated names of processes
 typedef enum process {

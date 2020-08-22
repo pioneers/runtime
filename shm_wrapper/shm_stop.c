@@ -63,7 +63,7 @@ int main() {
 
     // Using shm_init() calls shm_stop() automatically on process exit, so semaphores and shm blocks will be closed on exit
 
-    log_printf(INFO, "SHM destroyed. Runtime Funtime is no more");
+    log_printf(INFO, "SHM destroyed. RUNTIME FUNTIME HAD TOO MUCH FUN!!!");
 
     /*
      * Under normal production circumstances, this program should never be run (it only runs when net_handler, executor, or dev_handler
