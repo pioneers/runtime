@@ -12,6 +12,7 @@ import time
 import re
 import importlib
 from collections import defaultdict
+from typings import Dict, List
 
 
 """Student API written in Cython. """
@@ -19,14 +20,18 @@ from collections import defaultdict
 # Maximum number of concurrent student actions
 MAX_THREADS = 8
 
-## Tools used for logging
+######################### Logging #########################
 
-def _print(*values, sep=' ', end='\n', file=None, flush=None, level=INFO):
+def _print(*values, sep=' ', end='\n', flush=None, file=None, level: log_level = INFO):
     """Helper print function that redirects message for stdout instead into the Runtime logger. Will print at the INFO level.
 
     Args:
         values: iterable of values to print
         sep: string used as the seperator between each value. Default is ' '
+        end: the string appened to the end of the print. Default is new line ('\n')
+        flush: doesn't do anything. It is just needed since the real print() has it as an argument
+        file: doesn't really do anything. It is just needed since the real print() has it as an argument
+        level: the log level to print it out at
     """
     string = sep.join(map(str, values)) + end
     if file == sys.stdout:
@@ -36,23 +41,24 @@ def _print(*values, sep=' ', end='\n', file=None, flush=None, level=INFO):
     log_printf(level, string.encode('utf-8'))
 
 class OutputRedirect:
-    def __init__(self, level):
+    """Object that imitates an IO Stream to redirect the default error/exception printing to the Runtime logger."""
+
+    def __init__(self, level: log_level):
         self.level = level
-    def write(self, text):
+
+    def write(self, text: str):
         log_printf(self.level, text.encode('utf-8'))
 
 builtins.print = _print
-sys.stderr = OutputRedirect(PYTHON)
+sys.stderr = OutputRedirect(PYTHON) # PYTHON level is special as it has no header or ending new line. This is needed so exception and traceback printing look correct
 
-
-## Test functions for SHM
 
 def _init():
     """ONLY USED FOR TESTING. NOT USED IN PRODUCTION"""
     logger_init(EXECUTOR)
     shm_init()
 
-## API Objects
+########################### API Objects ###########################
 
 class DeviceError(Exception):
     """An exception caused by using an invalid device. """
@@ -133,8 +139,8 @@ cdef class Robot:
         """Initializes the dict of running threads. """
         self.running_actions = {}
         self.start_pos = 'left' if robot_desc_read(START_POS) == LEFT else 'right'
-        self.error_event = threading.Event()
-        self.sleep_event = threading.Event()
+        self.error_event = threading.Event() # Is set when error occurs in an action thread
+        self.sleep_event = threading.Event() # Is set when the main thread is cancelled during sleeping
         self.main_thread = threading.get_ident()
 
 
@@ -307,7 +313,7 @@ cdef class Robot:
             raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
 
 
-### Functions to parse student code for device parameter subscriptions
+########################################## Device Subscription Functions ###########################################
 
 cpdef void make_device_subs(str code_file) except *:
     """
@@ -339,7 +345,7 @@ cpdef void make_device_subs(str code_file) except *:
             log_printf(WARN, f"Code parser: device with type {type} and uid {uid} is not connected to the robot".encode('utf-8'))
 
 
-def get_all_params(code_file):
+def get_all_params(code_file) -> Dict[str, List[str]]:
     """
     Reads the given code file and returns dict of any usage of device parameters.
 
