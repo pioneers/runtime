@@ -62,15 +62,15 @@ int main() {
     // poke the system
     connect_virtual_device("SimpleTestDevice", UID);
     start_executor("net_handler_integration", "challenges_sanity");
-    usleep(1000000); // sleep 1.25 seconds to offset device from executor
+    usleep(1000000);  // sleep 1.25 seconds to offset device from executor
 
     // send challenge data
-	char *inputs[] = { "2039", "190172344" };
-	send_challenge_data(DAWN, inputs, 2);
+    char* inputs[] = {"2039", "190172344"};
+    send_challenge_data(DAWN, inputs, 2);
 
     // send gamepad state
-	uint32_t buttons = 0;
-	float joystick_vals[] = { 0.0, 0.0, 0.0, 0.0 };
+    uint32_t buttons = 0;
+    float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_gamepad_state(buttons, joystick_vals);
 
     // print device data

@@ -5,15 +5,15 @@
 #include "defs.h"
 
 class LineFollower : public Device {
-public:
+  public:
     // Simply calls generic Device constructor with device type and year
-    LineFollower ();
+    LineFollower();
 
     // overridden functions from Device class; see descriptions in Device.h
-    virtual size_t device_read(uint8_t param, uint8_t *data_buf);
+    virtual size_t device_read(uint8_t param, uint8_t* data_buf);
     virtual void device_enable();
 
-private:
+  private:
     // number of pins used for I/O for LineFollower
     const static int NUM_PINS;
     // pins that the line follower reads data from (defined in defs.h)

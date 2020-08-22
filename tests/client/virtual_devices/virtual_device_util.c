@@ -1,7 +1,7 @@
 #include "virtual_device_util.h"
 
-message_t *make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
-    message_t *msg = malloc(sizeof(message_t));
+message_t* make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
+    message_t* msg = malloc(sizeof(message_t));
     msg->message_id = ACKNOWLEDGEMENT;
     msg->max_payload_length = DEVICE_ID_SIZE;
     msg->payload = malloc(msg->max_payload_length);
@@ -12,13 +12,13 @@ message_t *make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
     return msg;
 }
 
-int receive_message(int fd, message_t *msg) {
-    uint8_t last_byte_read = 0; // Variable to temporarily hold a read byte
+int receive_message(int fd, message_t* msg) {
+    uint8_t last_byte_read = 0;  // Variable to temporarily hold a read byte
     int num_bytes_read = 0;
 
     // Keep reading a byte until we get the delimiter byte
     while (1) {
-        num_bytes_read = read(fd, &last_byte_read, 1);   // Waiting for first byte can block
+        num_bytes_read = read(fd, &last_byte_read, 1);  // Waiting for first byte can block
         if (num_bytes_read == -1) {
             printf("Couldn't read first byte -- %s\n", strerror(errno));
             return 1;
@@ -38,7 +38,7 @@ int receive_message(int fd, message_t *msg) {
     }
 
     // Allocate buffer to read message into
-    uint8_t *data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
     data[0] = 0x00;
     data[1] = cobs_len;
 
@@ -60,9 +60,9 @@ int receive_message(int fd, message_t *msg) {
     return 0;
 }
 
-void send_message(int fd, message_t *msg) {
+void send_message(int fd, message_t* msg) {
     int len = calc_max_cobs_msg_length(msg);
-    uint8_t *data = malloc(len);
+    uint8_t* data = malloc(len);
     len = message_to_bytes(msg, data, len);
     int transferred = write(fd, data, len);
     if (transferred != len) {
@@ -71,28 +71,28 @@ void send_message(int fd, message_t *msg) {
     free(data);
 }
 
-void device_write(uint8_t type, message_t *dev_write, param_val_t params[]) {
-    device_t *dev = get_device(type);
+void device_write(uint8_t type, message_t* dev_write, param_val_t params[]) {
+    device_t* dev = get_device(type);
     // Get bitmap from payload
     uint32_t pmap;
     memcpy(&pmap, &dev_write->payload[0], BITMAP_SIZE);
     // Process each parameter
-    uint8_t *payload_ptr = &dev_write->payload[BITMAP_SIZE];
+    uint8_t* payload_ptr = &dev_write->payload[BITMAP_SIZE];
     for (int i = 0; ((pmap >> i) > 0) && (i < MAX_PARAMS); i++) {
         if (pmap & (1 << i)) {
             // Write to the corresponding field in params[i]
             switch (dev->params[i].type) {
                 case INT:
                     // TODO: Check int size
-                    params[i].p_i = *((int32_t *) payload_ptr);
+                    params[i].p_i = *((int32_t*) payload_ptr);
                     payload_ptr += sizeof(int32_t);
                     break;
                 case FLOAT:
-                    params[i].p_f = *((float *) payload_ptr);
+                    params[i].p_f = *((float*) payload_ptr);
                     payload_ptr += sizeof(float);
                     break;
                 case BOOL:
-                    params[i].p_b = *((uint8_t *) payload_ptr);
+                    params[i].p_b = *((uint8_t*) payload_ptr);
                     payload_ptr += sizeof(uint8_t);
                     break;
             }
@@ -100,18 +100,18 @@ void device_write(uint8_t type, message_t *dev_write, param_val_t params[]) {
     }
 }
 
-message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]) {
-    message_t *dev_data = make_empty(MAX_PAYLOAD_SIZE);
+message_t* make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]) {
+    message_t* dev_data = make_empty(MAX_PAYLOAD_SIZE);
     dev_data->message_id = DEVICE_DATA;
     // Copy pmap into payload
     memcpy(&dev_data->payload[0], &pmap, BITMAP_SIZE);
     dev_data->payload_length = BITMAP_SIZE;
     // Copy params into payload
-    device_t *dev = get_device(type);
-    uint8_t *payload_ptr = &dev_data->payload[BITMAP_SIZE];
+    device_t* dev = get_device(type);
+    uint8_t* payload_ptr = &dev_data->payload[BITMAP_SIZE];
     for (int i = 0; ((pmap >> i) > 0) && (i < MAX_PARAMS); i++) {
         if (pmap & (1 << i)) {
-            switch(dev->params[i].type) {
+            switch (dev->params[i].type) {
                 case INT:
                     memcpy(payload_ptr, &params[i].p_i, sizeof(int32_t));
                     payload_ptr += sizeof(int32_t);
@@ -135,10 +135,10 @@ message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]) {
     return dev_data;
 }
 
-void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
+void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
                      param_val_t params[], void (*device_actions)(param_val_t[]), int32_t action_interval) {
-    message_t *incoming_msg = make_empty(MAX_PAYLOAD_SIZE);
-    message_t *outgoing_msg;
+    message_t* incoming_msg = make_empty(MAX_PAYLOAD_SIZE);
+    message_t* outgoing_msg;
     uint64_t last_sent_ping_time = 0;
     uint64_t last_received_ping_time = millis();
     uint64_t last_sent_data_time = 0;

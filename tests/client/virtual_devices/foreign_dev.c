@@ -1,7 +1,7 @@
-#include <stdlib.h> // for srand() and rand()
-#include <time.h>   // for time() as a seed
-#include <stdint.h> // for uint8_t
-#include <unistd.h> // for write()
+#include <stdint.h>  // for uint8_t
+#include <stdlib.h>  // for srand() and rand()
+#include <time.h>    // for time() as a seed
+#include <unistd.h>  // for write()
 
 /**
  * ForeignTestDevice, a virtual device that sends nonsense to dev handler
@@ -10,7 +10,7 @@
  *    int: file descriptor for the socket
  *    uint64_t: device uid
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     // https://www.tutorialspoint.com/c_standard_library/c_function_srand.htm
     // Initialize random seed using the current time
     srand(time(NULL));

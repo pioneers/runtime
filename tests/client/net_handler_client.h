@@ -1,15 +1,15 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
-#include "../../runtime_util/runtime_util.h"
-#include "../../net_handler/net_util.h"
 #include <sys/time.h>
 #include <sys/wait.h>
+#include "../../net_handler/net_util.h"
+#include "../../runtime_util/runtime_util.h"
 
 typedef struct {
-	uint64_t uid;    // what the uid of this device is
-	char *name;      // name of this device ("KoalaBear", "LimitSwitch", etc.)
-	uint32_t params; // which params to subscribe to
+    uint64_t uid;     // what the uid of this device is
+    char* name;       // name of this device ("KoalaBear", "LimitSwitch", etc.)
+    uint32_t params;  // which params to subscribe to
 } dev_subs_t;
 
 /**
@@ -63,7 +63,7 @@ void send_gamepad_state(uint32_t buttons, float joystick_vals[4]);
  *	  - num_challenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
  * No return value.
  */
-void send_challenge_data(robot_desc_field_t client, char **data, int num_challenges);
+void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges);
 
 /**
  * Sends device subscriptions from Dawn over TCP with the specified device subscriptions
@@ -72,7 +72,7 @@ void send_challenge_data(robot_desc_field_t client, char **data, int num_challen
  *    - num_devices: contains number of devices for which we are sending subscription requests
  * No return value.
  */
-void send_device_subs(dev_subs_t *subs, int num_devices);
+void send_device_subs(dev_subs_t* subs, int num_devices);
 
 /**
  * Calling this function will let the next device data packet coming into Dawn from Runtime

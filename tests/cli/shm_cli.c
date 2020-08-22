@@ -18,23 +18,23 @@ void sigint_handler(int signum) {
 }
 
 int main() {
-    char nextcmd[MAX_CMD_LEN]; // to hold nextline
+    char nextcmd[MAX_CMD_LEN];  // to hold nextline
     int stop = 0;
-	
+
     signal(SIGINT, sigint_handler);
-	
+
     printf("Starting Shared Memory CLI...\n");
     fflush(stdout);
-	
+
     // start shm process
     start_shm();
-	
+
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
         // get the next command
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-		
+
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
             stop = 1;
@@ -47,12 +47,12 @@ int main() {
             display_help();
         }
     }
-	
+
     printf("Exiting Shared Memory CLI...\n");
-	
+
     stop_shm();
-	
+
     printf("Done!\n");
-	
+
     return 0;
 }

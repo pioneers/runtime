@@ -21,7 +21,7 @@ int main() {
     const int8_t doubling_idx = get_param_idx(simple_type, "DOUBLING");
 
     // Get current parameters then wait
-    device_t *dev = get_device(simple_type);
+    device_t* dev = get_device(simple_type);
     param_val_t vals_before[dev->num_params];
     device_read_uid(UID, EXECUTOR, DATA, (1 << doubling_idx), vals_before);
 
@@ -29,7 +29,7 @@ int main() {
     param_val_t vals_to_write[dev->num_params];
     vals_to_write[doubling_idx].p_f = -1;
     device_write_uid(UID, EXECUTOR, COMMAND, (1 << doubling_idx), vals_to_write);
-    sleep(1);   // Device values will change in this time
+    sleep(1);  // Device values will change in this time
 
     // Get parameters again
     param_val_t vals_after[dev->num_params];

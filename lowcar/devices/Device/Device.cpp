@@ -1,37 +1,37 @@
 #include "Device.h"
 
-const float Device::MAX_SUB_INTERVAL_MS = 500.0;    // maximum tolerable subscription delay, in ms
-const float Device::MIN_SUB_INTERVAL_MS = 40.0;     // minimum tolerable subscription delay, in ms
+const float Device::MAX_SUB_INTERVAL_MS = 500.0;  // maximum tolerable subscription delay, in ms
+const float Device::MIN_SUB_INTERVAL_MS = 40.0;   // minimum tolerable subscription delay, in ms
 
 // Device constructor
 Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
-    this->dev_id.uid = 0; // sets a temporary value
+    this->dev_id.uid = 0;  // sets a temporary value
 
-    this->params = 0;          // Initialize to no subscribed parameters (empty DEVICE_DATA)
-    this->sub_interval = 0;    // 0 acts as flag indicating no subscription
-    this->timeout = timeout;   // timeout in ms how long we tolerate not receiving a PING from dev handler
+    this->params = 0;         // Initialize to no subscribed parameters (empty DEVICE_DATA)
+    this->sub_interval = 0;   // 0 acts as flag indicating no subscription
+    this->timeout = timeout;  // timeout in ms how long we tolerate not receiving a PING from dev handler
     this->enabled = FALSE;
 
     this->msngr = new Messenger();
     this->led = new StatusLED();
 
-    device_enable(); // call device's enable function
+    device_enable();  // call device's enable function
 
     this->last_sent_data_time = this->last_received_ping_time = this->curr_time = millis();
 }
 
-void Device::set_uid (uint64_t uid) {
+void Device::set_uid(uint64_t uid) {
     this->dev_id.uid = uid;
 }
 
-void Device::loop () {
+void Device::loop() {
     Status sts;
     this->curr_time = millis();
-    sts = this->msngr->read_message(&(this->curr_msg)); // try to read a new message
+    sts = this->msngr->read_message(&(this->curr_msg));  // try to read a new message
 
-    if (sts == Status::SUCCESS) { // we have a message!
+    if (sts == Status::SUCCESS) {  // we have a message!
         switch (this->curr_msg.message_id) {
             case MessageID::PING:
                 this->last_received_ping_time = this->curr_time;
@@ -44,8 +44,8 @@ void Device::loop () {
                 break;
 
             case MessageID::SUBSCRIPTION_REQUEST:
-                this->params = *((uint32_t *) this->curr_msg.payload);    // Update subscribed params
-                this->sub_interval = *((uint16_t *) (this->curr_msg.payload + PARAM_BITMAP_BYTES));  // Update the interval at which we send DEVICE_DATA
+                this->params = *((uint32_t*) this->curr_msg.payload);                               // Update subscribed params
+                this->sub_interval = *((uint16_t*) (this->curr_msg.payload + PARAM_BITMAP_BYTES));  // Update the interval at which we send DEVICE_DATA
                 // Make sure sub_interval is within bounds
                 this->sub_interval = min(this->sub_interval, MAX_SUB_INTERVAL_MS);
                 this->sub_interval = max(this->sub_interval, MIN_SUB_INTERVAL_MS);
@@ -65,7 +65,7 @@ void Device::loop () {
     }
 
     // If it's been too long since we received a PING, disable the device
-    if ((this->timeout > 0)  && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
+    if ((this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_disable();
         this->enabled = FALSE;
     }
@@ -96,29 +96,29 @@ void Device::loop () {
 
 // ******************** DEFAULT DEVICE-SPECIFIC METHODS ********************* //
 
-size_t Device::device_read (uint8_t param, uint8_t *data_buf) {
-    return 0; // by default, we read 0 bytes into buffer
+size_t Device::device_read(uint8_t param, uint8_t* data_buf) {
+    return 0;  // by default, we read 0 bytes into buffer
 }
 
-size_t Device::device_write (uint8_t param, uint8_t *data_buf) {
-    return 0; // by default, we wrote 0 bytes successfully to device
+size_t Device::device_write(uint8_t param, uint8_t* data_buf) {
+    return 0;  // by default, we wrote 0 bytes successfully to device
 }
 
-void Device::device_enable () {
-    return; // by default, enabling the device does nothing
+void Device::device_enable() {
+    return;  // by default, enabling the device does nothing
 }
 
-void Device::device_disable () {
-    return; // by default, disabling the device does nothing
+void Device::device_disable() {
+    return;  // by default, disabling the device does nothing
 }
 
-void Device::device_actions () {
-    return; // by default, device does nothing on every loop
+void Device::device_actions() {
+    return;  // by default, device does nothing on every loop
 }
 
 // ***************************** HELPER METHODS ***************************** //
 
-void Device::device_read_params (message_t *msg) {
+void Device::device_read_params(message_t* msg) {
     // Clear the message before building device data
     msg->message_id = MessageID::DEVICE_DATA;
     msg->payload_length = 0;
@@ -126,7 +126,7 @@ void Device::device_read_params (message_t *msg) {
 
     // Read all subscribed params
     // Set beginning of payload to subscribed param bitmap
-    uint32_t* payload_ptr_uint32 = (uint32_t *) msg->payload;
+    uint32_t* payload_ptr_uint32 = (uint32_t*) msg->payload;
     *payload_ptr_uint32 = this->params;
 
     // Loop over param_bitmap and attempt to read data for subscribed bits
@@ -138,7 +138,7 @@ void Device::device_read_params (message_t *msg) {
     }
 }
 
-void Device::device_write_params (message_t *msg) {
+void Device::device_write_params(message_t* msg) {
     if (msg->message_id != MessageID::DEVICE_WRITE) {
         return;
     }
@@ -147,7 +147,7 @@ void Device::device_write_params (message_t *msg) {
     uint32_t param_bitmap = *((uint32_t*) msg->payload);
 
     // Loop over param_bitmap and attempt to write data for requested bits
-    uint8_t *payload_ptr = msg->payload + PARAM_BITMAP_BYTES;
+    uint8_t* payload_ptr = msg->payload + PARAM_BITMAP_BYTES;
     for (uint32_t param_num = 0; (param_bitmap >> param_num) > 0; param_num++) {
         if (param_bitmap & (1 << param_num)) {
             payload_ptr += device_write((uint8_t) param_num, payload_ptr);

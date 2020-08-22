@@ -2,9 +2,9 @@
 #include "Arduino.h"
 #include "pindefs_koala.h"
 
-#define LED_RED     A3
-#define LED_YELLOW  A4
-#define LED_GREEN   A5
+#define LED_RED A3
+#define LED_YELLOW A4
+#define LED_GREEN A5
 
 // LED constructor
 LEDKoala::LEDKoala() {
@@ -23,7 +23,7 @@ void LEDKoala::ctrl_LEDs(float vel, float deadband, bool enabled) {
     ctrl_green(vel, deadband, enabled);
 }
 
-void LEDKoala::ctrl_red (float vel, float deadband, bool enabled) {
+void LEDKoala::ctrl_red(float vel, float deadband, bool enabled) {
     //turn red LED on if motor is stopped
     if ((vel > deadband * -1.0 && vel < deadband) && enabled) {
         this->red_state = true;
@@ -38,7 +38,7 @@ void LEDKoala::ctrl_red (float vel, float deadband, bool enabled) {
     }
 }
 
-void LEDKoala::ctrl_yellow (float vel, float deadband, bool enabled) {
+void LEDKoala::ctrl_yellow(float vel, float deadband, bool enabled) {
     //turn yellow LED on if motor is going backwards
     if ((vel < deadband * -1.0) && enabled) {
         this->yellow_state = true;
@@ -53,7 +53,7 @@ void LEDKoala::ctrl_yellow (float vel, float deadband, bool enabled) {
     }
 }
 
-void LEDKoala::ctrl_green (float vel, float deadband, bool enabled) {
+void LEDKoala::ctrl_green(float vel, float deadband, bool enabled) {
     //turn green LED on if motor moving forward
     if (vel > deadband && enabled) {
         this->green_state = true;
@@ -69,15 +69,15 @@ void LEDKoala::ctrl_green (float vel, float deadband, bool enabled) {
 }
 
 void LEDKoala::test_LEDs() {
-    digitalWrite(LED_GREEN,HIGH);
-    digitalWrite(LED_RED,HIGH);
-    digitalWrite(LED_YELLOW,HIGH);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_YELLOW, HIGH);
 
     delay(1000);
 
-    digitalWrite(LED_GREEN,LOW);
-    digitalWrite(LED_RED,LOW);
-    digitalWrite(LED_YELLOW,LOW);
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_RED, LOW);
+    digitalWrite(LED_YELLOW, LOW);
 }
 
 void LEDKoala::setup_LEDs() {

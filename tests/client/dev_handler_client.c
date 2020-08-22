@@ -14,21 +14,20 @@ pid_t dev_handler_pid;
 
 // Struct grouping a virtual device's process id, socket fd, and name
 typedef struct {
-    pid_t pid;          // The process id of the virtual device
-    int fd;             // The socket's file descriptor
-    char *dev_name;     // The name of the virtual device's name
-    uint64_t dev_uid;   // The device uid
+    pid_t pid;         // The process id of the virtual device
+    int fd;            // The socket's file descriptor
+    char* dev_name;    // The name of the virtual device's name
+    uint64_t dev_uid;  // The device uid
 } device_socket_t;
 
 // ****************************** GLOBAL VARS ******************************* //
 /* Array of connected devices and their sockets
  * used_sockets[i] == NULL if unused
  */
-device_socket_t **used_sockets;
+device_socket_t** used_sockets;
 // A hack to initialize. https://stackoverflow.com/a/6991475
-__attribute__((constructor))
-void used_sockets_init() {
-    used_sockets = malloc(MAX_DEVICES * sizeof(device_socket_t *));
+__attribute__((constructor)) void used_sockets_init() {
+    used_sockets = malloc(MAX_DEVICES * sizeof(device_socket_t*));
     for (int i = 0; i < MAX_DEVICES; i++) {
         used_sockets[i] = NULL;
     }
@@ -73,7 +72,7 @@ static int connect_socket() {
     strcpy(dev_socket_addr.sun_path, socket_name);
 
     // Bind socket address to socket
-    if (bind(server_fd, (struct sockaddr *) &dev_socket_addr, sizeof(dev_socket_addr)) < 0) {
+    if (bind(server_fd, (struct sockaddr*) &dev_socket_addr, sizeof(dev_socket_addr)) < 0) {
         printf("connect_socket: Couldn't bind socket -- %s\n", strerror(errno));
         remove(socket_name);
         return -1;
@@ -98,7 +97,7 @@ static int connect_socket() {
     struct timeval tv;
     tv.tv_sec = TIMEOUT / 1000;
     tv.tv_usec = 0;
-    setsockopt(connection_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    setsockopt(connection_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*) &tv, sizeof(tv));
 
     return socket_num;
 }
@@ -107,21 +106,21 @@ static int connect_socket() {
 
 void start_dev_handler() {
     // Check to see if creation of child is successful
-    if((dev_handler_pid = fork()) < 0) {
+    if ((dev_handler_pid = fork()) < 0) {
         printf("fork: %s\n", strerror(errno));
-    } else if (dev_handler_pid == 0) { // child created!
+    } else if (dev_handler_pid == 0) {  // child created!
         // redirect to dev handler folder
-        if(chdir("../dev_handler") == -1) {
+        if (chdir("../dev_handler") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
         // execute the device handler process
-        if (execlp("./dev_handler", "dev_handler", "virtual", (char *) 0) < 0) {
+        if (execlp("./dev_handler", "dev_handler", "virtual", (char*) 0) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
     }
 }
 
-void stop_dev_handler(){
+void stop_dev_handler() {
     // send signal to dev_handler and wait for termination
     if (kill(dev_handler_pid, SIGINT) < 0) {
         printf("kill dev_handler:  %s\n", strerror(errno));
@@ -131,7 +130,7 @@ void stop_dev_handler(){
     }
 }
 
-int connect_virtual_device(char *dev_name, uint64_t uid) {
+int connect_virtual_device(char* dev_name, uint64_t uid) {
     // Connect a socket
     int socket_num = connect_socket();
     if (socket_num == -1) {
@@ -148,7 +147,7 @@ int connect_virtual_device(char *dev_name, uint64_t uid) {
     if (pid < 0) {
         printf("connect_device: Couldn't spawn child process %s\n", dev_name);
         return -1;
-    } else if (pid == 0) { // Child process
+    } else if (pid == 0) {  // Child process
         // Cd into virtual_devices dir where the device exe is
         if (chdir("client/virtual_devices") == -1) {
             printf("chdir: %s\n", strerror(errno));
@@ -158,11 +157,11 @@ int connect_virtual_device(char *dev_name, uint64_t uid) {
         sprintf(exe_name, "./%s", used_sockets[socket_num]->dev_name);
         sprintf(fd_str, "%d", used_sockets[socket_num]->fd);
         sprintf(uid_str, "0x%016llX", uid);
-        if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, uid_str, (char *) NULL) < 0) {
+        if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, uid_str, (char*) NULL) < 0) {
             printf("connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
             return -1;
         }
-    } else { // Parent process
+    } else {  // Parent process
         // Take note of child pid so we can kill it in disconnect_device()
         used_sockets[socket_num]->pid = pid;
     }
@@ -176,7 +175,7 @@ int disconnect_virtual_device(int socket_num) {
     }
     // Kill virtual device process
     kill(used_sockets[socket_num]->pid, SIGTERM);
-    waitpid(used_sockets[socket_num]->pid, NULL, 0); // Block until killed
+    waitpid(used_sockets[socket_num]->pid, NULL, 0);  // Block until killed
     // CLose file descriptor
     close(used_sockets[socket_num]->fd);
     // Remove socket (dev handler should recognize disconnect after removal)

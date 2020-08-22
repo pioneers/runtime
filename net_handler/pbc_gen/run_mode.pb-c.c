@@ -7,120 +7,106 @@
 #endif
 
 #include "run_mode.pb-c.h"
-void   run_mode__init
-                     (RunMode         *message)
-{
-  static const RunMode init_value = RUN_MODE__INIT;
-  *message = init_value;
+void run_mode__init(RunMode* message) {
+    static const RunMode init_value = RUN_MODE__INIT;
+    *message = init_value;
 }
-size_t run_mode__get_packed_size
-                     (const RunMode *message)
-{
-  assert(message->base.descriptor == &run_mode__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+size_t run_mode__get_packed_size(const RunMode* message) {
+    assert(message->base.descriptor == &run_mode__descriptor);
+    return protobuf_c_message_get_packed_size((const ProtobufCMessage*) (message));
 }
-size_t run_mode__pack
-                     (const RunMode *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &run_mode__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+size_t run_mode__pack(const RunMode* message,
+                      uint8_t* out) {
+    assert(message->base.descriptor == &run_mode__descriptor);
+    return protobuf_c_message_pack((const ProtobufCMessage*) message, out);
 }
-size_t run_mode__pack_to_buffer
-                     (const RunMode *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &run_mode__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+size_t run_mode__pack_to_buffer(const RunMode* message,
+                                ProtobufCBuffer* buffer) {
+    assert(message->base.descriptor == &run_mode__descriptor);
+    return protobuf_c_message_pack_to_buffer((const ProtobufCMessage*) message, buffer);
 }
-RunMode *
-       run_mode__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (RunMode *)
-     protobuf_c_message_unpack (&run_mode__descriptor,
-                                allocator, len, data);
+RunMode*
+run_mode__unpack(ProtobufCAllocator* allocator,
+                 size_t len,
+                 const uint8_t* data) {
+    return (RunMode*)
+        protobuf_c_message_unpack(&run_mode__descriptor,
+                                  allocator, len, data);
 }
-void   run_mode__free_unpacked
-                     (RunMode *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &run_mode__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+void run_mode__free_unpacked(RunMode* message,
+                             ProtobufCAllocator* allocator) {
+    if (!message)
+        return;
+    assert(message->base.descriptor == &run_mode__descriptor);
+    protobuf_c_message_free_unpacked((ProtobufCMessage*) message, allocator);
 }
 static const ProtobufCFieldDescriptor run_mode__field_descriptors[1] =
-{
-  {
-    "mode",
-    1,
-    PROTOBUF_C_LABEL_NONE,
-    PROTOBUF_C_TYPE_ENUM,
-    0,   /* quantifier_offset */
-    offsetof(RunMode, mode),
-    &mode__descriptor,
-    NULL,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
+    {
+        {
+            "mode",
+            1,
+            PROTOBUF_C_LABEL_NONE,
+            PROTOBUF_C_TYPE_ENUM,
+            0, /* quantifier_offset */
+            offsetof(RunMode, mode),
+            &mode__descriptor,
+            NULL,
+            0,            /* flags */
+            0, NULL, NULL /* reserved1,reserved2, etc */
+        },
 };
 static const unsigned run_mode__field_indices_by_name[] = {
-  0,   /* field[0] = mode */
+    0, /* field[0] = mode */
 };
 static const ProtobufCIntRange run_mode__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 1 }
-};
+    {
+        {1, 0},
+        {0, 1}};
 const ProtobufCMessageDescriptor run_mode__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "RunMode",
-  "RunMode",
-  "RunMode",
-  "",
-  sizeof(RunMode),
-  1,
-  run_mode__field_descriptors,
-  run_mode__field_indices_by_name,
-  1,  run_mode__number_ranges,
-  (ProtobufCMessageInit) run_mode__init,
-  NULL,NULL,NULL    /* reserved[123] */
+    {
+        PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+        "RunMode",
+        "RunMode",
+        "RunMode",
+        "",
+        sizeof(RunMode),
+        1,
+        run_mode__field_descriptors,
+        run_mode__field_indices_by_name,
+        1, run_mode__number_ranges,
+        (ProtobufCMessageInit) run_mode__init,
+        NULL, NULL, NULL /* reserved[123] */
 };
 static const ProtobufCEnumValue mode__enum_values_by_number[5] =
-{
-  { "IDLE", "MODE__IDLE", 0 },
-  { "AUTO", "MODE__AUTO", 1 },
-  { "TELEOP", "MODE__TELEOP", 2 },
-  { "ESTOP", "MODE__ESTOP", 3 },
-  { "CHALLENGE", "MODE__CHALLENGE", 4 },
+    {
+        {"IDLE", "MODE__IDLE", 0},
+        {"AUTO", "MODE__AUTO", 1},
+        {"TELEOP", "MODE__TELEOP", 2},
+        {"ESTOP", "MODE__ESTOP", 3},
+        {"CHALLENGE", "MODE__CHALLENGE", 4},
 };
 static const ProtobufCIntRange mode__value_ranges[] = {
-{0, 0},{0, 5}
-};
+    {0, 0}, {0, 5}};
 static const ProtobufCEnumValueIndex mode__enum_values_by_name[5] =
-{
-  { "AUTO", 1 },
-  { "CHALLENGE", 4 },
-  { "ESTOP", 3 },
-  { "IDLE", 0 },
-  { "TELEOP", 2 },
+    {
+        {"AUTO", 1},
+        {"CHALLENGE", 4},
+        {"ESTOP", 3},
+        {"IDLE", 0},
+        {"TELEOP", 2},
 };
 const ProtobufCEnumDescriptor mode__descriptor =
-{
-  PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
-  "Mode",
-  "Mode",
-  "Mode",
-  "",
-  5,
-  mode__enum_values_by_number,
-  5,
-  mode__enum_values_by_name,
-  1,
-  mode__value_ranges,
-  NULL,NULL,NULL,NULL   /* reserved[1234] */
+    {
+        PROTOBUF_C__ENUM_DESCRIPTOR_MAGIC,
+        "Mode",
+        "Mode",
+        "Mode",
+        "",
+        5,
+        mode__enum_values_by_number,
+        5,
+        mode__enum_values_by_name,
+        1,
+        mode__value_ranges,
+        NULL, NULL, NULL, NULL /* reserved[1234] */
 };

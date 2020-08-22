@@ -3,34 +3,34 @@
 
 // ************************* COMMON STANDARD HEADERS ************************ //
 
-#include <stdio.h>      // for printf, perror, fprintf, fopen, etc.
-#include <stdlib.h>     // for malloc, free
-#include <stdint.h>     // for uint32_t, int16_t, uint8_t, etc.
-#include <string.h>     // for strcmp, strcpy, strlen, memset, etc.
-#include <errno.h>      // for various error numbers (EINTR, EAGAIN, EPIPE, etc.) and errno
-#include <pthread.h>    // for thread-functions: pthread_create, pthread_cancel, pthread_join, etc.
-#include <unistd.h>     // for F_OK, R_OK, SEEK_SET, SEEK_END, access, ftruncate, read, write, etc.
-#include <signal.h>     // for setting signal function (setting signal handler)
-#include <sys/time.h>   // for time-related structures and time functions
-#include <fcntl.h>      // for file opening constants (O_CREAT, O_RDONLY, O_RDWR, etc.)
-#include <sys/stat.h>   // for various system-related types and functions (sem_t, mkfifo)
-#include <sys/socket.h> // for bind, listen, accept, socket
-#include <sys/un.h>     // for struct sockaddr_un
+#include <errno.h>       // for various error numbers (EINTR, EAGAIN, EPIPE, etc.) and errno
+#include <fcntl.h>       // for file opening constants (O_CREAT, O_RDONLY, O_RDWR, etc.)
+#include <pthread.h>     // for thread-functions: pthread_create, pthread_cancel, pthread_join, etc.
+#include <signal.h>      // for setting signal function (setting signal handler)
+#include <stdint.h>      // for uint32_t, int16_t, uint8_t, etc.
+#include <stdio.h>       // for printf, perror, fprintf, fopen, etc.
+#include <stdlib.h>      // for malloc, free
+#include <string.h>      // for strcmp, strcpy, strlen, memset, etc.
+#include <sys/socket.h>  // for bind, listen, accept, socket
+#include <sys/stat.h>    // for various system-related types and functions (sem_t, mkfifo)
+#include <sys/time.h>    // for time-related structures and time functions
+#include <sys/un.h>      // for struct sockaddr_un
+#include <unistd.h>      // for F_OK, R_OK, SEEK_SET, SEEK_END, access, ftruncate, read, write, etc.
 
 // ***************************** DEFINED CONSTANTS ************************** //
 
-#define MAX_DEVICES 32          // Maximum number of connected devices
-#define MAX_PARAMS 32           // Maximum number of parameters supported
+#define MAX_DEVICES 32  // Maximum number of connected devices
+#define MAX_PARAMS 32   // Maximum number of parameters supported
 
-#define DEVICES_LENGTH 64       // The largest device type number + 1.
+#define DEVICES_LENGTH 64  // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 5       // Number of fields in the robot description
+#define NUM_DESC_FIELDS 5  // Number of fields in the robot description
 
 #define NUM_GAMEPAD_BUTTONS 17  // Number of gamepad buttons
 
-#define MAX_LOG_LEN 512         // The maximum number of characters in a log message
+#define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 
-#define CHALLENGE_LEN 128       // The maximum input/output string length for a challenge
+#define CHALLENGE_LEN 128  // The maximum input/output string length for a challenge
 #define CHALLENGE_SOCKET "/tmp/challenge.sock"
 
 // The interval (microseconds) at which we wait between detecting connects/disconnects
@@ -38,67 +38,103 @@
 
 // enumerated names of processes
 typedef enum process {
-    DEV_HANDLER, EXECUTOR, NET_HANDLER, SHM, TEST
+    DEV_HANDLER,
+    EXECUTOR,
+    NET_HANDLER,
+    SHM,
+    TEST
 } process_t;
 
 // enumerated names for the buttons on the gamepad
 typedef enum gp_buttons {
-    BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y, L_BUMPER, R_BUMPER, L_TRIGGER, R_TRIGGER,
-    BUTTON_BACK, BUTTON_START, L_STICK, R_STICK, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT, BUTTON_XBOX
+    BUTTON_A,
+    BUTTON_B,
+    BUTTON_X,
+    BUTTON_Y,
+    L_BUMPER,
+    R_BUMPER,
+    L_TRIGGER,
+    R_TRIGGER,
+    BUTTON_BACK,
+    BUTTON_START,
+    L_STICK,
+    R_STICK,
+    DPAD_UP,
+    DPAD_DOWN,
+    DPAD_LEFT,
+    DPAD_RIGHT,
+    BUTTON_XBOX
 } gp_button_t;
 
 // enumerated names for the joystick params of the gamepad
 typedef enum gp_joysticks {
-    JOYSTICK_LEFT_X, JOYSTICK_LEFT_Y, JOYSTICK_RIGHT_X, JOYSTICK_RIGHT_Y
+    JOYSTICK_LEFT_X,
+    JOYSTICK_LEFT_Y,
+    JOYSTICK_RIGHT_X,
+    JOYSTICK_RIGHT_Y
 } gp_joystick_t;
 
 // enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
-    IDLE, AUTO, TELEOP, CHALLENGE,   // values for robot.run_mode
-    CONNECTED, DISCONNECTED,         // values for robot.dawn, robot.shepherd, robot.gamepad
-    LEFT, RIGHT                      // values for robot.startpos
+    // values for robot.run_mode
+    IDLE,
+    AUTO,
+    TELEOP,
+    CHALLENGE,
+    // values for robot.dawn, robot.shepherd, robot.gamepad
+    CONNECTED,
+    DISCONNECTED,
+    // values for robot.startpos
+    LEFT,
+    RIGHT
 } robot_desc_val_t;
 
 // enumerated names for the fields in the robot description
 typedef enum robot_descs {
-    RUN_MODE, DAWN, SHEPHERD, GAMEPAD, START_POS
+    RUN_MODE,
+    DAWN,
+    SHEPHERD,
+    GAMEPAD,
+    START_POS
 } robot_desc_field_t;
 
 // enumerated names for the data types device parameters can be
 typedef enum param_type {
-    INT, FLOAT, BOOL
+    INT,
+    FLOAT,
+    BOOL
 } param_type_t;
 
 // ***************************** CUSTOM STRUCTS ***************************** //
 
 // hold a single param value. One-to-one mapping to param_val_t enum
 typedef union {
-    int32_t p_i; // data if int
-    float p_f;   // data if float
-    uint8_t p_b; // data if bool
+    int32_t p_i;  // data if int
+    float p_f;    // data if float
+    uint8_t p_b;  // data if bool
 } param_val_t;
 
 // holds the device identification information of a single device
 typedef struct dev_id {
-    uint8_t type;   // The device type (ex: 0 for DummyDevice)
-    uint8_t year;   // The device year
-    uint64_t uid;   // The unique id for a specific device assigned when flashed
+    uint8_t type;  // The device type (ex: 0 for DummyDevice)
+    uint8_t year;  // The device year
+    uint64_t uid;  // The unique id for a specific device assigned when flashed
 } dev_id_t;
 
 // A struct defining the type and access level of a device parameter
 typedef struct param_desc {
-    char* name;        // Parameter name
-    param_type_t type; // Data type
-    uint8_t read;      // Whether or not the param is readable
-    uint8_t write;     // Whether or not the param is writable
+    char* name;         // Parameter name
+    param_type_t type;  // Data type
+    uint8_t read;       // Whether or not the param is readable
+    uint8_t write;      // Whether or not the param is writable
 } param_desc_t;
 
 // A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
-    uint8_t type;                    // The type of device
-    char* name;                      // Device name (ex: "LimitSwitch")
-    uint8_t num_params;              // Number of params the device has
-    param_desc_t params[MAX_PARAMS]; // Description of each parameter
+    uint8_t type;                     // The type of device
+    char* name;                       // Device name (ex: "LimitSwitch")
+    uint8_t num_params;               // Number of params the device has
+    param_desc_t params[MAX_PARAMS];  // Description of each parameter
 } device_t;
 
 // ************************ DEVICE UTILITY FUNCTIONS ************************ //
@@ -185,7 +221,7 @@ uint64_t millis();
  *    0: read EOF on fd
  *    -1: read errored out
  */
-int readn(int fd, void *buf, uint16_t n);
+int readn(int fd, void* buf, uint16_t n);
 
 /**
  * Read n bytes from buf to fd; return number of bytes written to buf (deals with interrupts and unbuffered writes)
@@ -197,6 +233,6 @@ int readn(int fd, void *buf, uint16_t n);
  *    >= 0: number of bytes written into buf
  *    -1: write errored out
  */
-int writen(int fd, void *buf, uint16_t n);
+int writen(int fd, void* buf, uint16_t n);
 
 #endif

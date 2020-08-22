@@ -22,7 +22,8 @@
         float baz; <spaces> // in a dummy struct
     } foo_t;
 
-5) Generally, comments inside of block comments (/* and */ /*) should be complete sentences and have proper capitalization. Inline comments, not so much.
+5) Generally, comments inside of block comments (/* and */
+/*) should be complete sentences and have proper capitalization. Inline comments, not so much.
 
 6) Delimiters should look like the ones that you see in this doc, with the length consistent through any one file
     (By "delimiters", we mean the things like the // ********** GENERAL ************ // you see in this file)
@@ -55,15 +56,15 @@
 
 // ********************************************* HEADER FILES *************************************** //
 
-#ifndef SOMETHING_H // always include these two lines (replace SOMETHING with a descriptive name) at the top of your header files
-#define SOMETHING_H // this prevents code from being included twice
+#ifndef SOMETHING_H  // always include these two lines (replace SOMETHING with a descriptive name) at the top of your header files
+#define SOMETHING_H  // this prevents code from being included twice
 
-#include <standard_headers.h> // always include standard headers first (stdio, string, stlib, etc.), separated by a newline from the #ifndef and #define
-#include <stdio.h>            // for printf, fprintf, fopen <-- include a message like this to indicate what you'll be using from that header 
+#include <standard_headers.h>  // always include standard headers first (stdio, string, stlib, etc.), separated by a newline from the #ifndef and #define
+#include <stdio.h>             // for printf, fprintf, fopen <-- include a message like this to indicate what you'll be using from that header
 
-#include "c-runtime.h"        // separate standard headers with C-runtime headers with a newline
+#include "c-runtime.h"  // separate standard headers with C-runtime headers with a newline
 
-#endif // put this at the end of all header files
+#endif  // put this at the end of all header files
 
 // ******************************************** SOURCE CODE ***************************************** //
 
@@ -106,7 +107,7 @@ while (foo < 1) {
 // comments for else's should go after the open brace
 if (foo == 0) {
     // foo is 0
-} else { // opening brace goes on same line
+} else {  // opening brace goes on same line
     // foo is not 0
 }
 

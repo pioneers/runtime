@@ -20,7 +20,7 @@
  *      payload_length: sizeof(type) + sizeof(year) + sizeof(uid)
  *      max_payload_length: same as above
  */
-message_t *make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid);
+message_t* make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid);
 
 /**
  * Receives a message
@@ -32,7 +32,7 @@ message_t *make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid);
  *    1 on bad read
  *    2 on incorrect checksum
  */
-int receive_message(int fd, message_t *msg);
+int receive_message(int fd, message_t* msg);
 
 /**
  * Sends a message
@@ -40,7 +40,7 @@ int receive_message(int fd, message_t *msg);
  *    fd: File descriptor to write to
  *    msg: message_t to be sent
  */
-void send_message(int fd, message_t *msg);
+void send_message(int fd, message_t* msg);
 
 /**
  * Processes a DEVICE_WRITE message, writing to params as appropriate
@@ -49,7 +49,7 @@ void send_message(int fd, message_t *msg);
  *    dev_write: A DEVICE_WRITE message to process
  *    params: Array of params to be written to
  */
-void device_write(uint8_t type, message_t *dev_write, param_val_t params[]);
+void device_write(uint8_t type, message_t* dev_write, param_val_t params[]);
 
 /**
  * Builds a DEVICE_DATA message, reading params as appropriate
@@ -59,7 +59,7 @@ void device_write(uint8_t type, message_t *dev_write, param_val_t params[]);
  *    pmap: bitmap indicating which params should be read into DEV_DATA
  *    params: Array of params to be read from
  */
-message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
+message_t* make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
 
 /**
  * Executes the lowcar protocol, receiving/responding to messages, and sending
@@ -74,7 +74,7 @@ message_t *make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
  *      modifies the param values
  *    action_interval: Number of milliseconds between each call to device_actions()
  */
-void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid, \
+void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
                      param_val_t params[], void (*device_actions)(param_val_t[]), int32_t action_interval);
 
 #endif

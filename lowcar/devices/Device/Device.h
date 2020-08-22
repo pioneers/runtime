@@ -6,13 +6,12 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#include "defs.h"
 #include "Messenger.h"
 #include "StatusLED.h"
+#include "defs.h"
 
 class Device {
-
-public:
+  public:
     // ********************** UNIVERSAL DEVICE METHODS ********************** //
 
     /**
@@ -57,7 +56,7 @@ public:
      *    the size of the parameter read into the buffer, or
      *    0 on failure
      */
-    virtual size_t device_read(uint8_t param, uint8_t *data_buf);
+    virtual size_t device_read(uint8_t param, uint8_t* data_buf);
 
     /**
      * Writes the value of a parameter from a buffer into the device
@@ -69,7 +68,7 @@ public:
      *    the size of the parameter that was written, or
      *    0 on failure.
      */
-    virtual size_t device_write(uint8_t param, uint8_t *data_buf);
+    virtual size_t device_write(uint8_t param, uint8_t* data_buf);
 
     /**
      * Performs necessary setup for the device to operate.
@@ -93,37 +92,37 @@ public:
      */
     virtual void device_actions();
 
-protected:
-    Messenger *msngr;                 // Encodes/decodes and send/receive messages over serial
+  protected:
+    Messenger* msngr;  // Encodes/decodes and send/receive messages over serial
     uint8_t enabled;
 
-private:
+  private:
     const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
     const static float MIN_SUB_INTERVAL_MS;  // Minimum tolerable subscription delay, in ms
 
-    StatusLED *led;                   // The LED on the Arduino
-    dev_id_t dev_id;                  // dev_id of this device determined when flashing
-    uint32_t params;                  // Bitmap of parameters subscribed to by dev handler
-    uint16_t sub_interval;            // Time between sending new DEVICE_DATA messages
-    uint32_t timeout;                 // Maximum time (ms) we'll wait between PING messages from dev handler
-    uint64_t last_sent_data_time;     // Timestamp of last time we sent DEVICE_DATA due to Subscription
-    uint64_t last_received_ping_time; // Timestamp of last time we received a PING
-    uint64_t curr_time;               // The current time
-    message_t curr_msg;               // current message being processed
+    StatusLED* led;                    // The LED on the Arduino
+    dev_id_t dev_id;                   // dev_id of this device determined when flashing
+    uint32_t params;                   // Bitmap of parameters subscribed to by dev handler
+    uint16_t sub_interval;             // Time between sending new DEVICE_DATA messages
+    uint32_t timeout;                  // Maximum time (ms) we'll wait between PING messages from dev handler
+    uint64_t last_sent_data_time;      // Timestamp of last time we sent DEVICE_DATA due to Subscription
+    uint64_t last_received_ping_time;  // Timestamp of last time we received a PING
+    uint64_t curr_time;                // The current time
+    message_t curr_msg;                // current message being processed
 
     /**
      * Builds a DEVICE_DATA message by reading all subscribed parameters.
      * Arguments:
      *    msg: An empty message to be populated with parameter values ready for sending.
      */
-    void device_read_params(message_t *msg);
+    void device_read_params(message_t* msg);
 
     /**
      * Writes to device parameters given a DEVICE_WRITE message.
      * Arguments:
      *    msg: A DEVICE_WRITE message containing parameters to write to the device.
      */
-    void device_write_params(message_t *msg);
+    void device_write_params(message_t* msg);
 };
 
 #endif

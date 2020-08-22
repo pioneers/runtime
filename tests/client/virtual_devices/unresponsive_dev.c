@@ -8,7 +8,7 @@
  *    int: file descriptor for the socket
  *    uint64_t: device uid
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     // Do nothing. He's in for a long nap.
     while (1) {
         sleep(60);

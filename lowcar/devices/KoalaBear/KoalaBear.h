@@ -4,20 +4,20 @@
 #include <SPI.h>
 
 #include "Device.h"
-#include "PID.h"
 #include "LEDKoala.h"
-#include "pindefs_koala.h"
+#include "PID.h"
 #include "defs.h"
+#include "pindefs_koala.h"
 
 class KoalaBear : public Device {
-public:
+  public:
     /**
      * Constructor. Initializes motors, encoders, and PID controllers
      */
-    KoalaBear ();
+    KoalaBear();
 
-    virtual size_t device_read(uint8_t param, uint8_t *data_buf);
-    virtual size_t device_write(uint8_t param, uint8_t *data_buf);
+    virtual size_t device_read(uint8_t param, uint8_t* data_buf);
+    virtual size_t device_write(uint8_t param, uint8_t* data_buf);
 
     /**
      * Does electrical setup, setup pins, encoders, and LEDs
@@ -34,13 +34,13 @@ public:
      */
     virtual void device_actions();
 
-private:
-    float target_speed_a, target_speed_b; // target speeds of motors
-    float deadband_a, deadband_b;         // deadbands of motors
-    uint8_t pid_enabled_a, pid_enabled_b; // whether or not motors are enabled
-    volatile uint32_t enc_a, enc_b;       // encoder values of motors
-    PID *pid_a, *pid_b;                   // PID controllers for motors
-    LEDKoala *led;                        // for controlling the KoalaBear LED
+  private:
+    float target_speed_a, target_speed_b;  // target speeds of motors
+    float deadband_a, deadband_b;          // deadbands of motors
+    uint8_t pid_enabled_a, pid_enabled_b;  // whether or not motors are enabled
+    volatile uint32_t enc_a, enc_b;        // encoder values of motors
+    PID *pid_a, *pid_b;                    // PID controllers for motors
+    LEDKoala* led;                         // for controlling the KoalaBear LED
     unsigned long prev_led_time;
     int curr_led_mtr;
 

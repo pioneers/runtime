@@ -5,38 +5,37 @@
 #define LOG_FILE (1 << 1)
 #define LOG_NETWORK (1 << 2)
 
-#define NUM_CONFIGS 7             // number of configuration parameters in the config file
-#define MAX_CONFIG_LINE_LEN 256   // maximum length of a configuration file line, in chars
+#define NUM_CONFIGS 7            // number of configuration parameters in the config file
+#define MAX_CONFIG_LINE_LEN 256  // maximum length of a configuration file line, in chars
 
-#define PROCESS_STR_SIZE 32       // size in bytes of the process string
+#define PROCESS_STR_SIZE 32  // size in bytes of the process string
 
 // *********************************** LOGER-SPECIFIC GLOBAL VARS **************************************** //
 
 // general variables
-uint8_t OUTPUTS = 0;                       // bitmask that stores where the log outputs should go
-char process_str[PROCESS_STR_SIZE];        // string for holding the process name, used in printing
-char *log_level_strs[] = {                 // strings for holding names of log levels, used in printing
+uint8_t OUTPUTS = 0;                 // bitmask that stores where the log outputs should go
+char process_str[PROCESS_STR_SIZE];  // string for holding the process name, used in printing
+char* log_level_strs[] = {           // strings for holding names of log levels, used in printing
     "DEBUG",
     "INFO",
     "WARN",
     "PYTHON",
     "ERROR",
-    "FATAL"
-};
+    "FATAL"};
 
 // for holding the requested log levels for the three output locations (all default to DEBUG)
 log_level_t stdout_level = DEBUG, file_level = DEBUG, network_level = DEBUG;
 
 // used for LOG_FILE only
-FILE *log_file = NULL;                      // file descriptor of the log file
-char log_file_path[MAX_CONFIG_LINE_LEN];    // file path to the log file
+FILE* log_file = NULL;                    // file descriptor of the log file
+char log_file_path[MAX_CONFIG_LINE_LEN];  // file path to the log file
 
 // used for LOG_NETWORK only
-mode_t fifo_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;   // -rw-rw-rw permission for FIFO
-int fifo_up = 0;      // flag that represents if FIFO is up and running
-int fifo_fd = -1;     // file descriptor for FIFO
+mode_t fifo_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;  // -rw-rw-rw permission for FIFO
+int fifo_up = 0;                                                               // flag that represents if FIFO is up and running
+int fifo_fd = -1;                                                              // file descriptor for FIFO
 
-pthread_mutex_t log_mutex; // for ensuring one log gets emitted before processing the next
+pthread_mutex_t log_mutex;  // for ensuring one log gets emitted before processing the next
 
 // ************************************ HELPER FUNCTIONS ****************************************** //
 
@@ -46,15 +45,21 @@ pthread_mutex_t log_mutex; // for ensuring one log gets emitted before processin
  *    level: one of the global variables stdout_level, file_level, or network_level to set
  *    important: string read in from the config file that contains one of the five levels as a string
  */
-static void set_log_level(log_level_t *level, char *important) {
-    important[strlen(important)] = '\0'; // overwrite the newline at the end
+static void set_log_level(log_level_t* level, char* important) {
+    important[strlen(important)] = '\0';  // overwrite the newline at the end
 
     // set level to the contents of important
-    if (strcmp(important, "DEBUG") == 0)      { *level = DEBUG; }
-    else if (strcmp(important, "INFO") == 0)  { *level = INFO;  }
-    else if (strcmp(important, "WARN") == 0)  { *level = WARN;  }
-    else if (strcmp(important, "ERROR") == 0) { *level = ERROR; }
-    else if (strcmp(important, "FATAL") == 0) { *level = FATAL; }
+    if (strcmp(important, "DEBUG") == 0) {
+        *level = DEBUG;
+    } else if (strcmp(important, "INFO") == 0) {
+        *level = INFO;
+    } else if (strcmp(important, "WARN") == 0) {
+        *level = WARN;
+    } else if (strcmp(important, "ERROR") == 0) {
+        *level = ERROR;
+    } else if (strcmp(important, "FATAL") == 0) {
+        *level = FATAL;
+    }
 }
 
 /**
@@ -64,7 +69,7 @@ static void set_log_level(log_level_t *level, char *important) {
  */
 static void open_fifo() {
     if ((fifo_fd = open(LOG_FIFO, O_WRONLY | O_NONBLOCK)) == -1) {
-        if (errno != ENXIO) { // don't show error if open failed because net_handler has not opened pipe for reading yet
+        if (errno != ENXIO) {  // don't show error if open failed because net_handler has not opened pipe for reading yet
             printf("ERROR: logger open FIFO failed: %s", strerror(errno));
         }
     } else {
@@ -81,22 +86,22 @@ static void read_config_file() {
     char nextline[MAX_CONFIG_LINE_LEN];
     char not_important[128], important[128];  // for holding information read from the file
     char important_char;
-    FILE *conf_fd;
+    FILE* conf_fd;
 
     // this logic gets the path of the logger config file
     char file_buf[128] = {0};
-    sprintf(file_buf, "%s", __FILE__); // __FILE__ is the path of this file on the system
-    char *last = strrchr(file_buf, '/'); // use strrchr to get location of last '/' in path
-    strcpy(last + 1, CONFIG_FILE); // append CONFIG_FILE to that path to get the path to logger file
+    sprintf(file_buf, "%s", __FILE__);    // __FILE__ is the path of this file on the system
+    char* last = strrchr(file_buf, '/');  // use strrchr to get location of last '/' in path
+    strcpy(last + 1, CONFIG_FILE);        // append CONFIG_FILE to that path to get the path to logger file
 
     if ((conf_fd = fopen(file_buf, "r")) == NULL) {  // open the config file for reading
         printf("ERROR: logger could not open config file %s: %s", file_buf, strerror(errno));
         exit(1);
     }
-    
+
     for (int i = 0; i < NUM_CONFIGS; i++) {
         // read until the next line read is not a comment or a blank line
-        while (1)  {
+        while (1) {
             if (fgets(nextline, MAX_CONFIG_LINE_LEN, conf_fd) == NULL) {
                 if (feof(conf_fd)) {
                     printf("ERROR: end of config file reached before all logger configurations read");
@@ -115,7 +120,7 @@ static void read_config_file() {
             }
             break;
         }
-    
+
         // get the configuration parameter in nextline sequentially
         switch (i) {
             case 0:
@@ -154,15 +159,21 @@ static void read_config_file() {
                 break;
             default:
                 printf("ERROR: unknown configuration line: %s\n", nextline);
-            }
+        }
     }
-    
+
     // set the log level of an output location that isn't being used to FATAL
     // this is to ensure that log_printf() actually returns early when no logs
     // will be output due to the log level check at the beginning of the function
-    if (!(OUTPUTS & LOG_STDOUT))  { stdout_level  = FATAL; }
-    if (!(OUTPUTS & LOG_FILE))    { file_level    = FATAL; }
-    if (!(OUTPUTS & LOG_NETWORK)) { network_level = FATAL; }
+    if (!(OUTPUTS & LOG_STDOUT)) {
+        stdout_level = FATAL;
+    }
+    if (!(OUTPUTS & LOG_FILE)) {
+        file_level = FATAL;
+    }
+    if (!(OUTPUTS & LOG_NETWORK)) {
+        network_level = FATAL;
+    }
 
     // close the file descriptor for config file
     fclose(conf_fd);
@@ -178,14 +189,14 @@ static void logger_exit() {
             printf("ERROR: log file close failed: %s", strerror(errno));
         }
     }
-    
+
     // if outputting to network, close file descriptor
     if ((OUTPUTS & LOG_NETWORK) && (fifo_up == 1)) {
         if (close(fifo_fd) != 0) {
             printf("ERROR: logger close FIFO failed: %s", strerror(errno));
         }
     }
-    
+
     // destroy the log_mutex
     pthread_mutex_destroy(&log_mutex);
 }
@@ -207,11 +218,11 @@ void logger_init(process_t process) {
 
     // read in desired logger configurations
     read_config_file();
-    
+
     // if we want to log to log file, open it for appending
     if (OUTPUTS & LOG_FILE) {
         wordexp_t words;
-        wordexp(log_file_path, &words, 0); // Perform bash expansion to convert ~/ to the $HOME directory
+        wordexp(log_file_path, &words, 0);  // Perform bash expansion to convert ~/ to the $HOME directory
         if (words.we_wordc == 0) {
             printf("ERROR: log file name %s has invalid format", log_file_path);
             exit(1);
@@ -225,7 +236,7 @@ void logger_init(process_t process) {
             exit(1);
         }
         close(temp_fd);
-        
+
         // open with fopen to use stdio functions instead
         if ((log_file = fopen(log_file_path, "a")) == NULL) {  // open the config file for reading
             printf("ERROR: logger could not open log file %s: %s\n", log_file_path, strerror(errno));
@@ -236,7 +247,7 @@ void logger_init(process_t process) {
     // if we want to log to network, create the FIFO pipe if it doesn't exist, and open it for writing
     if (OUTPUTS & LOG_NETWORK) {
         if (mkfifo(LOG_FIFO, fifo_mode) == -1) {
-            if (errno != EEXIST) { // don't show error if mkfifo failed because it already exists
+            if (errno != EEXIST) {  // don't show error if mkfifo failed because it already exists
                 printf("ERROR: logger create FIFO failed: %s", strerror(errno));
             }
         }
@@ -245,24 +256,30 @@ void logger_init(process_t process) {
     }
 
     // set the correct process_str for given process
-    if (process == DEV_HANDLER) { sprintf(process_str, "DEV_HANDLER"); }
-    else if (process == EXECUTOR) { sprintf(process_str, "EXECUTOR"); }
-    else if (process == NET_HANDLER) { sprintf(process_str, "NET_HANDLER"); }
-    else if (process == SHM) { sprintf(process_str, "SHM"); }
-    else if (process == TEST) { sprintf(process_str, "TEST"); }
+    if (process == DEV_HANDLER) {
+        sprintf(process_str, "DEV_HANDLER");
+    } else if (process == EXECUTOR) {
+        sprintf(process_str, "EXECUTOR");
+    } else if (process == NET_HANDLER) {
+        sprintf(process_str, "NET_HANDLER");
+    } else if (process == SHM) {
+        sprintf(process_str, "SHM");
+    } else if (process == TEST) {
+        sprintf(process_str, "TEST");
+    }
 
-    pthread_mutex_init(&log_mutex, NULL); // initialize the log_mutex
-    atexit(logger_exit); // add cleanup handler
+    pthread_mutex_init(&log_mutex, NULL);  // initialize the log_mutex
+    atexit(logger_exit);                   // add cleanup handler
 }
 
-void log_printf(log_level_t level, char *format, ...) {
+void log_printf(log_level_t level, char* format, ...) {
     // first, don't do anything with this message if less than all set levels
     if (level < network_level && level < file_level && level < stdout_level) {
         return;
     }
-    
+
     static time_t now;                   // for holding system time
-    static char *time_str;               // for string representation of system time
+    static char* time_str;               // for string representation of system time
     static char final_msg[MAX_LOG_LEN];  // final message to be logged to requested locations
     static int len;                      // holding lengths of various strings
     static char msg[MAX_LOG_LEN - 100];  // holds the expanded format string (100 to make room for log header)
@@ -289,7 +306,7 @@ void log_printf(log_level_t level, char *format, ...) {
             *(time_str + len - 1) = '\0';
         }
         len = strlen(msg);
-        
+
         // this logic ensures that log messages are separated by exactly one newline (as long as user doesn't put >1 newline)
         if (*(msg + len - 1) == '\n') {
             sprintf(final_msg, "%s @ %s\t(%s) %s", log_level_strs[level], process_str, time_str, msg);
@@ -297,7 +314,7 @@ void log_printf(log_level_t level, char *format, ...) {
             sprintf(final_msg, "%s @ %s\t(%s) %s\n", log_level_strs[level], process_str, time_str, msg);
         }
     }
-    
+
     // send final_msg to the desired output locations
     if ((OUTPUTS & LOG_STDOUT) && (level >= stdout_level)) {
         printf("%s", final_msg);
@@ -322,7 +339,7 @@ void log_printf(log_level_t level, char *format, ...) {
             }
         }
     }
-    
+
     // release the mutex
     pthread_mutex_unlock(&log_mutex);
 }
