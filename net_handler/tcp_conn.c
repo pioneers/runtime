@@ -167,7 +167,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	else if (msg_type == RUN_MODE_MSG) {
 		RunMode* run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
 		if (run_mode_msg == NULL) {
-			log_printf(ERROR, "Cannot unpack run_mode msg");
+			log_printf(ERROR, "recv_new_msg: Cannot unpack run_mode msg");
 			return -2;
 		}
 		
@@ -190,7 +190,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				robot_desc_write(RUN_MODE, IDLE);
 				break;
 			default:
-				log_printf(ERROR, "requested robot to enter invalid robot mode %s", run_mode_msg->mode);
+				log_printf(ERROR, "recv_new_msg: requested robot to enter invalid robot mode %s", run_mode_msg->mode);
 				break;
 		}
 		run_mode__free_unpacked(run_mode_msg, NULL);
@@ -198,7 +198,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	else if (msg_type == START_POS_MSG) {
 		StartPos* start_pos_msg = start_pos__unpack(NULL, len_pb, buf);
 		if (start_pos_msg == NULL) {
-			log_printf(ERROR, "Cannot unpack start_pos msg");
+			log_printf(ERROR, "recv_new_msg: Cannot unpack start_pos msg");
 			return -2;
 		}
 		
@@ -213,7 +213,7 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 				robot_desc_write(START_POS, RIGHT);
 				break;
 			default:
-				log_printf(WARN, "entered unknown start position");
+				log_printf(ERROR, "recv_new_msg: trying to enter unknown start position %d", start_pos_msg->pos);
 				break;
 		}
 		start_pos__free_unpacked(start_pos_msg, NULL);
@@ -221,32 +221,26 @@ static int recv_new_msg (int conn_fd, int challenge_fd)
 	else if (msg_type == DEVICE_DATA_MSG) {
 		DevData* dev_data_msg = dev_data__unpack(NULL, len_pb, buf);
 		if (dev_data_msg == NULL) {
-			log_printf(ERROR, "Cannot unpack dev_data msg");
+			log_printf(ERROR, "recv_new_msg: Cannot unpack dev_data msg");
 			return -2;
 		}
 		for (int i = 0; i < dev_data_msg->n_devices; i++) {
 			Device* req_device = dev_data_msg->devices[i];
-			device_t* act_device = get_device(req_device->type);
-			if (act_device == NULL) {
-				log_printf(ERROR, "Invalid device subscription: device type %d is invalid", req_device->type);
-				continue;
-			}
 			uint32_t requests = 0;
 			for (int j = 0; j < req_device->n_params; j++) {
 				if (req_device->params[i]->val_case == PARAM__VAL_BVAL) {
-					// log_printf(DEBUG, "Received device subscription for %s param %s", act_device->name, act_device->params[j].name);
 					requests |= (req_device->params[j]->bval << j);
 				}
 			}
 			int err = place_sub_request(req_device->uid, NET_HANDLER, requests);
 			if (err == -1) {
-				log_printf(ERROR, "Invalid device subscription: device uid %llu is invalid", req_device->uid);
+				log_printf(ERROR, "recv_new_msg: Invalid device subscription, device uid %llu is invalid", req_device->uid);
 			}
 		}
 		dev_data__free_unpacked(dev_data_msg, NULL);
 	}
 	else {
-		log_printf(WARN, "unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
+		log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
 		return -2;
 	}
 	free(buf);
@@ -292,7 +286,7 @@ static void* tcp_process (void* tcp_args)
 		
 		//wait for something to happen
 		if (select(maxfd, &read_set, NULL, NULL, NULL) < 0) {
-			log_printf(ERROR, "Failed to wait for select in control loop for client %d: %s", args->client, strerror(errno));
+			log_printf(ERROR, "tcp_process: Failed to wait for select in control loop for client %d: %s", args->client, strerror(errno));
 		}
 		
 		//deny all cancellation requests until the next loop
@@ -322,14 +316,24 @@ static void* tcp_process (void* tcp_args)
 	return NULL;
 }
 
-/*
- * Start the main TCP connection control thread. Does not block.
- * Should be called when the client has requested a connection to Runtime.
- * Arguments:
- *    - int connfd: connection socket descriptor on which there is the established connection with the client
- */
+
+/************************ PUBLIC FUNCTIONS *************************/
+
+
 void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 {
+	pthread_t* tid;
+	if (client == DAWN) {
+		tid = &dawn_tid;
+	}
+	else if (client == SHEPHERD) {
+		tid = &shepherd_tid;
+	}
+	else {
+		log_printf(ERROR, "start_tcp_conn: Invalid TCP client %d, not DAWN(%d) or SHEPHERD(%d)", client, DAWN, SHEPHERD);
+		return;
+	}
+
 	//initialize argument to new connection thread
 	tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
 	args->client = client;
@@ -337,9 +341,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	args->send_logs = send_logs;
 	args->log_file = NULL;
 	args->challenge_fd = -1;
-	
-	pthread_t* tid = (client == DAWN) ? &dawn_tid : &shepherd_tid;
-	
+		
 	// open challenge socket to read and write
 	if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 		log_printf(ERROR, "start_tcp_conn: failed to create challenge socket: %s", strerror(errno));
@@ -348,7 +350,7 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	struct sockaddr_un my_addr = {0};
 	my_addr.sun_family = AF_UNIX;
 	if (bind(args->challenge_fd, (struct sockaddr *) &my_addr, sizeof(sa_family_t)) < 0) {
-		log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
+		log_printf(FATAL, "start_tcp_conn: challenge socket bind failed: %s", strerror(errno));
 		close(args->challenge_fd);
 		return;
 	}
@@ -377,14 +379,11 @@ void start_tcp_conn (robot_desc_field_t client, int conn_fd, int send_logs)
 	robot_desc_write(client, CONNECTED);
 }
 
-/*
- * Stops the TCP connection control thread with given client cleanly. May block briefly to allow
- * main control thread to finish what it's doing. Should be called right before the net_handler main loop terminates.
- */
+
 void stop_tcp_conn (robot_desc_field_t client)
 {
 	if (client != DAWN && client != SHEPHERD) {
-		log_printf(ERROR, "Invalid TCP client %d", client);
+		log_printf(ERROR, "stop_tcp_conn: Invalid TCP client %d, not DAWN(%d) or SHEPHERD(%d)", client, DAWN, SHEPHERD);
 		return;
 	}
 	

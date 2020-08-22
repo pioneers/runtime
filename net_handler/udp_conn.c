@@ -8,7 +8,7 @@ socklen_t addr_len = sizeof(struct sockaddr_in);	// length of the address
 uint64_t start_time;	// the time that Runtime/net_handler was started, in milliseconds since the UNIX epoch
 
 
-void* send_device_data(void* args) {
+static void* send_device_data(void* args) {
 	int len;
 	uint8_t* buffer;
 	int err;
@@ -51,7 +51,7 @@ void* send_device_data(void* args) {
 			int idx = valid_dev_idxs[i];
 			device_t* device_info = get_device(dev_ids[idx].type);
 			if (device_info == NULL) {
-				log_printf(ERROR, "Device %d in SHM with type %d is invalid", idx, dev_ids[idx].type);
+				log_printf(ERROR, "send_device_data: Device %d in SHM with type %d is invalid", idx, dev_ids[idx].type);
 				continue;
 			}
 
@@ -134,14 +134,16 @@ void* send_device_data(void* args) {
 		dev_data.n_devices = dev_idx + 1; // + 1 is for custom data
 
 		len = dev_data__get_packed_size(&dev_data);
-		// log_printf(DEBUG, "Number of actual devices: %d, total size %d, DevData size %d", dev_idx, len, sizeof(DevData));
 		buffer = malloc(len);
 		dev_data__pack(&dev_data, buffer);
 		
 		//send data to Dawn
 		err = sendto(socket_fd, buffer, len, 0, (struct sockaddr*) &dawn_addr, addr_len);
-		if (err < 0 || err != len) {
-			log_printf(ERROR, "UDP sendto failed. send buffer length %d, actual sent %d: %s", len, err, strerror(errno));
+		if (err < 0) {
+			log_printf(ERROR, "send_device_data: UDP sendto failed: %s", strerror(errno));
+		}
+		else if (err != len) {
+			log_printf(WARN, "send_device_data: Didn't send all data to Dawn UDP socket. send buffer length %d, actual sent %d", len, err);
 		}
 
 		//free everything
@@ -160,7 +162,7 @@ void* send_device_data(void* args) {
 }
 
 
-void* update_gamepad_state(void* args) {
+static void* update_gamepad_state(void* args) {
 	static int size = sizeof(GpState);
 	uint8_t buffer[size];
 	int recvlen;
@@ -169,19 +171,19 @@ void* update_gamepad_state(void* args) {
 		recvlen = recvfrom(socket_fd, buffer, size, 0, (struct sockaddr*) &dawn_addr, &addr_len);
 		// log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
 		if (recvlen == size) {
-			log_printf(WARN, "UDP: Read length matches read buffer size %d", recvlen);
+			log_printf(WARN, "update_gamepad_state: UDP Read length matches read buffer size %d", recvlen);
 		}
 		if (recvlen < 0) {
-			log_printf(ERROR, "UDP recvfrom failed: %s", strerror(errno));
+			log_printf(ERROR, "update_gamepad_state: UDP recvfrom failed: %s", strerror(errno));
 			continue;
 		}
 		GpState* gp_state = gp_state__unpack(NULL, recvlen, buffer);
 		if (gp_state == NULL) {
-			log_printf(ERROR, "Failed to unpack GpState");
+			log_printf(ERROR, "update_gamepad_state: Failed to unpack GpState");
 			continue;
 		}
 		if (gp_state->n_axes != 4) {
-			log_printf(ERROR, "Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
+			log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
 		}
 		else {
 			// display the message's fields.
@@ -203,12 +205,13 @@ void* update_gamepad_state(void* args) {
 }
 
 
-//start the threads managing a UDP connection
+/******************************** PUBLIC FUNCTIONS *************************************/
+
 void start_udp_conn ()
 {	
 	//create the socket
 	if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-		log_printf(ERROR, "could not create udp socket: %s", strerror(errno));
+		log_printf(ERROR, "start_udp_conn: could not create udp socket: %s", strerror(errno));
 		return;
 	}
 	
@@ -218,7 +221,7 @@ void start_udp_conn ()
 	my_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 	my_addr.sin_port = htons(RASPI_UDP_PORT);
 	if (bind(socket_fd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr_in)) < 0) {
-		log_printf(ERROR, "udp socket bind failed: %s", strerror(errno));
+		log_printf(ERROR, "start_udp_conn: udp socket bind failed: %s", strerror(errno));
 		return;
 	}
 
@@ -226,32 +229,31 @@ void start_udp_conn ()
 
 	//create threads
 	if (pthread_create(&gp_thread, NULL, update_gamepad_state, NULL) != 0) {
-		log_printf(ERROR, "failed to create update_gamepad_state thread: %s", strerror(errno));
+		log_printf(ERROR, "start_udp_conn: failed to create update_gamepad_state thread: %s", strerror(errno));
 		return;
 	}
 	if (pthread_create(&device_thread, NULL, send_device_data, NULL) != 0) {
-		log_printf(ERROR, "failed to create send_device_data thread: %s", strerror(errno));
+		log_printf(ERROR, "start_udp_conn: failed to create send_device_data thread: %s", strerror(errno));
 		stop_udp_conn();
 	}
 	
 }
 
-//stop the threads managing the UDP connection
 void stop_udp_conn ()
 {
 	if (pthread_cancel(gp_thread) != 0) {
-		log_printf(ERROR, "failed to cancel gp_thread: %s", strerror(errno));
+		log_printf(ERROR, "stop_udp_conn: failed to cancel gp_thread: %s", strerror(errno));
 	}
 	if (pthread_cancel(device_thread) != 0) {
-		log_printf(ERROR, "failed to cancel device_thread: %s", strerror(errno));
+		log_printf(ERROR, "stop_udp_conn: failed to cancel device_thread: %s", strerror(errno));
 	}
 	if (pthread_join(gp_thread, NULL) != 0) {
-		log_printf(ERROR, "failed to join gp_thread: %s", strerror(errno));
+		log_printf(ERROR, "stop_udp_conn: failed to join gp_thread: %s", strerror(errno));
 	}
 	if (pthread_join(device_thread, NULL) != 0) {
-		log_printf(ERROR, "failed to join device_thread: %s", strerror(errno));
+		log_printf(ERROR, "stop_udp_conn: failed to join device_thread: %s", strerror(errno));
 	}
 	if(close(socket_fd) != 0) {
-		log_printf(ERROR, "Couldn't close UDP socket properly: %s", strerror(errno));
+		log_printf(ERROR, "stop_udp_conn: Couldn't close UDP socket properly: %s", strerror(errno));
 	}
 }

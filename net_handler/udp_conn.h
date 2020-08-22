@@ -3,10 +3,14 @@
 
 #include "net_util.h"
 
-//start the threads managing the UDP connection
+/**
+ * Start the gamepad and device threads managing the UDP connection
+ */
 void start_udp_conn();
 
-//stop the threads managing the UDP connection
+/**
+ * Stop the gamepad and device threads managing the UDP connection
+ */ 
 void stop_udp_conn();
 
 #endif

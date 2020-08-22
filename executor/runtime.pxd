@@ -35,7 +35,7 @@ cdef extern from "../logger/logger.h":
     void logger_init (process_t process)
     void logger_stop ()
     void log_printf (log_level level, char *format, ...)
-    enum log_level:
+    cpdef enum log_level:
         DEBUG, INFO, WARN, PYTHON, ERROR, FATAL
 
 
