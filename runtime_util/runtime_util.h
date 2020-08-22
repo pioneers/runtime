@@ -33,6 +33,9 @@
 #define CHALLENGE_LEN 128       // The maximum input/output string length for a challenge
 #define CHALLENGE_SOCKET "/tmp/challenge.sock"
 
+// The interval (microseconds) at which we wait between detecting connects/disconnects
+#define POLL_INTERVAL 100000
+
 // enumerated names of processes
 typedef enum process {
     DEV_HANDLER, EXECUTOR, NET_HANDLER, SHM, TEST
