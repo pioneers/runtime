@@ -11,7 +11,7 @@
 *    - 0: all steps completed successfully
 *    - 1: listening socket setup failed
 */
-int socket_setup (int *sockfd)
+static int socket_setup (int *sockfd)
 {
 	struct sockaddr_in serv_addr = {0}; //initialize everything to 0
 		
@@ -54,7 +54,7 @@ int socket_setup (int *sockfd)
 * Arguments:
 *    - int sig_num: signal that caused this handler to execute (will always be SIGINT in this case)
 */
-void sigint_handler (int sig_num)
+static void sigint_handler (int sig_num)
 {
 	log_printf(INFO, "Stopping net_handler...");
 	stop_udp_conn();

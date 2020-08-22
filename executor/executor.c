@@ -1,6 +1,5 @@
 #define PY_SSIZE_T_CLEAN
 #include <python3.7/Python.h>              // For Python's C API
-// #include <Python.h>                        // For Python's C API
 #include <stdio.h>                         //for i/o
 #include <stdlib.h>                        //for standard utility functions (exit, sleep)
 #include <sys/types.h>                     //for sem_t and other standard system types
@@ -35,9 +34,9 @@ uint64_t min_time = (1.0 / MAX_FREQ) * 1e9; // Minimum time in nanoseconds that 
 
 
 /**
- *  Returns the appropriate string representation from the given mode.
+ *  Returns the appropriate string representation from the given mode, or NULL if the mode is invalid.
  */
-char* get_mode_str(robot_desc_val_t mode) {
+static char* get_mode_str(robot_desc_val_t mode) {
     if (mode == AUTO) {
         return "autonomous";
     }
@@ -55,7 +54,7 @@ char* get_mode_str(robot_desc_val_t mode) {
 /**
  *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
  */
-void reset_params() {
+static void reset_params() {
     uint32_t catalog;
     dev_id_t dev_ids[MAX_DEVICES];
     get_catalog(&catalog);
@@ -87,7 +86,7 @@ void reset_params() {
  *  Input: 
  *      student_code: string representing the name of the student's Python file, without the .py
  */
-void executor_init(char* student_code) {
+static void executor_init(char* student_code) {
     // initialize Python
     Py_Initialize();
     PyEval_InitThreads();
@@ -187,7 +186,7 @@ void executor_init(char* student_code) {
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-uint8_t run_py_function(const char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
+static uint8_t run_py_function(const char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
     uint8_t ret = 0;
 	
     //retrieve the Python function from the student code
@@ -285,7 +284,7 @@ uint8_t run_py_function(const char* func_name, struct timespec* timeout, int loo
  *  Inputs:
  *      args: string of the mode to start running
  */
-void run_mode(robot_desc_val_t mode) {
+static void run_mode(robot_desc_val_t mode) {
 	//Set up the arguments to the threads that will run the setup and main threads
     char* mode_str = get_mode_str(mode);
     char setup_str[20], main_str[20];
@@ -306,7 +305,7 @@ void run_mode(robot_desc_val_t mode) {
 /**
  *  Receives inputs from net handler, runs the coding challenges, and sends output back to net handler.
  */
-void run_challenges() {
+static void run_challenges() {
     PyObject* challenge_list = PyObject_GetAttrString(pModule, "CHALLENGES");
     if (challenge_list == NULL) {
         PyErr_Print();
@@ -425,7 +424,7 @@ void run_challenges() {
 /**
  *  Handler for killing the child mode subprocess
  */
-void python_exit_handler(int signum) {
+static void python_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
     log_printf(DEBUG, "cancelling Python function");
     PyGILState_STATE gstate = PyGILState_Ensure();
@@ -453,7 +452,7 @@ void python_exit_handler(int signum) {
 /** 
  *  Kills any running subprocess. Will make the robot go into IDLE mode.
  */
-void kill_subprocess() {
+static void kill_subprocess() {
     if (kill(pid, SIGTERM) != 0) {
         log_printf(ERROR, "Kill signal not sent: %s", strerror(errno));
     } 
@@ -478,7 +477,7 @@ void kill_subprocess() {
 /** 
  *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
  */
-pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
+static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
     pid_t pid = fork();
     if (pid < 0) {
         log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
@@ -513,7 +512,7 @@ pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
 /**
  *  Handler for keyboard interrupts SIGINT (Ctrl + C)
  */
-void exit_handler(int signum) {
+static void exit_handler(int signum) {
     log_printf(INFO, "Shutting down executor...");
     if (mode != IDLE) {
         kill_subprocess();
