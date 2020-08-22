@@ -4,7 +4,7 @@ import math
 SIMPLE_DEV = '62_4660'  # 4660 = 0x1234
 i = 0
 
-def print_if_a_button():
+def print_if_button_a():
     while True:
         if Gamepad.get_value('button_a'):
             print("a button pressed!")
@@ -22,7 +22,7 @@ def modify_my_int():
 
 def teleop_setup():
     print("Teleop setup has begun!")
-    Robot.run(print_if_a_button)
+    Robot.run(print_if_button_a)
     Robot.run(modify_my_int)
 
 def teleop_main():

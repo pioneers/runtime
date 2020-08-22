@@ -19,9 +19,9 @@ def test_api():
 
     gamepad = studentapi.Gamepad()
     try:
-        print("Button A:", gamepad.get_value('a_button'))
+        print("Button A:", gamepad.get_value('button_a'))
         print("R bumper:", gamepad.get_value('r_bumper'))
-        print("R X joystick:", gamepad.get_value('x_right_joystick'))
+        print("R X joystick:", gamepad.get_value('joystick_right_x'))
     except NotImplementedError:
         pass
 
