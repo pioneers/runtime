@@ -10,6 +10,8 @@ To install Docker, go here https://docs.docker.com/get-docker/. Note that to ins
 
 # Usage with Docker Compose (Recommended)
 
+We recommend using `docker-compose` for all your Docker development needs, especially if you're new to Docker.
+
 ## Installing
 
 If you are on Windows/Mac, you will be using Docker Desktop which will already have `docker-compose` installed. If you are on Linux, you can install it with
@@ -35,6 +37,8 @@ To stop the container, just exit all your shells or do
     docker-compose down
 
 # Usage with Docker CLI (Intermediate)
+
+We recommend using the Docker CLI instead only if you are very interested in Docker and want to know more.
 
 ## Pulling
 
