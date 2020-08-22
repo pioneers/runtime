@@ -3,13 +3,13 @@
 const int ServoControl::NUM_SERVOS = 2;
 const int ServoControl::SERVO_0 = 5;
 const int ServoControl::SERVO_1 = 6;
-const int ServoControl::SERVO_CENTER = 1500; // center position on servo, in microseconds (?)
-const int ServoControl::SERVO_RANGE = 1000;  // range of movement of servo is SERVO_CENTER +/- SERVO_RANGE
+const int ServoControl::SERVO_CENTER = 1500;  // center position on servo, in microseconds (?)
+const int ServoControl::SERVO_RANGE = 1000;   // range of movement of servo is SERVO_CENTER +/- SERVO_RANGE
 const uint8_t ServoControl::pins[] = {SERVO_0, SERVO_1};
 
-Servo *servo0 = new Servo();
-Servo *servo1 = new Servo();
-Servo servos[2] = { *servo0, *servo1 };
+Servo* servo0 = new Servo();
+Servo* servo1 = new Servo();
+Servo servos[2] = {*servo0, *servo1};
 
 ServoControl::ServoControl() : Device(DeviceType::SERVO_CONTROL, 1) {
     this->positions = new float[NUM_SERVOS];
@@ -19,14 +19,14 @@ ServoControl::ServoControl() : Device(DeviceType::SERVO_CONTROL, 1) {
     disable_all();
 }
 
-size_t ServoControl::device_read (uint8_t param, uint8_t *data_buf) {
-    float *float_buf = (float *) data_buf;
+size_t ServoControl::device_read(uint8_t param, uint8_t* data_buf) {
+    float* float_buf = (float*) data_buf;
     float_buf[0] = this->positions[param];
     return sizeof(float);
 }
 
-size_t ServoControl::device_write (uint8_t param, uint8_t *data_buf) {
-    float value = ((float *) data_buf)[0];
+size_t ServoControl::device_write(uint8_t param, uint8_t* data_buf) {
+    float value = ((float*) data_buf)[0];
     if (value < -1 || value > 1) {
         return 0;
     }

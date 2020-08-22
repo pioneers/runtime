@@ -17,10 +17,10 @@ int main() {
     sleep(1);
 
     // Connect an UnresponsiveTestDevice
-    print_dev_ids(); // No device
-    connect_virtual_device("UnresponsiveTestDevice", 0x123); // Unknown device
+    print_dev_ids();                                          // No device
+    connect_virtual_device("UnresponsiveTestDevice", 0x123);  // Unknown device
     sleep(2);
-    print_dev_ids(); // No device
+    print_dev_ids();  // No device
 
     // Clean up
     disconnect_all_devices();

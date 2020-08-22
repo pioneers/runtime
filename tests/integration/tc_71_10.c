@@ -18,11 +18,11 @@ int main() {
     start_net_handler();
     start_dev_handler();
     start_executor("runtime_latency", "");
-    sleep(1);   // Let processes boot up
+    sleep(1);  // Let processes boot up
 
     // Connect TimeTestDevice
     connect_virtual_device("TimeTestDevice", TIME_DEV_UID);
-    sleep(1);   // Wait for ACK exchange
+    sleep(1);  // Wait for ACK exchange
 
     // Connect gamepad
     uint32_t buttons = 0;
@@ -33,7 +33,7 @@ int main() {
     send_run_mode(SHEPHERD, TELEOP);
 
     // Start the timer and press A
-    int32_t start = millis() % 1000000000; // 9 digits, just like TimeTestDevice
+    int32_t start = millis() % 1000000000;  // 9 digits, just like TimeTestDevice
     buttons |= (1 << BUTTON_A);
     send_gamepad_state(buttons, joystick_vals);
 

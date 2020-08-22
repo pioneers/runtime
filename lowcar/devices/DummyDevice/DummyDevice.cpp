@@ -44,12 +44,11 @@ DummyDevice::DummyDevice() : Device(DeviceType::DUMMY_DEVICE, 13) {
     this->dusk = 0;
 }
 
-size_t DummyDevice::device_read(uint8_t param, uint8_t *data_buf) {
-    float   *float_buf  = (float *) data_buf;
-    int32_t *int_buf    = (int32_t *) data_buf;
+size_t DummyDevice::device_read(uint8_t param, uint8_t* data_buf) {
+    float* float_buf = (float*) data_buf;
+    int32_t* int_buf = (int32_t*) data_buf;
 
     switch (param) {
-
         case RUNTIME:
             int_buf[0] = this->runtime;
             return sizeof(this->runtime);
@@ -111,9 +110,8 @@ size_t DummyDevice::device_read(uint8_t param, uint8_t *data_buf) {
     return 0;
 }
 
-size_t DummyDevice::device_write(uint8_t param, uint8_t *data_buf) {
+size_t DummyDevice::device_write(uint8_t param, uint8_t* data_buf) {
     switch (param) {
-
         case RUNTIME:
             break;
 
@@ -133,11 +131,11 @@ size_t DummyDevice::device_write(uint8_t param, uint8_t *data_buf) {
             break;
 
         case SENS:
-            this->sens = ((int32_t *) data_buf)[0];
+            this->sens = ((int32_t*) data_buf)[0];
             return sizeof(this->sens);
 
         case PDB:
-            this->pdb = ((float *) data_buf)[0];
+            this->pdb = ((float*) data_buf)[0];
             return sizeof(this->pdb);
 
         case MECH:
@@ -145,11 +143,11 @@ size_t DummyDevice::device_write(uint8_t param, uint8_t *data_buf) {
             return sizeof(this->mech);
 
         case CPR:
-            this->cpr = ((int32_t *) data_buf)[0];
+            this->cpr = ((int32_t*) data_buf)[0];
             return sizeof(this->cpr);
 
         case EDU:
-            this->edu = ((float *) data_buf)[0];
+            this->edu = ((float*) data_buf)[0];
             return sizeof(this->edu);
 
         case EXEC:
@@ -157,11 +155,11 @@ size_t DummyDevice::device_write(uint8_t param, uint8_t *data_buf) {
             return sizeof(this->exec);
 
         case PIEF:
-            this->pief = ((int32_t *) data_buf)[0];
+            this->pief = ((int32_t*) data_buf)[0];
             return sizeof(this->pief);
 
         case FUNTIME:
-            this->funtime = ((float *) data_buf)[0];
+            this->funtime = ((float*) data_buf)[0];
             return sizeof(this->funtime);
 
         case SHEEP:
@@ -169,7 +167,7 @@ size_t DummyDevice::device_write(uint8_t param, uint8_t *data_buf) {
             return sizeof(this->sheep);
 
         case DUSK:
-            this->dusk = ((int32_t *) data_buf)[0];
+            this->dusk = ((int32_t*) data_buf)[0];
             return sizeof(this->dusk);
     }
     return 0;
@@ -190,7 +188,6 @@ void DummyDevice::device_actions() {
 
     // Simulate read-only params changing
     if (curr - last_update_time > 500) {
-
         this->runtime += 2;
         this->shepherd += 1.9;
         this->dawn = !this->dawn;

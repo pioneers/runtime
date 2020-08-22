@@ -4,11 +4,11 @@ syntax = "proto3";
 
 option optimize_for = LITE_RUNTIME;
 
-enum Pos {       //we can add more start positions in the future
-	LEFT = 0;
-	RIGHT = 1;
+enum Pos {  //we can add more start positions in the future
+    LEFT = 0;
+    RIGHT = 1;
 }
 
 message StartPos {
-	Pos pos = 1;
+    Pos pos = 1;
 }

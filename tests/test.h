@@ -1,10 +1,10 @@
 #ifndef TEST_H
 #define TEST_H
 
+#include "client/dev_handler_client.h"
+#include "client/executor_client.h"
 #include "client/net_handler_client.h"
 #include "client/shm_client.h"
-#include "client/executor_client.h"
-#include "client/dev_handler_client.h"
 
 // ***************************** START/END TEST ***************************** //
 
@@ -15,7 +15,7 @@
  *    - char *test_description: a short description of what the test is testing
  * No return value.
  */
-void start_test(char *test_name);
+void start_test(char* test_name);
 
 /**
  * Takes care of resetting the plumbing of the outputs at the end of the test, and
@@ -32,7 +32,7 @@ void end_test();
  *    expected_output: string that should be in the output of the test
  * No return value. (Will exit with status code 1 if not in output).
  */
-void in_output(char *expected_output);
+void in_output(char* expected_output);
 
 /**
  * Verifies that expected output is somewhere in the output after most recent call to this function
@@ -40,7 +40,7 @@ void in_output(char *expected_output);
  *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
  * No return value. (Will exit with status code 1 if not in rest of output).
  */
-void in_rest_of_output(char *expected_output);
+void in_rest_of_output(char* expected_output);
 
 /**
  * Verifies that not_expected_output is not in the output of the test
@@ -48,7 +48,7 @@ void in_rest_of_output(char *expected_output);
  *    not_expected_output: string that should NOT be anywhere in the output of the test
  * No return value. (Will exit with status code 1 if it found the string in the output).
  */
-void not_in_output(char *not_expected_output);
+void not_in_output(char* not_expected_output);
 
 /**
  * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
@@ -56,7 +56,7 @@ void not_in_output(char *not_expected_output);
  *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
  * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
  */
-void not_in_rest_of_output(char *not_expected_output);
+void not_in_rest_of_output(char* not_expected_output);
 
 /**
  * Verifies that two input arrays of parameters are the same
@@ -79,6 +79,6 @@ void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_
  * Returns nothing if they're the same.
  * Exits with status code 1 if they're different
  */
-void same_param_value(char *param_name, param_type_t param_type, param_val_t expected, param_val_t received);
+void same_param_value(char* param_name, param_type_t param_type, param_val_t expected, param_val_t received);
 
 #endif

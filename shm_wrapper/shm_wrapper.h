@@ -1,18 +1,18 @@
 #ifndef SHM_WRAPPER_H
 #define SHM_WRAPPER_H
 
-#include <semaphore.h>                     // for semaphores
-#include <sys/mman.h>                      // for posix shared memory
-#include <limits.h>						   // for UCHAR_MAX
+#include <limits.h>     // for UCHAR_MAX
+#include <semaphore.h>  // for semaphores
+#include <sys/mman.h>   // for posix shared memory
 
 #include "../logger/logger.h"              // for logger
 #include "../runtime_util/runtime_util.h"  // for runtime constants
 
 // names of various objects used in shm_wrapper; should not be used outside of shm_wrapper.c, shm_start.c, and shm_stop.c
-#define CATALOG_MUTEX_NAME "/ct-mutex"  // name of semaphore used as a mutex on the catalog
-#define CMDMAP_MUTEX_NAME "/cmap-mutex" // name of semaphore used as a mutex on the command bitmap
-#define SUBMAP_MUTEX_NAME "/smap-mutex" // name of semaphore used as a mutex on the various subcription bitmaps
-#define DEV_SHM_NAME "/dev-shm"         // name of shared memory block across devices
+#define CATALOG_MUTEX_NAME "/ct-mutex"   // name of semaphore used as a mutex on the catalog
+#define CMDMAP_MUTEX_NAME "/cmap-mutex"  // name of semaphore used as a mutex on the command bitmap
+#define SUBMAP_MUTEX_NAME "/smap-mutex"  // name of semaphore used as a mutex on the various subcription bitmaps
+#define DEV_SHM_NAME "/dev-shm"          // name of shared memory block across devices
 
 #define GPAD_SHM_NAME "/gp-shm"         // name of shared memory block for gamepad
 #define ROBOT_DESC_SHM_NAME "/rd-shm"   // name of shared memory block for robot description
@@ -21,46 +21,47 @@
 #define LOG_DATA_SHM "/log-data-shm"    // name of shared memory block for Robot.log data
 #define LOG_DATA_MUTEX "/log-data-sem"  // name of semaphore used as mutex over Robot.log shm
 
-#define SNAME_SIZE 32                   // size of buffers that hold semaphore names, in bytes
+#define SNAME_SIZE 32  // size of buffers that hold semaphore names, in bytes
 
 // *********************************** SHM TYPEDEFS  ****************************************************** //
 
 // enumerated names for the two associated blocks per device
-typedef enum stream { DATA, COMMAND } stream_t;
+typedef enum stream { DATA,
+                      COMMAND } stream_t;
 
 // shared memory block that holds device information, data, and commands has this structure
 typedef struct {
-	uint32_t catalog;                                   // catalog of valid devices
-	uint32_t cmd_map[MAX_DEVICES + 1];                  // bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
-	uint32_t net_sub_map[MAX_DEVICES + 1];              // bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
-	uint32_t exec_sub_map[MAX_DEVICES + 1];             // bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
-	param_val_t params[2][MAX_DEVICES][MAX_PARAMS];     // all the device parameter info, data and commands
-	dev_id_t dev_ids[MAX_DEVICES];                      // all the device identification info
+    uint32_t catalog;                                // catalog of valid devices
+    uint32_t cmd_map[MAX_DEVICES + 1];               // bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
+    uint32_t net_sub_map[MAX_DEVICES + 1];           // bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
+    uint32_t exec_sub_map[MAX_DEVICES + 1];          // bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
+    param_val_t params[2][MAX_DEVICES][MAX_PARAMS];  // all the device parameter info, data and commands
+    dev_id_t dev_ids[MAX_DEVICES];                   // all the device identification info
 } dev_shm_t;
 
 // two mutex semaphores for each device
 typedef struct {
-	sem_t *data_sem;        // semaphore on the data stream of a device
-	sem_t *command_sem;     // semaphore on the command stream of a device
+    sem_t* data_sem;     // semaphore on the data stream of a device
+    sem_t* command_sem;  // semaphore on the command stream of a device
 } dual_sem_t;
 
 // shared memory for gamepad
 typedef struct {
-	uint32_t buttons;       // bitmap for which buttons are pressed
-	float joysticks[4];     // array to hold joystick positions
+    uint32_t buttons;    // bitmap for which buttons are pressed
+    float joysticks[4];  // array to hold joystick positions
 } gamepad_shm_t;
 
 // shared memory for robot description
 typedef struct {
-	uint8_t fields[NUM_DESC_FIELDS];   // array to hold the robot state (each is a uint8_t)
+    uint8_t fields[NUM_DESC_FIELDS];  // array to hold the robot state (each is a uint8_t)
 } robot_desc_shm_t;
 
 // shared memory for Robot.log data
 typedef struct {
-	uint8_t num_params;               // number of quantities the student wants to log
-	char names[UCHAR_MAX][64];        // keys (names) of quantities that student wants to log
-	param_val_t params[UCHAR_MAX];    // values of quantities that student wants to log
-	param_type_t types[UCHAR_MAX];    // types of the values that student wants to log
+    uint8_t num_params;             // number of quantities the student wants to log
+    char names[UCHAR_MAX][64];      // keys (names) of quantities that student wants to log
+    param_val_t params[UCHAR_MAX];  // values of quantities that student wants to log
+    param_type_t types[UCHAR_MAX];  // types of the values that student wants to log
 } log_data_shm_t;
 
 // *********************************** SHM EXTERNAL VARIABLES  ******************************************** //
@@ -68,19 +69,19 @@ typedef struct {
 // DO NOT USE THESE UNDER NORMAL CIRCUMSTANCES
 // THESE ARE ONLY USED TO SIMPLIFY CODE IN SHM_START AND SHM_STOP
 
-extern dual_sem_t sems[MAX_DEVICES];      // array of semaphores, two for each possible device (one for data and one for commands)
-extern dev_shm_t *dev_shm_ptr;            // points to memory-mapped shared memory block for device data and commands
-extern sem_t *catalog_sem;                // semaphore used as a mutex on the catalog
-extern sem_t *cmd_map_sem;                // semaphore used as a mutex on the command bitmap
-extern sem_t *sub_map_sem;                // semaphore used as a mutex on the subscription bitmap
+extern dual_sem_t sems[MAX_DEVICES];  // array of semaphores, two for each possible device (one for data and one for commands)
+extern dev_shm_t* dev_shm_ptr;        // points to memory-mapped shared memory block for device data and commands
+extern sem_t* catalog_sem;            // semaphore used as a mutex on the catalog
+extern sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
+extern sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
-extern gamepad_shm_t *gp_shm_ptr;         // points to memory-mapped shared memory block for gamepad
-extern robot_desc_shm_t *rd_shm_ptr;      // points to memory-mapped shared memory block for robot description
-extern sem_t *gp_sem;                     // semaphore used as a mutex on the gamepad
-extern sem_t *rd_sem;                     // semaphore used as a mutex on the robot description
+extern gamepad_shm_t* gp_shm_ptr;     // points to memory-mapped shared memory block for gamepad
+extern robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
+extern sem_t* gp_sem;                 // semaphore used as a mutex on the gamepad
+extern sem_t* rd_sem;                 // semaphore used as a mutex on the robot description
 
-extern log_data_shm_t *log_data_shm_ptr;  // points to shared memory block for log data specified by executor
-extern sem_t *log_data_sem;               // semaphore used as a mutex on the log data
+extern log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for log data specified by executor
+extern sem_t* log_data_sem;               // semaphore used as a mutex on the log data
 
 // ******************************************* PRINTING UTILITIES ***************************************** //
 
@@ -137,7 +138,7 @@ void print_custom_data();
  *    dev_ix: index of device whose STREAM is being created
  *    name: pointer to a buffer of size SNAME_SIZE into which the name of the semaphore will be put
  */
-void generate_sem_name (stream_t stream, int dev_ix, char *name);
+void generate_sem_name(stream_t stream, int dev_ix, char* name);
 
 /**
  * Call this function from every process that wants to use the shared memory wrapper
@@ -155,7 +156,7 @@ void shm_init();
  *    dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
-void device_connect(dev_id_t dev_id, int *dev_ix);
+void device_connect(dev_id_t dev_id, int* dev_ix);
 
 /**
  * Should only be called from device handler
@@ -179,13 +180,13 @@ void device_disconnect(int dev_ix);
  *    0 on success
  *    -1 on failure (specified device is not connected in shm)
  */
-int device_read(int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
+int device_read(int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t* params);
 
 /**
  * This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
  * the device that should be read, rather than the device index.
  */
-int device_read_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params);
+int device_read_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t* params);
 
 /**
  * Should be called from every process wanting to write to the device data
@@ -202,13 +203,13 @@ int device_read_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32
  *    0 on success
  *    -1 on failure (specified device is not connected in shm)
  */
-int device_write(int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
+int device_write(int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params);
 
 /**
  * This function is the exact same as the above function, but instead uses the 64-bit device UID to identify
  * the device that should be written, rather than the device index.
  */
-int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params);
+int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params);
 
 /**
  * Send a sub request to dev_handler for a particular device. Takes care of updating the changed bits.
@@ -257,7 +258,7 @@ void get_device_identifiers(dev_id_t dev_ids[MAX_DEVICES]);
  * Arguments:
  *    catalog: pointer to 32-bit integer into which the current catalog will be read into
  */
-void get_catalog(uint32_t *catalog);
+void get_catalog(uint32_t* catalog);
 
 /**
  * Reads the specified robot description field. Blocks on the robot description semaphore.
@@ -285,7 +286,7 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val);
  *    0 on success
  *    -1 on failure (if gamepad is not connected)
  */
-int gamepad_read(uint32_t *pressed_buttons, float joystick_vals[4]);
+int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]);
 
 /**
  * This function writes the given state of the gamepad to shared memory.
@@ -310,7 +311,7 @@ int gamepad_write(uint32_t pressed_buttons, float joystick_vals[4]);
  *    0 on success
  *    -1 on failure (maximum number of custom parameters is reached so this parameter isn't written)
  */
-int log_data_write(char *key, param_type_t type, param_val_t value);
+int log_data_write(char* key, param_type_t type, param_val_t value);
 
 /**
  * Reads the custom log data from shared memory.
@@ -320,6 +321,6 @@ int log_data_write(char *key, param_type_t type, param_val_t value);
  *    types: array that will be filled with the parameter types, up to `num_params`
  *    values: array that will be filled with the parameter values, up to `num_params`
  */
-void log_data_read(uint8_t *num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
 
 #endif

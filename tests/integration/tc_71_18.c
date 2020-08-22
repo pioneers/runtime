@@ -10,8 +10,8 @@
 #define UID2 0x4321
 
 // global variables to hold device subscriptions
-dev_subs_t dev1_subs = { UID1, "SimpleTestDevice", 0 };
-dev_subs_t dev2_subs = { UID2, "SimpleTestDevice", 0 };
+dev_subs_t dev1_subs = {UID1, "SimpleTestDevice", 0};
+dev_subs_t dev2_subs = {UID2, "SimpleTestDevice", 0};
 dev_subs_t dev_subs[2];
 
 // check that certain names of parameters appear
@@ -36,7 +36,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
     dev_subs[0].params = dev1_params;
     dev_subs[1].params = dev2_params;
     send_device_subs(dev_subs, 2);
-    
+
     // verify that we're receiving only those parameters
     sleep(1);
     print_next_dev_data();
@@ -50,39 +50,39 @@ int main() {
     start_dev_handler();
     dev_subs[0] = dev1_subs;
     dev_subs[1] = dev2_subs;
-    
+
     // connect two devices
     connect_virtual_device("SimpleTestDevice", UID1);
     connect_virtual_device("SimpleTestDevice", UID2);
-    
+
     // send gamepad state so net_handler starts sending device data packets
-	uint32_t buttons = 0;
-	float joystick_vals[] = { 0.0, 0.0, 0.0, 0.0 };
+    uint32_t buttons = 0;
+    float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_gamepad_state(buttons, joystick_vals);
-    
+
     // verify that we're receiving all parameters
     sleep(1);
     print_next_dev_data();
-    
+
     // send subs that requests only a few parameters
     send_subs(0b11, 0b101);
-    
+
     // send subs that requests fewer parameters
     send_subs(0b1, 0b100);
-    
+
     // send subs that requests more parameters
     send_subs(0b11, 0b11);
-    
+
     // send subs that requests the same parameters as last time
     send_subs(0b11, 0b11);
-    
+
     // stop the system
     disconnect_all_devices();
     stop_dev_handler();
     stop_net_handler();
     stop_shm();
     end_test();
-    
+
     // check outputs
     // first sub request
     in_rest_of_output(dev1_header);
@@ -96,7 +96,7 @@ int main() {
     in_rest_of_output(flipflop);
     in_rest_of_output(myint);
     in_rest_of_output(custom_dev_header);
-    
+
     // second sub request
     in_rest_of_output(dev1_header);
     in_rest_of_output(increasing);
@@ -105,7 +105,7 @@ int main() {
     in_rest_of_output(increasing);
     in_rest_of_output(flipflop);
     in_rest_of_output(custom_dev_header);
-    
+
     // third sub request
     in_rest_of_output(dev1_header);
     in_rest_of_output(increasing);
@@ -123,6 +123,6 @@ int main() {
         in_rest_of_output(doubling);
         in_rest_of_output(custom_dev_header);
     }
-    
+
     return 0;
 }

@@ -1,18 +1,23 @@
-  
+
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <stdarg.h>    // to deal with variable-length argument lists arguments
-#include <wordexp.h>   // for wordexp
+#include <stdarg.h>   // to deal with variable-length argument lists arguments
+#include <wordexp.h>  // for wordexp
 
 
 #include "../runtime_util/runtime_util.h"
 
-#define CONFIG_FILE "logger.config"   // path to logger config file
-#define LOG_FIFO "/tmp/log-fifo"      // location of the log FIFO pipe in filesystem
+#define CONFIG_FILE "logger.config"  // path to logger config file
+#define LOG_FIFO "/tmp/log-fifo"     // location of the log FIFO pipe in filesystem
 
 // enumerate logger levels from least to most critical
-typedef enum log_level { DEBUG, INFO, WARN, PYTHON, ERROR, FATAL } log_level_t;
+typedef enum log_level { DEBUG,
+                         INFO,
+                         WARN,
+                         PYTHON,
+                         ERROR,
+                         FATAL } log_level_t;
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 

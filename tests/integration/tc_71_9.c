@@ -18,12 +18,12 @@ int main() {
     sleep(1);
 
     // Connect UnstableTestDevice
-    print_dev_ids();    // No device
+    print_dev_ids();  // No device
     connect_virtual_device("UnstableTestDevice", 0x123);
     sleep(1);
-    print_dev_ids();    // One device
-    sleep(5);           // UnstableTestDevice will time out
-    print_dev_ids();    // No device
+    print_dev_ids();  // One device
+    sleep(5);         // UnstableTestDevice will time out
+    print_dev_ids();  // No device
 
     // Clean up
     disconnect_all_devices();

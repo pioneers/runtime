@@ -2,11 +2,11 @@
 
 void start_shm() {
     pid_t shm_pid;
-    
+
     // fork shm_start process
     if ((shm_pid = fork()) < 0) {
         printf("fork: %s\n", strerror(errno));
-    } else if (shm_pid == 0) { // child
+    } else if (shm_pid == 0) {  // child
         // cd to the shm_wrapper directory
         if (chdir("../shm_wrapper") == -1) {
             printf("chdir: %s\n", strerror(errno));
@@ -16,12 +16,12 @@ void start_shm() {
         if (execlp("./shm_start", "shm", NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
-    } else { // parent
+    } else {  // parent
         // wait for shm_start process to terminate
         if (waitpid(shm_pid, NULL, 0) < 0) {
             printf("waitpid shm: %s\n", strerror(errno));
         }
-		
+
         // init to the now-existing shared memory
         shm_init();
     }
@@ -29,11 +29,11 @@ void start_shm() {
 
 void stop_shm() {
     pid_t shm_pid;
-    
+
     // fork shm_stop process
     if ((shm_pid = fork()) < 0) {
         printf("fork: %s\n", strerror(errno));
-    } else if (shm_pid == 0) { // child
+    } else if (shm_pid == 0) {  // child
         // cd to the shm_wrapper directory
         if (chdir("../shm_wrapper") == -1) {
             printf("chdir: %s\n", strerror(errno));
@@ -43,7 +43,7 @@ void stop_shm() {
         if (execlp("./shm_stop", "shm", NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
-    } else { // parent
+    } else {  // parent
         // wait for shm_stop process to terminate
         if (waitpid(shm_pid, NULL, 0) < 0) {
             printf("waitpid shm: %s\n", strerror(errno));
@@ -52,7 +52,7 @@ void stop_shm() {
 }
 
 void print_shm() {
-    print_params(~0); // prints all devices
+    print_params(~0);  // prints all devices
     print_cmd_map();
     print_sub_map();
     print_robot_desc();

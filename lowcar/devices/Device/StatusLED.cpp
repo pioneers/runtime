@@ -1,8 +1,8 @@
 #include "StatusLED.h"
 
-#define QUICK_TIME 300 // Feel free to change this
+#define QUICK_TIME 300  // Feel free to change this
 // Morse code ratios
-#define SLOW_TIME (QUICK_TIME*3)
+#define SLOW_TIME (QUICK_TIME * 3)
 #define PAUSE_TIME QUICK_TIME
 
 StatusLED::StatusLED() {

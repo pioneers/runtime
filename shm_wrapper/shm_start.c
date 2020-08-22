@@ -1,6 +1,6 @@
 #include "shm_wrapper.h"
 
-char sname[SNAME_SIZE];   // being lazy here but this is for holding all the semaphore names
+char sname[SNAME_SIZE];  // being lazy here but this is for holding all the semaphore names
 
 // ************************************ SHM UTILITY *********************************************** //
 
@@ -12,8 +12,8 @@ char sname[SNAME_SIZE];   // being lazy here but this is for holding all the sem
  *    sem_desc: string that describes the semaphore being created and opened, displayed with error message
  * Returns a pointer to the semaphore that was created and opened.
  */
-static sem_t *my_sem_open_create(char *sem_name, char *sem_desc) {
-    sem_t *ret;
+static sem_t* my_sem_open_create(char* sem_name, char* sem_desc) {
+    sem_t* ret;
     if ((ret = sem_open(sem_name, O_CREAT, 0660, 1)) == SEM_FAILED) {
         log_printf(FATAL, "sem_open: %s. %s", sem_desc, strerror(errno));
         exit(1);
@@ -29,9 +29,9 @@ static sem_t *my_sem_open_create(char *sem_name, char *sem_desc) {
 int main() {
     // set up
     logger_init(SHM);
-	
+
     int fd_shm;
-	
+
     // create all semaphores with initial value 1
     catalog_sem = my_sem_open_create(CATALOG_MUTEX_NAME, "catalog mutex");
     cmd_map_sem = my_sem_open_create(CMDMAP_MUTEX_NAME, "cmd map mutex");
@@ -40,18 +40,18 @@ int main() {
     rd_sem = my_sem_open_create(RD_MUTEX_NAME, "robot desc mutex");
     log_data_sem = my_sem_open_create(LOG_DATA_MUTEX, "log data mutex");
     for (int i = 0; i < MAX_DEVICES; i++) {
-        generate_sem_name(DATA, i, sname); // get the data name
-        if ((sems[i].data_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
+        generate_sem_name(DATA, i, sname);  // get the data name
+        if ((sems[i].data_sem = sem_open((const char*) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
             log_printf(FATAL, "sem_open: data sem for dev_ix %d: %s", i, strerror(errno));
             exit(1);
         }
-        generate_sem_name(COMMAND, i, sname); // get the command name
-        if ((sems[i].command_sem = sem_open((const char *) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
+        generate_sem_name(COMMAND, i, sname);  // get the command name
+        if ((sems[i].command_sem = sem_open((const char*) sname, O_CREAT, 0660, 1)) == SEM_FAILED) {
             log_printf(FATAL, "sem_open: command sem for dev_ix %d: %s", i, strerror(errno));
             exit(1);
         }
     }
-	
+
     // create device shm block
     if ((fd_shm = shm_open(DEV_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
         log_printf(FATAL, "shm_open: %s", strerror(errno));
@@ -68,7 +68,7 @@ int main() {
     if (close(fd_shm) == -1) {
         log_printf(ERROR, "close: %s", strerror(errno));
     }
-	
+
     // create gamepad shm block
     if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
         log_printf(FATAL, "shm_open gamepad_shm: %s", strerror(errno));
@@ -85,7 +85,7 @@ int main() {
     if (close(fd_shm) == -1) {
         log_printf(ERROR, "close gamepad_shm: %s", strerror(errno));
     }
-	
+
     // create robot description shm block
     if ((fd_shm = shm_open(ROBOT_DESC_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
         log_printf(FATAL, "shm_open robot_desc_shm: %s", strerror(errno));
@@ -119,7 +119,7 @@ int main() {
     if (close(fd_shm) == -1) {
         log_printf(ERROR, "close log_data_shm: %s", strerror(errno));
     }
-	
+
     // initialize everything
     dev_shm_ptr->catalog = 0;
     for (int i = 0; i < MAX_DEVICES + 1; i++) {
@@ -140,6 +140,6 @@ int main() {
     memset(log_data_shm_ptr, 0, sizeof(log_data_shm_t));
 
     log_printf(INFO, "SHM created");
-	
-    return 0; // returns to start everything
+
+    return 0;  // returns to start everything
 }

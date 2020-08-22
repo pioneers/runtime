@@ -44,7 +44,7 @@ void device_actions(param_val_t params[]) {
  *    int: file descriptor for the socket
  *    uint64_t: device uid
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
     if (argc < 3) {
         printf("Incorrect number of arguments: %d out of %d\n", argc, 3);
         exit(1);
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     uint64_t uid = strtoull(argv[2], NULL, 0);
 
     uint8_t dev_type = device_name_to_type("UnstableTestDevice");
-    device_t *dev = get_device(dev_type);
+    device_t* dev = get_device(dev_type);
 
     param_val_t params[dev->num_params];
     init_params(params);

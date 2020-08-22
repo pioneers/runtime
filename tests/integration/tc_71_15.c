@@ -18,17 +18,17 @@ int main() {
 
     // Connect GeneralTestDevice
     connect_virtual_device("GeneralTestDevice", UID);
-    sleep(1);   // Wait for ACK exchange
+    sleep(1);  // Wait for ACK exchange
 
     // Get current parameters then wait
-    device_t *dev = get_device(device_name_to_type("GeneralTestDevice"));
+    device_t* dev = get_device(device_name_to_type("GeneralTestDevice"));
     param_val_t initial_vals[dev->num_params];
     device_read_uid(UID, EXECUTOR, DATA, (uint32_t) -1, initial_vals);
-    sleep(1);   // Device values will change in this time
+    sleep(1);  // Device values will change in this time
 
     // Start autonomous mode
     send_run_mode(SHEPHERD, AUTO);
-    sleep(2); // Executor will write once
+    sleep(2);  // Executor will write once
 
     // Get current parameters (ORANGE_FLOAT should be written to)
     param_val_t vals_post_auto[dev->num_params];

@@ -5,7 +5,7 @@
 
 // Handles the PID controller on one motor
 class PID {
-public:
+  public:
     PID();
 
     /**
@@ -26,8 +26,8 @@ public:
     float get_ki();
     float get_kd();
 
-private:
-	float kp, ki, kd;
+  private:
+    float kp, ki, kd;
     float prev_error, prev_pos, prev_desired_pos;
     float target_speed;
     float integral;

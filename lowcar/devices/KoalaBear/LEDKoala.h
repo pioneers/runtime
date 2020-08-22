@@ -5,7 +5,7 @@
 
 // class for controlling the LED's on the KoalaBear
 class LEDKoala {
-public:
+  public:
     // Sets LEDs to output and disabled
     LEDKoala();
 
@@ -29,7 +29,7 @@ public:
      */
     void setup_LEDs();
 
-private:
+  private:
     bool red_state;
     bool yellow_state;
     bool green_state;
