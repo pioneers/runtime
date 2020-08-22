@@ -34,7 +34,7 @@ int main() {
 
     // Start the timer and press A
     int32_t start = millis() % 1000000000; // 9 digits, just like TimeTestDevice
-    buttons |= (1 << A_BUTTON);
+    buttons |= (1 << BUTTON_A);
     send_gamepad_state(buttons, joystick_vals);
 
     // Unpress "A"
@@ -45,7 +45,7 @@ int main() {
     printf("Pressed 'A' at %d\n", start);
     sleep(1);
 
-    // Read the timestamp (param 1) of when A_BUTTON was received on the device
+    // Read the timestamp (param 1) of when BUTTON_A was received on the device
     param_val_t params[2];
     device_read_uid(TIME_DEV_UID, EXECUTOR, DATA, 0b11, params);
     int32_t end = params[1].p_i;

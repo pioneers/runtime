@@ -79,21 +79,21 @@ def teleop_setup():
 def teleop_main():
     # print('Running teleop main ...')
     # print(Gamepad.get_value('a'))
-    # print('A -> ', Gamepad.get_value('a_button'))
-    # print('B -> ', Gamepad.get_value('b_button'))
-    # print('X -> ', Gamepad.get_value('x_button'))
-    # print('Y -> ', Gamepad.get_value('y_button'))
+    # print('A -> ', Gamepad.get_value('button_a'))
+    # print('B -> ', Gamepad.get_value('button_b'))
+    # print('X -> ', Gamepad.get_value('button_x'))
+    # print('Y -> ', Gamepad.get_value('button_y'))
     # print('Xbox -> ', Gamepad.get_value('xbox_button'))
-    # print('Up Dpad -> ', Gamepad.get_value('up_dpad'))
-    # print('x_left_joystick -> ', Gamepad.get_value('x_left_joystick'))
-    # print('y_right_joystick -> ', Gamepad.get_value('y_right_joystick'))
+    # print('Up Dpad -> ', Gamepad.get_value('dpad_up'))
+    # print('joystick_left_x -> ', Gamepad.get_value('joystick_left_x'))
+    # print('joystick_right_y -> ', Gamepad.get_value('joystick_right_y'))
 
     # print('=>', Robot.get_value('my_rfid', 'id'), Robot.get_value('my_rfid2', 'tag_detect'))
 
-    Robot.set_value(MOTOR, 'duty_cycle_b', Gamepad.get_value('x_left_joystick'))
+    Robot.set_value(MOTOR, 'duty_cycle_b', Gamepad.get_value('joystick_left_x'))
     pos = Robot.get_value(MOTOR, 'enc_a')
 
-    if Gamepad.get_value('a_button'):
+    if Gamepad.get_value('button_a'):
         global i, start
         if i % 10000 == 0:
             print("Iteration:", i, time.time() - start)

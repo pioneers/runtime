@@ -353,10 +353,10 @@ void sanity_gamepad_test() {
     printf("Begin sanity gamepad test...\n");
 	
     buttons = 34788240; // push some random buttons
-    joystick_vals[X_LEFT_JOYSTICK] = -0.4854;
-    joystick_vals[Y_LEFT_JOYSTICK] = 0.58989;
-    joystick_vals[X_RIGHT_JOYSTICK] = 0.9898;
-    joystick_vals[Y_RIGHT_JOYSTICK] = -0.776;
+    joystick_vals[JOYSTICK_LEFT_X] = -0.4854;
+    joystick_vals[JOYSTICK_LEFT_Y] = 0.58989;
+    joystick_vals[JOYSTICK_RIGHT_X] = 0.9898;
+    joystick_vals[JOYSTICK_RIGHT_Y] = -0.776;
 	
     gamepad_write(buttons, joystick_vals);
     print_gamepad_state();
@@ -368,10 +368,10 @@ void sanity_gamepad_test() {
     sleep(1);
 	
     buttons = 789597848; // push smoe different random buttons
-    joystick_vals[X_LEFT_JOYSTICK] = -0.9489;
-    joystick_vals[Y_LEFT_JOYSTICK] = 0.0;
-    joystick_vals[X_RIGHT_JOYSTICK] = 1.0;
-    joystick_vals[Y_RIGHT_JOYSTICK] = -1.0;
+    joystick_vals[JOYSTICK_LEFT_X] = -0.9489;
+    joystick_vals[JOYSTICK_LEFT_Y] = 0.0;
+    joystick_vals[JOYSTICK_RIGHT_X] = 1.0;
+    joystick_vals[JOYSTICK_RIGHT_Y] = -1.0;
 	
     gamepad_write(buttons, joystick_vals);
     print_gamepad_state();

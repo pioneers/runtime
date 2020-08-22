@@ -58,34 +58,34 @@ int main() {
     start_shm();
     start_net_handler();
     start_dev_handler();
-    
+
     // poke the system
     connect_virtual_device("SimpleTestDevice", UID);
     start_executor("net_handler_integration", "challenges_sanity");
     usleep(1000000); // sleep 1.25 seconds to offset device from executor
-    
+
     // send challenge data
 	char *inputs[] = { "2039", "190172344" };
 	send_challenge_data(DAWN, inputs, 2);
-    
+
     // send gamepad state
 	uint32_t buttons = 0;
 	float joystick_vals[] = { 0.0, 0.0, 0.0, 0.0 };
     send_gamepad_state(buttons, joystick_vals);
-    
+
     // print device data
     print_next_dev_data();
-    
+
     // put into teleop
     send_run_mode(DAWN, TELEOP);
-    
+
     // print device data
     print_next_dev_data();
     sleep(1);
 
     // send gamepad state
-    buttons = (1 << A_BUTTON) | (1 << DOWN_DPAD);
-    joystick_vals[X_LEFT_JOYSTICK] = -0.1;
+    buttons = (1 << BUTTON_A) | (1 << DPAD_DOWN);
+    joystick_vals[JOYSTICK_LEFT_X] = -0.1;
     send_gamepad_state(buttons, joystick_vals);
 
     // sleep to let stuff happen
@@ -94,10 +94,10 @@ int main() {
     // print device data three times, once per second
     print_next_dev_data();
     sleep(1);
-     
+
     // put back in idle mode
     send_run_mode(DAWN, IDLE);
-    
+
     // stop the system
     disconnect_all_devices();
     stop_dev_handler();
@@ -105,7 +105,7 @@ int main() {
     stop_net_handler();
     stop_shm();
     end_test();
-    
+
     // check output
     in_rest_of_output(check_1_output);
     in_rest_of_output(check_2_output);
