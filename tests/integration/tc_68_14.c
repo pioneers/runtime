@@ -43,6 +43,7 @@ int main(){
     for(int i = 0; i < NUM_UNSTABLE; i++){
         connect_virtual_device("UnstableTestDevice", uid);
         uid++;
+        usleep(200000);
     }
     sleep(1);
     print_dev_ids(); // NUM_GENERAL + NUM_UNSTABLE devices
