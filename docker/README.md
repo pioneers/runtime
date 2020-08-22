@@ -55,7 +55,7 @@ To run the Docker container, do
 
     docker run -it --rm pierobotics/runtime:latest <CMD>
 
-This CMD can be `./run.sh` to start Runtime, or `bash` to open a shell, or any other command you want to run inside the container. You can also run other things in the container by in another terminal doing `docker exec -it $(docker ps -q) bash` and running whatever you want inside the shell. The `runtime` Git repo will be located at `/root/runtime`.
+This CMD can be `./runtime run` to start Runtime, or `bash` to open a shell, or any other command you want to run inside the container. You can also run other things in the container by in another terminal doing `docker exec -it $(docker ps -q) bash` and running whatever you want inside the shell. The `runtime` Git repo will be located at `/root/runtime`.
 
 ### Devices
 
@@ -85,6 +85,6 @@ We use a base image to make sure that the building of the actual image is fast. 
 
     cd docker/base
     DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --use      # Only needed the very first time on a computer
-    DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --platform linux/amd64,linux/arm/v7 --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from pierobotics/runtime:base -t pierobotics/runtime:base --push .
+    DOCKER_CLI_EXPERIMENTAL=enabled docker buildx build --platform linux/amd64,linux/arm/v7 --build-arg BUILDKIT_INLINE_CACHE=1 -t pierobotics/runtime:base --push .
 
 If you haven't run this already on your machine and so don't have local caches, it will take several hours. Importantly, this can only be run on x64 machines that have QEMU, a binary emulator, installed. If you're on Windows/Mac, Docker Desktop already has QEMU preinstalled. If you are using Linux, you will need to install QEMU before building by doing `docker run --rm --privileged multiarch/qemu-user-static --reset -p yes`.

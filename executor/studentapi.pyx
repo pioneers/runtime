@@ -12,7 +12,7 @@ import time
 import re
 import importlib
 from collections import defaultdict
-from typings import Dict, List
+from typing import Dict, List
 
 
 """Student API written in Cython. """
