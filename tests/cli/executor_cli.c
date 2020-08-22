@@ -1,9 +1,9 @@
 #include "../client/executor_client.h"
 
-#define MAX_CMD_LEN 64                    // maximum length of an inputted command
+#define MAX_CMD_LEN 64  // maximum length of an inputted command
 
-char student_code[MAX_CMD_LEN] = {0};     // string that holds student code file name to use
-char challenge_code[MAX_CMD_LEN] = {0};   // string that holds challenge code file name to use
+char student_code[MAX_CMD_LEN] = {0};    // string that holds student code file name to use
+char challenge_code[MAX_CMD_LEN] = {0};  // string that holds challenge code file name to use
 
 void display_help() {
     printf("This is the main menu.\n");
@@ -31,21 +31,21 @@ void change_challenge_code() {
 }
 
 int main() {
-    char nextcmd[MAX_CMD_LEN]; // to hold nextline
+    char nextcmd[MAX_CMD_LEN];  // to hold nextline
     int stop = 0;
-		
+
     printf("Starting Executor CLI...\n");
     strcpy(student_code, "studentcode");
-	strcpy(challenge_code, student_code); // Change to "challenges" once Dawn separates challenges into another Python file	
-	//start executor process
-	start_executor(student_code, challenge_code);
-	
+    strcpy(challenge_code, student_code);  // Change to "challenges" once Dawn separates challenges into another Python file
+    //start executor process
+    start_executor(student_code, challenge_code);
+
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
         // get the next command
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-		
+
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
             stop = 1;
@@ -60,12 +60,12 @@ int main() {
             display_help();
         }
     }
-	
+
     printf("Exiting Executor CLI...\n");
-	
+
     stop_executor();
-	
+
     printf("Done!\n");
-	
+
     return 0;
 }

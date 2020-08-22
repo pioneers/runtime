@@ -1,16 +1,16 @@
 #ifndef DEV_CLIENT_H
 #define DEV_CLIENT_H
 
-#include <stdlib.h>     // for exit()
-#include <stdio.h>      // for printf()
-#include <errno.h>      // for errno
-#include <string.h>     // for strerr()
-#include <sys/socket.h> // for sockets
-#include <sys/un.h>     // for sockaddr_un
-#include <stdint.h>     // for int with specific widths
-#include <unistd.h>     // for read()
-#include <signal.h>     // for SIGINT (Ctrl+C)
-#include <sys/wait.h>   // for waitpid()
+#include <errno.h>       // for errno
+#include <signal.h>      // for SIGINT (Ctrl+C)
+#include <stdint.h>      // for int with specific widths
+#include <stdio.h>       // for printf()
+#include <stdlib.h>      // for exit()
+#include <string.h>      // for strerr()
+#include <sys/socket.h>  // for sockets
+#include <sys/un.h>      // for sockaddr_un
+#include <sys/wait.h>    // for waitpid()
+#include <unistd.h>      // for read()
 
 // Starts dev handler with "virtual" argument
 void start_dev_handler();
@@ -27,7 +27,7 @@ void stop_dev_handler();
  *    the socket number for the virtual device on success (nonnegative)
  *    -1 on failure
  */
-int connect_virtual_device(char *dev_name, uint64_t uid);
+int connect_virtual_device(char* dev_name, uint64_t uid);
 
 /**
  * Disconnects a virtual device from dev handler

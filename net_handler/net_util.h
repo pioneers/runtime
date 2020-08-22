@@ -1,42 +1,46 @@
 #ifndef NET_UTIL
 #define NET_UTIL
 
-#include <stdio.h>
-#include <stdlib.h>      //for malloc, free, exit
-#include <string.h>      //for strcpy, memset
 #include <arpa/inet.h>   //for inet_addr, bind, listen, accept, socket types
 #include <netinet/in.h>  //for structures relating to IPv4 addresses
-#include <unistd.h>      //for read, write, close
 #include <pthread.h>     //for threading
-#include <signal.h> 	 //for signal
-#include <sys/un.h>		 //for unix sockets
+#include <signal.h>      //for signal
+#include <stdio.h>
+#include <stdlib.h>  //for malloc, free, exit
+#include <string.h>  //for strcpy, memset
+#include <sys/un.h>  //for unix sockets
+#include <unistd.h>  //for read, write, close
 
 //include other runtime files
+#include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
-#include "../logger/logger.h"
 
 //include compiled protobuf headers
 #include "pbc_gen/device.pb-c.h"
 #include "pbc_gen/gamepad.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
-#include "pbc_gen/text.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
+#include "pbc_gen/text.pb-c.h"
 
 #define RASPI_ADDR "127.0.0.1"
-#define RASPI_PORT 8101     //well-known port of TCP listening socket used by runtime on raspi
+#define RASPI_PORT 8101  //well-known port of TCP listening socket used by runtime on raspi
 #define SHEPHERD_PORT 6101
 #define DAWN_PORT 7101
 
 #define RASPI_UDP_PORT 9000
 
-#define MAX_NUM_LOGS 16          //maximum number of logs that can be sent in one msg
+#define MAX_NUM_LOGS 16  //maximum number of logs that can be sent in one msg
 
 #define BUFFER_OFFSET 3
 
 //All the different possible messages the network handler works with. The order must be the same between net_handler and clients
 typedef enum net_msg {
-	RUN_MODE_MSG, START_POS_MSG, CHALLENGE_DATA_MSG, LOG_MSG, DEVICE_DATA_MSG
+    RUN_MODE_MSG,
+    START_POS_MSG,
+    CHALLENGE_DATA_MSG,
+    LOG_MSG,
+    DEVICE_DATA_MSG
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //
@@ -54,7 +58,7 @@ typedef enum net_msg {
  *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
  *      to fit the rest of the serialized message into
  */
-uint8_t* make_buf (net_msg_t msg_type, uint16_t len_pb);
+uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb);
 
 /*
  * Parses a message from the given file descriptor into its separate components and stores them in provided pointers
@@ -67,6 +71,6 @@ uint8_t* make_buf (net_msg_t msg_type, uint16_t len_pb);
  *    - 0: successful return
  *    - -1: Error/EOF encountered when reading from fd
  */
-int parse_msg (int fd, net_msg_t *msg_type, uint16_t *len_pb, uint8_t** buf);
+int parse_msg(int fd, net_msg_t* msg_type, uint16_t* len_pb, uint8_t** buf);
 
 #endif

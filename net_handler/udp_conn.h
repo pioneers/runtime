@@ -10,7 +10,7 @@ void start_udp_conn();
 
 /**
  * Stop the gamepad and device threads managing the UDP connection
- */ 
+ */
 void stop_udp_conn();
 
 #endif

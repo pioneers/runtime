@@ -9,11 +9,11 @@ PID::PID() {
 }
 
 float PID::compute(float curr_pos) {
-    unsigned long curr_time = micros(); // get the current time
-    float interval_secs = ((float)(curr_time - this->prev_time)) / 1000000.0; // compute time passed between loops, in seconds
-    float desired_pos = this->prev_desired_pos + (duty_cycle_to_tps(this->target_speed) * interval_secs); // compute the desired position at this time
-    float error = desired_pos - curr_pos; // compute the error as the set point (desired position) - process variable (current position)
-    this->integral += error * interval_secs; // compute the new value of this->integral using right-rectangle approximation
+    unsigned long curr_time = micros();                                                                    // get the current time
+    float interval_secs = ((float) (curr_time - this->prev_time)) / 1000000.0;                             // compute time passed between loops, in seconds
+    float desired_pos = this->prev_desired_pos + (duty_cycle_to_tps(this->target_speed) * interval_secs);  // compute the desired position at this time
+    float error = desired_pos - curr_pos;                                                                  // compute the error as the set point (desired position) - process variable (current position)
+    this->integral += error * interval_secs;                                                               // compute the new value of this->integral using right-rectangle approximation
 
     // output = kp * error + ki * integral of error * kd * "derivative" of error
     float output = (this->kp * error) + (this->ki * this->integral) + (this->kd * ((error - this->prev_error) / interval_secs));
@@ -40,7 +40,7 @@ void PID::set_target_speed(float target_speed) {
 // used when student sets encoder to a certain value
 void PID::set_position(float curr_pos) {
     this->prev_pos = curr_pos;
-    this->prev_error = 0.0; // resets the error too
+    this->prev_error = 0.0;  // resets the error too
 }
 
 // three getter functions for the three coefficients
@@ -51,5 +51,5 @@ float PID::get_kd() { return this->kd; }
 // *********************** HELPER FUNCTIONS *********************** //
 
 float PID::duty_cycle_to_tps(float duty_cycle) {
-    return 300.0 * duty_cycle; // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
+    return 300.0 * duty_cycle;  // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
 }

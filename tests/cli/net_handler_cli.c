@@ -8,7 +8,7 @@ void prompt_run_mode() {
     robot_desc_field_t client = SHEPHERD;
     robot_desc_val_t mode = IDLE;
     char nextcmd[MAX_CMD_LEN];
-	
+
     // get client to send as
     while (1) {
         printf("Send as DAWN or SHEPHERD: ");
@@ -25,7 +25,7 @@ void prompt_run_mode() {
             printf("Invalid response to prompt: %s", nextcmd);
         }
     }
-	
+
     // get mode to send
     while (1) {
         printf("Send mode IDLE, AUTO, or TELEOP: ");
@@ -45,7 +45,7 @@ void prompt_run_mode() {
             printf("Invalid response to prompt: %s", nextcmd);
         }
     }
-	
+
     // send
     printf("Sending Run Mode message!\n\n");
     send_run_mode(client, mode);
@@ -55,7 +55,7 @@ void prompt_start_pos() {
     robot_desc_field_t client = SHEPHERD;
     robot_desc_val_t pos = LEFT;
     char nextcmd[MAX_CMD_LEN];
-	
+
     // get client to send as
     while (1) {
         printf("Send as DAWN or SHEPHERD: ");
@@ -72,7 +72,7 @@ void prompt_start_pos() {
             printf("Invalid response to prompt: %s", nextcmd);
         }
     }
-	
+
     // get pos to send
     while (1) {
         printf("Send pos LEFT or RIGHT: ");
@@ -89,7 +89,7 @@ void prompt_start_pos() {
             printf("Invalid response to prompt: %s", nextcmd);
         }
     }
-	
+
     // send
     printf("Sending Start Pos message!\n\n");
     send_start_pos(client, pos);
@@ -99,10 +99,10 @@ void prompt_gamepad_state() {
     uint32_t buttons = 0;
     float joystick_vals[4];
     char nextcmd[MAX_CMD_LEN];
-    char **list_of_names;
+    char** list_of_names;
     int button_ix = 0;
     int set_joysticks = 0;
-	
+
     // get which buttons are pressed
     printf("Specify which of the following buttons are pressed\n\t(type the number corresponding to the named button):\n");
     list_of_names = get_button_names();
@@ -111,30 +111,30 @@ void prompt_gamepad_state() {
     }
     printf("After you have finished setting buttons, type \"done\"\n");
     printf("If you accidentally set a button, you can unset the button by typing its name again\n");
-	
+
     while (1) {
         printf("Set/unset this button: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-		
+
         // check for these first
         if (strcmp(nextcmd, "done\n") == 0) {
             break;
         } else if (strcmp(nextcmd, "abort\n") == 0) {
             return;
         }
-		
+
         // get the index of the button that was specified
         errno = 0;
         if ((button_ix = (int) strtol(nextcmd, NULL, 10)) == 0 && errno != 0) {
             printf("Did not enter integer: %s\n", nextcmd);
             continue;
         }
-		
+
         if (button_ix < 0 || button_ix >= NUM_GAMEPAD_BUTTONS) {
             printf("Not a valid button index: %s\n", nextcmd);
             continue;
         }
-		
+
         // otherwise set that bit in buttons
         if (buttons & (1 << button_ix)) {
             buttons &= ~(1 << button_ix);
@@ -144,22 +144,22 @@ void prompt_gamepad_state() {
             printf("\tSet button %s\n", list_of_names[button_ix]);
         }
     }
-	
+
     // get the joystick values to send
     printf("Specify the values of the four joysticks (values -1.0 <= val <= 1.0):\n");
     list_of_names = get_joystick_names();
     for (int i = 0; i < 4; i++) {
         printf("\t%s\n", list_of_names[i]);
     }
-	
+
     while (set_joysticks != 4) {
         printf("Set the value for %s: ", list_of_names[set_joysticks]);
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-		
+
         if (strcmp(nextcmd, "abort\n") == 0) {
             return;
         }
-		
+
         errno = 0;
         if (((joystick_vals[set_joysticks] = strtof(nextcmd, NULL)) == 0) && errno != 0) {
             printf("Input is not a float: %s\n", nextcmd);
@@ -171,7 +171,7 @@ void prompt_gamepad_state() {
         printf("\tOk! %s set to %f\n", list_of_names[set_joysticks], joystick_vals[set_joysticks]);
         set_joysticks++;
     }
-	
+
     // send
     printf("Sending Gamepad State message!\n\n");
     send_gamepad_state(buttons, joystick_vals);
@@ -181,8 +181,8 @@ void prompt_challenge_data() {
     int client = SHEPHERD;
     char nextcmd[MAX_CMD_LEN];
     int MAX_CHALLENGES = 32;
-    char **inputs = malloc(sizeof(char *) * MAX_CHALLENGES);
-	
+    char** inputs = malloc(sizeof(char*) * MAX_CHALLENGES);
+
     // get client to send as
     while (1) {
         printf("Send as DAWN or SHEPHERD: ");
@@ -199,31 +199,30 @@ void prompt_challenge_data() {
             printf("Invalid response to prompt: %s", nextcmd);
         }
     }
-	
+
     // get challenge inputs to send
     int num_challenges;
     for (num_challenges = 0; num_challenges < MAX_CHALLENGES; num_challenges++) {
         // TODO: if we ever put the current names of challenges in runtime_util, make this print better
-        printf("Provide input for challenge %d (or done or abort): ", num_challenges); 
+        printf("Provide input for challenge %d (or done or abort): ", num_challenges);
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-		
+
         if (strcmp(nextcmd, "done\n") == 0) {
             break;
-        }
-        else if (strcmp(nextcmd, "abort\n") == 0) {
+        } else if (strcmp(nextcmd, "abort\n") == 0) {
             return;
         }
-		
+
         // we need to do this because nextcmd has a newline at the end
-        nextcmd[strlen(nextcmd) -1] = '\0';
+        nextcmd[strlen(nextcmd) - 1] = '\0';
         inputs[num_challenges] = malloc(strlen(nextcmd) + 1);
         strcpy(inputs[num_challenges], nextcmd);
     }
-	
+
     // send
     printf("Sending Challenge Data message!\n\n");
     send_challenge_data(client, inputs, num_challenges);
-	
+
     // free pointers
     for (int i = 0; i < num_challenges; i++) {
         free(inputs[i]);
@@ -233,13 +232,13 @@ void prompt_challenge_data() {
 
 void prompt_device_data() {
     char nextcmd[MAX_CMD_LEN];
-    char dev_names[DEVICES_LENGTH][32]; // for holding the names of the devices
+    char dev_names[DEVICES_LENGTH][32];  // for holding the names of the devices
     int num_devices = 0;
     uint8_t dev_type;
     long long int temp;
     dev_data_t data[MAX_DEVICES];
-    device_t *curr_dev;
-	
+    device_t* curr_dev;
+
     // first get the list of device names
     for (uint8_t i = 0; i < DEVICES_LENGTH; i++) {
         if ((curr_dev = get_device(i)) != NULL) {
@@ -248,7 +247,7 @@ void prompt_device_data() {
             strcpy(dev_names[i], "");
         }
     }
-	
+
     // enter prompt loop
     while (1) {
         // subscribe to another device?
@@ -257,12 +256,12 @@ void prompt_device_data() {
         if (strcmp(nextcmd, "done\n") == 0) {
             break;
         }
-		
+
         // ask for UID
         while (1) {
             printf("Enter the UID of the device, in base 10: ");
             fgets(nextcmd, MAX_CMD_LEN, stdin);
-			
+
             if (strcmp(nextcmd, "abort\n") == 0) {
                 return;
             }
@@ -275,7 +274,7 @@ void prompt_device_data() {
                 break;
             }
         }
-		
+
         // ask for device type
         data[num_devices].name = NULL;
         printf("Specify the device type, one of the following\n\t(type the number corresponding to the device type):\n");
@@ -284,26 +283,26 @@ void prompt_device_data() {
                 printf("\t%4d %s\n", i, dev_names[i]);
             }
         }
-        while (1) {	
+        while (1) {
             printf("Enter the device type: ");
             fgets(nextcmd, MAX_CMD_LEN, stdin);
             if (strcmp(nextcmd, "abort\n") == 0) {
                 return;
             }
-			
+
             errno = 0;
             if ((dev_type = (uint8_t) strtol(nextcmd, NULL, 10)) == 0 && errno != 0) {
                 printf("Did not enter integer: %s\n", nextcmd);
                 continue;
             }
-			
+
             if ((curr_dev = get_device(dev_type)) == NULL) {
                 printf("Did not specify a valid device type: %s\n", nextcmd);
                 continue;
             }
             break;
         }
-		
+
         // fetch parameters and prompt user "y" or "n" on each one
         curr_dev = get_device(device_name_to_type(data[num_devices].name));
         data[num_devices].params = 0;
@@ -328,11 +327,11 @@ void prompt_device_data() {
         }
         num_devices++;
     }
-	
+
     // send
     printf("Sending Device Data message!\n\n");
     send_device_data(data, num_devices);
-	
+
     // free everything
     for (int i = 0; i < num_devices; i++) {
         free(data[i].name);
@@ -362,23 +361,23 @@ void sigint_handler(int signum) {
 }
 
 int main() {
-    char nextcmd[MAX_CMD_LEN]; // to hold nextline
+    char nextcmd[MAX_CMD_LEN];  // to hold nextline
     int stop = 0;
-	
+
     signal(SIGINT, sigint_handler);
-	
+
     printf("Starting Net Handler CLI...\n");
     fflush(stdout);
-	
+
     // start the net handler and connect all of its output locations to file descriptors in this process
     start_net_handler();
-	
+
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
         // get the next command
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-		
+
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
             stop = 1;
@@ -402,12 +401,12 @@ int main() {
         }
         usleep(500000);
     }
-	
+
     printf("Exiting Net Handler CLI...\n");
-	
+
     stop_net_handler();
-	
+
     printf("Done!\n");
-	
+
     return 0;
 }

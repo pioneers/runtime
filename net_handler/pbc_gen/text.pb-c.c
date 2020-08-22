@@ -7,86 +7,72 @@
 #endif
 
 #include "text.pb-c.h"
-void   text__init
-                     (Text         *message)
-{
-  static const Text init_value = TEXT__INIT;
-  *message = init_value;
+void text__init(Text* message) {
+    static const Text init_value = TEXT__INIT;
+    *message = init_value;
 }
-size_t text__get_packed_size
-                     (const Text *message)
-{
-  assert(message->base.descriptor == &text__descriptor);
-  return protobuf_c_message_get_packed_size ((const ProtobufCMessage*)(message));
+size_t text__get_packed_size(const Text* message) {
+    assert(message->base.descriptor == &text__descriptor);
+    return protobuf_c_message_get_packed_size((const ProtobufCMessage*) (message));
 }
-size_t text__pack
-                     (const Text *message,
-                      uint8_t       *out)
-{
-  assert(message->base.descriptor == &text__descriptor);
-  return protobuf_c_message_pack ((const ProtobufCMessage*)message, out);
+size_t text__pack(const Text* message,
+                  uint8_t* out) {
+    assert(message->base.descriptor == &text__descriptor);
+    return protobuf_c_message_pack((const ProtobufCMessage*) message, out);
 }
-size_t text__pack_to_buffer
-                     (const Text *message,
-                      ProtobufCBuffer *buffer)
-{
-  assert(message->base.descriptor == &text__descriptor);
-  return protobuf_c_message_pack_to_buffer ((const ProtobufCMessage*)message, buffer);
+size_t text__pack_to_buffer(const Text* message,
+                            ProtobufCBuffer* buffer) {
+    assert(message->base.descriptor == &text__descriptor);
+    return protobuf_c_message_pack_to_buffer((const ProtobufCMessage*) message, buffer);
 }
-Text *
-       text__unpack
-                     (ProtobufCAllocator  *allocator,
-                      size_t               len,
-                      const uint8_t       *data)
-{
-  return (Text *)
-     protobuf_c_message_unpack (&text__descriptor,
-                                allocator, len, data);
+Text* text__unpack(ProtobufCAllocator* allocator,
+                   size_t len,
+                   const uint8_t* data) {
+    return (Text*)
+        protobuf_c_message_unpack(&text__descriptor,
+                                  allocator, len, data);
 }
-void   text__free_unpacked
-                     (Text *message,
-                      ProtobufCAllocator *allocator)
-{
-  if(!message)
-    return;
-  assert(message->base.descriptor == &text__descriptor);
-  protobuf_c_message_free_unpacked ((ProtobufCMessage*)message, allocator);
+void text__free_unpacked(Text* message,
+                         ProtobufCAllocator* allocator) {
+    if (!message)
+        return;
+    assert(message->base.descriptor == &text__descriptor);
+    protobuf_c_message_free_unpacked((ProtobufCMessage*) message, allocator);
 }
 static const ProtobufCFieldDescriptor text__field_descriptors[1] =
-{
-  {
-    "payload",
-    1,
-    PROTOBUF_C_LABEL_REPEATED,
-    PROTOBUF_C_TYPE_STRING,
-    offsetof(Text, n_payload),
-    offsetof(Text, payload),
-    NULL,
-    &protobuf_c_empty_string,
-    0,             /* flags */
-    0,NULL,NULL    /* reserved1,reserved2, etc */
-  },
+    {
+        {
+            "payload",
+            1,
+            PROTOBUF_C_LABEL_REPEATED,
+            PROTOBUF_C_TYPE_STRING,
+            offsetof(Text, n_payload),
+            offsetof(Text, payload),
+            NULL,
+            &protobuf_c_empty_string,
+            0,            /* flags */
+            0, NULL, NULL /* reserved1,reserved2, etc */
+        },
 };
 static const unsigned text__field_indices_by_name[] = {
-  0,   /* field[0] = payload */
+    0, /* field[0] = payload */
 };
 static const ProtobufCIntRange text__number_ranges[1 + 1] =
-{
-  { 1, 0 },
-  { 0, 1 }
-};
+    {
+        {1, 0},
+        {0, 1}};
 const ProtobufCMessageDescriptor text__descriptor =
-{
-  PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
-  "Text",
-  "Text",
-  "Text",
-  "",
-  sizeof(Text),
-  1,
-  text__field_descriptors,
-  text__field_indices_by_name,
-  1,  text__number_ranges,
-  (ProtobufCMessageInit) text__init,
-  NULL,NULL,NULL    /* reserved[123] */
+    {
+        PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
+        "Text",
+        "Text",
+        "Text",
+        "",
+        sizeof(Text),
+        1,
+        text__field_descriptors,
+        text__field_indices_by_name,
+        1, text__number_ranges,
+        (ProtobufCMessageInit) text__init,
+        NULL, NULL, NULL /* reserved[123] */
 };

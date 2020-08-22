@@ -18,10 +18,10 @@ int main() {
     sleep(1);
 
     // Get current parameters then wait
-    device_t *dev = get_device(device_name_to_type("SimpleTestDevice"));
+    device_t* dev = get_device(device_name_to_type("SimpleTestDevice"));
     param_val_t vals_before[dev->num_params];
     device_read_uid(UID, EXECUTOR, DATA, 0b1111, vals_before);
-    sleep(1);   // Device values will change in this time
+    sleep(1);  // Device values will change in this time
 
     // Get parameters again
     param_val_t vals_after[dev->num_params];
@@ -35,13 +35,13 @@ int main() {
     end_test();
 
     // Verify parameters changed as expected
-    vals_before[0].p_i++; // INCREASING: Increased by 1
+    vals_before[0].p_i++;  // INCREASING: Increased by 1
     same_param_value("INCREASING", INT, vals_before[0], vals_after[0]);
 
-    vals_before[1].p_f *= 2; // DOUBLING: Doubled value
+    vals_before[1].p_f *= 2;  // DOUBLING: Doubled value
     same_param_value("DOUBLING", FLOAT, vals_before[1], vals_after[1]);
 
-    vals_before[2].p_b = 1 - vals_before[2].p_b; // FLIP_FLOP: Opposite truth value
+    vals_before[2].p_b = 1 - vals_before[2].p_b;  // FLIP_FLOP: Opposite truth value
     same_param_value("FLIP_FLOP", BOOL, vals_before[2], vals_after[2]);
 
     return 0;

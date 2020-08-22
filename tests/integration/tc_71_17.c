@@ -51,61 +51,61 @@ char check_16_output[] =
 
 int main() {
     int port1, port2, port3;
-    
+
     // setup
     start_test("receive device data, general");
     start_shm();
     start_net_handler();
     start_dev_handler();
-    
+
     // poke the system
     // send gamepad state so net_handler starts sending device data packets
-	uint32_t buttons = 0;
-	float joystick_vals[] = { 0.0, 0.0, 0.0, 0.0 };
+    uint32_t buttons = 0;
+    float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_gamepad_state(buttons, joystick_vals);
     print_next_dev_data();
-    
+
     // connect two devices
     port1 = connect_virtual_device("SimpleTestDevice", UID1);
     port2 = connect_virtual_device("SimpleTestDevice", UID2);
-    
+
     // print device data
     sleep(1);
     print_next_dev_data();
-     
+
     // disconnect first device
     disconnect_virtual_device(port1);
-    
+
     // print device data
     sleep(1);
     print_next_dev_data();
-    
+
     // connect two more devices
     port1 = connect_virtual_device("SimpleTestDevice", UID3);
     port3 = connect_virtual_device("SimpleTestDevice", UID4);
-    
+
     // print device data
     sleep(1);
     print_next_dev_data();
     sleep(1);
-    
+
     // disconnect all devices
     disconnect_virtual_device(port1);
     usleep(500000);
     disconnect_virtual_device(port2);
     usleep(500000);
     disconnect_virtual_device(port3);
-    
+
     // print device data
     sleep(1);
     print_next_dev_data();
-    
+
     // stop the system
     stop_dev_handler();
     stop_net_handler();
     stop_shm();
     end_test();
-    
+
     // check output
     in_rest_of_output(check_1_output);
     in_rest_of_output(check_2_output);

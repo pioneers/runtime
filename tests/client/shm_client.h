@@ -1,8 +1,8 @@
 #ifndef SHM_CLIENT_H
 #define SHM_CLIENT_H
 
-#include "../../shm_wrapper/shm_wrapper.h"
 #include <sys/wait.h>
+#include "../../shm_wrapper/shm_wrapper.h"
 
 /**
  * Creates and initializes the shared memory process
