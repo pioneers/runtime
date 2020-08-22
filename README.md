@@ -22,14 +22,14 @@ Runtime can be divided into a few neatly containerized parts:
 
 In addition to these parts, there are a number of configuration files for Runtime to manage the various tools that we use. They are listed here, with a brief explanation about what they do:
 
-* **`.dockerignore`**: this file lists out all of the directories, files, and other information that we do not want to include when building Runtime's Docker image.
-* **`.gitignore`**: this file lists out all of the directories and files that we don't want in our Git repository. This includes things like executables, build files, and `.DS_Store`.
-* **`.gitattributes`**: this file is purely for aesthetic purposes. It tells Github which files to exclude when calculating the repository language makeup you see in the repo (below the "Contributors" section in the sidebar on the web page that you're probably looking at right now).
-* **`.travis.yml`**: this file tells Travis (the continuous integration tool that we use) what to run when checking if Runtime is working properly before a new feature is merged into the master branch. It is essentially responsible for running the integration tests and for updating Runtime's Docker image.
-* **`docker-compose.yml`**: this file is used to describe to the `docker-compose` command what to run.
-* **`runtime`**: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, and allows us to issue intuitive commmands like `runtime build`, for example, which (expectedly) builds Runtime.
+* `.dockerignore`: this file lists out all of the directories, files, and other information that we do not want to include when building Runtime's Docker image.
+* `.gitignore`: this file lists out all of the directories and files that we don't want in our Git repository. This includes things like executables, build files, and `.DS_Store`.
+* `.gitattributes`: this file is purely for aesthetic purposes. It tells Github which files to exclude when calculating the repository language makeup you see in the repo (below the "Contributors" section in the sidebar on the web page that you're probably looking at right now).
+* `.travis.yml`: this file tells Travis (the continuous integration tool that we use) what to run when checking if Runtime is working properly before a new feature is merged into the master branch. It is essentially responsible for running the integration tests and for updating Runtime's Docker image.
+* `docker-compose.yml`: this file is used to describe to the `docker-compose` command what to run.
+* `runtime`: this file is a convenience shell script that makes it easy to call the various other shell scripts in our directory, which you will read more about later.
 
-This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as our wiki https://github.com/pioneers/runtime/wiki.
+This README will not go into each of these parts into exhaustive detail; explanations for each part can be found in the corresponding folder's README in the repo as well as [our wiki.](https://github.com/pioneers/runtime/wiki)
 
 ## Dependencies
 
@@ -76,7 +76,7 @@ Runtime has the following third-party library dependencies:
 6. (optional) To view `protobuf-c` documentation:
 	1. Install `doxygen`: `sudo apt-get -y install doxygen`
 	2. Repeat steps 5.i and 5.ii from above in the `protobuf-c` directory, then do `make html`
-	3. Then navigate to that directory in Explorer/Finder and open the HTML file by double clicking on it
+	3. Then navigate to that directory in Explorer/Finder and open the `html/index.html` file by double clicking on it
 
 #### To download and extract a `tar` file from the command line <a name="extract"> </a>
 First, download the tar archive into your current working directory with 
@@ -89,7 +89,7 @@ Then, extract the files with
 
 You might need to install `wget` and `tar` with `sudo apt-get -y install wget tar`.
 
-## Building and Running Runtime
+## Runtime Script and Usage
 
 We use the bash script `runtime` in this root directory as the entrypoint to our code. You can call it with `./runtime <args>` in this folder. However, you can also have it be callable from any directory by adding it to your `PATH` variable. This can be done automatically adding the following line to your `~/.bashrc` file:
 
@@ -99,7 +99,14 @@ export PATH="$PATH:<path to runtime folder>"
 
 Then either close and reopen the terminal, or do `source ~/.bashrc`.
 
-Assuming you've installed all dependencies, do `runtime build` to build the code. Then you can do `runtime run` to start up Runtime.
+If you now type `runtime` it will list all the possible subcommands you can run. We currently have
+
+* `build`: will build the code base
+* `run`: will run Runtime like how it will on the Raspberry Pi robots
+* `test`: will run our test suite
+* `format`: will format your code to match our style
+* `flash`: will flash an Arduino as a Lowcar device
+* `clean`: will remove all artifacts generated when building or running Runtime
 
 ## Authors
 
