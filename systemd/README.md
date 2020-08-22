@@ -1,6 +1,6 @@
-# systemd
+# Systemd
 
-systemd provides a way to manage which processes run when and how they operate with respect to each other. systemd can only be used on Linux. To learn more about how to configure `systemd`, read our wiki page 
+`systemd` is a Linux software that provides a way to manage which processes run when and how they operate with respect to each other. It is now the most commonly used process manager on Linux distributions. To learn more about how to configure `systemd`, read our [wiki page](https://github.com/pioneers/c-runtime/wiki/Systemd).
 
 ## Usage
 
@@ -8,8 +8,11 @@ We use systemd on our Raspberry Pis to automatically start Runtime on robot boot
 
     ln -s *.service /etc/systemd/system
 
-Sometimes, the wildcard expansion doesn't work and then you will have to symlink each service individually. Then for each service file, do `sudo systemctl enable <name>.service`. Now Runtime should automatically start when the Pi boots up!
+Sometimes, the wildcard expansion doesn't work and then you will have to symlink each service individually. Then for each service file, do 
 
+    sudo systemctl enable <name>.service
+
+Now Runtime should automatically start when the Pi boots up!
 
 ## Useful commands:
 
