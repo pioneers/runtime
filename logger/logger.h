@@ -3,6 +3,8 @@
 #define LOGGER_H
 
 #include <stdarg.h>    // to deal with variable-length argument lists arguments
+#include <wordexp.h>   // for wordexp
+
 
 #include "../runtime_util/runtime_util.h"
 
