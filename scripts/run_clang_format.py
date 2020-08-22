@@ -1,12 +1,14 @@
-#!/usr/bin/env python
-"""Copied directly from https://github.com/Sarcasm/run-clang-format.
-
+#!/usr/bin/env python3
+"""
 A wrapper script around clang-format, suitable for linting multiple files
 and to use for continuous integration.
 
 This is an alternative API for the clang-format command line.
 It runs over multiple files and directories in parallel.
 A diff output is produced and a sensible exit code is returned.
+
+Code copied directly from https://github.com/Sarcasm/run-clang-format. 
+Has a few modifications like the DefaultHelpParser and the -s STYLE option. 
 
 """
 
@@ -250,8 +252,14 @@ def print_trouble(prog, message, use_colors):
     print("{}: {} {}".format(prog, error_text, message), file=sys.stderr)
 
 
+class DefaultHelpParser(argparse.ArgumentParser):
+    def error(self, message: str):
+        self.print_help()
+        sys.stderr.write(f"\nERROR: {message}\n")
+        sys.exit(2)
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = DefaultHelpParser(description=__doc__)
     parser.add_argument(
         '--clang-format-executable',
         metavar='EXECUTABLE',

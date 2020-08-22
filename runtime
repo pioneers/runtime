@@ -32,6 +32,8 @@ case $1 in
         ;;
 
     format)
+        shift 1
+        scripts/run_clang_format.py $@
         ;;
 
     clean)
