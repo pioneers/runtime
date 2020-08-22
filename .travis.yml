@@ -17,7 +17,6 @@ jobs:
     - name: format
       arch: amd64
       script:
-        - sudo apt-get install -y clang-format   # Install clang-format
         - ./runtime format -r . # Runs clang-format checker to see if code is formatted properly
 
     - name: test
