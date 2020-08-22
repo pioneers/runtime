@@ -18,8 +18,8 @@ char check_output_4[] = "\tRUN_MODE = IDLE\n";
 char check_output_5[] =
     "Traceback (most recent call last):\n";
 
-// we have to skip the File: <file path> because on the pi it's /home/pi/c-runtime
-// but on Travis it's /root/pi/c-runtime
+//we have to skip the File: <file path> because on the pi it's /home/pi/runtime
+//but on Docker it's /root/runtime
 char check_output_6[] =
     "line 25, in teleop_main\n"
     "    oops = 1 / 0\n"
