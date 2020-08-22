@@ -126,7 +126,8 @@ void poll_connected_devices() {
             }
         }
         connected_devs = 0;
-        usleep(200000);   // Save CPU usage by checking for new devices at 5 hertz
+         // Save CPU usage by checking for new devices only every so often (defined in runtime_util.h)
+        usleep(POLL_INTERVAL);
     }
 }
 
@@ -270,7 +271,7 @@ void *relayer(void *relay_cast) {
             return NULL;
         }
         pthread_mutex_unlock(&relay->relay_lock);
-        usleep(200000);
+        usleep(POLL_INTERVAL);
     }
 }
 

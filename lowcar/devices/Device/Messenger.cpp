@@ -1,9 +1,5 @@
 #include "Messenger.h"
 
-#ifdef ARDUINO_SAMD_ZERO
-#define Serial SERIAL_PORT_USBVIRTUAL // Patch to work with Sparkfun Razor IMU
-#endif
-
 // ************************ MESSENGER CLASS CONSTANTS *********************** //
 
 // Final encoded data sizes
