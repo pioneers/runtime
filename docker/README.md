@@ -22,17 +22,17 @@ If you are on Windows/Mac, you will be using Docker Desktop which will already h
 
 If you are just starting out and want to get into development quickly, go to the `runtime` folder and do
 
-    docker-compose run --rm runtime bash
+    docker-compose up -d
 
-which will begin a bash shell in the Docker container. From there you can call `runtime run` and the other `runtime` commands mentioned in the root README. Also, in another terminal you can do
+which will start the Docker container. Now you can do
 
     docker-compose exec runtime bash
 
-to run/test other things within the container. By default, the `runtime/` git folder and `/root/runtime` will be linked so changes in one place will also change in the other place.
+to open up a bash terminal in the container. You can repeat this command to get however many bash terminals you want. From the container, you can then call `runtime run` and the other `runtime` commands mentioned in the root README. Additionally, the `runtime/` git folder and `/root/runtime` will be linked so changes in the container will also change on your machine.
 
 ## Stopping
 
-To stop the container, just exit all your shells or do 
+To stop the container, do 
 
     docker-compose down
 
