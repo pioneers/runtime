@@ -236,7 +236,7 @@ void prompt_device_data() {
     int num_devices = 0;
     uint8_t dev_type;
     long long int temp;
-    dev_data_t data[MAX_DEVICES];
+    dev_subs_t data[MAX_DEVICES];
     device_t* curr_dev;
 
     // first get the list of device names
@@ -330,7 +330,7 @@ void prompt_device_data() {
 
     // send
     printf("Sending Device Data message!\n\n");
-    send_device_data(data, num_devices);
+    send_device_subs(data, num_devices);
 
     // free everything
     for (int i = 0; i < num_devices; i++) {
