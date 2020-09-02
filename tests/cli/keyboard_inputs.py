@@ -1,20 +1,26 @@
 import os, tempfile
+import threading
+from signal import signal, SIGINT
+from sys import exit
 from pynput import keyboard
 from pynput.keyboard import Listener, Key
+from time import sleep
 
 file = "/tmp/gamepad_inputs.fifo"
 
+def handler(signal_received, frame):
+    print("Exiting gracefully")
+    if (fifo.closed == False):
+        fifo.close()
+    exit(0)
+
 def setup_fifo():
-    print(file)
     if(os.path.exists(file)):
-        print("removing")
         os.remove(file)
     os.mkfifo(file, 0o660)
     global fifo
-    print(file)
     fd = os.open(file, os.O_RDWR)
     fifo = os.fdopen(fd, 'w')
-    print("FIFO opened")
 
 def set_controls():
     controls.add(keyboard.KeyCode(char='u'))
@@ -30,9 +36,9 @@ def set_controls():
     special_keys.add(keyboard.Key.up)
     special_keys.add(keyboard.Key.right)
     special_keys.add(keyboard.Key.left)
-    print("set up done")
 
 def on_press(key):
+    mutex.acquire()
     if key in controls:
         keys_held_down.add(key.char)
     elif key in special_keys:
@@ -47,14 +53,12 @@ def on_press(key):
 
         elif key == keyboard.Key.down:
             keys_held_down.add(":M")
+    mutex.release()
 
-    for key_pressed in keys_held_down:
-        fifo.write(key_pressed)
-        print(key_pressed)
 def on_release(key):
+    mutex.acquire()
     if key in controls:
         keys_held_down.remove(key.char)
-        print("key released")
 
     elif key == keyboard.Key.up:
         keys_held_down.remove(":V")
@@ -71,23 +75,36 @@ def on_release(key):
     elif key == keyboard.Key.esc:
         fifo.close()
         return False
+    mutex.release()
 
 def keyboard_control():
-    print("controlling")
+    writer = threading.Thread(target = write_to_fifo)
+    writer.start()
     with Listener(on_press = on_press,on_release = on_release) as listener:
         listener.join()
 
+def write_to_fifo():
+    while(True):
+        mutex.acquire()
+        for key_pressed in keys_held_down:
+            fifo.write(key_pressed)
+        mutex.release()
+        sleep(0.05)
+
+
 def main():
+    signal(SIGINT, handler)
+
     global controls
     global special_keys
     special_keys = set()
     controls = set()
-
     setup_fifo()
-
     global keys_held_down
     keys_held_down = set()
     set_controls()
+    global mutex
+    mutex = threading.Lock()
     keyboard_control()
 
 if __name__=="__main__":
