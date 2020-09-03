@@ -10,3 +10,5 @@ services:
         volumes:
             # Changes in local runtime/ and container /root/runtime are synced
             - .:/root/runtime
+        ports:
+            - "5005:5005" # Used to connect SoundDevice to localhost
