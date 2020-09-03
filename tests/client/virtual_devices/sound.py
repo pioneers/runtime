@@ -3,8 +3,6 @@
 # This Python script should be ran on the host machine for sound output
 # The virtual SoundDevice and this script are connected by a localhost TCP socket
 # This acts as the socket server and should be ran before the SoundDevice
-# See https://stackoverflow.com/a/27978895 for generating sound
-
 
 import socket       # for TCP
 import struct       # for TCP decoding
@@ -13,8 +11,8 @@ import numpy as np  # for generating sine wave
 import pyaudio      # Third party library for audio
 
 # TCP Setup
-HOST = 'localhost'
-PORT = 5000
+HOST = '127.0.0.1'
+PORT = 5005
 ADDRESS = (HOST, PORT)
 
 # Sound parameters
@@ -34,22 +32,24 @@ def main():
                     rate=fs,
                     output=True)
 
-    # Start reading from socket
-    try:
-        # Read from socket for pitch; https://stackoverflow.com/a/33914393
-        while True:
-            buf = connection.recv(4) # Receive a float
-            if (len(buf) != 4):
-                print("No more data")
-                break
-            pitch = struct.unpack('!f', buf)[0] # Decode the float
-            print("Received", pitch)
-            if (pitch != -1):
-                # Play sound
-                stream.write(generate_sound(pitch))
-    finally:
-        print("Closed connection")
-        connection.close()
+    # Read from socket for pitch; https://stackoverflow.com/a/33914393
+    while True:
+        # Receive a float
+        buf = connection.recv(4)
+        if (len(buf) != 4):
+            print("No more data")
+            break
+
+        # Decode the float
+        print("Received raw data:", buf)
+        pitch = struct.unpack('!f', buf)[0]
+        print("Received", pitch)
+
+        # Play sound
+        stream.write(generate_sound(pitch))
+
+    connection.close()
+    print("Connection closed.")
 
     # Clean up PyAudio
     stream.stop_stream()
@@ -59,14 +59,16 @@ def main():
 def connect_tcp():
     """
     Connects to ADDRESS via TCP, blocking until a client is accepted
-    Returns the socket that can be receved from
+    Returns:
+        the socket that can be received from
     """
     # Create the TCP socket
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Bind the created socket to address
     server.bind(ADDRESS)
     # Listen for incoming SoundDevice connection
-    server.listen(1)  # Listen for only one request
+    server.listen()
+    print("Listening for a client...");
     # Accept the socket connection
     connection, client_address = server.accept()
     print("Connected to", client_address)
@@ -81,7 +83,7 @@ def generate_sound(pitch):
     Returns:
         A sound wave that can be written to a PyAudio stream
     """
-    # generate samples, note conversion to float32 array
+    # See https://stackoverflow.com/a/27978895 for generating sound
     samples = (np.sin(2*np.pi*np.arange(fs*duration)*pitch/fs)).astype(np.float32)
     return volume * samples
 
