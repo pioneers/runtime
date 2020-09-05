@@ -2,6 +2,7 @@
 
 #define MAX_CMD_LEN 64  // maximum length of user input
 
+
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
 void prompt_run_mode() {
@@ -338,6 +339,21 @@ void prompt_device_data() {
     }
 }
 
+void prompt_reroute_output() {
+    char *dest = "net_handler_output.log";
+    char nextcmd[MAX_CMD_LEN];
+
+    printf("Enter new output destination (blank for net_handler_output.log): ");
+    fgets(nextcmd, MAX_CMD_LEN, stdin);
+    if (strcmp(nextcmd, "\n") != 0) {
+        // truncate new line character
+        nextcmd[strcspn(nextcmd, "\n")] = 0;
+        dest = nextcmd;
+    }
+
+    update_tcp_output_fp(dest);
+}
+
 void display_help() {
     printf("This is the main menu. Type one of the following commands to send a message to net_handler.\n");
     printf("Once you type one of the commands and hit \"enter\", follow on-screen instructions.\n");
@@ -349,6 +365,7 @@ void display_help() {
     printf("\tchallenge data     send a Challenge Data message\n");
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
+    printf("\treroute output     reroute output to a file\n");
     printf("\thelp               display this help text\n");
     printf("\texit               exit the Net Handler CLI\n");
 }
@@ -381,6 +398,8 @@ int main() {
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
             stop = 1;
+        } else if (strcmp(nextcmd, "reroute output\n") == 0) {
+            prompt_reroute_output();
         } else if (strcmp(nextcmd, "run mode\n") == 0) {
             prompt_run_mode();
         } else if (strcmp(nextcmd, "start pos\n") == 0) {
