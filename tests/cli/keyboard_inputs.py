@@ -6,7 +6,7 @@ from pynput import keyboard
 from pynput.keyboard import Listener, Key
 from time import sleep
 
-file = "/tmp/gamepad_inputs.fifo"
+file = "gamepad_inputs.fifo"
 
 def handler(signal_received, frame):
     print("Exiting gracefully")
@@ -27,10 +27,23 @@ def set_controls():
     controls.add(keyboard.KeyCode(char='i'))
     controls.add(keyboard.KeyCode(char='o'))
     controls.add(keyboard.KeyCode(char='p'))
+
     controls.add(keyboard.KeyCode(char='w'))
     controls.add(keyboard.KeyCode(char='a'))
     controls.add(keyboard.KeyCode(char='d'))
     controls.add(keyboard.KeyCode(char='s'))
+
+    controls.add(keyboard.KeyCode(char='h'))
+    controls.add(keyboard.KeyCode(char='j'))
+    controls.add(keyboard.KeyCode(char='k'))
+    controls.add(keyboard.KeyCode(char='l'))
+
+    controls.add(keyboard.KeyCode(char='f'))
+    controls.add(keyboard.KeyCode(char='g'))
+    controls.add(keyboard.KeyCode(char='r'))
+    controls.add(keyboard.KeyCode(char='t'))
+
+    controls.add(keyboard.KeyCode(char='z'))
 
     special_keys.add(keyboard.Key.down)
     special_keys.add(keyboard.Key.up)
