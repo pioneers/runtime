@@ -20,7 +20,7 @@ int main() {
 
     fd = fopen(file, "r");
     if(fd == NULL){
-        printf("not opening file correctly");
+        printf("file not opened \n cleaning up \n");
         stop_net_handler();
         close_output();
         exit(0);
