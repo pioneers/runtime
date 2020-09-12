@@ -34,7 +34,7 @@ RUN curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/inst
     arduino-cli core update-index
 
 # Install debug packages
-RUN apt-get -y install procps htop tmux nano net-tools
+RUN apt-get -y install procps htop tmux nano net-tools clang-format
 
 WORKDIR /root
 
