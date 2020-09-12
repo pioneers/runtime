@@ -340,7 +340,7 @@ void prompt_device_data() {
 }
 
 void prompt_reroute_output() {
-    char *dest = "net_handler_output.log";
+    char* dest = "net_handler_output.log";
     char nextcmd[MAX_CMD_LEN];
 
     printf("Enter new output destination (blank for net_handler_output.log): ");
