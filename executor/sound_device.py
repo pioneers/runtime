@@ -1,6 +1,9 @@
+# Student code that plays pitches from keyboard inputs
 import time
 
 SOUND = '59_1'
+
+################################# GLOBAL VARS ##################################
 
 NOTES = 'CC GG AA G  FF EE DD C'
 PAUSE_DURATION = 0.125  # The duration (s) to wait during a whitespace
@@ -18,6 +21,8 @@ MAP = {
     'B' : 494
 }
 
+################################## AUTONOMOUS ##################################
+
 def autonomous_setup():
     print("Now executing AUTONOMOUS SETUP")
     # Write pitches
@@ -27,19 +32,38 @@ def autonomous_setup():
             time.sleep(PAUSE_DURATION)
         else:
             print("Writing", note)
-            Robot.set_value(SOUND, "PITCH", MAP[note])
+            # Robot.set_value(SOUND, "PITCH", MAP[note])
             time.sleep(NOTE_DURATION)
 
 def autonomous_main():
     pass
 
+#################################### TELEOP ####################################
+
 def teleop_setup():
     print("Now executing TELEOP SETUP")
+    # Robot.run(print_button)
+    # Robot.run(play_notes)
     pass
 
 def teleop_main():
     if Gamepad.get_value('button_a'):
-        print("EXECUTOR RECEIVED BUTTON A")
-        Robot.set_value(SOUND, "PITCH", MAP['C'])
-    else:
-        print("EXECUTOR WAITING FOR BUTTON A")
+        print("BUTTON A IS PRESSED")
+    if Gamepad.get_value('button_b'):
+        print("BUTTON B IS PRESSED")
+
+################################### THREADS ####################################
+
+def print_button():
+    while (1):
+        if Gamepad.get_value('button_a'):
+            print("BUTTON A IS PRESSED")
+        if Gamepad.get_value('button_b'):
+            print("BUTTON B IS PRESSED")
+
+def play_notes():
+    while (1):
+        if Gamepad.get_value('button_a'):
+            Robot.set_value(SOUND, "PITCH", MAP['A'])
+        if Gamepad.get_value('button_b'):
+            Robot.set_value(SOUND, "PITCH", MAP['B'])

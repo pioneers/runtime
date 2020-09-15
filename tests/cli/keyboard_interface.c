@@ -60,7 +60,6 @@ int main() {
     float joystick_vals[4] = {0};
     // The received bitstring from Python to be parsed into BUTTONS
     char buff[33];
-    int fd = connect_tcp();
 
     printf("Its gamer time\n");
 
@@ -72,7 +71,10 @@ int main() {
     // Connect dummy gamepad and start teleop mode
     send_gamepad_state(0, joystick_vals);
     send_run_mode(DAWN, TELEOP);
-    sleep(1);
+    sleep(2);
+
+    // Start getting keyboard inputs
+    int fd = connect_tcp();
 
     // Receive a bitstring of buttons and parse it
     while(1) {
@@ -83,7 +85,6 @@ int main() {
         // Receive bit string
         recv(fd, buff, sizeof(buff), 0);
         buff[32] = '\0';
-        printf("TCP received Buffer: %s\n", buff);
 
         // Parse joystick values
         for(int i = 13; i < 21; i++){
