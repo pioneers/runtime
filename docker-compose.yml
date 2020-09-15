@@ -10,3 +10,5 @@ services:
         volumes:
             # Changes in local runtime/ and container /root/runtime are synced
             - .:/root/runtime
+        ports:
+            - "5006:5006"
