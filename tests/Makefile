@@ -34,7 +34,7 @@ executor_cli: ../executor/*.* client/executor_client.* cli/executor_cli.*
 dev_handler_cli: ../dev_handler/*.* client/dev_handler_client.* cli/dev_handler_cli.* devices
 	gcc client/dev_handler_client.c cli/dev_handler_cli.c -o $@
 
-keyboard_interface: ../net_handler/*.* client/net_handler_client.* cli/net_handler_cli.c
+keyboard_interface: cli/keyboard_interface.c ../net_handler/*.* client/net_handler_client.* cli/net_handler_cli.c
 	gcc cli/keyboard_interface.c client/net_handler_client.c ../net_handler/net_util.c \
 	../net_handler/pbc_gen/*.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
