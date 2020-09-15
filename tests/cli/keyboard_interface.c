@@ -1,10 +1,14 @@
+/**
+ * Acts as a substitute for net_handler_cli that starts with teleop mode
+ * Sends corresonding gamepad state based on local machine keyboard inputs
+ */
 #include "../client/net_handler_client.h"
 
 #include <stdio.h>
 #include <arpa/inet.h>  // for inet_addr, bind, listen, accept, socket types
 #include <netinet/in.h> // for structures relating to IPv4 addresses
 #include <netdb.h>      // for struct addrinfo
-#define SA struct sockaddr 
+#define SA struct sockaddr
 #define LOCALHOST "192.168.65.2"
 #define PORT 5006 // This port must be exposed in docker-compose.yml
 
@@ -14,7 +18,7 @@ int fd;
 FILE *fp;
 char character;
 u_int32_t buttons = 0;
-float joystick_vals[4];
+float joystick_vals[4] = {0};
 void set_state(int set);
 char buff[33];
 
@@ -31,7 +35,7 @@ void set_state(int set){
 
 int connect_tcp(){
     int sockfd, connfd;
-    struct sockaddr_in servaddr = {0}; 
+    struct sockaddr_in servaddr = {0};
     struct sockaddr_in cli = {0};
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -42,7 +46,7 @@ int connect_tcp(){
     printf("Socket creation successful\n");
 
     servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY); 
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(5006);
 
     if((bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr))) != 0){
@@ -73,19 +77,22 @@ int main() {
     fd = connect_tcp();
 
     printf("Its gamer time\n");
-    
+
     printf("Starting Net Handler CLI...\n");
     fflush(stdout);
 
     start_net_handler();
-
+    sleep(2);
+    // Connect dummy gamepad and start teleop mode
+    send_gamepad_state(0, joystick_vals);
+    send_run_mode(DAWN, TELEOP);
     while(1){
         buttons = 0;
         memset(buff, 0, 32 * sizeof(char));
         memset(joystick_vals, 0, 4 * sizeof(float));
         recv(fd, buff, sizeof(buff), 0);
         buff[32] = '\0';
-        
+
         for(int i = 13; i < 21; i++){
             int pushed = 0;
             if (buff[i] == '1'){
@@ -93,7 +100,7 @@ int main() {
             }
             if(pushed != 0){
                 switch(i){
-                    
+
                     case 13:
                         joystick_vals[0] = pushed;
                         break;
@@ -120,16 +127,16 @@ int main() {
                         break;
                 }
             }
-        } 
+        }
 
         for(int i = 0; i < 13; i++){
             if(buff[i] == '1'){
                 buttons |= (1 << i);
             }
         }
-    
+
         send_gamepad_state(buttons, joystick_vals);
-        
-    } 
+
+    }
     return 0;
 }
