@@ -20,7 +20,7 @@ def connect_tcp():
     sock.connect(ADDRESS)
     print('connected to server')
     return sock
-    
+
 def handler(signal_received, frame):
     print("Exiting gracefully")
     exit(0)
@@ -86,7 +86,7 @@ def write_to_socket():
     while(True):
         mutex.acquire()
         string_to_send = ''.join(bits)
-        print("sending", string_to_send)
+        print("sending", string_to_send.encode())
         sock.send(string_to_send.encode())
         mutex.release()
         sleep(0.05)

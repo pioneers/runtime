@@ -19,6 +19,7 @@ MAP = {
 }
 
 def autonomous_setup():
+    print("Now executing AUTONOMOUS SETUP")
     # Write pitches
     for note in NOTES:
         if (note == ' '):
@@ -33,9 +34,12 @@ def autonomous_main():
     pass
 
 def teleop_setup():
+    print("Now executing TELEOP SETUP")
     pass
 
 def teleop_main():
     if Gamepad.get_value('button_a'):
         print("EXECUTOR RECEIVED BUTTON A")
         Robot.set_value(SOUND, "PITCH", MAP['C'])
+    else:
+        print("EXECUTOR WAITING FOR BUTTON A")
