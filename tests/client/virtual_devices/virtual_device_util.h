@@ -72,7 +72,7 @@ message_t* make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
  *    params: Array of parameters to work with
  *    device_actions: Function pointer that accepts an array of params and
  *      modifies the param values
- *    action_interval: Number of milliseconds between each call to device_actions()
+ *    action_interval: Number of milliseconds between each call to device_actions(). Set to -1 to disable
  */
 void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
                      param_val_t params[], void (*device_actions)(param_val_t[]), int32_t action_interval);

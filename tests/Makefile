@@ -40,7 +40,7 @@ keyboard_interface: cli/keyboard_interface.c ../net_handler/*.* client/net_handl
 
 ################################ VIRTUAL DEVICES ###############################
 
-devices: general_dev simple_dev unresponsive_dev foreign_dev unstable_dev time_dev
+devices: general_dev simple_dev unresponsive_dev foreign_dev unstable_dev time_dev sound_dev
 
 VIRTUAL_DEVICE_FILES=client/virtual_devices/virtual_device_util.c ../dev_handler/message.c ../runtime_util/runtime_util.c ../logger/logger.c
 
@@ -61,6 +61,9 @@ unstable_dev: client/virtual_devices/unstable_dev.c $(VIRTUAL_DEVICE_FILES)
 
 time_dev: client/virtual_devices/time_dev.c $(VIRTUAL_DEVICE_FILES)
 	gcc $^ -o client/virtual_devices/TimeTestDevice
+
+sound_dev: client/virtual_devices/sound_dev.c $(VIRTUAL_DEVICE_FILES)
+	gcc $^ -o client/virtual_devices/SoundDevice
 
 ##################################### TESTS ####################################
 
