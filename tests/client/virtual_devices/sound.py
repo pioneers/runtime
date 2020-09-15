@@ -41,8 +41,9 @@ def main():
             break
 
         # Decode the float
-        print("Received raw data:", buf)
-        pitch = struct.unpack('!f', buf)[0]
+        pitch = struct.unpack('f', buf)[0]
+        if (pitch == 0):
+            continue
         print("Received", pitch)
 
         # Play sound
