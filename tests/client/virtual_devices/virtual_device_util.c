@@ -83,7 +83,6 @@ void device_write(uint8_t type, message_t* dev_write, param_val_t params[]) {
             // Write to the corresponding field in params[i]
             switch (dev->params[i].type) {
                 case INT:
-                    // TODO: Check int size
                     params[i].p_i = *((int32_t*) payload_ptr);
                     payload_ptr += sizeof(int32_t);
                     break;
@@ -171,6 +170,10 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
 
                 case DEVICE_WRITE:
                     device_write(type, incoming_msg, params);
+                    // If we're writing a pitch to the SoundDevice, play the pitch
+                    if (type == device_name_to_type("SoundDevice")) {
+                        (*device_actions)(params);
+                    }
                     break;
             }
         }
@@ -198,7 +201,7 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
             last_sent_ping_time = now;
         }
         // Change read-only params periodically
-        if ((now - last_device_action) >= action_interval) {
+        if (action_interval != -1 && (now - last_device_action) >= action_interval) {
             (*device_actions)(params);
             last_device_action = now;
         }
