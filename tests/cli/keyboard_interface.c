@@ -87,10 +87,10 @@ int main() {
         buff[32] = '\0';
 
         // Parse joystick values
-        for(int i = 13; i < 21; i++){
-            int pushed = 0;
+        for(int i = 17; i < 25; i++){
+            float pushed = 0;
             if (buff[i] == '1'){
-                pushed = 1.0;
+                pushed = .25;
             }
             if (pushed != 0){
                 switch (i) {
@@ -124,7 +124,7 @@ int main() {
         }
 
         // Parse the buttons TODO: EXTEND TO BUTTON_XBOX
-        for(int i = BUTTON_A; i < DPAD_DOWN; i++){
+        for(int i = BUTTON_A; i < 17; i++){
             if (buff[i] == '1'){
                 buttons |= (1 << i);
             }
