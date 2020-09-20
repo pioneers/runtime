@@ -8,7 +8,6 @@ from time import sleep
 import socket       # for TCP
 import struct       # for TCP encoding
 
-file = "gamepad_inputs.fifo"
 # TCP Setup
 HOST = '127.0.0.1'
 PORT = 5006
@@ -24,7 +23,6 @@ def connect_tcp():
 def handler(signal_received, frame):
     print("Exiting gracefully")
     exit(0)
-
 
 def activate_bit(on):
     bits[on] = "1"

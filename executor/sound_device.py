@@ -32,7 +32,7 @@ def autonomous_setup():
             time.sleep(PAUSE_DURATION)
         else:
             print("Writing", note)
-            # Robot.set_value(SOUND, "PITCH", MAP[note])
+            Robot.set_value(SOUND, "PITCH", MAP[note])
             time.sleep(NOTE_DURATION)
 
 def autonomous_main():
@@ -48,9 +48,13 @@ def teleop_setup():
 
 def teleop_main():
     if Gamepad.get_value('button_a'):
-        print("BUTTON A IS PRESSED")
+        Robot.set_value(SOUND, "PITCH", MAP['C'])
+        print("Wrote Button A: Pitch C")
+        time.sleep(NOTE_DURATION);
     if Gamepad.get_value('button_b'):
-        print("BUTTON B IS PRESSED")
+        Robot.set_value(SOUND, "PITCH", MAP['B'])
+        print("Wrote Button B: Pitch B")
+        time.sleep(NOTE_DURATION);
 
 ################################### THREADS ####################################
 
@@ -61,9 +65,9 @@ def print_button():
         if Gamepad.get_value('button_b'):
             print("BUTTON B IS PRESSED")
 
-def play_notes():
-    while (1):
-        if Gamepad.get_value('button_a'):
-            Robot.set_value(SOUND, "PITCH", MAP['A'])
-        if Gamepad.get_value('button_b'):
-            Robot.set_value(SOUND, "PITCH", MAP['B'])
+# def play_notes():
+#     while (1):
+#         if Gamepad.get_value('button_a'):
+#             Robot.set_value(SOUND, "PITCH", MAP['A'])
+#         if Gamepad.get_value('button_b'):
+#             Robot.set_value(SOUND, "PITCH", MAP['B'])
