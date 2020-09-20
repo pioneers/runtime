@@ -72,6 +72,7 @@ int main() {
     uint32_t buttons = 0;
     float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_gamepad_state(buttons, joystick_vals);
+    sleep(1);
 
     // print device data
     print_next_dev_data();
@@ -87,6 +88,7 @@ int main() {
     buttons = (1 << BUTTON_A) | (1 << DPAD_DOWN);
     joystick_vals[JOYSTICK_LEFT_X] = -0.1;
     send_gamepad_state(buttons, joystick_vals);
+    sleep(1);
 
     // sleep to let stuff happen
     sleep(1);
