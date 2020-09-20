@@ -18,7 +18,7 @@ ADDRESS = (HOST, PORT)
 # Sound parameters
 volume = 0.5     # range [0.0, 1.0]
 fs = 44100       # sampling rate, Hz, must be integer
-duration = 1     # Duration of a note if not interrupted by the next
+duration = 0.75  # Duration of a note if not interrupted by the next
 
 def main():
     # Get TCP connection
