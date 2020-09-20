@@ -1,38 +1,19 @@
-import os, tempfile
-import threading
-from signal import signal, SIGINT
+import threading    # for writing to socket
+from signal import signal, SIGINT   # for handle signal SIGINT
 from sys import exit
-from pynput import keyboard
-from pynput.keyboard import Listener, Key
+from pynput import keyboard     # for representing keys as chars   
+from pynput.keyboard import Listener, Key   # for keyboard listener
 from time import sleep
 import socket       # for TCP
 import struct       # for TCP encoding
 
+################################# GLOBAL VARS ##################################
 # TCP Setup
 HOST = '127.0.0.1'
 PORT = 5006
 ADDRESS = (HOST, PORT)
 
-def connect_tcp():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    print('waiting for server')
-    sock.connect(ADDRESS)
-    print('connected to server')
-    return sock
-
-def handler(signal_received, frame):
-    print("Exiting gracefully")
-    exit(0)
-
-def activate_bit(on):
-    bits[on] = "1"
-
-def deactivate_bit(off):
-    bits[off] = "0"
-
-def set_controls():
-    global controls
-    controls = {
+controls = {
         keyboard.KeyCode(char="k") : 0,
         keyboard.KeyCode(char="l") : 1,
         keyboard.KeyCode(char="j") : 2,
@@ -60,6 +41,27 @@ def set_controls():
         keyboard.Key.up : 24
     }
 
+#################################### Set Up & Clean up ####################################
+
+def connect_tcp():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    print('waiting for server')
+    sock.connect(ADDRESS) # connect to server
+    print('connected to server')
+    return sock # return socket object
+
+def handler(signal_received, frame):
+    print("Exiting gracefully")
+    exit(0)
+
+#################################### Listening & Writing ####################################
+
+def activate_bit(on):
+    bits[on] = "1"
+
+def deactivate_bit(off):
+    bits[off] = "0" 
+
 def on_press(key):
     mutex.acquire()
     if key in controls:
@@ -73,13 +75,13 @@ def on_release(key):
 
     elif key == keyboard.Key.esc:
         mutex.release()
-        return False
+        return False # close keyboard listener
     mutex.release()
 
 def keyboard_control():
     writer = threading.Thread(target = write_to_socket)
     writer.start()
-    with Listener(on_press = on_press,on_release = on_release) as listener:
+    with Listener(on_press = on_press,on_release = on_release) as listener: # assign keyboard actions to functions
         listener.join()
 
 def write_to_socket():
@@ -88,18 +90,18 @@ def write_to_socket():
         mutex.acquire()
         string_to_send = ''.join(bits)
         print("sending", string_to_send.encode())
-        sock.send(string_to_send.encode())
+        sock.send(string_to_send.encode()) # send the 'bitstring' over tcp using socket object
         mutex.release()
-        sleep(0.05)
+        sleep(0.05) # allows for the listener to modify the bitstring
 
+#################################### Main ####################################
 
 def main():
-    signal(SIGINT, handler)
+    signal(SIGINT, handler) 
     global bits
-    bits = list("00000000000000000000000000000000")
-    set_controls()
-    global mutex
-    mutex = threading.Lock()
+    bits = list("00000000000000000000000000000000") # 'bitstring' to be modified and sent
+    global mutex 
+    mutex = threading.Lock() # used to avoid race conditions when reading and sending data
     keyboard_control()
 
 if __name__=="__main__":
