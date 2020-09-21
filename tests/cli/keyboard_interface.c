@@ -9,7 +9,32 @@
 #include <netinet/in.h> // for structures relating to IPv4 addresses
 #include <netdb.h>      // for struct addrinfo
 #define PORT 5006 // This port must be exposed in docker-compose.yml
-
+enum buttons {
+    button_a,
+    button_b,
+    button_x,
+    button_y,
+    l_bumper,
+    r_bumper,
+    l_trigger,
+    r_trigger,
+    button_back,
+    button_start,
+    l_stick,
+    r_stick,
+    dpad_up,
+    dpad_down,
+    dpad_left,
+    dpad_right,
+    button_xbox,
+    joystick_left_x_right,
+    joystick_left_x_left,
+    joystick_left_y_down,
+    joystick_left_y_up,
+    joystick_right_x_left,
+    joystick_right_x_right,
+    joystick_right_y_down,
+    joystick_right_y_up};
 // ********************************** MAIN PROCESS ****************************************** //
 void sigint_handler(int signum) {
     close_output();
@@ -87,7 +112,7 @@ int main() {
         buff[32] = '\0';
 
         // Parse joystick values
-        for(int i = 17; i < 25; i++){
+        for(int i = joystick_left_x_right; i <= joystick_right_y_up; i++){
             float pushed = 0;
             if (buff[i] == '1'){
                 pushed = .25;
@@ -124,7 +149,7 @@ int main() {
         }
 
         // Parse the buttons TODO: EXTEND TO BUTTON_XBOX
-        for(int i = BUTTON_A; i < 17; i++){
+        for(int i = button_a; i <= button_xbox; i++){
             if (buff[i] == '1'){
                 buttons |= (1 << i);
             }
