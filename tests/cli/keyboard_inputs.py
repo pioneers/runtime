@@ -125,8 +125,8 @@ def write_to_socket():
 def main():
     signal(SIGINT, handler) 
     global bits
-    bits = list("00000000000000000000000000000000") # 'bitstring' to be modified and sent
-    global mutex 
+    bits = list("0" * len(controls)) # 'bitstring' to be modified and sent 
+    global mutex
     mutex = threading.Lock() # used to avoid race conditions when reading and sending data
     keyboard_control()
 

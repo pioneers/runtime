@@ -120,28 +120,28 @@ int main() {
             if (pushed != 0){
                 switch (i) {
 
-                    case 13:
+                    case joystick_left_x_right:
                         joystick_vals[0] = pushed;
                         break;
-                    case 14:
+                    case joystick_left_x_left:
                         joystick_vals[0] = -1 * pushed;
                         break;
-                    case 15:
+                    case joystick_left_y_down:
                         joystick_vals[1] = -1 * pushed;
                         break;
-                    case 16:
+                    case joystick_left_y_up:
                         joystick_vals[1] = 1 * pushed;
                         break;
-                    case 17:
+                    case joystick_right_x_left:
                         joystick_vals[2] = -1 * pushed;
                         break;
-                    case 18:
+                    case joystick_right_x_right:
                         joystick_vals[2] = 1 * pushed;
                         break;
-                    case 19:
+                    case joystick_right_y_down:
                         joystick_vals[3] = -1 * pushed;
                         break;
-                    case 20:
+                    case joystick_right_y_up:
                         joystick_vals[3] = pushed;
                         break;
                 }
