@@ -103,7 +103,7 @@ static void* send_device_data(void* args) {
         custom->params = malloc(sizeof(Param*) * custom->n_params);
         custom->name = "CustomData";
         custom->type = MAX_DEVICES;
-        custom->uid = 0;
+        custom->uid = 2020;
         for (int i = 0; i < custom->n_params; i++) {
             Param* param = malloc(sizeof(Param));
             param__init(param);
@@ -168,7 +168,7 @@ static void* update_gamepad_state(void* args) {
 
     while (1) {
         recvlen = recvfrom(socket_fd, buffer, size, 0, (struct sockaddr*) &dawn_addr, &addr_len);
-        // log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
+        log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
         if (recvlen == size) {
             log_printf(WARN, "update_gamepad_state: UDP Read length matches read buffer size %d", recvlen);
         }
@@ -181,12 +181,6 @@ static void* update_gamepad_state(void* args) {
             log_printf(ERROR, "update_gamepad_state: Failed to unpack GpState");
             continue;
         }
-        // display the message's fields.
-        // log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
-        // for (int i = 0; i < gp_state->n_axes; i++) {
-        // 	log_printf(PYTHON, "\t%f", gp_state->axes[i]);
-        // }
-        // log_printf(PYTHON, "\n");
 
         robot_desc_write(GAMEPAD, gp_state->connected ? CONNECTED : DISCONNECTED);
         if (gp_state->connected) {
