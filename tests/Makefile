@@ -6,8 +6,8 @@ ifeq ($(UNAME), Darwin)
 LIBS=-Wall -lprotobuf-c
 endif
 
-DEPENDENCIES=test.* client/* ../logger/* ../net_handler/* ../runtime_util/* ../shm_wrapper/*
-SRC_FILES=client/*.c test.c ../net_handler/pbc_gen/*.c ../net_handler/net_util.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c
+DEPENDENCIES=simple_regex.* test.* client/* ../logger/* ../net_handler/* ../runtime_util/* ../shm_wrapper/*
+SRC_FILES=client/*.c simple_regex.c test.c ../net_handler/pbc_gen/*.c ../net_handler/net_util.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c
 
 TEST_FILES=$(shell ls integration/*.c | awk -F'.' '{ print $$1 }')
 
