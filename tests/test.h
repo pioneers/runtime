@@ -1,10 +1,20 @@
 #ifndef TEST_H
 #define TEST_H
 
+#include <regex.h>
+
 #include "client/dev_handler_client.h"
 #include "client/executor_client.h"
 #include "client/net_handler_client.h"
 #include "client/shm_client.h"
+
+#include "simple_regex.h"
+
+//CAUTION: regex versions of tests assumes
+//the input is a regex expression to be built.
+//Thus, if you want to look for the string (1)
+//in 200(1), you must input [(]1[)] instead 
+//of (1)
 
 // ***************************** START/END TEST ***************************** //
 
@@ -57,6 +67,42 @@ void not_in_output(char* not_expected_output);
  * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
  */
 void not_in_rest_of_output(char* not_expected_output);
+
+/**
+ * CAUTION: regex version, be careful with brackets and parentheses
+ * Verifies that expected_output is somewhere in the output of the test
+ * Arguments:
+ *    expected_output: string that should be in the output of the test
+ * No return value. (Will exit with status code 1 if not in output).
+ */
+void rin_output(char* expected_output);
+
+/**
+ * CAUTION: regex version, be careful with brackets and parentheses
+ * Verifies that expected output is somewhere in the output after most recent call to this function
+ * Arguments:
+ *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
+ * No return value. (Will exit with status code 1 if not in rest of output).
+ */
+void rin_rest_of_output(char* expected_output);
+
+/**
+ * CAUTION: regex version, be careful with brackets and parentheses
+ * Verifies that not_expected_output is not in the output of the test
+ * Arguments:
+ *    not_expected_output: string that should NOT be anywhere in the output of the test
+ * No return value. (Will exit with status code 1 if it found the string in the output).
+ */
+void rnot_in_output(char* not_expected_output);
+
+/**
+ * CAUTION: regex version, be careful with brackets and parentheses
+ * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
+ * Arguments:
+ *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
+ * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
+ */
+void rnot_in_rest_of_output(char* not_expected_output);
 
 /**
  * Verifies that two input arrays of parameters are the same
