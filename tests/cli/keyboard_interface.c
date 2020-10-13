@@ -107,8 +107,8 @@ int main() {
         buttons = 0;
         memset(buff, 0, 32 * sizeof(char));
         memset(joystick_vals, 0, 4 * sizeof(float));
-        // Receive bit string
-        recv(fd, buff, sizeof(buff), 0);
+        // Read in bit string of size 32, not sizeof(buf)(33) since we are being sent a 32 len string
+        recv(fd, buff, sizeof(buff) - 1, 0);
         buff[32] = '\0';
 
         // Parse joystick values
