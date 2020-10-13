@@ -203,6 +203,71 @@ void not_in_rest_of_output(char* not_expected_output) {
     }
 }
 
+// Verifies that expected_output is somewhere in the output
+void rin_output(char* expected_output) {
+    check_num++;
+    if (rstrstr(rest_of_test_output, expected_output) != NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "%s", expected_output);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
+}
+
+// Verifies that expected_output is somewhere in the output after the last call to in_rest_of_output
+void rin_rest_of_output(char* expected_output) {
+    check_num++;
+    if ((rest_of_test_output = rstrstr(rest_of_test_output, expected_output)) != NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        rest_of_test_output += strlen(expected_output);  // advance rest_of_test_output past what we were looking for
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf(stderr, "********************************** Expected: ***********************************\n");
+        fprintf(stderr, "%s", expected_output);
+        fprintf(stderr, "************************************* Got: *************************************\n");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
+}
+
+// Verifies that not_expected_output is not anywhere in the output
+void rnot_in_output(char* not_expected_output) {
+    check_num++;
+    if (rstrstr(test_output, not_expected_output) == NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf_delimiter(stderr, "Not Expected:");
+        fprintf(stderr, "%s", not_expected_output);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
+}
+
+// Verifies that not_expected_output is not anywhere in the output after the last call to in_rest_of_output
+void rnot_in_rest_of_output(char* not_expected_output) {
+    check_num++;
+    if (rstrstr(rest_of_test_output, not_expected_output) == NULL) {
+        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        return;
+    } else {
+        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        fprintf_delimiter(stderr, "Not Expected:");
+        fprintf(stderr, "%s", not_expected_output);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", test_output);
+        exit(1);
+    }
+}
+
 // Returns if arrays are the same. Otherwise, exit(1)
 void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]) {
     device_t* dev = get_device(dev_type);
