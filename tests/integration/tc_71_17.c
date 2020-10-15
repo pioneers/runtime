@@ -45,7 +45,7 @@ char check_14_output[] = "SimpleTestDevice (0x0000000000004123) disconnected!\n"
 // check that last device data has only the custom data device
 char check_15_not_output[] = "SimpleTestDevice";
 char check_16_output[] =
-    "Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n"
+    "Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n"
     "\tParams:\n"
     "\t\tparam \"time_ms\" has type INT with value";
 
