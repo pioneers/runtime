@@ -186,8 +186,7 @@ static void* update_gamepad_state(void* args) {
         if (gp_state->connected) {
             if (gp_state->n_axes != 4) {
                 log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
-            }
-            else {
+            } else {
                 gamepad_write(gp_state->buttons, gp_state->axes);
             }
         }
