@@ -25,7 +25,7 @@ char check_output_1[] =
     "\t\tjoystick_right_y = 0.990000\n";
 
 char check_output_2[] =
-    "Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n";
+    "Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n";
 
 int main() {
     // setup
