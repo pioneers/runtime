@@ -84,11 +84,11 @@ static void fprintf_delimiter(FILE* stream, char* format, ...) {
     fprintf(stream, "\n");
 }
 
-// ********************************************** PUBLIC TEST FRAMEWORK FUNCTIONS ************************************** //
+// ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
 // creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
 void start_test(char* test_description) {
-    printf("************************************** Starting test: \"%s\" **************************************\n", test_description);
+    fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
     // save the test name
@@ -135,17 +135,32 @@ void end_test() {
     // set the rest_of_test_output to beginning of test_output to be ready for output comparison
     rest_of_test_output = test_output;
     // we can use printf now and this will go the terminal
-    printf("************************************** Running Checks... ******************************************\n");
+    fprintf_delimiter(stderr, "Running Checks...");
 }
+
+// *************************** PASS/FAIL CONTROL **************************** //
+
+// Prints to stderr that a check passed.
+static void print_pass() {
+    check_num++;
+    fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+}
+
+// Prints to stderr that a check failed.
+static void print_fail() {
+    check_num++;
+    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+}
+
+// ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
 
 // Verifies that expected_output is somewhere in the output
 void in_output(char* expected_output) {
-    check_num++;
     if (strstr(rest_of_test_output, expected_output) != NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        print_pass();
         return;
     } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        print_fail();
         fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
@@ -156,16 +171,15 @@ void in_output(char* expected_output) {
 
 // Verifies that expected_output is somewhere in the output after the last call to in_rest_of_output
 void in_rest_of_output(char* expected_output) {
-    check_num++;
     if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        print_pass();
         rest_of_test_output += strlen(expected_output);  // advance rest_of_test_output past what we were looking for
         return;
     } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf(stderr, "********************************** Expected: ***********************************\n");
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "%s", expected_output);
-        fprintf(stderr, "************************************* Got: *************************************\n");
+        fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
         exit(1);
     }
@@ -173,12 +187,11 @@ void in_rest_of_output(char* expected_output) {
 
 // Verifies that not_expected_output is not anywhere in the output
 void not_in_output(char* not_expected_output) {
-    check_num++;
     if (strstr(test_output, not_expected_output) == NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        print_pass();
         return;
     } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        print_fail();
         fprintf_delimiter(stderr, "Not Expected:");
         fprintf(stderr, "%s", not_expected_output);
         fprintf_delimiter(stderr, "Got:");
@@ -189,12 +202,11 @@ void not_in_output(char* not_expected_output) {
 
 // Verifies that not_expected_output is not anywhere in the output after the last call to in_rest_of_output
 void not_in_rest_of_output(char* not_expected_output) {
-    check_num++;
     if (strstr(rest_of_test_output, not_expected_output) == NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+        print_pass();
         return;
     } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+        print_fail();
         fprintf_delimiter(stderr, "Not Expected:");
         fprintf(stderr, "%s", not_expected_output);
         fprintf_delimiter(stderr, "Got:");
@@ -202,6 +214,93 @@ void not_in_rest_of_output(char* not_expected_output) {
         exit(1);
     }
 }
+
+// ************************* GAMEPAD CHECK FUNCTIONS ************************ //
+
+// Helper function to print a 32-bitmap to stderr on a new line
+static void print_bitmap(uint32_t bitmap) {
+    uint8_t bit;
+    for (int i = 0; i < 32; i++) {
+        bit = ((bitmap & (1 << i)) == 0) ? 0 : 1;
+        fprintf(stderr, "%d", bit);
+    }
+    fprintf(stderr, "\n");
+}
+
+// Helper function to print joystick values to stderr, each on a new line
+static void print_joysticks(float joystick_vals[4]) {
+    fprintf(stderr, "JOYSTICK_LEFT_X: %f\n", joystick_vals[JOYSTICK_LEFT_X]);
+    fprintf(stderr, "JOYSTICK_LEFT_Y: %f\n", joystick_vals[JOYSTICK_LEFT_Y]);
+    fprintf(stderr, "JOYSTICK_RIGHT_X: %f\n", joystick_vals[JOYSTICK_RIGHT_X]);
+    fprintf(stderr, "JOYSTICK_RIGHT_Y: %f\n", joystick_vals[JOYSTICK_RIGHT_Y]);
+}
+
+void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
+    uint32_t pressed_buttons;
+    float joystick_vals[4];
+    // Read in the current gamepad state
+    if (gamepad_read(&pressed_buttons, joystick_vals) != 0) {
+        print_fail();
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", "Gamepad is not connected");
+        exit(1);
+    }
+    // Verify that the buttons are correct
+    if (pressed_buttons != expected_buttons) {
+        print_fail();
+        // Print expected button bitmap to stderr
+        fprintf_delimiter(stderr, "Expected Pressed Buttons:");
+        print_bitmap(expected_buttons);
+        // Print current button bitmap to stderr
+        fprintf_delimiter(stderr, "Got:");
+        print_bitmap(pressed_buttons);
+        exit(1);
+    }
+    // Verify that the joysticks are correct
+    for (int i = 0; i < 4; i++) {
+        // Fail on the first incorrect joystick value encountered
+        if (joystick_vals[i] != expected_joysticks[i]) {
+            print_fail();
+            // Print all expected joysticks to stderr
+            fprintf_delimiter(stderr, "Expected Joysticks:");
+            print_joysticks(joystick_vals);
+            // Print all current joysticks to stderr
+            fprintf_delimiter(stderr, "Got:");
+            print_joysticks(joystick_vals);
+            exit(1);
+        }
+    }
+    print_pass();
+}
+
+// ***************************** RUN MODE CHECK ***************************** //
+
+// Helper function to print out the run mode on a new line to stderr
+static void print_run_mode(robot_desc_val_t run_mode) {
+    switch(run_mode) {
+        case IDLE: fprintf(stderr, "IDLE\n");
+        case AUTO: fprintf(stderr, "AUTO\n");
+        case TELEOP: fprintf(stderr, "TELEOP\n");
+        case CHALLENGE: fprintf(stderr, "CHALLENGE\n");
+        default: fprintf(stderr, "INVALID RUN MODE\n");
+    }
+}
+
+void check_run_mode(robot_desc_val_t expected_run_mode) {
+    // Read current run mode
+    robot_desc_val_t curr_run_mode = robot_desc_read(RUN_MODE);
+    if (curr_run_mode != expected_run_mode) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected Run Mode:");
+        print_run_mode(expected_run_mode);
+        fprintf_delimiter(stderr, "Got:");
+        print_run_mode(curr_run_mode);
+        exit(1);
+    }
+    print_pass();
+}
+
+// ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 // Returns if arrays are the same. Otherwise, exit(1)
 void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]) {
@@ -213,11 +312,10 @@ void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_
 
 // Returns if input params are the same. Otherwise, exit(1)
 void same_param_value(char* param_name, param_type_t param_type, param_val_t expected, param_val_t received) {
-    check_num++;
     switch (param_type) {
         case INT:
             if (expected.p_i != received.p_i) {
-                fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+                print_fail();
                 fprintf_delimiter(stderr, "Expected:");
                 fprintf(stderr, "%s == %d\n", param_name, expected.p_i);
                 fprintf_delimiter(stderr, "Got:");
@@ -227,7 +325,7 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
             break;
         case FLOAT:
             if (expected.p_f != received.p_f) {
-                fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+                print_fail();
                 fprintf_delimiter(stderr, "Expected:");
                 fprintf(stderr, "%s == %f\n", param_name, expected.p_f);
                 fprintf_delimiter(stderr, "Got:");
@@ -237,7 +335,7 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
             break;
         case BOOL:
             if (expected.p_b != received.p_b) {
-                fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+                print_fail();
                 fprintf_delimiter(stderr, "Expected:");
                 fprintf(stderr, "%s == %d\n", param_name, expected.p_b);
                 fprintf_delimiter(stderr, "Got:");
@@ -246,5 +344,5 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
             }
             break;
     }
-    fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+    print_pass();
 }
