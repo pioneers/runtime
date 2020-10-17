@@ -1,3 +1,8 @@
+/**
+ * Functions to start, stop, and conduct tests.
+ * Includes (but not limited to) string output matching, device parameter
+ * checks, gamepad checks, and what devices are connected and aren't connected.
+ */
 #ifndef TEST_H
 #define TEST_H
 
@@ -24,7 +29,7 @@ void start_test(char* test_name);
  */
 void end_test();
 
-// ********************** OUTPUT COMPARISON FUNCTIONS *********************** //
+// ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
 
 /**
  * Verifies that expected_output is somewhere in the output of the test
@@ -57,6 +62,30 @@ void not_in_output(char* not_expected_output);
  * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
  */
 void not_in_rest_of_output(char* not_expected_output);
+
+// ************************* GAMEPAD CHECK FUNCTIONS ************************ //
+
+/**
+ * Verifies that the the state of the gamepad is as expected in shared memory.
+ * Arguments:
+ *    expected_buttons: the expected bitmap of pressed buttons
+ *    expected_joysticks: the expected joystick values
+ *                        (Use gp_joystick_t enum in runtime util for indexing)
+ * No return value. (Will exit with status code 1 if incorrect gamepad state)
+ */
+void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]);
+
+// ***************************** RUN MODE CHECK ***************************** //
+
+/**
+ * Verifies that the current robot run mode is as expected in shared memory.
+ * Arguments:
+ *    expected_run_mode: the expected run mode.
+ * No return value. (Will exit with status code 1 if incorrect run mode)
+ */
+void check_run_mode(robot_desc_val_t expected_run_mode);
+
+// ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**
  * Verifies that two input arrays of parameters are the same
