@@ -33,11 +33,11 @@ int main() {
     end_test();
 
     // Check output
-    in_rest_of_output(no_device);  // No device read
+    in_rest_of_output(no_device, NO_REGEX);  // No device read
     char expected_output[64];
     sprintf(expected_output, "dev_ix = 0: type = %d", device_name_to_type("UnstableTestDevice"));
-    in_rest_of_output(expected_output);
-    in_rest_of_output(timed_out);
-    in_rest_of_output(no_device);
+    in_rest_of_output(expected_output, NO_REGEX);
+    in_rest_of_output(timed_out, NO_REGEX);
+    in_rest_of_output(no_device, NO_REGEX);
     return 0;
 }

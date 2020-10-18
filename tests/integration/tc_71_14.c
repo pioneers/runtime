@@ -76,52 +76,52 @@ int main() {
     stop_shm();
     end_test();
 
-    in_rest_of_output(no_device);  // No devices initially connected
+    in_rest_of_output(no_device, NO_REGEX);  // No devices initially connected
     char expected_output[64];
     char unexpected_output[64];
     //Only NUM_GENERAL GeneralTestDevices
     for (int i = 0; i < NUM_GENERAL - 1; i++) {
         sprintf(expected_output, print_dev_ids_format, i, general_dev_type, general_dev_type, (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_rest_of_output(expected_output, NO_REGEX);
     }
     // Check both NUM_GENERAL GeneralTestDevices and NUM_UNSTABLE UnstableTestDevices are connected
     for (int i = 0; i < NUM_GENERAL; i++) {
         sprintf(expected_output, print_dev_ids_format, i, general_dev_type, general_dev_type, (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_rest_of_output(expected_output, NO_REGEX);
     }
     for (int i = NUM_GENERAL; i < NUM_UNSTABLE; i++) {
         sprintf(expected_output, print_dev_ids_format, i, unstable_dev_type, unstable_dev_type, (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_rest_of_output(expected_output, NO_REGEX);
     }
     // All UnstableTestDevices should time out
     for (int i = NUM_GENERAL; i < NUM_UNSTABLE + NUM_GENERAL; i++) {
         sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (uint64_t) i);
-        in_output(expected_output);
+        in_output(expected_output, NO_REGEX);
     }
     // GeneralTestDevices remain in shm after UnstableTestDevices time out
     for (int i = 0; i < NUM_GENERAL; i++) {
         sprintf(expected_output, print_dev_ids_format, i, general_dev_type, general_dev_type, (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_rest_of_output(expected_output, NO_REGEX);
     }
     // Make sure there are no other devices in SHM
     for (int i = NUM_GENERAL; i < MAX_DEVICES; i++) {
         sprintf(unexpected_output, "dev_ix = %d", i);
-        not_in_rest_of_output(unexpected_output);
+        not_in_rest_of_output(unexpected_output, NO_REGEX);
     }
     // Error message when ForeignTestDevices and UnresponsiveTestDevices are connected
     for (int i = 0; i < NUM_BAD_DEVS; i++) {
-        in_rest_of_output(unknown_device);
+        in_rest_of_output(unknown_device, NO_REGEX);
     }
     // GeneralTestDevices remain in SHM after bad devices are handled
     for (int i = 0; i < NUM_GENERAL; i++) {
         sprintf(expected_output, print_dev_ids_format, i, general_dev_type, general_dev_type, (uint64_t) i);
-        in_rest_of_output(expected_output);
+        in_rest_of_output(expected_output, NO_REGEX);
     }
     // Make sure there are no other devices in SHM besides GeneralTestDevices
     for (int i = NUM_GENERAL; i < MAX_DEVICES; i++) {
         sprintf(unexpected_output, "dev_ix = %d", i);
-        not_in_rest_of_output(unexpected_output);
+        not_in_rest_of_output(unexpected_output, NO_REGEX);
     }
-    in_rest_of_output(no_device);  // All Devices Disconnected properly
+    in_rest_of_output(no_device, NO_REGEX);  // All Devices Disconnected properly
     return 0;
 }

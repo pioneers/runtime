@@ -107,16 +107,16 @@ int main() {
     end_test();
 
     // check output
-    in_rest_of_output(check_1_output);
-    in_rest_of_output(check_2_output);
-    in_rest_of_output(check_3_output);
-    in_rest_of_output(check_4_output);
-    in_rest_of_output(check_5_output);
+    in_rest_of_output(check_1_output, NO_REGEX);
+    in_rest_of_output(check_2_output, NO_REGEX);
+    in_rest_of_output(check_3_output, NO_REGEX);
+    in_rest_of_output(check_4_output, NO_REGEX);
+    in_rest_of_output(check_5_output, NO_REGEX);
     for (int i = 0; i < 3; i++) {
-        in_rest_of_output(check_6_output);
+        in_rest_of_output(check_6_output, NO_REGEX);
     }
-    in_rest_of_output(check_7_output);
-    in_rest_of_output(check_8_output);
+    in_rest_of_output(check_7_output, NO_REGEX);
+    in_rest_of_output(check_8_output, NO_REGEX);
 
     return 0;
 }

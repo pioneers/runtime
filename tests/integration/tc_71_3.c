@@ -31,9 +31,9 @@ int main() {
     end_test();
 
     // check output
-    in_rest_of_output(check_output_1);
-    in_rest_of_output(check_output_2);
-    in_rest_of_output(check_output_3);
-    in_rest_of_output(check_output_4);
+    in_rest_of_output(check_output_1, NO_REGEX);
+    in_rest_of_output(check_output_2, NO_REGEX);
+    in_rest_of_output(check_output_3, NO_REGEX);
+    in_rest_of_output(check_output_4, NO_REGEX);
     return 0;
 }
