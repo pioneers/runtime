@@ -69,17 +69,17 @@ int main() {
     end_test();
 
     // check outputs
-    in_rest_of_output(check_output_1);
-    in_rest_of_output(check_output_2);
-    in_rest_of_output(check_output_3);
-    in_rest_of_output(check_output_2);
-    in_rest_of_output(check_output_4);
-    in_rest_of_output(check_output_5);
-    in_rest_of_output(check_output_6);
-    in_rest_of_output(check_output_7);
-    in_rest_of_output(check_output_8);
-    in_rest_of_output(check_output_9);
-    not_in_output(check_output_10);  // check to make sure we don't get the suppressing messages bug
+    in_rest_of_output(check_output_1, NO_REGEX);
+    in_rest_of_output(check_output_2, NO_REGEX);
+    in_rest_of_output(check_output_3, NO_REGEX);
+    in_rest_of_output(check_output_2, NO_REGEX);
+    in_rest_of_output(check_output_4, NO_REGEX);
+    in_rest_of_output(check_output_5, NO_REGEX);
+    in_rest_of_output(check_output_6, NO_REGEX);
+    in_rest_of_output(check_output_7, NO_REGEX);
+    in_rest_of_output(check_output_8, NO_REGEX);
+    in_rest_of_output(check_output_9, NO_REGEX);
+    not_in_output(check_output_10, NO_REGEX);  // check to make sure we don't get the suppressing messages bug
 
     return 0;
 }

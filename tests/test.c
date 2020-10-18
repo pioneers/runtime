@@ -138,10 +138,32 @@ void end_test() {
     printf("************************************** Running Checks... ******************************************\n");
 }
 
+//Implementation of strstr but with a regex string for needle
+char *rstrstr(const char *haystack, const char *needle) {
+    regex_t expr;
+    regmatch_t tracker;
+
+    if (regcomp(&expr, needle, REG_EXTENDED)) {
+        fprintf(stderr, "Unable to build regex expression");
+        return NULL;
+    }
+    if (regexec(&expr, haystack, 1, &tracker, REG_EXTENDED)) {
+        return NULL;
+    }
+    return haystack + tracker.rm_so;
+}
+
 // Verifies that expected_output is somewhere in the output
-void in_output(char* expected_output) {
+void in_output(char* expected_output, const uint8_t USE_REGEX) {
+    char *(*checker)(const char *, const char *); 
+
     check_num++;
-    if (strstr(rest_of_test_output, expected_output) != NULL) {
+    if (USE_REGEX == NO_REGEX) {
+        checker = &strstr;
+    } else {
+        checker = &rstrstr;
+    }
+    if (checker(rest_of_test_output, expected_output) != NULL) {
         fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
         return;
     } else {
@@ -155,9 +177,16 @@ void in_output(char* expected_output) {
 }
 
 // Verifies that expected_output is somewhere in the output after the last call to in_rest_of_output
-void in_rest_of_output(char* expected_output) {
+void in_rest_of_output(char* expected_output, const uint8_t USE_REGEX) {
+    char * (*checker)(const char *, const char *);
+
     check_num++;
-    if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
+    if (USE_REGEX == NO_REGEX) {
+        checker = &strstr;
+    } else {
+        checker = &rstrstr;
+    }
+    if ((rest_of_test_output = checker(rest_of_test_output, expected_output)) != NULL) {
         fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
         rest_of_test_output += strlen(expected_output);  // advance rest_of_test_output past what we were looking for
         return;
@@ -172,9 +201,16 @@ void in_rest_of_output(char* expected_output) {
 }
 
 // Verifies that not_expected_output is not anywhere in the output
-void not_in_output(char* not_expected_output) {
+void not_in_output(char* not_expected_output, const uint8_t USE_REGEX) {
+    char * (*checker)(const char *, const char *);
+    
     check_num++;
-    if (strstr(test_output, not_expected_output) == NULL) {
+    if (USE_REGEX == NO_REGEX) {
+        checker = &strstr;
+    } else {
+        checker = &rstrstr;
+    }
+    if (checker(test_output, not_expected_output) == NULL) {
         fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
         return;
     } else {
@@ -188,74 +224,16 @@ void not_in_output(char* not_expected_output) {
 }
 
 // Verifies that not_expected_output is not anywhere in the output after the last call to in_rest_of_output
-void not_in_rest_of_output(char* not_expected_output) {
+void not_in_rest_of_output(char* not_expected_output, const uint8_t USE_REGEX) {
+    char* (*checker)(const char*, const char*);
+    
     check_num++;
-    if (strstr(rest_of_test_output, not_expected_output) == NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-        return;
+    if (USE_REGEX == NO_REGEX) {
+        checker = &strstr;
     } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf_delimiter(stderr, "Not Expected:");
-        fprintf(stderr, "%s", not_expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        exit(1);
+        checker = &rstrstr;
     }
-}
-
-// Verifies that expected_output is somewhere in the output
-void rin_output(char* expected_output) {
-    check_num++;
-    if (rstrstr(rest_of_test_output, expected_output) != NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-        return;
-    } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "%s", expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        exit(1);
-    }
-}
-
-// Verifies that expected_output is somewhere in the output after the last call to in_rest_of_output
-void rin_rest_of_output(char* expected_output) {
-    check_num++;
-    if ((rest_of_test_output = rstrstr(rest_of_test_output, expected_output)) != NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-        rest_of_test_output += strlen(expected_output);  // advance rest_of_test_output past what we were looking for
-        return;
-    } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf(stderr, "********************************** Expected: ***********************************\n");
-        fprintf(stderr, "%s", expected_output);
-        fprintf(stderr, "************************************* Got: *************************************\n");
-        fprintf(stderr, "%s\n", test_output);
-        exit(1);
-    }
-}
-
-// Verifies that not_expected_output is not anywhere in the output
-void rnot_in_output(char* not_expected_output) {
-    check_num++;
-    if (rstrstr(test_output, not_expected_output) == NULL) {
-        fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-        return;
-    } else {
-        fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf_delimiter(stderr, "Not Expected:");
-        fprintf(stderr, "%s", not_expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        exit(1);
-    }
-}
-
-// Verifies that not_expected_output is not anywhere in the output after the last call to in_rest_of_output
-void rnot_in_rest_of_output(char* not_expected_output) {
-    check_num++;
-    if (rstrstr(rest_of_test_output, not_expected_output) == NULL) {
+    if (checker(rest_of_test_output, not_expected_output) == NULL) {
         fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
         return;
     } else {
