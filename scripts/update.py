@@ -6,8 +6,7 @@ import os
 import zipfile
 
 UPDATE_ZIP = '/tmp/runtime.zip'
-DEST = '/home/pi'
-DEST = '/tmp'
+DEST = '/home/pi/test'
 
 def update_runtime():
     try:
@@ -15,12 +14,11 @@ def update_runtime():
             pass
     except FileNotFoundError as e:
         return
-    with zipfile.ZipFile(UPDATE_ZIP, 'r', compression=zipfile.ZIP_DEFLATED) as zipf:
-        print("extracting data")
+    with zipfile.ZipFile(UPDATE_ZIP, 'r') as zipf:
         zipf.extractall(path=DEST)
-    os.remove(UPDATE_ZIP)
-    os.system("echo 'Runtime Rebooting' > /tmp/log-fifo ")
-    time.sleep(1)
+    os.system("echo 'IMPORTANT: Runtime Rebooting for Update' > /tmp/log-fifo ")
+    time.sleep(2)
+    # os.system("sudo shutdown -r now")
     exit(0)
 
 if __name__ == '__main__':
