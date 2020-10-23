@@ -1,18 +1,15 @@
 #ifndef TEST_H
 #define TEST_H
 
-#include <regex.h> 
-#include <string.h>
-#include <stdio.h>
-#include <stddef.h>
+#include <regex.h>
 
 #include "client/dev_handler_client.h"
 #include "client/executor_client.h"
 #include "client/net_handler_client.h"
 #include "client/shm_client.h"
 
-static const uint8_t NO_REGEX = 0;
-static const uint8_t REGEX = 1;
+#define NO_REGEX 0
+#define REGEX 1
 
 //CAUTION: regex versions of tests assumes
 //the input is a regex string to be built.
@@ -78,7 +75,7 @@ char *rstrstr(const char *haystack, const char *needle);
  *    expected_output: string that should be in the output of the test
  * No return value. (Will exit with status code 1 if not in output).
  */
-void in_output(char* expected_output, const uint8_t USE_REGEX);
+void in_output(char* expected_output, int USE_REGEX);
 
 /**
  * Verifies that expected output is somewhere in the output after most recent call to this function
@@ -86,7 +83,7 @@ void in_output(char* expected_output, const uint8_t USE_REGEX);
  *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
  * No return value. (Will exit with status code 1 if not in rest of output).
  */
-void in_rest_of_output(char* expected_output, const uint8_t USE_REGEX);
+void in_rest_of_output(char* expected_output, int USE_REGEX);
 
 /**
  * Verifies that not_expected_output is not in the output of the test
@@ -94,7 +91,7 @@ void in_rest_of_output(char* expected_output, const uint8_t USE_REGEX);
  *    not_expected_output: string that should NOT be anywhere in the output of the test
  * No return value. (Will exit with status code 1 if it found the string in the output).
  */
-void not_in_output(char* not_expected_output, const uint8_t USE_REGEX);
+void not_in_output(char* not_expected_output, int USE_REGEX);
 
 /**
  * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
@@ -102,7 +99,7 @@ void not_in_output(char* not_expected_output, const uint8_t USE_REGEX);
  *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
  * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
  */
-void not_in_rest_of_output(char* not_expected_output, const uint8_t USE_REGEX);
+void not_in_rest_of_output(char* not_expected_output, int USE_REGEX);
 
 /**
  * Verifies that two input arrays of parameters are the same

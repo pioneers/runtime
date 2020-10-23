@@ -79,7 +79,6 @@ int main() {
     in_rest_of_output(check_output_7, NO_REGEX);
     in_rest_of_output(check_output_8, NO_REGEX);
     in_rest_of_output(check_output_9, NO_REGEX);
-    not_in_output(check_output_10, NO_REGEX);  // check to make sure we don't get the suppressing messages bug
 
     return 0;
 }
