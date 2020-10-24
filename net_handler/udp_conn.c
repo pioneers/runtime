@@ -168,7 +168,7 @@ static void* update_gamepad_state(void* args) {
 
     while (1) {
         recvlen = recvfrom(socket_fd, buffer, size, 0, (struct sockaddr*) &dawn_addr, &addr_len);
-        log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
+        // log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
         if (recvlen == size) {
             log_printf(WARN, "update_gamepad_state: UDP Read length matches read buffer size %d", recvlen);
         }
