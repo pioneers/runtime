@@ -14,10 +14,12 @@ def update_runtime():
             pass
     except FileNotFoundError as e:
         return
-    with zipfile.ZipFile(UPDATE_ZIP, 'r') as zipf:
-        zipf.extractall(path=DEST)
     os.system("echo 'IMPORTANT: Runtime Rebooting for Update' > /tmp/log-fifo ")
     time.sleep(2)
+    os.system("cd systemd && sudo systemctl stop *.service")
+    with zipfile.ZipFile(UPDATE_ZIP, 'r') as zipf:
+        zipf.extractall(path=DEST)
+    print("Zip file extracted, robot rebooting")
     # os.system("sudo shutdown -r now")
     exit(0)
 
