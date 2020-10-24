@@ -41,18 +41,18 @@ void end_test();
  * capabilities. If nothing is found in the
  * HAYSTACK, then it will return NULL, otherwise
  * it will return the rest of the HAYSTACK after
- * the first instance of NEEDLE. 
- * 
+ * the first instance of NEEDLE.
+ *
  * Remember, it takes in a regex string,
  * so backslashes have to be escaped as \\
- * 
+ *
  * Example usage:
- * rstrstr("     There are 123456789 chickens here", 
+ * rstrstr("     There are 123456789 chickens here",
  *      "[[:space]:]* There are [0-9]+")
- * returns 
+ * returns
  *      " chickens here"
- * 
- * 
+ *
+ *
  * Common Regex:
  * [[:space:]]* represents arbitrary whitespace
  * [0-9]+ represents a number
@@ -73,33 +73,37 @@ char* rstrstr(const char* haystack, const char* needle);
  * Verifies that expected_output is somewhere in the output of the test
  * Arguments:
  *    expected_output: string that should be in the output of the test
+ *    use_regex: Whether or not to use regex matching with EXPECTED_OUTPUT
  * No return value. (Will exit with status code 1 if not in output).
  */
-void in_output(char* expected_output, int USE_REGEX);
+void in_output(char* expected_output, int use_regex);
 
 /**
  * Verifies that expected output is somewhere in the output after most recent call to this function
  * Arguments:
  *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
+ *    use_regex: Whether or not to use regex matching with EXPECTED_OUTPUT
  * No return value. (Will exit with status code 1 if not in rest of output).
  */
-void in_rest_of_output(char* expected_output, int USE_REGEX);
+void in_rest_of_output(char* expected_output, int use_regex);
 
 /**
  * Verifies that not_expected_output is not in the output of the test
  * Arguments:
  *    not_expected_output: string that should NOT be anywhere in the output of the test
+ *    use_regex: Whether or not to use regex matching with NOT_EXPECTED_OUTPUT
  * No return value. (Will exit with status code 1 if it found the string in the output).
  */
-void not_in_output(char* not_expected_output, int USE_REGEX);
+void not_in_output(char* not_expected_output, int use_regex);
 
 /**
  * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
  * Arguments:
  *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
+ *    use_regex: Whether or not to use regex matching with NOT_EXPECTED_OUTPUT
  * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
  */
-void not_in_rest_of_output(char* not_expected_output, int USE_REGEX);
+void not_in_rest_of_output(char* not_expected_output, int use_regex);
 
 /**
  * Verifies that two input arrays of parameters are the same
