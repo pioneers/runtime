@@ -30,10 +30,10 @@ int main() {
     end_test();
 
     // Check outputs
-    in_rest_of_output(no_device);  // Before connect
+    in_rest_of_output(no_device, NO_REGEX);  // Before connect
     char expected_output[64];
     sprintf(expected_output, "dev_ix = 0: type = %d", device_name_to_type("SimpleTestDevice"));
-    in_rest_of_output(expected_output);
-    in_rest_of_output(no_device);  // After disconnect
+    in_rest_of_output(expected_output, NO_REGEX);
+    in_rest_of_output(no_device, NO_REGEX);  // After disconnect
     return 0;
 }

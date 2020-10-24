@@ -30,8 +30,8 @@ int main() {
     end_test();
 
     // Check outputs
-    in_rest_of_output(no_device);
-    in_rest_of_output(unknown_device);
-    in_rest_of_output(no_device);
+    in_rest_of_output(no_device, NO_REGEX);
+    in_rest_of_output(unknown_device, NO_REGEX);
+    in_rest_of_output(no_device, NO_REGEX);
     return 0;
 }
