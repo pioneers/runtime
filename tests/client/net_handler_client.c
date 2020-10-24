@@ -7,12 +7,13 @@ pthread_t dump_tid;                     // holds the thread id of the output dum
 pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
 int print_next_udp;                     // 0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
 
-int nh_tcp_shep_fd = -1;     // holds file descriptor for TCP Shepherd socket
-int nh_tcp_dawn_fd = -1;     // holds file descriptor for TCP Dawn socket
-int nh_udp_fd = -1;          // holds file descriptor for UDP Dawn socket
-FILE* tcp_output_fp = NULL;  // holds current output location of incoming TCP messages
-FILE* udp_output_fp = NULL;  // holds current output location of incoming UDP messages
-FILE* null_fp = NULL;        // file pointer to /dev/null
+int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
+int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
+int nh_udp_fd = -1;           // holds file descriptor for UDP Dawn socket
+FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP messages (stdout if NULL)
+FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
+FILE* udp_output_fp = NULL;   // holds current output location of incoming UDP messages
+FILE* null_fp = NULL;         // file pointer to /dev/null
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -224,7 +225,11 @@ static void* output_dump(void* args) {
             curr_time = millis();
             if (curr_time - last_received_time >= enable_threshold) {
                 less_than_disable_thresh = 0;
-                tcp_output_fp = stdout;
+                if (default_tcp_fp == NULL) {
+                    tcp_output_fp = stdout;
+                } else {
+                    tcp_output_fp = default_tcp_fp;
+                }
             }
             if (curr_time - last_received_time <= disable_threshold) {
                 less_than_disable_thresh++;
@@ -511,4 +516,8 @@ void print_next_dev_data() {
     udp_output_fp = stdout;
     pthread_mutex_unlock(&print_udp_mutex);
     usleep(400000);  // allow time for output_dump to react and generate output before returning to client
+}
+
+void update_tcp_output_fp(char* output_address) {
+    default_tcp_fp = fopen(output_address, "w");
 }

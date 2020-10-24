@@ -44,7 +44,7 @@ int main() {
     for (int j = 0; j < 2; j++) {
         for (int i = 0; i < NUM_TO_CONNECT; i++) {
             sprintf(expected_output, "dev_ix = %d", i);  // MAX_DEVICES connected
-            in_rest_of_output(expected_output);
+            in_rest_of_output(expected_output, NO_REGEX);
         }
     }
     return 0;
