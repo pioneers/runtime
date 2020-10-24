@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+## To package a new runtime.zip from source code, run
+## zip -r runtime.zip runtime
+## zip -r runtime.zip -d "runtime/.git/*"
+
 set -e
 
 UPDATE_ZIP='/tmp/runtime.zip'
@@ -13,11 +17,11 @@ done
 echo 'IMPORTANT: Runtime Rebooting for Update' >> /tmp/log-fifo
 sleep 2
 
-cd systemd && sudo systemctl stop *.service
+SERVICES="executor dev_handler net_handler shm_stop shm_start"
+
+cd systemd && sudo systemctl stop $SERVICES
 
 unzip -o /tmp/runtime.zip -d ~/
 
 printf "Zip file extracted, robot rebooting\n"
-
-
-# sudo shutdown -r now
+sudo shutdown -r now
