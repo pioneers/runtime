@@ -14,7 +14,7 @@
 //CAUTION: regex versions of tests assumes
 //the input is a regex string to be built.
 //Thus, if you want to look for the string (1)
-//in 200(1), you must input [(]1[)] instead 
+//in 200(1), you must input [(]1[)] instead
 //of (1)
 
 // ***************************** START/END TEST ***************************** //
@@ -65,7 +65,7 @@ void end_test();
  * "something here" will look for the entire string 'something here' within the haystack
  */
 
-char *rstrstr(const char *haystack, const char *needle);
+char* rstrstr(const char* haystack, const char* needle);
 
 // ********************** OUTPUT COMPARISON FUNCTIONS *********************** //
 
