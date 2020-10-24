@@ -107,20 +107,20 @@ int main() {
     end_test();
 
     // check output
-    in_rest_of_output(check_1_output);
-    in_rest_of_output(check_2_output);
-    in_rest_of_output(check_3_output);
-    in_rest_of_output(check_4_output);
-    in_rest_of_output(check_5_output);
-    in_rest_of_output(check_6_output);
-    in_rest_of_output(check_7_output);
-    in_rest_of_output(check_8_output);
-    in_rest_of_output(check_9_output);
-    in_rest_of_output(check_10_output);
-    in_rest_of_output(check_11_output);
-    in_rest_of_output(check_12_output);
-    in_rest_of_output(check_13_output);
-    in_rest_of_output(check_14_output);
-    not_in_rest_of_output(check_15_not_output);
-    in_rest_of_output(check_16_output);
+    in_rest_of_output(check_1_output, NO_REGEX);
+    in_rest_of_output(check_2_output, NO_REGEX);
+    in_rest_of_output(check_3_output, NO_REGEX);
+    in_rest_of_output(check_4_output, NO_REGEX);
+    in_rest_of_output(check_5_output, NO_REGEX);
+    in_rest_of_output(check_6_output, NO_REGEX);
+    in_rest_of_output(check_7_output, NO_REGEX);
+    in_rest_of_output(check_8_output, NO_REGEX);
+    in_rest_of_output(check_9_output, NO_REGEX);
+    in_rest_of_output(check_10_output, NO_REGEX);
+    in_rest_of_output(check_11_output, NO_REGEX);
+    in_rest_of_output(check_12_output, NO_REGEX);
+    in_rest_of_output(check_13_output, NO_REGEX);
+    in_rest_of_output(check_14_output, NO_REGEX);
+    not_in_rest_of_output(check_15_not_output, NO_REGEX);
+    in_rest_of_output(check_16_output, NO_REGEX);
 }

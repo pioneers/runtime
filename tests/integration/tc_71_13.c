@@ -37,12 +37,12 @@ int main() {
     char expected_output[64];
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         sprintf(expected_output, "dev_ix = %d: type = %d", i, device_name_to_type("UnstableTestDevice"));  // check each unstable device is connected
-        in_rest_of_output(expected_output);
+        in_rest_of_output(expected_output, NO_REGEX);
     }
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         sprintf(expected_output, "UnstableTestDevice (0x%016llX) timed out!", (uint64_t) i);
-        in_output(expected_output);
+        in_output(expected_output, NO_REGEX);
     }
-    in_rest_of_output(no_device);
+    in_rest_of_output(no_device, NO_REGEX);
     return 0;
 }
