@@ -47,7 +47,7 @@ int main() {
     end_test();
 
     // check outputs
-    in_rest_of_output(check_output_1);
-    in_rest_of_output(check_output_2);
+    in_rest_of_output(check_output_1, NO_REGEX);
+    in_rest_of_output(check_output_2, NO_REGEX);
     return 0;
 }

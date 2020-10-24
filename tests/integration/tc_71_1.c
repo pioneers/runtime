@@ -52,7 +52,7 @@ int main() {
     end_test();
 
     // do checks
-    in_rest_of_output(check_1_output);
-    in_rest_of_output(check_2_output);
+    in_rest_of_output(check_1_output, NO_REGEX);
+    in_rest_of_output(check_2_output, NO_REGEX);
     return 0;
 }

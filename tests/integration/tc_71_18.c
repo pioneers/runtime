@@ -85,43 +85,43 @@ int main() {
 
     // check outputs
     // first sub request
-    in_rest_of_output(dev1_header);
-    in_rest_of_output(increasing);
-    in_rest_of_output(doubling);
-    in_rest_of_output(flipflop);
-    in_rest_of_output(myint);
-    in_rest_of_output(dev2_header);
-    in_rest_of_output(increasing);
-    in_rest_of_output(doubling);
-    in_rest_of_output(flipflop);
-    in_rest_of_output(myint);
-    in_rest_of_output(custom_dev_header);
+    in_rest_of_output(dev1_header, NO_REGEX);
+    in_rest_of_output(increasing, NO_REGEX);
+    in_rest_of_output(doubling, NO_REGEX);
+    in_rest_of_output(flipflop, NO_REGEX);
+    in_rest_of_output(myint, NO_REGEX);
+    in_rest_of_output(dev2_header, NO_REGEX);
+    in_rest_of_output(increasing, NO_REGEX);
+    in_rest_of_output(doubling, NO_REGEX);
+    in_rest_of_output(flipflop, NO_REGEX);
+    in_rest_of_output(myint, NO_REGEX);
+    in_rest_of_output(custom_dev_header, NO_REGEX);
 
     // second sub request
-    in_rest_of_output(dev1_header);
-    in_rest_of_output(increasing);
-    in_rest_of_output(doubling);
-    in_rest_of_output(dev2_header);
-    in_rest_of_output(increasing);
-    in_rest_of_output(flipflop);
-    in_rest_of_output(custom_dev_header);
+    in_rest_of_output(dev1_header, NO_REGEX);
+    in_rest_of_output(increasing, NO_REGEX);
+    in_rest_of_output(doubling, NO_REGEX);
+    in_rest_of_output(dev2_header, NO_REGEX);
+    in_rest_of_output(increasing, NO_REGEX);
+    in_rest_of_output(flipflop, NO_REGEX);
+    in_rest_of_output(custom_dev_header, NO_REGEX);
 
     // third sub request
-    in_rest_of_output(dev1_header);
-    in_rest_of_output(increasing);
-    in_rest_of_output(dev2_header);
-    in_rest_of_output(flipflop);
-    in_rest_of_output(custom_dev_header);
+    in_rest_of_output(dev1_header, NO_REGEX);
+    in_rest_of_output(increasing, NO_REGEX);
+    in_rest_of_output(dev2_header, NO_REGEX);
+    in_rest_of_output(flipflop, NO_REGEX);
+    in_rest_of_output(custom_dev_header, NO_REGEX);
 
     // fourth and fifth sub requests
     for (int i = 0; i < 2; i++) {
-        in_rest_of_output(dev1_header);
-        in_rest_of_output(increasing);
-        in_rest_of_output(doubling);
-        in_rest_of_output(dev2_header);
-        in_rest_of_output(increasing);
-        in_rest_of_output(doubling);
-        in_rest_of_output(custom_dev_header);
+        in_rest_of_output(dev1_header, NO_REGEX);
+        in_rest_of_output(increasing, NO_REGEX);
+        in_rest_of_output(doubling, NO_REGEX);
+        in_rest_of_output(dev2_header, NO_REGEX);
+        in_rest_of_output(increasing, NO_REGEX);
+        in_rest_of_output(doubling, NO_REGEX);
+        in_rest_of_output(custom_dev_header, NO_REGEX);
     }
 
     return 0;
