@@ -5,7 +5,7 @@ Description=Update process for Runtime
 Type=oneshot
 User=pi
 WorkingDirectory=/home/pi/runtime
-ExecStart=/home/pi/runtime/scripts/update.py
+ExecStart=/home/pi/runtime/scripts/update.sh
 KillSignal=SIGINT
 
 [Install]
