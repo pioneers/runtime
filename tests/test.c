@@ -139,7 +139,7 @@ void end_test() {
 }
 
 //Implementation of strstr but with a regex string for needle
-char* rstrstr(const char* haystack, const char* needle) {
+char* rstrstr(char* haystack, char* needle) {
     regex_t expr;
     regmatch_t tracker;
 

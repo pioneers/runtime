@@ -65,7 +65,7 @@ void end_test();
  * "something here" will look for the entire string 'something here' within the haystack
  */
 
-char* rstrstr(const char* haystack, const char* needle);
+char* rstrstr(char* haystack, char* needle);
 
 // ********************** OUTPUT COMPARISON FUNCTIONS *********************** //
 
