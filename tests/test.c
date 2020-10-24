@@ -277,12 +277,17 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
 
 // Helper function to print out the run mode on a new line to stderr
 static void print_run_mode(robot_desc_val_t run_mode) {
-    switch(run_mode) {
-        case IDLE: fprintf(stderr, "IDLE\n");
-        case AUTO: fprintf(stderr, "AUTO\n");
-        case TELEOP: fprintf(stderr, "TELEOP\n");
-        case CHALLENGE: fprintf(stderr, "CHALLENGE\n");
-        default: fprintf(stderr, "INVALID RUN MODE\n");
+    switch (run_mode) {
+        case IDLE:
+            fprintf(stderr, "IDLE\n");
+        case AUTO:
+            fprintf(stderr, "AUTO\n");
+        case TELEOP:
+            fprintf(stderr, "TELEOP\n");
+        case CHALLENGE:
+            fprintf(stderr, "CHALLENGE\n");
+        default:
+            fprintf(stderr, "INVALID RUN MODE\n");
     }
 }
 
@@ -301,6 +306,62 @@ void check_run_mode(robot_desc_val_t expected_run_mode) {
 }
 
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
+
+/**
+ * Helper function to check whether a specified device is connected
+ * Arguments:
+ *    dev_uid: the uid of the device
+ * Returns:
+ *    1 if the device is connected
+ *    0 if the device is not connected
+ */
+static int check_device_helper(uint64_t dev_uid) {
+    dev_id_t dev_ids[MAX_DEVICES];
+    uint32_t catalog;
+
+    get_device_identifiers(dev_ids);
+    get_catalog(&catalog);
+
+    // There are devices connected
+    if (catalog != 0) {
+        // Iterate through devices
+        for (int i = 0; i < MAX_DEVICES; i++) {
+            if (catalog & (1 << i)) { // Connected device at index i
+                if (dev_ids[i].uid == dev_uid) {
+                    // Device is connected!
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+void check_device_connected(uint8_t dev_type, uint64_t dev_uid) {
+    if (check_device_helper(dev_uid) == 1) {
+        print_pass();
+    } else {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "Connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "NOT connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        exit(1);
+    }
+}
+
+void check_device_not_connected(uint8_t dev_type, uint64_t dev_uid) {
+    if (check_device_helper(dev_uid) == 0) {
+        print_pass();
+    } else {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "NOT Connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "Connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        exit(1);
+    }
+}
 
 // Returns if arrays are the same. Otherwise, exit(1)
 void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]) {
