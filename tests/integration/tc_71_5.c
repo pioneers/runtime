@@ -22,6 +22,7 @@ int main() {
     disconnect_virtual_device(socket_num);  // Device will be at the 0th socket
     sleep(1);
     print_dev_ids();  // No device
+    sleep(1);
 
     // Stop all processes
     stop_dev_handler();
