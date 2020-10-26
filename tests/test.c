@@ -9,6 +9,7 @@ char* test_output = NULL;       // holds the contents of temp file
 char* rest_of_test_output;      // holds the rest of the test output as we're performing checks
 int check_num = 0;              // increments to report status each time a check is performed
 char* global_test_name = NULL;  // name of test
+int started_executor = 0;       // boolean of whether or not executor is used in the current test
 
 /**
  * This thread prints output to terminal and also copies it to standard output
@@ -84,10 +85,39 @@ static void fprintf_delimiter(FILE* stream, char* format, ...) {
     fprintf(stream, "\n");
 }
 
+/**
+ * Helper function to start up runtime
+ */
+static void start_runtime(char* student_code, char* challenge_code) {
+    start_shm();
+    start_net_handler();
+    start_dev_handler();
+    // If student_code is nonempty or challenge_code is nonempty, start executor
+    if (strcmp(student_code, "") != 0 || strcmp(challenge_code, "") != 0) {
+        start_executor(student_code, challenge_code);
+        started_executor = 1;
+    }
+    // Make sure runtime starts up
+    sleep(1);
+}
+
+/**
+ * Helper function to stop runtime
+ */
+static void stop_runtime() {
+    if (started_executor) {
+        stop_executor();
+        started_executor = 0;
+    }
+    stop_dev_handler();
+    stop_net_handler();
+    stop_shm();
+}
+
 // ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
 // creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
-void start_test(char* test_description) {
+void start_test(char* test_description, char* student_code, char* challenge_code) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
@@ -116,11 +146,15 @@ void start_test(char* test_description) {
     if ((status = pthread_create(&output_handler_tid, NULL, output_handler, NULL)) != 0) {
         fprintf(stderr, "pthread_create: output handler thread: %s\n", strerror(status));
     }
+
+    // Start up runtime
+    start_runtime(student_code, challenge_code);
 }
 
-// this is called when the test has shut down all runtime processes and is ready to compare output
-// cancels the output handling thread and resets output
 void end_test() {
+    // Stop runtime
+    stop_runtime();
+
     // cancel the output handler thread
     if (pthread_cancel(output_handler_tid) != 0) {
         fprintf(stderr, "pthread_cancel: output handler thread\n");
@@ -135,7 +169,7 @@ void end_test() {
     // set the rest_of_test_output to beginning of test_output to be ready for output comparison
     rest_of_test_output = test_output;
     // we can use printf now and this will go the terminal
-    fprintf_delimiter(stderr, "Running Checks...");
+    fprintf_delimiter(stderr, "Running Remaining Checks...");
 }
 
 // *************************** PASS/FAIL CONTROL **************************** //
@@ -165,6 +199,7 @@ void in_output(char* expected_output) {
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
+        end_test();
         exit(1);
     }
 }
@@ -181,6 +216,7 @@ void in_rest_of_output(char* expected_output) {
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
+        end_test();
         exit(1);
     }
 }
@@ -196,6 +232,7 @@ void not_in_output(char* not_expected_output) {
         fprintf(stderr, "%s", not_expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
+        end_test();
         exit(1);
     }
 }
@@ -211,6 +248,7 @@ void not_in_rest_of_output(char* not_expected_output) {
         fprintf(stderr, "%s", not_expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
+        end_test();
         exit(1);
     }
 }
@@ -243,6 +281,7 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
         print_fail();
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", "Gamepad is not connected");
+        end_test();
         exit(1);
     }
     // Verify that the buttons are correct
@@ -254,6 +293,7 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
         // Print current button bitmap to stderr
         fprintf_delimiter(stderr, "Got:");
         print_bitmap(pressed_buttons);
+        end_test();
         exit(1);
     }
     // Verify that the joysticks are correct
@@ -267,6 +307,7 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
             // Print all current joysticks to stderr
             fprintf_delimiter(stderr, "Got:");
             print_joysticks(joystick_vals);
+            end_test();
             exit(1);
         }
     }
@@ -280,14 +321,19 @@ static void print_run_mode(robot_desc_val_t run_mode) {
     switch (run_mode) {
         case IDLE:
             fprintf(stderr, "IDLE\n");
+            break;
         case AUTO:
             fprintf(stderr, "AUTO\n");
+            break;
         case TELEOP:
             fprintf(stderr, "TELEOP\n");
+            break;
         case CHALLENGE:
             fprintf(stderr, "CHALLENGE\n");
+            break;
         default:
             fprintf(stderr, "INVALID RUN MODE\n");
+            break;
     }
 }
 
@@ -300,6 +346,7 @@ void check_run_mode(robot_desc_val_t expected_run_mode) {
         print_run_mode(expected_run_mode);
         fprintf_delimiter(stderr, "Got:");
         print_run_mode(curr_run_mode);
+        end_test();
         exit(1);
     }
     print_pass();
@@ -337,28 +384,30 @@ static int check_device_helper(uint64_t dev_uid) {
     return 0;
 }
 
-void check_device_connected(uint8_t dev_type, uint64_t dev_uid) {
+void check_device_connected(uint64_t dev_uid) {
     if (check_device_helper(dev_uid) == 1) {
         print_pass();
     } else {
         print_fail();
         fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "Connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        fprintf(stderr, "Connected device (0x%016llX)\n", dev_uid);
         fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "NOT connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        fprintf(stderr, "NOT connected device (0x%016llX)\n", dev_uid);
+        end_test();
         exit(1);
     }
 }
 
-void check_device_not_connected(uint8_t dev_type, uint64_t dev_uid) {
+void check_device_not_connected(uint64_t dev_uid) {
     if (check_device_helper(dev_uid) == 0) {
         print_pass();
     } else {
         print_fail();
         fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "NOT Connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        fprintf(stderr, "NOT connected device (0x%016llX)\n", dev_uid);
         fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "Connected %s (0x%016llX)\n", get_device_name(dev_type), dev_uid);
+        fprintf(stderr, "Connected device (0x%016llX)\n", dev_uid);
+        end_test();
         exit(1);
     }
 }
@@ -381,6 +430,7 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
                 fprintf(stderr, "%s == %d\n", param_name, expected.p_i);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %d\n", param_name, received.p_i);
+                end_test();
                 exit(1);
             }
             break;
@@ -391,6 +441,7 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
                 fprintf(stderr, "%s == %f\n", param_name, expected.p_f);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %f\n", param_name, received.p_f);
+                end_test();
                 exit(1);
             }
             break;
@@ -401,6 +452,7 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
                 fprintf(stderr, "%s == %d\n", param_name, expected.p_b);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %d\n", param_name, received.p_b);
+                end_test();
                 exit(1);
             }
             break;
