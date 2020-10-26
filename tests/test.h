@@ -15,17 +15,22 @@
 
 /**
  * Takes care of setting up the plumbing for the test output to run.
+ * Also starts up runtime (shm, net handler, dev handler, executor)
  * Should be the first function called in EVERY test!
  * Arguments:
- *    - char *test_description: a short description of what the test is testing
+ *    test_name: a short description of what the test is testing
+ *    student_code: python file name of student code, excluding ".py"
+ *    challenge_code: python file name of challenge code, excluding ".py"
+ *    ** Set both STUDENT_CODE and CHALLENGE_CODE to empty string if executor
+ *      is not necessary in the test.
  * No return value.
  */
-void start_test(char* test_name);
+void start_test(char* test_name, char* student_code, char* challenge_code);
 
 /**
- * Takes care of resetting the plumbing of the outputs at the end of the test, and
- * prepares internal variables for calling the output comparison functions below.
- * Should be called after the test has called all stop_<process>() functions
+ * Stops runtime, takes care of resetting the plumbing of the outputs at the
+ * end of the test, and prepares internal variables for calling the output
+ * comparison functions below.
  */
 void end_test();
 
@@ -91,19 +96,17 @@ void check_run_mode(robot_desc_val_t expected_run_mode);
  * Verifies that the specified device is connected.
  * If the device is NOT connected, the test fails.
  * Arguments:
- *    dev_type: the device type
  *    dev_uid: the device uid
  */
-void check_device_connected(uint8_t dev_type, uint64_t dev_uid);
+void check_device_connected(uint64_t dev_uid);
 
 /**
  * Verifies that the specified device is NOT connected.
  * If the device IS connected, the test fails.
  * Arguments:
- *    dev_type: the device type
  *    dev_uid: the device uid
  */
-void check_device_not_connected(uint8_t dev_type, uint64_t dev_uid);
+void check_device_not_connected(uint64_t dev_uid);
 
 /**
  * Verifies that two input arrays of parameters are the same
