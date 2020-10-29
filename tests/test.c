@@ -174,14 +174,6 @@ void end_test() {
     fprintf_delimiter(stderr, "Running Remaining Checks...");
 }
 
-void stop_processes(){
-    disconnect_all_devices();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_executor();
-    stop_shm();
-    end_test();
-}
 // *************************** PASS/FAIL CONTROL **************************** //
 
 // Prints to stderr that a check passed.
