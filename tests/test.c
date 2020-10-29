@@ -109,6 +109,7 @@ static void stop_runtime() {
         stop_executor();
         started_executor = 0;
     }
+    disconnect_all_devices();
     stop_dev_handler();
     stop_net_handler();
     stop_shm();

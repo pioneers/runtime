@@ -37,10 +37,7 @@ char check_output_10[] = "Suppressing output: too many messages...";
 
 int main() {
     // set everything up
-    start_test("executor sanity test");
-    start_shm();
-    start_net_handler();
-    start_executor("executor_sanity", "executor_sanity");
+    start_test("executor sanity test", "executor_sanity", "executor_sanity");
 
     // poke the system
     // this section checks the autonomous code (should generate some print statements)
@@ -63,9 +60,6 @@ int main() {
     send_challenge_data(DAWN, inputs, 2);
 
     // stop all the processes
-    stop_executor();
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // check outputs

@@ -6,21 +6,7 @@
  * and checks that those actions are reflected in shared memory.
  */
 
-char check_1_output[] =
-    "Changed devices: 00000000000000000000000000000000\n"
-    "Changed params:\n"
-    "Requested devices: 00000000000000000000000000000000\n"
-    "Requested params:\n"
-    "Current Robot Description:\n"
-    "\tRUN_MODE = AUTO\n"
-    "\tDAWN = CONNECTED\n"
-    "\tSHEPHERD = CONNECTED\n"
-    "\tGAMEPAD = DISCONNECTED\n"
-    "\tSTART_POS = LEFT\n\n"
-    "Current Gamepad State:\n"
-    "\tNo gamepad currently connected\n";
-
-char check_2_output[] =
+char start_right[] =
     "Changed devices: 00000000000000000000000000000000\n"
     "Changed params:\n"
     "Requested devices: 00000000000000000000000000000000\n"
@@ -36,23 +22,18 @@ char check_2_output[] =
 
 int main() {
     // setup
-    start_test("sanity");
-    start_shm();
-    start_net_handler();
+    start_test("sanity", "", "");
 
     // poke the system
     send_run_mode(SHEPHERD, AUTO);
-    print_shm();
+    check_run_mode(AUTO);
     send_start_pos(SHEPHERD, RIGHT);
     print_shm();
 
     // stop the system
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // do checks
-    in_rest_of_output(check_1_output);
-    in_rest_of_output(check_2_output);
+    in_rest_of_output(start_right);
     return 0;
 }

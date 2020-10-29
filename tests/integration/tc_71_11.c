@@ -8,10 +8,7 @@
 
 int main() {
     // Setup
-    start_test("Simple Device Read");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
+    start_test("Simple Device Read", "", "");
 
     // Connect a device
     connect_virtual_device("SimpleTestDevice", UID);
@@ -28,10 +25,6 @@ int main() {
     device_read_uid(UID, EXECUTOR, DATA, 0b1111, vals_after);
 
     // Stop all processes
-    disconnect_all_devices();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // Verify parameters changed as expected

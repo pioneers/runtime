@@ -44,10 +44,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
 
 int main() {
     // setup
-    start_test("device subscription test");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
+    start_test("device subscription test", "", "");
     dev_subs[0] = dev1_subs;
     dev_subs[1] = dev2_subs;
 
@@ -77,10 +74,6 @@ int main() {
     send_subs(0b11, 0b11);
 
     // stop the system
-    disconnect_all_devices();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // check outputs
