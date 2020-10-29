@@ -53,10 +53,7 @@ int main() {
     int port1, port2, port3;
 
     // setup
-    start_test("receive device data, general");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
+    start_test("receive device data, general", "", "");
 
     // poke the system
     // send gamepad state so net_handler starts sending device data packets
@@ -101,9 +98,6 @@ int main() {
     print_next_dev_data();
 
     // stop the system
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // check output

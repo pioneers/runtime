@@ -7,10 +7,7 @@
 
 int main() {
     // Setup
-    start_test("Invalid Write");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
+    start_test("Invalid Write", "", "");
 
     // Connect a device
     connect_virtual_device("SimpleTestDevice", UID);
@@ -36,10 +33,6 @@ int main() {
     device_read_uid(UID, EXECUTOR, DATA, (1 << doubling_idx), vals_after);
 
     // Stop all processes
-    disconnect_all_devices();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // Verify DOUBLING changed as expected regardless of the write

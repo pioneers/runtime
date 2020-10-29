@@ -9,12 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Sanity Write");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
-    start_executor("sanity_write", "");
-    sleep(1);
+    start_test("Sanity Write", "sanity_write", "");
 
     // Connect GeneralTestDevice
     connect_virtual_device("GeneralTestDevice", UID);
@@ -40,11 +35,6 @@ int main() {
     device_read_uid(UID, EXECUTOR, DATA, (uint32_t) -1, vals_post_second_write);
 
     // Clean up
-    disconnect_all_devices();
-    stop_executor();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     /* Check output in initial_vals, vals_post_auto, and vals_post_second_write

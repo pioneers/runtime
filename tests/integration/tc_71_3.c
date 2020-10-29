@@ -15,9 +15,7 @@ char check_output_4[] = "recv_new_msg: Invalid device subscription, device uid 1
 
 int main() {
     // setup
-    start_test("nonexistent device subscription");
-    start_shm();
-    start_net_handler();
+    start_test("nonexistent device subscription", "", "");
 
     // poke
     dev_subs_t data1 = {.uid = 50, .name = "ServoControl", .params = 0b11};
@@ -26,8 +24,6 @@ int main() {
     send_device_subs(data_total, 2);
 
     // stop
-    stop_net_handler();
-    stop_shm();
     end_test();
 
     // check output
