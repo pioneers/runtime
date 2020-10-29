@@ -29,7 +29,7 @@ function run_tests {
 			clean_up
 			exit 1
 		fi
-		
+
 		# make executable
 		printf "\nMaking $test\n"
 		make $test
@@ -39,11 +39,10 @@ function run_tests {
 			failing_tests="$failing_tests $test"  # add this test to list of failing tests
 			failed=1
 		fi
-		
-		test_exe=$(echo $test | awk -F'/' '{ print $2 }')
+
 		# run test
-		printf "Running $test_exe...\n"
-		./$test_exe
+		printf "Running $test...\n"
+		./$test
 
 		# if that test failed, set all_is_well to 1
 		if [[ $? == 1 ]]; then
