@@ -490,11 +490,11 @@ void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_ty
     
     switch (param_type) {
         case INT:
-            if (received.p_i <= expected_low.p_i || received.p_i >= expected_high.p_i) {
+            if (received.p_i < expected_low.p_i || received.p_i > expected_high.p_i) {
                 print_fail();
                 fprintf_delimiter(stderr, "Expected:");
-                fprintf(stderr, "%s <= %d\n", param_name, expected_low.p_i);
-                fprintf(stderr, "%s >= %d\n", param_name, expected_high.p_i);
+                fprintf(stderr, "%s >= %d\n", param_name, expected_low.p_i);
+                fprintf(stderr, "%s <= %d\n", param_name, expected_high.p_i);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %d\n", param_name, received.p_i);
                 end_test();
@@ -502,11 +502,11 @@ void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_ty
             }
             break;
         case FLOAT:
-            if (received.p_f <= expected_low.p_f || received.p_f >= expected_high.p_f) {
+            if (received.p_f < expected_low.p_f || received.p_f > expected_high.p_f) {
                 print_fail();
                 fprintf_delimiter(stderr, "Expected:");
-                fprintf(stderr, "%s <= %f\n", param_name, expected_low.p_f);
-                fprintf(stderr, "%s >= %f\n", param_name, expected_high.p_f);
+                fprintf(stderr, "%s >= %f\n", param_name, expected_low.p_f);
+                fprintf(stderr, "%s <= %f\n", param_name, expected_high.p_f);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %f\n", param_name, received.p_f);
                 end_test();
