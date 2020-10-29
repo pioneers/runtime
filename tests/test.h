@@ -117,18 +117,33 @@ void check_device_not_connected(uint64_t dev_uid);
  * Returns nothing if they're the same.
  * Exits with status code 1 if they're different
  */
-void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]);
+void same_param_value_array(uint8_t dev_type, uint64_t UID, param_val_t expected[]);
 
 /**
- * Verifies that two parameters have the same value
+ * Verifies that the device's specified parameter is the same as the expected parameter
  * Arguments:
+ *    dev_name: The name of the device whose parameters are being checked
+ *    uid: uniquie identifier of device 
  *    param_name: The name of the parameter being compared
  *    param_type: The data type being compared
  *    expected: The parameter value expected from a test
- *    received: The parameter value received from a test
  * Returns nothing if they're the same.
  * Exits with status code 1 if they're different
  */
-void same_param_value(char* param_name, param_type_t param_type, param_val_t expected, param_val_t received);
+void same_param_value(char* dev_name, uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected) ;
+
+/**
+ * Same as above but compares the received value to a range of expected values
+ * Arguments:
+ *    dev_name: The name of the device whose parameters are being checked
+ *    uid: uniquie identifier of device 
+ *    param_name: The name of the parameter being compared
+ *    param_type: The data type being compared
+ *    expected_low: The lowerbound expected value
+ *    expected_high: The upperbound expect value
+ * Returns nothing if within range
+ * Exits with status code 1 if out of range
+ */
+void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high);
 
 #endif

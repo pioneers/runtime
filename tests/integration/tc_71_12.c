@@ -10,11 +10,12 @@ int main() {
     start_test("Invalid Write", "", "");
 
     // Connect a device
-    connect_virtual_device("SimpleTestDevice", UID);
+    char *dev_name = "SimpleTestDevice";
+    connect_virtual_device(dev_name, UID);
     sleep(1);
 
     // Get identifiers
-    uint8_t simple_type = device_name_to_type("SimpleTestDevice");
+    uint8_t simple_type = device_name_to_type(dev_name);
     const int8_t doubling_idx = get_param_idx(simple_type, "DOUBLING");
 
     // Get current parameters then wait
@@ -29,15 +30,17 @@ int main() {
     sleep(1);  // Device values will change in this time
 
     // Get parameters again
-    param_val_t vals_after[dev->num_params];
-    device_read_uid(UID, EXECUTOR, DATA, (1 << doubling_idx), vals_after);
+    // param_val_t vals_after[dev->num_params];
+    // device_read_uid(UID, EXECUTOR, DATA, (1 << doubling_idx), vals_after);
+
+    // Verify DOUBLING changed as expected regardless of the write
+    vals_before[doubling_idx].p_f *= 2;
+    same_param_value(dev_name, UID, "DOUBLING", FLOAT, vals_before[doubling_idx]);
 
     // Stop all processes
     end_test();
 
-    // Verify DOUBLING changed as expected regardless of the write
-    vals_before[doubling_idx].p_f *= 2;
-    same_param_value("DOUBLING", FLOAT, vals_before[doubling_idx], vals_after[doubling_idx]);
+    
 
     return 0;
 }

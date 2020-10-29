@@ -173,6 +173,14 @@ void end_test() {
     fprintf_delimiter(stderr, "Running Remaining Checks...");
 }
 
+void stop_processes(){
+    disconnect_all_devices();
+    stop_dev_handler();
+    stop_net_handler();
+    stop_executor();
+    stop_shm();
+    end_test();
+}
 // *************************** PASS/FAIL CONTROL **************************** //
 
 // Prints to stderr that a check passed.
@@ -414,15 +422,23 @@ void check_device_not_connected(uint64_t dev_uid) {
 }
 
 // Returns if arrays are the same. Otherwise, exit(1)
-void same_param_value_array(uint8_t dev_type, param_val_t expected[], param_val_t received[]) {
+void same_param_value_array(uint8_t dev_type, uint64_t UID, param_val_t expected[]) {
     device_t* dev = get_device(dev_type);
     for (int i = 0; i < dev->num_params; i++) {
-        same_param_value(dev->params[i].name, dev->params[i].type, expected[i], received[i]);
+        same_param_value(dev->name, UID, dev->params[i].name, dev->params[i].type, expected[i]);
     }
 }
 
 // Returns if input params are the same. Otherwise, exit(1)
-void same_param_value(char* param_name, param_type_t param_type, param_val_t expected, param_val_t received) {
+void same_param_value(char* dev_name, uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected) {
+    uint8_t dev_type = device_name_to_type(dev_name);
+    device_t* dev = get_device(dev_type);
+
+    param_val_t vals_after[dev->num_params];
+    uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
+    device_read_uid(UID, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    param_val_t received = vals_after[param_idx];
+    
     switch (param_type) {
         case INT:
             if (expected.p_i != received.p_i) {
@@ -453,6 +469,45 @@ void same_param_value(char* param_name, param_type_t param_type, param_val_t exp
                 fprintf(stderr, "%s == %d\n", param_name, expected.p_b);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %d\n", param_name, received.p_b);
+                end_test();
+                exit(1);
+            }
+            break;
+    }
+    print_pass();
+}
+
+// Returns if value is between the expected high and expected low
+void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high){
+    uint8_t dev_type = device_name_to_type(dev_name);
+    device_t* dev = get_device(dev_type);
+
+    param_val_t vals_after[dev->num_params];
+    uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
+    device_read_uid(UID, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    param_val_t received = vals_after[param_idx];
+    
+    switch (param_type) {
+        case INT:
+            if (received.p_i <= expected_low.p_i || received.p_i >= expected_high.p_i) {
+                print_fail();
+                fprintf_delimiter(stderr, "Expected:");
+                fprintf(stderr, "%s <= %d\n", param_name, expected_low.p_i);
+                fprintf(stderr, "%s >= %d\n", param_name, expected_high.p_i);
+                fprintf_delimiter(stderr, "Got:");
+                fprintf(stderr, "%s == %d\n", param_name, received.p_i);
+                end_test();
+                exit(1);
+            }
+            break;
+        case FLOAT:
+            if (received.p_f <= expected_low.p_f || received.p_f >= expected_high.p_f) {
+                print_fail();
+                fprintf_delimiter(stderr, "Expected:");
+                fprintf(stderr, "%s <= %f\n", param_name, expected_low.p_f);
+                fprintf(stderr, "%s >= %f\n", param_name, expected_high.p_f);
+                fprintf_delimiter(stderr, "Got:");
+                fprintf(stderr, "%s == %f\n", param_name, received.p_f);
                 end_test();
                 exit(1);
             }
