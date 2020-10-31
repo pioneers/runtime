@@ -430,7 +430,6 @@ void send_gamepad_state(uint32_t buttons, float joystick_vals[4]) {
     // free everything
     free(gp_state.axes);
     free(send_buf);
-    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges) {
