@@ -103,7 +103,7 @@ static void* send_device_data(void* args) {
         custom->params = malloc(sizeof(Param*) * custom->n_params);
         custom->name = "CustomData";
         custom->type = MAX_DEVICES;
-        custom->uid = 0;
+        custom->uid = 2020;
         for (int i = 0; i < custom->n_params; i++) {
             Param* param = malloc(sizeof(Param));
             param__init(param);
@@ -181,18 +181,12 @@ static void* update_gamepad_state(void* args) {
             log_printf(ERROR, "update_gamepad_state: Failed to unpack GpState");
             continue;
         }
-        if (gp_state->n_axes != 4) {
-            log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
-        } else {
-            // display the message's fields.
-            // log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
-            // for (int i = 0; i < gp_state->n_axes; i++) {
-            // 	log_printf(PYTHON, "\t%f", gp_state->axes[i]);
-            // }
-            // log_printf(PYTHON, "\n");
 
-            robot_desc_write(GAMEPAD, gp_state->connected ? CONNECTED : DISCONNECTED);
-            if (gp_state->connected) {
+        robot_desc_write(GAMEPAD, gp_state->connected ? CONNECTED : DISCONNECTED);
+        if (gp_state->connected) {
+            if (gp_state->n_axes != 4) {
+                log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
+            } else {
                 gamepad_write(gp_state->buttons, gp_state->axes);
             }
         }
