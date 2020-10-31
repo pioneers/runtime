@@ -63,6 +63,7 @@ int main() {
     uint32_t buttons = 0;
     float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_gamepad_state(buttons, joystick_vals);
+    sleep(1);
     print_next_dev_data();
 
     // connect two devices

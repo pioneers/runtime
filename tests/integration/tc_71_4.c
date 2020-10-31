@@ -37,6 +37,7 @@ int main() {
     uint32_t buttons = (1 << BUTTON_A) | (1 << L_TRIGGER) | (1 << DPAD_DOWN);
     float joystick_vals[] = {-0.1, 0.0, 0.1, 0.99};
     send_gamepad_state(buttons, joystick_vals);
+    sleep(1);  // Let gamepad state register
     print_shm();
     print_next_dev_data();
 
