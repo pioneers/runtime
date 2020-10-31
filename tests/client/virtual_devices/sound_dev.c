@@ -3,9 +3,9 @@
  * Students write a floating point pitch to the PITCH parameter to play it.
  * SoundDevice writes to a socket to sound.py, which plays the sound on the host machine
  */
-#include <arpa/inet.h>  // for inet_addr, bind, listen, accept, socket types
-#include <netinet/in.h> // for structures relating to IPv4 addresses
-#include <netdb.h>      // for struct addrinfo
+#include <arpa/inet.h>   // for inet_addr, bind, listen, accept, socket types
+#include <netdb.h>       // for struct addrinfo
+#include <netinet/in.h>  // for structures relating to IPv4 addresses
 #include "virtual_device_util.h"
 
 /* Localhost; "host.docker.internal" is how to reference localhost from a Docker container
@@ -14,7 +14,7 @@
  * https://unix.stackexchange.com/a/20793
  */
 #define LOCALHOST "192.168.65.2"
-#define PORT 5005 // This port must be exposed in docker-compose.yml
+#define PORT 5005  // This port must be exposed in docker-compose.yml
 
 // SoundDevice params
 enum {
