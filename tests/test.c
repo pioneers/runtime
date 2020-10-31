@@ -139,7 +139,7 @@ void end_test() {
 }
 
 //Implementation of strstr but with a regex string for needle
-char* rstrstr(const char* haystack, const char* needle) {
+char* rstrstr(char* haystack, char* needle) {
     regex_t expr;
     regmatch_t tracker;
 
@@ -156,11 +156,11 @@ char* rstrstr(const char* haystack, const char* needle) {
 }
 
 // Verifies that expected_output is somewhere in the output
-void in_output(char* expected_output, int USE_REGEX) {
+void in_output(char* expected_output, int use_regex) {
     char* check;
 
     check_num++;
-    if (USE_REGEX == NO_REGEX) {
+    if (use_regex == NO_REGEX) {
         check = strstr(test_output, expected_output);
     } else {
         check = rstrstr(test_output, expected_output);
@@ -179,11 +179,9 @@ void in_output(char* expected_output, int USE_REGEX) {
 }
 
 // Verifies that expected_output is somewhere in the output after the last call to in_rest_of_output
-void in_rest_of_output(char* expected_output, int USE_REGEX) {
-    char* check;
-
+void in_rest_of_output(char* expected_output, int use_regex) {
     check_num++;
-    if (USE_REGEX == NO_REGEX) {
+    if (use_regex == NO_REGEX) {
         rest_of_test_output = strstr(rest_of_test_output, expected_output);
     } else {
         rest_of_test_output = rstrstr(rest_of_test_output, expected_output);
@@ -194,20 +192,20 @@ void in_rest_of_output(char* expected_output, int USE_REGEX) {
         return;
     } else {
         fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-        fprintf(stderr, "********************************** Expected: ***********************************\n");
+        fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "%s", expected_output);
-        fprintf(stderr, "************************************* Got: *************************************\n");
+        fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
         exit(1);
     }
 }
 
 // Verifies that not_expected_output is not anywhere in the output
-void not_in_output(char* not_expected_output, int USE_REGEX) {
+void not_in_output(char* not_expected_output, int use_regex) {
     char* check;
 
     check_num++;
-    if (USE_REGEX == NO_REGEX) {
+    if (use_regex == NO_REGEX) {
         check = strstr(test_output, not_expected_output);
     } else {
         check = rstrstr(test_output, not_expected_output);
@@ -226,11 +224,11 @@ void not_in_output(char* not_expected_output, int USE_REGEX) {
 }
 
 // Verifies that not_expected_output is not anywhere in the output after the last call to in_rest_of_output
-void not_in_rest_of_output(char* not_expected_output, int USE_REGEX) {
+void not_in_rest_of_output(char* not_expected_output, int use_regex) {
     char* check;
 
     check_num++;
-    if (USE_REGEX == NO_REGEX) {
+    if (use_regex == NO_REGEX) {
         check = strstr(rest_of_test_output, not_expected_output);
     } else {
         check = rstrstr(rest_of_test_output, not_expected_output);
