@@ -104,7 +104,7 @@ void prompt_device_disconnect() {
             printf("Disconnecting port %d\n", port_num);
             if (disconnect_virtual_device(port_num) == 0) {
                 printf("Device disconnected!\n");
-                sleep(1); // Let dev handler output logs
+                sleep(1);  // Let dev handler output logs
                 break;
             } else {
                 printf("Device disconnect unsuccesful!\n");
@@ -137,7 +137,7 @@ int main() {
     // main loop
     while (stop) {
         // Get the next command
-        sleep(1); // Guarantee that the "> " prompt appears after dev handler logs
+        sleep(1);  // Guarantee that the "> " prompt appears after dev handler logs
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         remove_newline(nextcmd);  // Strip off \n character

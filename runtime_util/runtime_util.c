@@ -109,9 +109,7 @@ device_t SoundDevice = {
     .num_params = 2,
     .params = {
         {.name = "SOCK_FD", .type = INT, .read = 0, .write = 0},
-        {.name = "PITCH", .type = FLOAT, .read = 1, .write = 1}
-    }
-};
+        {.name = "PITCH", .type = FLOAT, .read = 1, .write = 1}}};
 
 device_t TimeTestDevice = {
     .type = 60,
