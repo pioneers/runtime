@@ -2,9 +2,17 @@
 
 message_t* make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
     message_t* msg = malloc(sizeof(message_t));
+    if (msg == NULL) {
+        printf("make_acknowledgement: Failed to malloc\n");
+        exit(1);
+    }
     msg->message_id = ACKNOWLEDGEMENT;
     msg->max_payload_length = DEVICE_ID_SIZE;
     msg->payload = malloc(msg->max_payload_length);
+    if (msg->payload == NULL) {
+        printf("make_acknowledgement: Failed to malloc\n");
+        exit(1);
+    }
     msg->payload_length = DEVICE_ID_SIZE;
     msg->payload[0] = type;
     msg->payload[1] = year;
@@ -39,6 +47,10 @@ int receive_message(int fd, message_t* msg) {
 
     // Allocate buffer to read message into
     uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    if (data == NULL) {
+        printf("receive_message: Failed to malloc\n");
+        exit(1);
+    }
     data[0] = 0x00;
     data[1] = cobs_len;
 
@@ -63,6 +75,10 @@ int receive_message(int fd, message_t* msg) {
 void send_message(int fd, message_t* msg) {
     int len = calc_max_cobs_msg_length(msg);
     uint8_t* data = malloc(len);
+    if (data == NULL) {
+        printf("send_message: Failed to malloc\n");
+        exit(1);
+    }
     len = message_to_bytes(msg, data, len);
     int transferred = write(fd, data, len);
     if (transferred != len) {

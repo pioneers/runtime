@@ -183,6 +183,10 @@ void prompt_challenge_data() {
     char nextcmd[MAX_CMD_LEN];
     int MAX_CHALLENGES = 32;
     char** inputs = malloc(sizeof(char*) * MAX_CHALLENGES);
+    if (inputs == NULL) {
+        log_printf(FATAL, "prompt_challenge_data: Failed to malloc");
+        exit(1);
+    }
 
     // get client to send as
     while (1) {
@@ -217,6 +221,10 @@ void prompt_challenge_data() {
         // we need to do this because nextcmd has a newline at the end
         nextcmd[strlen(nextcmd) - 1] = '\0';
         inputs[num_challenges] = malloc(strlen(nextcmd) + 1);
+        if (inputs[num_challenges] == NULL) {
+            log_printf(FATAL, "prompt_challenge_data: Failed to malloc");
+            exit(1);
+        }
         strcpy(inputs[num_challenges], nextcmd);
     }
 
