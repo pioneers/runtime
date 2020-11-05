@@ -417,11 +417,19 @@ void send_gamepad_state(uint32_t buttons, float joystick_vals[4]) {
     gp_state.buttons = buttons;
     gp_state.n_axes = 4;
     gp_state.axes = malloc(sizeof(double) * 4);
+    if (gp_state.axes == NULL) {
+        printf("send_gamepad_state: Failed to malloc\n");
+        exit(1);
+    }
     for (int i = 0; i < 4; i++) {
         gp_state.axes[i] = joystick_vals[i];
     }
     len = gp_state__get_packed_size(&gp_state);
     send_buf = malloc(len);
+    if (send_buf == NULL) {
+        printf("send_gamepad_state: Failed to malloc\n");
+        exit(1);
+    }
     gp_state__pack(&gp_state, send_buf);
 
     // send the message
@@ -464,6 +472,10 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     uint8_t curr_type;
     dev_data.n_devices = num_devices;
     dev_data.devices = malloc(sizeof(Device*) * num_devices);
+    if (dev_data.devices == NULL) {
+        printf("send_device_subs: Failed to malloc\n");
+        exit(1);
+    }
 
     // set each device
     for (int i = 0; i < num_devices; i++) {
@@ -473,17 +485,29 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
         // fill in device fields
         curr_device = get_device(curr_type);
         Device* dev = malloc(sizeof(Device));
+        if (dev == NULL) {
+            printf("send_device_subs: Failed to malloc\n");
+            exit(1);
+        }
         device__init(dev);
         dev->name = curr_device->name;
         dev->uid = subs[i].uid;
         dev->type = curr_type;
         dev->n_params = curr_device->num_params;
         dev->params = malloc(sizeof(Param*) * curr_device->num_params);
+        if (dev->params == NULL) {
+            printf("send_device_subs: Failed to malloc\n");
+            exit(1);
+        }
 
         // set each param
         for (int j = 0; j < curr_device->num_params; j++) {
             // fill in param fields
             Param* prm = malloc(sizeof(Param));
+            if (prm == NULL) {
+                printf("send_device_subs: Failed to malloc\n");
+                exit(1);
+            }
             param__init(prm);
             prm->val_case = PARAM__VAL_BVAL;
             prm->bval = (subs[i].params & (1 << j)) ? 1 : 0;

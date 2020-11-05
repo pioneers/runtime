@@ -23,6 +23,10 @@ static void* output_handler(void* args) {
     size_t num_total_bytes_read = 0;
     char nextline[MAX_LOG_LEN];
     char* curr_ptr = malloc(curr_size);
+    if (curr_ptr == NULL) {
+        printf("output_handler: Failed to malloc\n");
+        exit(1);
+    }
     test_output = curr_ptr;
 
     // loops until it is canceled
@@ -93,6 +97,10 @@ void start_test(char* test_description) {
 
     // save the test name
     global_test_name = malloc(strlen(test_description) + 1);
+    if (global_test_name == NULL) {
+        printf("start_test: Failed to malloc\n");
+        exit(1);
+    }
     strcpy(global_test_name, test_description);
 
     // create a pipe

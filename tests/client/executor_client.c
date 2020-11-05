@@ -13,6 +13,10 @@ void start_executor(char* student_code, char* challenge_code) {
     } else if (executor_pid == 0) {  // child
         char* python_path = NULL;
         char* new_python_path = malloc(strlen(path_to_test_student_code) + 1);
+        if (new_python_path == NULL) {
+            printf("start_executor: Failed to malloc\n");
+            exit(1);
+        }
         int len;
 
         // cd to the executor directory

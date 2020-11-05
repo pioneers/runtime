@@ -176,6 +176,10 @@ int get_new_devices(uint32_t* bitmap) {
  */
 void communicate(uint8_t port_num) {
     relay_t* relay = malloc(sizeof(relay_t));
+    if (relay == NULL) {
+        log_printf(FATAL, "communicate: Failed to malloc");
+        exit(1);
+    }
     relay->port_num = port_num;
 
     char port_name[15];  // Template size + 2 indices for port_number
@@ -348,6 +352,10 @@ void* sender(void* relay_cast) {
     // Start doing work
     uint32_t pmap[MAX_DEVICES + 1];
     param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t));  // Array of params to be filled on device_read()
+    if (params == NULL) {
+        log_printf(FATAL, "sender: Failed to malloc");
+        exit(1);
+    }
     uint32_t sub_map[MAX_DEVICES + 1];
     message_t* msg;  // Message to build
     int ret;         // Hold the value from send_message()
@@ -421,6 +429,10 @@ void* receiver(void* relay_cast) {
     message_t* msg = make_empty(MAX_PAYLOAD_SIZE);
     // An array of empty parameter values to be populated from DeviceData message payloads and written to shared memory
     param_val_t* vals = malloc(MAX_PARAMS * sizeof(param_val_t));
+    if (vals == NULL) {
+        log_printf(FATAL, "receiver: Failed to malloc");
+        exit(1);
+    }
     while (1) {
         // Try to read a message
         if (receive_message(relay, msg) != 0) {
@@ -471,6 +483,10 @@ void* receiver(void* relay_cast) {
 int send_message(relay_t* relay, message_t* msg) {
     int len = calc_max_cobs_msg_length(msg);
     uint8_t* data = malloc(len);
+    if (data == NULL) {
+        log_printf(FATAL, "send_message: Failed to malloc");
+        exit(1);
+    }
     len = message_to_bytes(msg, data, len);
     int transferred = writen(relay->file_descriptor, data, len);
     if (transferred != len) {
@@ -554,6 +570,10 @@ int receive_message(relay_t* relay, message_t* msg) {
 
     // Allocate buffer to read message into
     uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    if (data == NULL) {
+        log_printf(FATAL, "receive_message: Failed to malloc");
+        exit(1);
+    }
     data[0] = 0x00;
     data[1] = cobs_len;
 
