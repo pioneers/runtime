@@ -44,6 +44,10 @@ static void* output_handler(void* args) {
         // double the length of test_output if necessary
         if (curr_size - num_total_bytes_read <= MAX_LOG_LEN) {
             test_output = realloc(test_output, curr_size * 2);
+            if (test_output == NULL) {
+                fprintf(stderr, "output_handler: Failed to realloc\n");
+                exit(1);
+            }
             curr_size *= 2;
             curr_ptr = test_output + num_total_bytes_read;
         }
