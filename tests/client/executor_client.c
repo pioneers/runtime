@@ -29,6 +29,10 @@ void start_executor(char* student_code, char* challenge_code) {
             strcpy(new_python_path, path_to_test_student_code);
         } else {  // if PYTHONPATH is defined
             new_python_path = realloc(new_python_path, strlen(python_path) + 1 + strlen(path_to_test_student_code) + 1);
+            if (new_python_path == NULL) {
+                fprintf(stderr, "start_executor: Failed to realloc\n");
+                exit(1);
+            }
             new_python_path[0] = '\0';
             strcat(new_python_path, python_path);
             strcat(new_python_path, ":");
