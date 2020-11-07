@@ -52,8 +52,12 @@ case $1 in
         scripts/flash.sh $@
         ;;
 
+    update)
+        scripts/update.sh
+        ;;
+
     *)
-        commands="build run test format clean flash"
+        commands="build run test format clean flash update"
         printf "Runtime script needs another argument from:\n\n$commands\n\n"
         ;;
 esac

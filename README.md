@@ -107,6 +107,7 @@ If you now type `runtime` it will list all the possible subcommands you can run.
 * `format`: will format your code to match our style
 * `flash`: will flash an Arduino as a Lowcar device
 * `clean`: will remove all artifacts generated when building or running Runtime
+* `update`: waits for new `runtime.zip` to appear in `/tmp` and then will unzip it and reboot the robot
 
 ## Authors
 
