@@ -10,6 +10,9 @@
 #define NUM_UNSTABLE 3
 #define NUM_BAD_DEVS 10
 
+#define ORDERED_STRINGS 0
+#define UNORDERED_STRINGS 0
+
 // Verifies that the initial NUM_GENERAL GeneralTestDevices are connected
 void check_general_test_devices_connected() {
     for (int i = 0; i < NUM_GENERAL; i++) {
@@ -23,7 +26,7 @@ int main() {
         printf("Invalid Number Of Devices Connected");
         exit(1);
     }
-    start_test("Hotplug Variety", "", "");
+    start_test("Hotplug Variety", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     uint64_t uid = 0;
 

@@ -6,9 +6,12 @@
 
 #define UID 0x123
 
+#define ORDERED_STRINGS 0
+#define UNORDERED_STRINGS 0
+
 int main() {
     // Setup
-    start_test("Simple Device Read", "", "");
+    start_test("Simple Device Read", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     // Connect a device
     char *dev_name = "SimpleTestDevice";
@@ -27,7 +30,6 @@ int main() {
     // device_read_uid(UID, EXECUTOR, DATA, 0b1111, vals_after);
 
     // Verify parameters changed as expected
-    printf("Going to check increasing");
     vals_before[0].p_i++;  // INCREASING: Increased by 1
     same_param_value(dev_name, UID, "INCREASING", INT, vals_before[0]);
 

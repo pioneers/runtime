@@ -11,9 +11,12 @@
 
 #define TIME_DEV_UID 123
 
+#define ORDERED_STRINGS 0
+#define UNORDERED_STRINGS 0
+
 int main() {
     // Setup
-    start_test("Latency Test", "runtime_latency", "");
+    start_test("Latency Test", "runtime_latency", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     // Connect TimeTestDevice
     connect_virtual_device("TimeTestDevice", TIME_DEV_UID);
