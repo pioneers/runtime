@@ -1,15 +1,22 @@
 #include "test.h"
 
 #define DELIMITER_WIDTH 80
+#define MAX_STRING_LENGTH 128
 
-pthread_t output_handler_tid;   // holds thread ID of output handler thread
-int save_std_out;               // saved standard output file descriptor to return to normal printing after test
-int pipe_fd[2];                 // read and write ends of the pipe created between the parent and child processes
-char* test_output = NULL;       // holds the contents of temp file
-char* rest_of_test_output;      // holds the rest of the test output as we're performing checks
-int check_num = 0;              // increments to report status each time a check is performed
-char* global_test_name = NULL;  // name of test
-int started_executor = 0;       // boolean of whether or not executor is used in the current test
+pthread_t output_handler_tid;               // holds thread ID of output handler thread
+int save_std_out;                           // saved standard output file descriptor to return to normal printing after test
+int pipe_fd[2];                             // read and write ends of the pipe created between the parent and child processes
+char* test_output = NULL;                   // holds the contents of temp file
+char* rest_of_test_output;                  // holds the rest of the test output as we're performing checks
+int check_num = 0;                          // increments to report status each time a check is performed
+char* global_test_name = NULL;              // name of test
+int started_executor = 0;                   // boolean of whether or not executor is used in the current test
+char** ordered_strings_to_check = NULL;      // holds strings needing to be checked in a specified order
+char** unordered_strings_to_check = NULL;    // holds strings needing to be checked in any order
+int current_ordered_pos = 0;                    // current position in ordered_string_to_check pointer
+int current_unordered_pos = 0;                  // current position in unordered_strings_to_check
+int max_ordered_strings = 0;                    // maximum amount of ordered strings to check for a given test
+int max_unordered_strings = 0;                  // maximum amount of unordered strings to check for a given test
 
 /**
  * This thread prints output to terminal and also copies it to standard output
@@ -119,7 +126,7 @@ static void stop_runtime() {
 // ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
 // creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
-void start_test(char* test_description, char* student_code, char* challenge_code) {
+void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
@@ -127,9 +134,30 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     global_test_name = malloc(strlen(test_description) + 1);
     strcpy(global_test_name, test_description);
 
+    // general string checks needed
+    if(ordered_string_checks != 0){
+        fprintf(stderr, "Going to malloc 1\n");
+        ordered_strings_to_check = malloc(ordered_string_checks * sizeof(char*));
+        current_ordered_pos = 0;
+        if (ordered_strings_to_check == NULL){
+            fprintf("strings to check: %s\n", strerror(errno));
+        }
+        max_ordered_strings = ordered_string_checks;
+    }
+    
+    if(unordered_string_checks != 0){
+        fprintf(stderr, "Going to malloc 2\n");
+        unordered_strings_to_check = malloc(unordered_string_checks * sizeof(char*));
+        current_unordered_pos = 0;
+        if (unordered_string_checks == NULL){
+            fprintf("strings to check: %s\n", strerror(errno));
+        }
+        max_unordered_strings = unordered_string_checks;
+    }
+    
     // create a pipe
     if (pipe(pipe_fd) < 0) {
-        printf("pipe: %s\n", strerror(errno));
+        fprintf("pipe: %s\n", strerror(errno));
     }
     // save the standard out attached to the terminal for later
     save_std_out = dup(fileno(stdout));
@@ -172,6 +200,10 @@ void end_test() {
     rest_of_test_output = test_output;
     // we can use printf now and this will go the terminal
     fprintf_delimiter(stderr, "Running Remaining Checks...");
+
+    if(current_ordered_pos || current_unordered_pos){
+        check_strings();
+    }
 }
 
 // *************************** PASS/FAIL CONTROL **************************** //
@@ -223,36 +255,84 @@ void in_rest_of_output(char* expected_output) {
     }
 }
 
-// Verifies that not_expected_output is not anywhere in the output
-void not_in_output(char* not_expected_output) {
-    if (strstr(test_output, not_expected_output) == NULL) {
-        print_pass();
-        return;
-    } else {
-        print_fail();
-        fprintf_delimiter(stderr, "Not Expected:");
-        fprintf(stderr, "%s", not_expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        end_test();
-        exit(1);
+// Checks that the strings in ordered_strings_to_check and unordered_strings_to_check match the output
+void check_strings() {
+
+    // checks the strings in ordered_strings_to_check
+    for(int i = 0; i < current_ordered_pos; i++) {
+        in_rest_of_output(ordered_strings_to_check[i]);
+    }
+    
+    // checks the strings in unordered_strings_to_check
+    for(int i = 0; i < current_unordered_pos; i++){
+        in_output(unordered_strings_to_check[i]);
+    }
+
+    // free memory allocated for ordered_strings_to_check strings and reset variables
+    if(ordered_strings_to_check != NULL) {
+        for(int i = 0; i < current_ordered_pos; i++) {
+            free(ordered_strings_to_check[i]);
+        }
+        free(ordered_strings_to_check);
+        ordered_strings_to_check = NULL;
+        current_ordered_pos = 0;
+        max_ordered_strings = 0;
+    }
+    
+    // free memory allocated for unordered_strings_to_check strings and reset variables
+    if(unordered_strings_to_check != NULL) {
+        for(int i = 0; i < current_unordered_pos; i++){
+            free(unordered_strings_to_check[i]);
+        }
+        free(unordered_strings_to_check);
+        unordered_strings_to_check = NULL;
+        current_unordered_pos = 0;
+        max_unordered_strings = 0;
     }
 }
 
-// Verifies that not_expected_output is not anywhere in the output after the last call to in_rest_of_output
-void not_in_rest_of_output(char* not_expected_output) {
-    if (strstr(rest_of_test_output, not_expected_output) == NULL) {
-        print_pass();
+// ************************* OUTPUT APPEND FUNCTIONS ************************ //
+
+// Adds the string to be verified to the ordered_strings_to_check pointer
+void add_ordered_string_output(char* output) {
+    
+    // Adding more strings than the max amount stated
+    if(current_ordered_pos >= max_ordered_strings){
+        fprintf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
         return;
-    } else {
-        print_fail();
-        fprintf_delimiter(stderr, "Not Expected:");
-        fprintf(stderr, "%s", not_expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        end_test();
-        exit(1);
     }
+    ordered_strings_to_check[current_ordered_pos] = (char*)malloc(strlen(output) + 1);
+
+    if (ordered_strings_to_check[current_ordered_pos] == NULL) {
+        fprintf(stderr, "add ordered output: %s\n", strerror(errno));
+        return;
+    }
+
+    // copy string into the current position in array and move pointer forward
+    strcpy((ordered_strings_to_check[current_ordered_pos]), output);
+    current_ordered_pos += 1;
+    
+}
+
+// Adds the string to be verified to the unordered_strings_to_check pointer
+void add_unordered_string_output(char* output) {
+
+    // Adding more strings than the max amount stated
+    if(current_unordered_pos >= max_unordered_strings){
+        printf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
+        return;
+    }
+    
+    unordered_strings_to_check[current_unordered_pos] = (char*)malloc(strlen(output) + 1);
+
+    if ((unordered_strings_to_check[current_unordered_pos]) == NULL){
+        printf(stderr, "add unordered output: %s\n", strerror(errno));
+        return;
+    }
+
+    // copy string into the current position in array and move pointer forward
+    strcpy((unordered_strings_to_check[current_unordered_pos]), output);
+    current_unordered_pos += 1;
 }
 
 // ************************* GAMEPAD CHECK FUNCTIONS ************************ //

@@ -7,9 +7,12 @@
 
 #define UID 0x123
 
+#define ORDERED_STRINGS 0
+#define UNORDERED_STRINGS 0
+
 int main() {
     // Setup
-    start_test("Hotplug UnresponsiveTestDevice", "", "");
+    start_test("Hotplug UnresponsiveTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     // Connect an UnresponsiveTestDevice
     check_device_not_connected(UID);

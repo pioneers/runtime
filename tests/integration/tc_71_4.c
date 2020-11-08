@@ -6,12 +6,15 @@
  * first Gamepad State packet arrives on Runtime from Dawn.
  */
 
+#define ORDERED_STRINGS 1
+#define UNORDERED_STRINGS 0
+
 char custom_data_output[] =
     "Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n";
 
 int main() {
     // setup
-    start_test("UDP; no devices connected", "", "");
+    start_test("UDP; no devices connected", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     // Send gamepad and check that the custom data is received
     uint32_t buttons = (1 << BUTTON_A) | (1 << L_TRIGGER) | (1 << DPAD_DOWN);
@@ -19,11 +22,10 @@ int main() {
     send_gamepad_state(buttons, joystick_vals);
     check_gamepad(buttons, joystick_vals);
     print_next_dev_data();
-
+    add_ordered_string_output(custom_data_output);
+    
     // stop all processes
     end_test();
 
-    // check outputs
-    in_rest_of_output(custom_data_output);
     return 0;
 }

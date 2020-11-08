@@ -23,9 +23,11 @@
  *    challenge_code: python file name of challenge code, excluding ".py"
  *    ** Set both STUDENT_CODE and CHALLENGE_CODE to empty string if executor
  *      is not necessary in the test.
+ *    string_checks: number of strings needing to be checked for this test
+ * If 0, then no need to malloc space for these tests
  * No return value.
  */
-void start_test(char* test_name, char* student_code, char* challenge_code);
+void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks);
 
 /**
  * Stops runtime, takes care of resetting the plumbing of the outputs at the
@@ -34,39 +36,31 @@ void start_test(char* test_name, char* student_code, char* challenge_code);
  */
 void end_test();
 
+// ********************* STRING OUTPUT APPEND FUNCTIONS ********************* //
+
+/**
+ * Add output from test to the ordered_string_output array.
+ * Arguments:
+ *    output: the expected bitmap of pressed buttons
+ * No return value.
+ */
+void add_ordered_string_output(char* output);
+
+/**
+ * Add output from test to the unordered_string_output array.
+ * Arguments:
+ *    output: the expected bitmap of pressed buttons
+ * No return value.
+ */
+void add_unordered_string_output(char* output);
+
 // ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
 
 /**
- * Verifies that expected_output is somewhere in the output of the test
- * Arguments:
- *    expected_output: string that should be in the output of the test
- * No return value. (Will exit with status code 1 if not in output).
+ * Check both ordered_string_output and unordered_string_output arrays to see if outputs match.
+ * No return value. Fails if outputs do not match
  */
-void in_output(char* expected_output);
-
-/**
- * Verifies that expected output is somewhere in the output after most recent call to this function
- * Arguments:
- *    expected_output: string that should be in the output of the test AFTER most recent  call to this function
- * No return value. (Will exit with status code 1 if not in rest of output).
- */
-void in_rest_of_output(char* expected_output);
-
-/**
- * Verifies that not_expected_output is not in the output of the test
- * Arguments:
- *    not_expected_output: string that should NOT be anywhere in the output of the test
- * No return value. (Will exit with status code 1 if it found the string in the output).
- */
-void not_in_output(char* not_expected_output);
-
-/**
- * Verifies that not_expected_output is not in the output of the test after most recent call to in_rest_of_output
- * Arguments:
- *    not_expected_output: string that should NOT be anywhere in the output after most recent call to in_rest_of_output
- * No return value. (Will exit with status code 1 if it found the string in the rest of the output).
- */
-void not_in_rest_of_output(char* not_expected_output);
+void check_strings();
 
 // ************************* GAMEPAD CHECK FUNCTIONS ************************ //
 
