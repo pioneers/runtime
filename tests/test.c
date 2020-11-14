@@ -140,24 +140,24 @@ void start_test(char* test_description, char* student_code, char* challenge_code
         ordered_strings_to_check = malloc(ordered_string_checks * sizeof(char*));
         current_ordered_pos = 0;
         if (ordered_strings_to_check == NULL){
-            fprintf("strings to check: %s\n", strerror(errno));
+            fprintf(stderr, "strings to check: %s\n", strerror(errno));
         }
         max_ordered_strings = ordered_string_checks;
     }
-    
+
     if(unordered_string_checks != 0){
         fprintf(stderr, "Going to malloc 2\n");
         unordered_strings_to_check = malloc(unordered_string_checks * sizeof(char*));
         current_unordered_pos = 0;
-        if (unordered_string_checks == NULL){
-            fprintf("strings to check: %s\n", strerror(errno));
+        if (unordered_strings_to_check == NULL){
+            fprintf(stderr, "strings to check: %s\n", strerror(errno));
         }
         max_unordered_strings = unordered_string_checks;
     }
-    
+
     // create a pipe
     if (pipe(pipe_fd) < 0) {
-        fprintf("pipe: %s\n", strerror(errno));
+        fprintf(stderr, "pipe: %s\n", strerror(errno));
     }
     // save the standard out attached to the terminal for later
     save_std_out = dup(fileno(stdout));
@@ -262,7 +262,7 @@ void check_strings() {
     for(int i = 0; i < current_ordered_pos; i++) {
         in_rest_of_output(ordered_strings_to_check[i]);
     }
-    
+
     // checks the strings in unordered_strings_to_check
     for(int i = 0; i < current_unordered_pos; i++){
         in_output(unordered_strings_to_check[i]);
@@ -278,7 +278,7 @@ void check_strings() {
         current_ordered_pos = 0;
         max_ordered_strings = 0;
     }
-    
+
     // free memory allocated for unordered_strings_to_check strings and reset variables
     if(unordered_strings_to_check != NULL) {
         for(int i = 0; i < current_unordered_pos; i++){
@@ -295,7 +295,7 @@ void check_strings() {
 
 // Adds the string to be verified to the ordered_strings_to_check pointer
 void add_ordered_string_output(char* output) {
-    
+
     // Adding more strings than the max amount stated
     if(current_ordered_pos >= max_ordered_strings){
         fprintf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
@@ -311,7 +311,7 @@ void add_ordered_string_output(char* output) {
     // copy string into the current position in array and move pointer forward
     strcpy((ordered_strings_to_check[current_ordered_pos]), output);
     current_ordered_pos += 1;
-    
+
 }
 
 // Adds the string to be verified to the unordered_strings_to_check pointer
@@ -319,14 +319,14 @@ void add_unordered_string_output(char* output) {
 
     // Adding more strings than the max amount stated
     if(current_unordered_pos >= max_unordered_strings){
-        printf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
+        fprintf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
         return;
     }
-    
+
     unordered_strings_to_check[current_unordered_pos] = (char*)malloc(strlen(output) + 1);
 
     if ((unordered_strings_to_check[current_unordered_pos]) == NULL){
-        printf(stderr, "add unordered output: %s\n", strerror(errno));
+        fprintf(stderr, "add unordered output: %s\n", strerror(errno));
         return;
     }
 
@@ -511,7 +511,7 @@ void same_param_value(char* dev_name, uint64_t UID, char* param_name, param_type
     uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
     device_read_uid(UID, EXECUTOR, DATA, (1 << param_idx), vals_after);
     param_val_t received = vals_after[param_idx];
-    
+
     switch (param_type) {
         case INT:
             if (expected.p_i != received.p_i) {
@@ -559,7 +559,7 @@ void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_ty
     uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
     device_read_uid(UID, EXECUTOR, DATA, (1 << param_idx), vals_after);
     param_val_t received = vals_after[param_idx];
-    
+
     switch (param_type) {
         case INT:
             if (received.p_i < expected_low.p_i || received.p_i > expected_high.p_i) {
@@ -585,6 +585,14 @@ void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_ty
                 exit(1);
             }
             break;
+        case BOOL: // Invalid param type for range check
+            print_fail();
+            fprintf_delimiter(stderr, "Expected:");
+            fprintf(stderr, "Param range check of type INT or FLOAT");
+            fprintf_delimiter(stderr, "Got:");
+            fprintf(stderr, "Param range check of type BOOL");
+            end_test();
+            exit(1);
     }
     print_pass();
 }
