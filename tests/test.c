@@ -136,7 +136,6 @@ void start_test(char* test_description, char* student_code, char* challenge_code
 
     // general string checks needed
     if(ordered_string_checks != 0){
-        fprintf(stderr, "Going to malloc 1\n");
         ordered_strings_to_check = malloc(ordered_string_checks * sizeof(char*));
         current_ordered_pos = 0;
         if (ordered_strings_to_check == NULL){
@@ -146,7 +145,6 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     }
 
     if(unordered_string_checks != 0){
-        fprintf(stderr, "Going to malloc 2\n");
         unordered_strings_to_check = malloc(unordered_string_checks * sizeof(char*));
         current_unordered_pos = 0;
         if (unordered_strings_to_check == NULL){
@@ -201,6 +199,7 @@ void end_test() {
     // we can use printf now and this will go the terminal
     fprintf_delimiter(stderr, "Running Remaining Checks...");
 
+    // check out array of strings
     if(current_ordered_pos || current_unordered_pos){
         check_strings();
     }
@@ -233,8 +232,6 @@ void in_output(char* expected_output) {
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
-        end_test();
-        exit(1);
     }
 }
 
@@ -250,8 +247,6 @@ void in_rest_of_output(char* expected_output) {
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
-        end_test();
-        exit(1);
     }
 }
 
@@ -502,52 +497,9 @@ void same_param_value_array(uint8_t dev_type, uint64_t UID, param_val_t expected
     }
 }
 
-// Returns if input params are the same. Otherwise, exit(1)
+// Returns if input params are the same. Otherwise, exit(1). Calls check_param_range
 void same_param_value(char* dev_name, uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected) {
-    uint8_t dev_type = device_name_to_type(dev_name);
-    device_t* dev = get_device(dev_type);
-
-    param_val_t vals_after[dev->num_params];
-    uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
-    device_read_uid(UID, EXECUTOR, DATA, (1 << param_idx), vals_after);
-    param_val_t received = vals_after[param_idx];
-
-    switch (param_type) {
-        case INT:
-            if (expected.p_i != received.p_i) {
-                print_fail();
-                fprintf_delimiter(stderr, "Expected:");
-                fprintf(stderr, "%s == %d\n", param_name, expected.p_i);
-                fprintf_delimiter(stderr, "Got:");
-                fprintf(stderr, "%s == %d\n", param_name, received.p_i);
-                end_test();
-                exit(1);
-            }
-            break;
-        case FLOAT:
-            if (expected.p_f != received.p_f) {
-                print_fail();
-                fprintf_delimiter(stderr, "Expected:");
-                fprintf(stderr, "%s == %f\n", param_name, expected.p_f);
-                fprintf_delimiter(stderr, "Got:");
-                fprintf(stderr, "%s == %f\n", param_name, received.p_f);
-                end_test();
-                exit(1);
-            }
-            break;
-        case BOOL:
-            if (expected.p_b != received.p_b) {
-                print_fail();
-                fprintf_delimiter(stderr, "Expected:");
-                fprintf(stderr, "%s == %d\n", param_name, expected.p_b);
-                fprintf_delimiter(stderr, "Got:");
-                fprintf(stderr, "%s == %d\n", param_name, received.p_b);
-                end_test();
-                exit(1);
-            }
-            break;
-    }
-    print_pass();
+    check_param_range(dev_name, UID, param_name, param_type, expected, expected);
 }
 
 // Returns if value is between the expected high and expected low

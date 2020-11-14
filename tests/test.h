@@ -115,6 +115,7 @@ void same_param_value_array(uint8_t dev_type, uint64_t UID, param_val_t expected
 
 /**
  * Verifies that the device's specified parameter is the same as the expected parameter
+ * Calls check_param_range where expected_low == expected_high == expected
  * Arguments:
  *    dev_name: The name of the device whose parameters are being checked
  *    uid: uniquie identifier of device 
