@@ -221,46 +221,70 @@ static void print_fail() {
 
 // ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
 
-// Verifies that expected_output is somewhere in the output
-void in_output(char* expected_output) {
+/**
+ * Verifies that a string is somewhere in stdout.
+ * Arguments:
+ *    expected_output: the string to check
+ * Returns:
+ *    0 if the string is in stdout,
+ *    1 otherwise
+ */
+static int in_output(char* expected_output) {
     if (strstr(rest_of_test_output, expected_output) != NULL) {
         print_pass();
-        return;
+        return 0;
     } else {
         print_fail();
         fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
+        return 1;
     }
 }
 
-// Verifies that expected_output is somewhere in the output after the last call to in_rest_of_output
-void in_rest_of_output(char* expected_output) {
+/**
+ * Verifies that a string is somewhere in stdout ***after the last call to
+ * this function***
+ *
+ * Ex: If output contains "A", "B", "C" and we call in_rest_of_output("B")
+ * The function will return true (start scanning from the beginning)
+ * If we then call in_rest_of_output("A"), the function will return FALSE.
+ * i.e. There is no "A" after "B".
+ *
+ * Arguments:
+ *    expected_output: the string to check
+ * Returns:
+ *    0 if the string is in stdout,
+ *    1 otherwise
+ */
+static int in_rest_of_output(char* expected_output) {
     if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
         print_pass();
         rest_of_test_output += strlen(expected_output);  // advance rest_of_test_output past what we were looking for
-        return;
+        return 0;
     } else {
         print_fail();
         fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "%s", expected_output);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", test_output);
+        return 1;
     }
 }
 
 // Checks that the strings in ordered_strings_to_check and unordered_strings_to_check match the output
 void check_strings() {
+    int check_failed = 0;
 
     // checks the strings in ordered_strings_to_check
     for(int i = 0; i < current_ordered_pos; i++) {
-        in_rest_of_output(ordered_strings_to_check[i]);
+        check_failed |= in_rest_of_output(ordered_strings_to_check[i]);
     }
 
     // checks the strings in unordered_strings_to_check
     for(int i = 0; i < current_unordered_pos; i++){
-        in_output(unordered_strings_to_check[i]);
+        check_failed |= in_output(unordered_strings_to_check[i]);
     }
 
     // free memory allocated for ordered_strings_to_check strings and reset variables
@@ -283,6 +307,11 @@ void check_strings() {
         unordered_strings_to_check = NULL;
         current_unordered_pos = 0;
         max_unordered_strings = 0;
+    }
+
+    // Exit with exit code 1 if any single check failed
+    if (check_failed) {
+        exit(1);
     }
 }
 
@@ -537,14 +566,18 @@ void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_ty
                 exit(1);
             }
             break;
-        case BOOL: // Invalid param type for range check
-            print_fail();
-            fprintf_delimiter(stderr, "Expected:");
-            fprintf(stderr, "Param range check of type INT or FLOAT");
-            fprintf_delimiter(stderr, "Got:");
-            fprintf(stderr, "Param range check of type BOOL");
-            end_test();
-            exit(1);
+        case BOOL:
+            // Invalid if low != high and fail if received != low (or high)
+            if (expected_low.p_b != expected_high.p_b || received.p_b != expected_low.p_b) {
+                print_fail();
+                fprintf_delimiter(stderr, "Expected:");
+                fprintf(stderr, "Param range check of type INT or FLOAT\n");
+                fprintf_delimiter(stderr, "Got:");
+                fprintf(stderr, "Param range check of type BOOL\n");
+                end_test();
+                exit(1);
+            }
+
     }
     print_pass();
 }
