@@ -27,7 +27,6 @@ int main() {
      */
 
     // Get current parameters then wait
-    device_t* dev = get_device(device_name_to_type("GeneralTestDevice"));
     param_val_t int_one = {.p_i = 1};
     param_val_t float_one = {.p_f = 1.0};
     param_val_t bool_true = {.p_b = 1};
@@ -49,7 +48,7 @@ int main() {
 
     // Wait for executor to write to params again
     sleep(2);
-    
+
     // Check values after executor writes again
     param_val_t red_int_post_write_2 = {.p_i = 3};
     param_val_t orange_float_post_write_2 = {.p_f = 4.14};
@@ -59,7 +58,7 @@ int main() {
     same_param_value(dev_name, UID, "YELLOW_BOOL", BOOL, yellow_bool_post_write_2);
 
     // Clean up
-    end_test(); 
-    
+    end_test();
+
     return 0;
 }
