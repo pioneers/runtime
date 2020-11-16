@@ -9,11 +9,7 @@
 #define ORDERED_STRINGS 1
 #define UNORDERED_STRINGS 0
 
-char custom_data_output[] =
-    "Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n";
-
 int main() {
-    // setup
     start_test("UDP; no devices connected", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     // Send gamepad and check that the custom data is received
@@ -22,10 +18,8 @@ int main() {
     send_gamepad_state(buttons, joystick_vals);
     check_gamepad(buttons, joystick_vals);
     print_next_dev_data();
-    add_ordered_string_output(custom_data_output);
-    
-    // stop all processes
-    end_test();
+    add_ordered_string_output("Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n");
 
+    end_test();
     return 0;
 }

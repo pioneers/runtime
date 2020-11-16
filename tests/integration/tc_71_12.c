@@ -26,24 +26,17 @@ int main() {
     param_val_t vals_before[dev->num_params];
     device_read_uid(UID, EXECUTOR, DATA, (1 << doubling_idx), vals_before);
 
-    // Write -1 to DOUBLING then wait
+    // Write -1 to DOUBLING then wait (DOUBLING is read-only and should not change)
     param_val_t vals_to_write[dev->num_params];
     vals_to_write[doubling_idx].p_f = -1;
     device_write_uid(UID, EXECUTOR, COMMAND, (1 << doubling_idx), vals_to_write);
     sleep(1);  // Device values will change in this time
 
-    // Get parameters again
-    // param_val_t vals_after[dev->num_params];
-    // device_read_uid(UID, EXECUTOR, DATA, (1 << doubling_idx), vals_after);
-
-    // Verify DOUBLING changed as expected regardless of the write
+    // Verify DOUBLING changed as expected regardless of the write (write should not happen)
     vals_before[doubling_idx].p_f *= 2;
     same_param_value(dev_name, UID, "DOUBLING", FLOAT, vals_before[doubling_idx]);
 
     // Stop all processes
     end_test();
-
-    
-
     return 0;
 }

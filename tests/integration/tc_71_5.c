@@ -7,11 +7,9 @@
 #define ORDERED_STRINGS 0
 #define UNORDERED_STRINGS 0
 
-char no_device[] = "no connected devices";
 #define UID 0x123
 
 int main() {
-    // Setup
     start_test("Simple Hotplug", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
     // Connect a device then disconnect it
@@ -23,7 +21,6 @@ int main() {
     sleep(1);
     check_device_not_connected(UID);
 
-    // Stop all processes
     end_test();
     return 0;
 }
