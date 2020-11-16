@@ -12,7 +12,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug Multiple UnstableTestDevices", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Hotplug Multiple UnstableTestDevices", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect multiple UnstableTestDevices
     for (int i = 0; i < NUM_TO_CONNECT; i++) {

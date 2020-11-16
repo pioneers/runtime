@@ -28,6 +28,10 @@ device_socket_t** used_sockets;
 // A hack to initialize. https://stackoverflow.com/a/6991475
 __attribute__((constructor)) void used_sockets_init() {
     used_sockets = malloc(MAX_DEVICES * sizeof(device_socket_t*));
+    if (used_sockets == NULL) {
+        printf("used_sockets_init: Failed to malloc\n");
+        exit(1);
+    }
     for (int i = 0; i < MAX_DEVICES; i++) {
         used_sockets[i] = NULL;
     }
@@ -91,6 +95,10 @@ static int connect_socket() {
 
     // Indicate in global variable that socket is now used
     used_sockets[socket_num] = malloc(sizeof(device_socket_t));
+    if (used_sockets[socket_num] == NULL) {
+        printf("connect_socket: Failed to malloc\n");
+        exit(1);
+    }
     used_sockets[socket_num]->fd = connection_fd;
 
     // Set read() to timeout for up to TIMEOUT milliseconds
@@ -139,6 +147,10 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
 
     // Take note of the type of device connected
     used_sockets[socket_num]->dev_name = malloc(strlen(dev_name));
+    if (used_sockets[socket_num] == NULL) {
+        printf("connect_virtual_device: Failed to malloc\n");
+        exit(1);
+    }
     strcpy(used_sockets[socket_num]->dev_name, dev_name);
     used_sockets[socket_num]->dev_uid = uid;
 

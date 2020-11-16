@@ -2,9 +2,17 @@
 
 message_t* make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
     message_t* msg = malloc(sizeof(message_t));
+    if (msg == NULL) {
+        printf("make_acknowledgement: Failed to malloc\n");
+        exit(1);
+    }
     msg->message_id = ACKNOWLEDGEMENT;
     msg->max_payload_length = DEVICE_ID_SIZE;
     msg->payload = malloc(msg->max_payload_length);
+    if (msg->payload == NULL) {
+        printf("make_acknowledgement: Failed to malloc\n");
+        exit(1);
+    }
     msg->payload_length = DEVICE_ID_SIZE;
     msg->payload[0] = type;
     msg->payload[1] = year;
@@ -39,6 +47,10 @@ int receive_message(int fd, message_t* msg) {
 
     // Allocate buffer to read message into
     uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
+    if (data == NULL) {
+        printf("receive_message: Failed to malloc\n");
+        exit(1);
+    }
     data[0] = 0x00;
     data[1] = cobs_len;
 
@@ -63,6 +75,10 @@ int receive_message(int fd, message_t* msg) {
 void send_message(int fd, message_t* msg) {
     int len = calc_max_cobs_msg_length(msg);
     uint8_t* data = malloc(len);
+    if (data == NULL) {
+        printf("send_message: Failed to malloc\n");
+        exit(1);
+    }
     len = message_to_bytes(msg, data, len);
     int transferred = write(fd, data, len);
     if (transferred != len) {
@@ -83,7 +99,6 @@ void device_write(uint8_t type, message_t* dev_write, param_val_t params[]) {
             // Write to the corresponding field in params[i]
             switch (dev->params[i].type) {
                 case INT:
-                    // TODO: Check int size
                     params[i].p_i = *((int32_t*) payload_ptr);
                     payload_ptr += sizeof(int32_t);
                     break;
@@ -171,6 +186,10 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
 
                 case DEVICE_WRITE:
                     device_write(type, incoming_msg, params);
+                    // If we're writing a pitch to the SoundDevice, play the pitch
+                    if (type == device_name_to_type("SoundDevice")) {
+                        (*device_actions)(params);
+                    }
                     break;
             }
         }
@@ -198,7 +217,7 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
             last_sent_ping_time = now;
         }
         // Change read-only params periodically
-        if ((now - last_device_action) >= action_interval) {
+        if (action_interval != -1 && (now - last_device_action) >= action_interval) {
             (*device_actions)(params);
             last_device_action = now;
         }

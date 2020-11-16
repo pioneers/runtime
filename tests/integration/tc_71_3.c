@@ -9,7 +9,7 @@
 #define UNORDERED_STRINGS 0
 
 int main() {
-    start_test("nonexistent device subscription", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("nonexistent device subscription", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // poke
     dev_subs_t data1 = {.uid = 50, .name = "ServoControl", .params = 0b11};

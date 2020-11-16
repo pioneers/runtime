@@ -19,7 +19,7 @@ void check_max_devices_connected() {
 
 int main() {
     // Setup
-    start_test("Hotplug MAX_DEVICES + 1", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Hotplug MAX_DEVICES + 1", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect MAX_DEVICES
     for (int i = 0; i < NUM_TO_CONNECT; i++) {

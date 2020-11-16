@@ -103,6 +103,14 @@ device_t KoalaBear = {
 
 // *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
 
+device_t SoundDevice = {
+    .type = 59,
+    .name = "SoundDevice",
+    .num_params = 2,
+    .params = {
+        {.name = "SOCK_FD", .type = INT, .read = 0, .write = 0},
+        {.name = "PITCH", .type = FLOAT, .read = 1, .write = 1}}};
+
 device_t TimeTestDevice = {
     .type = 60,
     .name = "TimeTestDevice",
@@ -182,6 +190,7 @@ __attribute__((constructor)) void devices_arr_init() {
     DEVICES[ServoControl.type] = &ServoControl;
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
+    DEVICES[SoundDevice.type] = &SoundDevice;
     DEVICES[TimeTestDevice.type] = &TimeTestDevice;
     DEVICES[UnstableTestDevice.type] = &UnstableTestDevice;
     DEVICES[SimpleTestDevice.type] = &SimpleTestDevice;

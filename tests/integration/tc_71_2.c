@@ -23,7 +23,7 @@ char check_output_9[] =
 
 int main() {
     // set everything up
-    start_test("executor sanity test", "executor_sanity", "executor_sanity", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("executor sanity test", "executor_sanity", "executor_sanity", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // poke the system
     // this section checks the autonomous code (should generate some print statements)

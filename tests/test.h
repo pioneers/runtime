@@ -6,10 +6,21 @@
 #ifndef TEST_H
 #define TEST_H
 
+#include <regex.h>
+
 #include "client/dev_handler_client.h"
 #include "client/executor_client.h"
 #include "client/net_handler_client.h"
 #include "client/shm_client.h"
+
+#define NO_REGEX 0
+#define REGEX 1
+
+//CAUTION: regex versions of tests assumes
+//the input is a regex string to be built.
+//Thus, if you want to look for the string (1)
+//in 200(1), you must input [(]1[)] instead
+//of (1)
 
 // ***************************** START/END TEST ***************************** //
 
@@ -24,10 +35,13 @@
  *    ** Set both STUDENT_CODE and CHALLENGE_CODE to empty string if executor
  *      is not necessary in the test.
  *    string_checks: number of strings needing to be checked for this test
- * If 0, then no need to malloc space for these tests
+ *    ** If 0, then no need to malloc space for these tests
+ *    comparison_method: int that describes if regex will be used for string comparisons
+ *    ** 0 - Standard String comparison
+ *    ** 1 - Regex Used  
  * No return value.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks);
+void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks, int comparison_method);
 
 /**
  * Stops runtime, takes care of resetting the plumbing of the outputs at the

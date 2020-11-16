@@ -12,7 +12,7 @@
 
 int main() {
     // Setup
-    start_test("Sanity Write", "sanity_write", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Sanity Write", "sanity_write", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect GeneralTestDevice
     char *dev_name = "GeneralTestDevice";

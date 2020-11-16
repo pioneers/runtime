@@ -15,6 +15,10 @@
  */
 uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb) {
     uint8_t* send_buf = malloc(len_pb + 3);
+    if (send_buf == NULL) {
+        log_printf(FATAL, "make_buf: Failed to malloc");
+        exit(1);
+    }
     *send_buf = (uint8_t) msg_type;  // Can cast since we know net_msg_t has < 10 options
     uint16_t* ptr_16 = (uint16_t*) (send_buf + 1);
     *ptr_16 = len_pb;

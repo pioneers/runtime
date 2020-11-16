@@ -21,7 +21,7 @@ dev_subs_t dev_subs[2];
 // headers for devices
 char dev1_header[] = "Device No. 0:\ttype = SimpleTestDevice, uid = 4660, itype = 62\n";
 char dev2_header[] = "Device No. 1:\ttype = SimpleTestDevice, uid = 17185, itype = 62\n";
-char custom_dev_header[] = "Device No. 2:\ttype = CustomData, uid = 0, itype = 32\n";
+char custom_dev_header[] = "Device No. 2:\ttype = CustomData, uid = 2020, itype = 32\n";
 
 // parameters names we look for
 char increasing[] = "\"INCREASING\"";
@@ -46,7 +46,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
 
 int main() {
     // setup
-    start_test("device subscription test", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("device subscription test", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
     dev_subs[0] = dev1_subs;
     dev_subs[1] = dev2_subs;
 

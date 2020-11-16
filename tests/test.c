@@ -3,20 +3,21 @@
 #define DELIMITER_WIDTH 80
 #define MAX_STRING_LENGTH 128
 
-pthread_t output_handler_tid;               // holds thread ID of output handler thread
-int save_std_out;                           // saved standard output file descriptor to return to normal printing after test
-int pipe_fd[2];                             // read and write ends of the pipe created between the parent and child processes
-char* test_output = NULL;                   // holds the contents of temp file
-char* rest_of_test_output;                  // holds the rest of the test output as we're performing checks
-int check_num = 0;                          // increments to report status each time a check is performed
-char* global_test_name = NULL;              // name of test
-int started_executor = 0;                   // boolean of whether or not executor is used in the current test
-char** ordered_strings_to_check = NULL;      // holds strings needing to be checked in a specified order
-char** unordered_strings_to_check = NULL;    // holds strings needing to be checked in any order
+pthread_t output_handler_tid;                   // holds thread ID of output handler thread
+int save_std_out;                               // saved standard output file descriptor to return to normal printing after test
+int pipe_fd[2];                                 // read and write ends of the pipe created between the parent and child processes
+char* test_output = NULL;                       // holds the contents of temp file
+char* rest_of_test_output;                      // holds the rest of the test output as we're performing checks
+int check_num = 0;                              // increments to report status each time a check is performed
+char* global_test_name = NULL;                  // name of test
+int started_executor = 0;                       // boolean of whether or not executor is used in the current test
+char** ordered_strings_to_check = NULL;         // holds strings needing to be checked in a specified order
+char** unordered_strings_to_check = NULL;       // holds strings needing to be checked in any order
 int current_ordered_pos = 0;                    // current position in ordered_string_to_check pointer
 int current_unordered_pos = 0;                  // current position in unordered_strings_to_check
 int max_ordered_strings = 0;                    // maximum amount of ordered strings to check for a given test
 int max_unordered_strings = 0;                  // maximum amount of unordered strings to check for a given test
+int method = 0;                                 // whether to use standard checking or regex for output comparison      
 
 /**
  * This thread prints output to terminal and also copies it to standard output
@@ -31,6 +32,10 @@ static void* output_handler(void* args) {
     size_t num_total_bytes_read = 0;
     char nextline[MAX_LOG_LEN];
     char* curr_ptr = malloc(curr_size);
+    if (curr_ptr == NULL) {
+        printf("output_handler: Failed to malloc\n");
+        exit(1);
+    }
     test_output = curr_ptr;
 
     // loops until it is canceled
@@ -48,6 +53,10 @@ static void* output_handler(void* args) {
         // double the length of test_output if necessary
         if (curr_size - num_total_bytes_read <= MAX_LOG_LEN) {
             test_output = realloc(test_output, curr_size * 2);
+            if (test_output == NULL) {
+                fprintf(stderr, "output_handler: Failed to realloc\n");
+                exit(1);
+            }
             curr_size *= 2;
             curr_ptr = test_output + num_total_bytes_read;
         }
@@ -126,12 +135,16 @@ static void stop_runtime() {
 // ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
 // creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
-void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks) {
+void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks, int comparison_method) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
     // save the test name
     global_test_name = malloc(strlen(test_description) + 1);
+    if (global_test_name == NULL) {
+        printf("start_test: Failed to malloc\n");
+        exit(1);
+    }
     strcpy(global_test_name, test_description);
 
     // general string checks needed
@@ -151,6 +164,11 @@ void start_test(char* test_description, char* student_code, char* challenge_code
             fprintf(stderr, "strings to check: %s\n", strerror(errno));
         }
         max_unordered_strings = unordered_string_checks;
+    }
+
+    // use regex to compare outputs
+    if(comparison_method == 1){
+        method = comparison_method;
     }
 
     // create a pipe
@@ -222,6 +240,35 @@ static void print_fail() {
 // ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
 
 /**
+ * Implementation of strstr but with a regex string for needle
+ * Common Regex:
+ * [[:space:]]* represents arbitrary whitespace
+ * [0-9]+ represents a number
+ * [a-z]+ lowercase word
+ * [A-Z]+ uppercase word
+ * [a-zA-Z]+ alphabetical words
+ * [a-zA-Z0-9]+ alphanumeric strings
+ * * represents zero or more instances
+ * + represents one or more instances
+ * "something here" will look for the entire string 'something here' within the haystack
+ */ 
+char* rstrstr(char* haystack, char* needle) {
+    regex_t expr;
+    regmatch_t tracker;
+
+    //Compiles regex string into a usable regex expression
+    if (regcomp(&expr, needle, REG_EXTENDED)) {
+        fprintf(stderr, "Unable to build regex expression");
+        return NULL;
+    }
+    //Looks for first instance of regex expression in HAYSTACK
+    if (regexec(&expr, haystack, 1, &tracker, REG_EXTENDED)) {
+        return NULL;
+    }
+    return haystack + tracker.rm_so;
+}
+
+/**
  * Verifies that a string is somewhere in stdout.
  * Arguments:
  *    expected_output: the string to check
@@ -230,17 +277,23 @@ static void print_fail() {
  *    1 otherwise
  */
 static int in_output(char* expected_output) {
-    if (strstr(rest_of_test_output, expected_output) != NULL) {
-        print_pass();
-        return 0;
+    if(method == NO_REGEX){
+        if (strstr(test_output, expected_output) != NULL) {
+            print_pass();
+            return 0;
+        }
     } else {
-        print_fail();
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "%s", expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        return 1;
+        if (rstrstr(test_output, expected_output) != NULL) {
+            print_pass();
+            return 0;
+        }
     }
+    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+    fprintf_delimiter(stderr, "Expected:");
+    fprintf(stderr, "%s", expected_output);
+    fprintf_delimiter(stderr, "Got:");
+    fprintf(stderr, "%s\n", test_output);
+    return 1;
 }
 
 /**
@@ -259,18 +312,28 @@ static int in_output(char* expected_output) {
  *    1 otherwise
  */
 static int in_rest_of_output(char* expected_output) {
-    if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
-        print_pass();
-        rest_of_test_output += strlen(expected_output);  // advance rest_of_test_output past what we were looking for
-        return 0;
-    } else {
-        print_fail();
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "%s", expected_output);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", test_output);
-        return 1;
+    
+    // do not use regex
+    if(method == NO_REGEX) {
+        if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
+            print_pass();
+            rest_of_test_output += strlen(expected_output);
+            return 0;
+        }
     }
+    else {
+        if ((rest_of_test_output = rstrstr(rest_of_test_output, expected_output)) != NULL) {
+            print_pass();
+            rest_of_test_output += strlen(expected_output);
+            return 0;
+        }
+    }
+    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+    fprintf_delimiter(stderr, "Expected:");
+    fprintf(stderr, "%s", expected_output);
+    fprintf_delimiter(stderr, "Got:");
+    fprintf(stderr, "%s\n", test_output);
+    return 1;
 }
 
 // Checks that the strings in ordered_strings_to_check and unordered_strings_to_check match the output
@@ -308,6 +371,8 @@ void check_strings() {
         current_unordered_pos = 0;
         max_unordered_strings = 0;
     }
+
+    method = 0;
 
     // Exit with exit code 1 if any single check failed
     if (check_failed) {

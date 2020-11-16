@@ -51,11 +51,19 @@ static void send_log_msg(int conn_fd, FILE* log_file) {
     Text log_msg = TEXT__INIT;   //initialize a new Text protobuf message
     log_msg.n_payload = 0;
     log_msg.payload = malloc(MAX_NUM_LOGS * sizeof(char*));
+    if (log_msg.payload == NULL) {
+        log_printf(FATAL, "send_log_msg: Failed to malloc");
+        exit(1);
+    }
 
     //read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
     while (log_msg.n_payload < MAX_NUM_LOGS) {
         if (fgets(nextline, MAX_LOG_LEN, log_file) != NULL) {
             log_msg.payload[log_msg.n_payload] = malloc(strlen(nextline) + 1);
+            if (log_msg.payload[log_msg.n_payload] == NULL) {
+                log_printf(FATAL, "send_log_msg: Failed to malloc");
+                exit(1);
+            }
             strcpy(log_msg.payload[log_msg.n_payload], nextline);
             log_msg.n_payload++;
         } else if (feof(log_file) != 0) {  // All write ends of FIFO are closed, don't send any more logs
@@ -324,6 +332,10 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
 
     //initialize argument to new connection thread
     tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
+    if (args == NULL) {
+        log_printf(FATAL, "start_tcp_conn: Failed to malloc");
+        exit(1);
+    }
     args->client = client;
     args->conn_fd = conn_fd;
     args->send_logs = send_logs;

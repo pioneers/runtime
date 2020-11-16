@@ -12,7 +12,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug ForeignTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Hotplug ForeignTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect a ForeignTestDevice
     check_device_not_connected(UID);
