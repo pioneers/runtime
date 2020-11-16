@@ -174,8 +174,16 @@ static ssize_t cobs_decode(uint8_t* dst, const uint8_t* src, size_t src_len) {
 
 message_t* make_empty(ssize_t payload_size) {
     message_t* msg = malloc(sizeof(message_t));
+    if (msg == NULL) {
+        log_printf(FATAL, "make_empty: Failed to malloc");
+        exit(1);
+    }
     msg->message_id = NOP;
     msg->payload = malloc(payload_size);
+    if (msg->payload == NULL) {
+        log_printf(FATAL, "make_empty: Failed to malloc");
+        exit(1);
+    }
     msg->payload_length = 0;
     msg->max_payload_length = payload_size;
     return msg;
@@ -183,6 +191,10 @@ message_t* make_empty(ssize_t payload_size) {
 
 message_t* make_ping() {
     message_t* ping = malloc(sizeof(message_t));
+    if (ping == NULL) {
+        log_printf(FATAL, "make_ping: Failed to malloc");
+        exit(1);
+    }
     ping->message_id = PING;
     ping->payload = NULL;
     ping->payload_length = 0;
@@ -201,8 +213,16 @@ message_t* make_subscription_request(uint8_t dev_type, uint32_t pmap, uint16_t i
         }
     }
     message_t* sub_request = malloc(sizeof(message_t));
+    if (sub_request == NULL) {
+        log_printf(FATAL, "make_subscription_request: Failed to malloc");
+        exit(1);
+    }
     sub_request->message_id = SUBSCRIPTION_REQUEST;
     sub_request->payload = malloc(BITMAP_SIZE + INTERVAL_SIZE);
+    if (sub_request->payload == NULL) {
+        log_printf(FATAL, "make_subscription_request: Failed to malloc");
+        exit(1);
+    }
     sub_request->payload_length = 0;
     sub_request->max_payload_length = BITMAP_SIZE + INTERVAL_SIZE;
 
@@ -224,10 +244,18 @@ message_t* make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_
     }
     // Build the message
     message_t* dev_write = malloc(sizeof(message_t));
+    if (dev_write == NULL) {
+        log_printf(FATAL, "make_device_write: Failed to malloc");
+        exit(1);
+    }
     dev_write->message_id = DEVICE_WRITE;
     dev_write->payload_length = 0;
     dev_write->max_payload_length = device_write_payload_size(dev_type, pmap);
     dev_write->payload = malloc(dev_write->max_payload_length);
+    if (dev_write->payload == NULL) {
+        log_printf(FATAL, "make_device_write: Failed to malloc");
+        exit(1);
+    }
     int status = 0;
     // Append the param bitmap
     status += append_payload(dev_write, (uint8_t*) &pmap, BITMAP_SIZE);
@@ -275,6 +303,10 @@ ssize_t message_to_bytes(message_t* msg, uint8_t cobs_encoded[], size_t len) {
     }
     // Build an intermediate byte array to hold the serialized message to be encoded
     uint8_t* data = malloc(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length + CHECKSUM_SIZE);
+    if (data == NULL) {
+        log_printf(FATAL, "message_to_bytes: Failed to malloc");
+        exit(1);
+    }
     data[0] = msg->message_id;
     data[1] = msg->payload_length;
     for (int i = 0; i < msg->payload_length; i++) {
@@ -293,6 +325,10 @@ ssize_t message_to_bytes(message_t* msg, uint8_t cobs_encoded[], size_t len) {
 int parse_message(uint8_t data[], message_t* msg_to_fill) {
     uint8_t cobs_len = data[1];
     uint8_t* decoded = malloc(cobs_len);  // Actual number of bytes populated will be a couple less due to overhead
+    if (decoded == NULL) {
+        log_printf(FATAL, "parse_message: Failed to malloc");
+        exit(1);
+    }
     int ret = cobs_decode(decoded, &data[2], cobs_len);
     if (ret < (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + CHECKSUM_SIZE)) {
         // Smaller than valid message

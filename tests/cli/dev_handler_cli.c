@@ -2,10 +2,11 @@
 
 #define MAX_CMD_LEN 64  // maximum length of a CLI command
 
-#define NUMBER_OF_TEST_DEVICES 5  // number of test devices to connect
+#define NUMBER_OF_TEST_DEVICES 6  // number of test devices to connect
 #define MAX_STRING_SIZE 64        // maximum length of a device name
 
 char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] = {
+    "SoundDevice",
     "GeneralTestDevice",
     "SimpleTestDevice",
     "UnresponsiveTestDevice",
@@ -103,6 +104,7 @@ void prompt_device_disconnect() {
             printf("Disconnecting port %d\n", port_num);
             if (disconnect_virtual_device(port_num) == 0) {
                 printf("Device disconnected!\n");
+                sleep(1);  // Let dev handler output logs
                 break;
             } else {
                 printf("Device disconnect unsuccesful!\n");
@@ -135,6 +137,7 @@ int main() {
     // main loop
     while (stop) {
         // Get the next command
+        sleep(1);  // Guarantee that the "> " prompt appears after dev handler logs
         printf("> ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         remove_newline(nextcmd);  // Strip off \n character

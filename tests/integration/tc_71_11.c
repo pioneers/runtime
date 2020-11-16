@@ -11,7 +11,7 @@
 
 int main() {
     // Setup
-    start_test("Simple Device Read", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Simple Device Read", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect a device
     char *dev_name = "SimpleTestDevice";

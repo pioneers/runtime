@@ -13,7 +13,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug UnstableTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Hotplug UnstableTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect UnstableTestDevice
     check_device_not_connected(UID);

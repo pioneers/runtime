@@ -21,7 +21,7 @@ clean:
 
 ################################## CLI TARGETS #################################
 
-cli: net_handler_cli shm_cli executor_cli dev_handler_cli_and_devs
+cli: net_handler_cli shm_cli executor_cli dev_handler_cli keyboard_interface
 
 PBC_FILES := $(wildcard ../net_handler/pbc_gen/*.c)
 
@@ -42,9 +42,13 @@ dev_handler_cli_and_devs: devices dev_handler_cli
 dev_handler_cli: client/dev_handler_client.o cli/dev_handler_cli.o
 	$(CC) $^ -o $@
 
+keyboard_interface: cli/keyboard_interface.c ../net_handler/*.* client/net_handler_client.* cli/net_handler_cli.c
+	gcc cli/keyboard_interface.c client/net_handler_client.c ../net_handler/net_util.c \
+	../net_handler/pbc_gen/*.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
+
 ################################ VIRTUAL DEVICES ###############################
 
-devices: general_dev simple_dev unresponsive_dev foreign_dev unstable_dev time_dev
+devices: general_dev simple_dev unresponsive_dev foreign_dev unstable_dev time_dev sound_dev
 
 VIRTUAL_DEVICE_FILES := client/virtual_devices/virtual_device_util.o ../dev_handler/message.o ../runtime_util/runtime_util.o ../logger/logger.o
 
@@ -77,6 +81,9 @@ time_dev: client/virtual_devices/TimeTestDevice
 
 client/virtual_devices/TimeTestDevice: client/virtual_devices/time_dev.o $(VIRTUAL_DEVICE_FILES)
 	$(CC) $^ -o $@
+
+sound_dev: client/virtual_devices/sound_dev.c $(VIRTUAL_DEVICE_FILES)
+	gcc $^ -o client/virtual_devices/SoundDevice
 
 ##################################### TESTS ####################################
 

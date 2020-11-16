@@ -12,7 +12,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug UnresponsiveTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Hotplug UnresponsiveTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect an UnresponsiveTestDevice
     check_device_not_connected(UID);

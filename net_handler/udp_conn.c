@@ -44,6 +44,10 @@ static void* send_device_data(void* args) {
             }
         }
         dev_data.devices = malloc((num_devices + 1) * sizeof(Device*));  // + 1 is for custom data
+        if (dev_data.devices == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
 
         //populate dev_data.device[i]
         int dev_idx = 0;
@@ -56,6 +60,10 @@ static void* send_device_data(void* args) {
             }
 
             Device* device = malloc(sizeof(Device));
+            if (device == NULL) {
+                log_printf(FATAL, "send_device_data: Failed to malloc");
+                exit(1);
+            }
             device__init(device);
             dev_data.devices[dev_idx] = device;
             device->type = dev_ids[idx].type;
@@ -67,10 +75,18 @@ static void* send_device_data(void* args) {
             device_read_uid(device->uid, NET_HANDLER, DATA, sub_map[idx + 1], param_data);
 
             device->params = malloc(device_info->num_params * sizeof(Param*));
+            if (device->params == NULL) {
+                log_printf(FATAL, "send_device_data: Failed to malloc");
+                exit(1);
+            }
             //populate device parameters
             for (int j = 0; j < device_info->num_params; j++) {
                 if (sub_map[idx + 1] & (1 << j)) {
                     Param* param = malloc(sizeof(Param));
+                    if (param == NULL) {
+                        log_printf(FATAL, "send_device_data: Failed to malloc");
+                        exit(1);
+                    }
                     param__init(param);
                     param->name = device_info->params[j].name;
                     switch (device_info->params[j].type) {
@@ -96,16 +112,28 @@ static void* send_device_data(void* args) {
 
         // Add custom log data to protobuf
         Device* custom = malloc(sizeof(Device));
+        if (custom == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
         device__init(custom);
         dev_data.devices[dev_idx] = custom;
         log_data_read(&num_params, custom_names, custom_types, custom_params);
         custom->n_params = num_params + 1;  // + 1 is for the current time
         custom->params = malloc(sizeof(Param*) * custom->n_params);
+        if (custom->params == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
         custom->name = "CustomData";
         custom->type = MAX_DEVICES;
-        custom->uid = 0;
+        custom->uid = 2020;
         for (int i = 0; i < custom->n_params; i++) {
             Param* param = malloc(sizeof(Param));
+            if (param == NULL) {
+                log_printf(FATAL, "send_device_data: Failed to malloc");
+                exit(1);
+            }
             param__init(param);
             custom->params[i] = param;
             param->name = custom_names[i];
@@ -125,6 +153,10 @@ static void* send_device_data(void* args) {
             }
         }
         Param* time = malloc(sizeof(Param));
+        if (time == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
         param__init(time);
         custom->params[num_params] = time;
         time->name = "time_ms";
@@ -135,6 +167,10 @@ static void* send_device_data(void* args) {
 
         len = dev_data__get_packed_size(&dev_data);
         buffer = malloc(len);
+        if (buffer == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
         dev_data__pack(&dev_data, buffer);
 
         //send data to Dawn
@@ -181,18 +217,12 @@ static void* update_gamepad_state(void* args) {
             log_printf(ERROR, "update_gamepad_state: Failed to unpack GpState");
             continue;
         }
-        if (gp_state->n_axes != 4) {
-            log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
-        } else {
-            // display the message's fields.
-            // log_printf(DEBUG, "Is gamepad connected: %d. Received: buttons = %d\n\taxes:", gp_state->connected, gp_state->buttons);
-            // for (int i = 0; i < gp_state->n_axes; i++) {
-            // 	log_printf(PYTHON, "\t%f", gp_state->axes[i]);
-            // }
-            // log_printf(PYTHON, "\n");
 
-            robot_desc_write(GAMEPAD, gp_state->connected ? CONNECTED : DISCONNECTED);
-            if (gp_state->connected) {
+        robot_desc_write(GAMEPAD, gp_state->connected ? CONNECTED : DISCONNECTED);
+        if (gp_state->connected) {
+            if (gp_state->n_axes != 4) {
+                log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
+            } else {
                 gamepad_write(gp_state->buttons, gp_state->axes);
             }
         }

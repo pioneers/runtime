@@ -10,7 +10,7 @@
 #define UNORDERED_STRINGS 0
 
 int main() {
-    start_test("sanity", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("sanity", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Verify run mode
     send_run_mode(SHEPHERD, AUTO);

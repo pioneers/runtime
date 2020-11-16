@@ -26,7 +26,7 @@ int main() {
         printf("Invalid Number Of Devices Connected");
         exit(1);
     }
-    start_test("Hotplug Variety", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Hotplug Variety", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     uint64_t uid = 0;
 

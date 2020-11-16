@@ -81,7 +81,7 @@ static void reset_params() {
 /**
  *  Initializes the executor process. Must be the first thing called in each child subprocess
  *
- *  Input: 
+ *  Input:
  *      student_code: string representing the name of the student's Python file, without the .py
  */
 static void executor_init(char* student_code) {
@@ -164,11 +164,11 @@ static void executor_init(char* student_code) {
 
 /**
  *  Runs the Python function specified in the arguments.
- * 
+ *
  *  Behavior: If loop = 0, this will block the calling thread for the length of
  *  the Python function call. If loop is nonzero, this will block the calling thread forever.
  *  This function should be run in a separate thread.
- * 
+ *
  *  Inputs:
  *      Necessary fields:
  *          func_name: string of function name to run in the student code
@@ -269,10 +269,10 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
 
 /**
  *  Begins the given game mode and calls setup and main appropriately. Will run main forever.
- * 
+ *
  *  Behavior: This is a blocking function and will block the calling thread forever.
  *  This should only be run as a separate thread.
- * 
+ *
  *  Inputs:
  *      args: string of the mode to start running
  */
@@ -337,6 +337,10 @@ static void run_challenges() {
     Text outputs = TEXT__INIT;
     outputs.n_payload = num_challenges;
     outputs.payload = malloc(sizeof(char*) * outputs.n_payload);
+    if (outputs.payload == NULL) {
+        log_printf(FATAL, "run_challenges: Failed to malloc");
+        exit(1);
+    }
 
     for (int i = 0; i < num_challenges; i++) {
         // Get name of the challenge
@@ -387,6 +391,10 @@ static void run_challenges() {
         const char* c_ret = PyUnicode_AsUTF8AndSize(ret_string, &ret_len);
         Py_DECREF(ret_string);
         outputs.payload[i] = malloc(ret_len + 1);
+        if (outputs.payload[i] == NULL) {
+            log_printf(FATAL, "run_challenges: Failed to malloc");
+            exit(1);
+        }
         strcpy(outputs.payload[i], c_ret);  // Need to copy since pointer data is reset each iteration
     }
     text__free_unpacked(inputs, NULL);
@@ -439,7 +447,7 @@ static void python_exit_handler(int signum) {
 }
 
 
-/** 
+/**
  *  Kills any running subprocess. Will make the robot go into IDLE mode.
  */
 static void kill_subprocess() {
@@ -464,7 +472,7 @@ static void kill_subprocess() {
 }
 
 
-/** 
+/**
  *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
  */
 static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
@@ -511,7 +519,7 @@ static void exit_handler(int signum) {
 /**
  *  Main bootloader that calls `run_mode` in a separate process with the correct mode. Ensures any previously running
  *  process is terminated first.
- * 
+ *
  *  Behavior: This is a blocking function and will begin handling the run mode forever until a SIGINT.
  *
  *  CLI Args:

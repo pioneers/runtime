@@ -21,13 +21,14 @@ int main() {
     int port1, port2, port3;
 
     // setup
-    start_test("receive device data, general", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("receive device data, general", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // poke the system
     // send gamepad state so net_handler starts sending device data packets
     uint32_t buttons = 0;
     float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_gamepad_state(buttons, joystick_vals);
+    sleep(1);
     print_next_dev_data();
 
     // connect two devices
@@ -92,7 +93,7 @@ int main() {
     print_next_dev_data();
     // check that last device data has only the custom data device
     char check_15_output[] =
-        "Device No. 0:\ttype = CustomData, uid = 0, itype = 32\n"
+        "Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n"
         "\tParams:\n"
         "\t\tparam \"time_ms\" has type INT with value";
     add_ordered_string_output(check_15_output);

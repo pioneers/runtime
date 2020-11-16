@@ -10,7 +10,7 @@
 #define UID 0x123
 
 int main() {
-    start_test("Simple Hotplug", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
+    start_test("Simple Hotplug", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
 
     // Connect a device then disconnect it
     check_device_not_connected(UID);
