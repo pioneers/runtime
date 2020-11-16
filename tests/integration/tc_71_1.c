@@ -9,33 +9,18 @@
 #define ORDERED_STRINGS 1
 #define UNORDERED_STRINGS 0
 
-char start_right[] =
-    "Changed devices: 00000000000000000000000000000000\n"
-    "Changed params:\n"
-    "Requested devices: 00000000000000000000000000000000\n"
-    "Requested params:\n"
-    "Current Robot Description:\n"
-    "\tRUN_MODE = AUTO\n"
-    "\tDAWN = CONNECTED\n"
-    "\tSHEPHERD = CONNECTED\n"
-    "\tGAMEPAD = DISCONNECTED\n"
-    "\tSTART_POS = RIGHT\n\n"
-    "Current Gamepad State:\n"
-    "\tNo gamepad currently connected\n";
-
 int main() {
-    // setup
     start_test("sanity", "", "", ORDERED_STRINGS, UNORDERED_STRINGS);
 
-    // poke the system
+    // Verify run mode
     send_run_mode(SHEPHERD, AUTO);
     check_run_mode(AUTO);
+
+    // Verify start position
     send_start_pos(SHEPHERD, RIGHT);
     print_shm();
-    add_ordered_string_output(start_right);
-    // stop the system
+    add_ordered_string_output("\tSTART_POS = RIGHT\n\n");
+
     end_test();
-
-
     return 0;
 }

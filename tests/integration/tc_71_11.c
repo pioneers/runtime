@@ -25,10 +25,6 @@ int main() {
     device_read_uid(UID, EXECUTOR, DATA, 0b1111, vals_before);
     sleep(1);  // Device values will change in this time
 
-    // Get parameters again
-    // param_val_t vals_after[dev->num_params];
-    // device_read_uid(UID, EXECUTOR, DATA, 0b1111, vals_after);
-
     // Verify parameters changed as expected
     vals_before[0].p_i++;  // INCREASING: Increased by 1
     same_param_value(dev_name, UID, "INCREASING", INT, vals_before[0]);
@@ -41,8 +37,5 @@ int main() {
 
     // Stop all processes
     end_test();
-
-    
-
     return 0;
 }
