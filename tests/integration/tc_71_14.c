@@ -50,7 +50,7 @@ int main() {
     }
 
     // Unstable devices should time out, and only GeneralTestDevices remain
-    sleep(5);         // Unstable Devices should timeout
+    sleep(5);  // Unstable Devices should timeout
     check_general_test_devices_connected();
     for (int i = NUM_GENERAL; i < NUM_GENERAL + NUM_UNSTABLE; i++) {
         check_device_not_connected(i);

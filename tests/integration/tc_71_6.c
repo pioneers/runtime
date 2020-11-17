@@ -22,7 +22,7 @@ int main() {
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         connect_virtual_device("SimpleTestDevice", i);
     }
-    sleep(2);         // Make sure all devices connect
+    sleep(2);  // Make sure all devices connect
 
     // Verify that uids 0 through 31 are connected
     check_max_devices_connected();
@@ -34,7 +34,7 @@ int main() {
     // Attempt to connect an extra device and verify it doesn't connect
     connect_virtual_device("SimpleTestDevice", 404);
     printf("Attempted to connect an extra device\n");
-    sleep(2);         // Let device try to connect
+    sleep(2);  // Let device try to connect
     check_device_not_connected(404);
 
     // Verify all the first MAX_DEVICES devices are not disturbed

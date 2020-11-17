@@ -12,7 +12,7 @@ int main() {
     start_test("Sanity Write", "sanity_write", "", NO_REGEX);
 
     // Connect GeneralTestDevice
-    char *dev_name = "GeneralTestDevice";
+    char* dev_name = "GeneralTestDevice";
     connect_virtual_device(dev_name, UID);
     sleep(1);  // Wait for ACK exchange
 

@@ -11,7 +11,7 @@ int main() {
     start_test("Simple Device Read", "", "", NO_REGEX);
 
     // Connect a device
-    char *dev_name = "SimpleTestDevice";
+    char* dev_name = "SimpleTestDevice";
     connect_virtual_device(dev_name, UID);
     sleep(1);
 

@@ -147,6 +147,6 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
  * Returns nothing if within range
  * Exits with status code 1 if out of range
  */
-void check_param_range(char* dev_name , uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high);
+void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high);
 
 #endif
