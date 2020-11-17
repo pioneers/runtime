@@ -88,7 +88,7 @@ int main() {
     add_ordered_string_output(dev2_header);
     add_ordered_string_output(flipflop);
     add_ordered_string_output(custom_dev_header);
-    
+
     send_subs(0b11, 0b11);
     add_ordered_string_output(dev1_header);
     add_ordered_string_output(increasing);

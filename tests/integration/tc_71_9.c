@@ -17,7 +17,7 @@ int main() {
     connect_virtual_device("UnstableTestDevice", UID);
     sleep(1);
     check_device_connected(UID);
-    sleep(5);         // UnstableTestDevice will time out
+    sleep(5);  // UnstableTestDevice will time out
     check_device_not_connected(UID);
 
     // Clean up

@@ -7,23 +7,23 @@
 // Initial capacity of string checks per test
 #define BASE_STRING_CHECKS 8
 
-pthread_t output_handler_tid;                   // holds thread ID of output handler thread
-int save_std_out;                               // saved standard output file descriptor to return to normal printing after test
-int pipe_fd[2];                                 // read and write ends of the pipe created between the parent and child processes
-char* test_output = NULL;                       // holds the contents of temp file
-char* rest_of_test_output;                      // holds the rest of the test output as we're performing checks
-int check_num = 0;                              // increments to report status each time a check is performed
-char* global_test_name = NULL;                  // name of test
-int started_executor = 0;                       // boolean of whether or not executor is used in the current test
+pthread_t output_handler_tid;   // holds thread ID of output handler thread
+int save_std_out;               // saved standard output file descriptor to return to normal printing after test
+int pipe_fd[2];                 // read and write ends of the pipe created between the parent and child processes
+char* test_output = NULL;       // holds the contents of temp file
+char* rest_of_test_output;      // holds the rest of the test output as we're performing checks
+int check_num = 0;              // increments to report status each time a check is performed
+char* global_test_name = NULL;  // name of test
+int started_executor = 0;       // boolean of whether or not executor is used in the current test
 
 // String checks
-char** ordered_strings_to_check = NULL;         // holds strings needing to be checked in a specified order
-char** unordered_strings_to_check = NULL;       // holds strings needing to be checked in any order
-int current_ordered_pos = 0;                    // current position in ordered_string_to_check pointer
-int current_unordered_pos = 0;                  // current position in unordered_strings_to_check
-int max_ordered_strings = 0;                    // maximum amount of ordered strings to check for a given test
-int max_unordered_strings = 0;                  // maximum amount of unordered strings to check for a given test
-int method = NO_REGEX;                          // whether to use standard checking or regex for output comparison
+char** ordered_strings_to_check = NULL;    // holds strings needing to be checked in a specified order
+char** unordered_strings_to_check = NULL;  // holds strings needing to be checked in any order
+int current_ordered_pos = 0;               // current position in ordered_string_to_check pointer
+int current_unordered_pos = 0;             // current position in unordered_strings_to_check
+int max_ordered_strings = 0;               // maximum amount of ordered strings to check for a given test
+int max_unordered_strings = 0;             // maximum amount of unordered strings to check for a given test
+int method = NO_REGEX;                     // whether to use standard checking or regex for output comparison
 
 /**
  * This thread prints output to terminal and also copies it to standard output
@@ -192,7 +192,7 @@ static char* rstrstr(char* haystack, char* needle) {
  *    1 otherwise
  */
 static int in_output(char* expected_output) {
-    if(method == NO_REGEX){
+    if (method == NO_REGEX) {
         if (strstr(test_output, expected_output) != NULL) {
             print_pass();
             return 0;
@@ -227,16 +227,14 @@ static int in_output(char* expected_output) {
  *    1 otherwise
  */
 static int in_rest_of_output(char* expected_output) {
-
     // do not use regex
-    if(method == NO_REGEX) {
+    if (method == NO_REGEX) {
         if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
             print_pass();
             rest_of_test_output += strlen(expected_output);
             return 0;
         }
-    }
-    else {
+    } else {
         if ((rest_of_test_output = rstrstr(rest_of_test_output, expected_output)) != NULL) {
             print_pass();
             rest_of_test_output += strlen(expected_output);
@@ -256,18 +254,18 @@ static void check_strings() {
     int check_failed = 0;
 
     // checks the strings in ordered_strings_to_check
-    for(int i = 0; i < current_ordered_pos; i++) {
+    for (int i = 0; i < current_ordered_pos; i++) {
         check_failed |= in_rest_of_output(ordered_strings_to_check[i]);
     }
 
     // checks the strings in unordered_strings_to_check
-    for(int i = 0; i < current_unordered_pos; i++){
+    for (int i = 0; i < current_unordered_pos; i++) {
         check_failed |= in_output(unordered_strings_to_check[i]);
     }
 
     // free memory allocated for ordered_strings_to_check strings and reset variables
-    if(ordered_strings_to_check != NULL) {
-        for(int i = 0; i < current_unordered_pos; i++) {
+    if (ordered_strings_to_check != NULL) {
+        for (int i = 0; i < current_unordered_pos; i++) {
             free(ordered_strings_to_check[i]);
         }
         free(ordered_strings_to_check);
@@ -277,8 +275,8 @@ static void check_strings() {
     }
 
     // free memory allocated for unordered_strings_to_check strings and reset variables
-    if(unordered_strings_to_check != NULL) {
-        for(int i = 0; i < current_unordered_pos; i++){
+    if (unordered_strings_to_check != NULL) {
+        for (int i = 0; i < current_unordered_pos; i++) {
             free(unordered_strings_to_check[i]);
         }
         free(unordered_strings_to_check);
@@ -313,20 +311,20 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     // general string checks needed
     ordered_strings_to_check = malloc(BASE_STRING_CHECKS * sizeof(char*));
     current_ordered_pos = 0;
-    if (ordered_strings_to_check == NULL){
+    if (ordered_strings_to_check == NULL) {
         fprintf(stderr, "strings to check: %s\n", strerror(errno));
     }
     max_ordered_strings = BASE_STRING_CHECKS;
 
     unordered_strings_to_check = malloc(BASE_STRING_CHECKS * sizeof(char*));
     current_unordered_pos = 0;
-    if (unordered_strings_to_check == NULL){
+    if (unordered_strings_to_check == NULL) {
         fprintf(stderr, "strings to check: %s\n", strerror(errno));
     }
     max_unordered_strings = BASE_STRING_CHECKS;
 
     // use regex to compare outputs
-    if(comparison_method == REGEX) {
+    if (comparison_method == REGEX) {
         method = comparison_method;
     }
 
@@ -384,17 +382,16 @@ void end_test() {
 
 // Adds the string to be verified to the ordered_strings_to_check pointer
 void add_ordered_string_output(char* output) {
-
     // Adding more strings than the max amount stated
-    if(current_ordered_pos >= max_ordered_strings){
-        ordered_strings_to_check = realloc(ordered_strings_to_check, 2 * max_ordered_strings * sizeof(char *));
-        if(ordered_strings_to_check == NULL){
+    if (current_ordered_pos >= max_ordered_strings) {
+        ordered_strings_to_check = realloc(ordered_strings_to_check, 2 * max_ordered_strings * sizeof(char*));
+        if (ordered_strings_to_check == NULL) {
             fprintf(stderr, "Resizing ordered_strings_to_check failed");
             return;
         }
         max_ordered_strings = 2 * max_ordered_strings;
     }
-    ordered_strings_to_check[current_ordered_pos] = (char*)malloc(strlen(output) + 1);
+    ordered_strings_to_check[current_ordered_pos] = (char*) malloc(strlen(output) + 1);
 
     if (ordered_strings_to_check[current_ordered_pos] == NULL) {
         fprintf(stderr, "add ordered output: %s\n", strerror(errno));
@@ -404,22 +401,20 @@ void add_ordered_string_output(char* output) {
     // copy string into the current position in array and move pointer forward
     strcpy((ordered_strings_to_check[current_ordered_pos]), output);
     current_ordered_pos += 1;
-
 }
 
 // Adds the string to be verified to the unordered_strings_to_check pointer
 void add_unordered_string_output(char* output) {
-
     // Adding more strings than the max amount stated
-    if(current_unordered_pos >= max_unordered_strings) {
-        unordered_strings_to_check = realloc(unordered_strings_to_check, 2 * max_unordered_strings * sizeof(char *));
-        if(unordered_strings_to_check == NULL) {
+    if (current_unordered_pos >= max_unordered_strings) {
+        unordered_strings_to_check = realloc(unordered_strings_to_check, 2 * max_unordered_strings * sizeof(char*));
+        if (unordered_strings_to_check == NULL) {
             fprintf(stderr, "Resizing add_unordered_string_output failed");
             return;
         }
     }
 
-    unordered_strings_to_check[current_unordered_pos] = (char*)malloc(strlen(output) + 1);
+    unordered_strings_to_check[current_unordered_pos] = (char*) malloc(strlen(output) + 1);
 
     if ((unordered_strings_to_check[current_unordered_pos]) == NULL) {
         fprintf(stderr, "add unordered output: %s\n", strerror(errno));
@@ -551,7 +546,7 @@ static int check_device_helper(uint64_t dev_uid) {
     if (catalog != 0) {
         // Iterate through devices
         for (int i = 0; i < MAX_DEVICES; i++) {
-            if (catalog & (1 << i)) { // Connected device at index i
+            if (catalog & (1 << i)) {  // Connected device at index i
                 if (dev_ids[i].uid == dev_uid) {
                     // Device is connected!
                     return 1;
@@ -604,12 +599,12 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
 }
 
 // Returns if value is between the expected high and expected low
-void check_param_range(char* dev_name , uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high){
+void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high) {
     uint8_t dev_type = device_name_to_type(dev_name);
     device_t* dev = get_device(dev_type);
 
     param_val_t vals_after[dev->num_params];
-    uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
+    uint32_t param_idx = (uint32_t) get_param_idx(dev_type, param_name);
     device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
     param_val_t received = vals_after[param_idx];
 
@@ -649,7 +644,6 @@ void check_param_range(char* dev_name , uint64_t uid, char* param_name, param_ty
                 end_test();
                 exit(1);
             }
-
     }
     print_pass();
 }
