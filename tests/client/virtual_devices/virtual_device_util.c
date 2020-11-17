@@ -191,6 +191,9 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
                         (*device_actions)(params);
                     }
                     break;
+                default:
+                    printf("lowcar_protocol: Received message of invalid type\n");
+                    break;
             }
         }
         incoming_msg->message_id = NOP;

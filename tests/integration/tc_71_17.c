@@ -30,11 +30,11 @@ int main() {
 
     // connect two devices
     port1 = connect_virtual_device("SimpleTestDevice", UID1);
-    usleep(500000);
+    sleep(1);
     check_device_connected(UID1);
 
     port2 = connect_virtual_device("SimpleTestDevice", UID2);
-    usleep(500000);
+    sleep(1);
     check_device_connected(UID2);
 
     // print device data
@@ -46,7 +46,7 @@ int main() {
 
     // disconnect first device (Port1=Empty, Port2=UID2)
     disconnect_virtual_device(port1);
-    usleep(500000);
+    sleep(1);
     check_device_not_connected(UID1);
 
     // print device data
@@ -57,10 +57,10 @@ int main() {
 
     // connect two more devices (Port1=UID3, Port2=UID2, Port3=UID4)
     port1 = connect_virtual_device("SimpleTestDevice", UID3);
-    usleep(500000);
+    sleep(1);
     check_device_connected(UID3);
     port3 = connect_virtual_device("SimpleTestDevice", UID4);
-    usleep(500000);
+    sleep(1);
     check_device_connected(UID4);
 
     // print device data
@@ -74,15 +74,15 @@ int main() {
 
     // disconnect all devices
     disconnect_virtual_device(port1);
-    usleep(500000);
+    sleep(1);
     check_device_not_connected(UID3);
 
     disconnect_virtual_device(port2);
-    usleep(500000);
+    sleep(1);
     check_device_not_connected(UID2);
 
     disconnect_virtual_device(port3);
-    usleep(500000);
+    sleep(1);
     check_device_not_connected(UID4);
 
     // print device data
