@@ -215,9 +215,7 @@ void end_test() {
     fprintf_delimiter(stderr, "Running Remaining Checks...");
 
     // check out array of strings
-    if(current_ordered_pos || current_unordered_pos){
-        check_strings();
-    }
+    check_strings();
 }
 
 // *************************** PASS/FAIL CONTROL **************************** //
