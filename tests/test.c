@@ -1,8 +1,11 @@
 #include "test.h"
 
+// The number of characters in a delimiter ("******* STARTING TEST *******")
 #define DELIMITER_WIDTH 80
+// The maximum length of a string per string check
 #define MAX_STRING_LENGTH 128
-#define BASE_STRING_CHECKS 8 
+// Initial capacity of string checks per test
+#define BASE_STRING_CHECKS 8
 
 pthread_t output_handler_tid;                   // holds thread ID of output handler thread
 int save_std_out;                               // saved standard output file descriptor to return to normal printing after test
@@ -12,13 +15,15 @@ char* rest_of_test_output;                      // holds the rest of the test ou
 int check_num = 0;                              // increments to report status each time a check is performed
 char* global_test_name = NULL;                  // name of test
 int started_executor = 0;                       // boolean of whether or not executor is used in the current test
+
+// String checks
 char** ordered_strings_to_check = NULL;         // holds strings needing to be checked in a specified order
 char** unordered_strings_to_check = NULL;       // holds strings needing to be checked in any order
 int current_ordered_pos = 0;                    // current position in ordered_string_to_check pointer
 int current_unordered_pos = 0;                  // current position in unordered_strings_to_check
 int max_ordered_strings = 0;                    // maximum amount of ordered strings to check for a given test
 int max_unordered_strings = 0;                  // maximum amount of unordered strings to check for a given test
-int method = NO_REGEX;                                 // whether to use standard checking or regex for output comparison      
+int method = NO_REGEX;                          // whether to use standard checking or regex for output comparison
 
 /**
  * This thread prints output to terminal and also copies it to standard output
@@ -133,6 +138,163 @@ static void stop_runtime() {
     stop_shm();
 }
 
+// *************************** PASS/FAIL CONTROL **************************** //
+
+// Prints to stderr that a check passed.
+static void print_pass() {
+    check_num++;
+    fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
+}
+
+// Prints to stderr that a check failed.
+static void print_fail() {
+    check_num++;
+    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+}
+
+// ******************** STRING OUTPUT COMPARISON HELPERS ******************** //
+
+/**
+ * Implementation of strstr but with a regex string for needle
+ * Common Regex:
+ * [[:space:]]* represents arbitrary whitespace
+ * [0-9]+ represents a number
+ * [a-z]+ lowercase word
+ * [A-Z]+ uppercase word
+ * [a-zA-Z]+ alphabetical words
+ * [a-zA-Z0-9]+ alphanumeric strings
+ * * represents zero or more instances
+ * + represents one or more instances
+ * "something here" will look for the entire string 'something here' within the haystack
+ */
+static char* rstrstr(char* haystack, char* needle) {
+    regex_t expr;
+    regmatch_t tracker;
+
+    //Compiles regex string into a usable regex expression
+    if (regcomp(&expr, needle, REG_EXTENDED)) {
+        fprintf(stderr, "Unable to build regex expression");
+        return NULL;
+    }
+    //Looks for first instance of regex expression in HAYSTACK
+    if (regexec(&expr, haystack, 1, &tracker, REG_EXTENDED)) {
+        return NULL;
+    }
+    return haystack + tracker.rm_so;
+}
+
+/**
+ * Verifies that a string is somewhere in stdout.
+ * Arguments:
+ *    expected_output: the string to check
+ * Returns:
+ *    0 if the string is in stdout,
+ *    1 otherwise
+ */
+static int in_output(char* expected_output) {
+    if(method == NO_REGEX){
+        if (strstr(test_output, expected_output) != NULL) {
+            print_pass();
+            return 0;
+        }
+    } else {
+        if (rstrstr(test_output, expected_output) != NULL) {
+            print_pass();
+            return 0;
+        }
+    }
+    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+    fprintf_delimiter(stderr, "Expected:");
+    fprintf(stderr, "%s", expected_output);
+    fprintf_delimiter(stderr, "Got:");
+    fprintf(stderr, "%s\n", test_output);
+    return 1;
+}
+
+/**
+ * Verifies that a string is somewhere in stdout ***after the last call to
+ * this function***
+ *
+ * Ex: If output contains "A", "B", "C" and we call in_rest_of_output("B")
+ * The function will return true (start scanning from the beginning)
+ * If we then call in_rest_of_output("A"), the function will return FALSE.
+ * i.e. There is no "A" after "B".
+ *
+ * Arguments:
+ *    expected_output: the string to check
+ * Returns:
+ *    0 if the string is in stdout,
+ *    1 otherwise
+ */
+static int in_rest_of_output(char* expected_output) {
+
+    // do not use regex
+    if(method == NO_REGEX) {
+        if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
+            print_pass();
+            rest_of_test_output += strlen(expected_output);
+            return 0;
+        }
+    }
+    else {
+        if ((rest_of_test_output = rstrstr(rest_of_test_output, expected_output)) != NULL) {
+            print_pass();
+            rest_of_test_output += strlen(expected_output);
+            return 0;
+        }
+    }
+    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
+    fprintf_delimiter(stderr, "Expected:");
+    fprintf(stderr, "%s", expected_output);
+    fprintf_delimiter(stderr, "Got:");
+    fprintf(stderr, "%s\n", test_output);
+    return 1;
+}
+
+// Checks that the strings in ordered_strings_to_check and unordered_strings_to_check match the output
+static void check_strings() {
+    int check_failed = 0;
+
+    // checks the strings in ordered_strings_to_check
+    for(int i = 0; i < current_ordered_pos; i++) {
+        check_failed |= in_rest_of_output(ordered_strings_to_check[i]);
+    }
+
+    // checks the strings in unordered_strings_to_check
+    for(int i = 0; i < current_unordered_pos; i++){
+        check_failed |= in_output(unordered_strings_to_check[i]);
+    }
+
+    // free memory allocated for ordered_strings_to_check strings and reset variables
+    if(ordered_strings_to_check != NULL) {
+        for(int i = 0; i < current_unordered_pos; i++) {
+            free(ordered_strings_to_check[i]);
+        }
+        free(ordered_strings_to_check);
+        ordered_strings_to_check = NULL;
+        current_ordered_pos = 0;
+        max_ordered_strings = 0;
+    }
+
+    // free memory allocated for unordered_strings_to_check strings and reset variables
+    if(unordered_strings_to_check != NULL) {
+        for(int i = 0; i < current_unordered_pos; i++){
+            free(unordered_strings_to_check[i]);
+        }
+        free(unordered_strings_to_check);
+        unordered_strings_to_check = NULL;
+        current_unordered_pos = 0;
+        max_unordered_strings = 0;
+    }
+
+    method = NO_REGEX;
+
+    // Exit with exit code 1 if any single check failed
+    if (check_failed) {
+        exit(1);
+    }
+}
+
 // ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
 // creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
@@ -218,164 +380,7 @@ void end_test() {
     check_strings();
 }
 
-// *************************** PASS/FAIL CONTROL **************************** //
-
-// Prints to stderr that a check passed.
-static void print_pass() {
-    check_num++;
-    fprintf(stderr, "%s: check %d passed\n", global_test_name, check_num);
-}
-
-// Prints to stderr that a check failed.
-static void print_fail() {
-    check_num++;
-    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-}
-
 // ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
-
-/**
- * Implementation of strstr but with a regex string for needle
- * Common Regex:
- * [[:space:]]* represents arbitrary whitespace
- * [0-9]+ represents a number
- * [a-z]+ lowercase word
- * [A-Z]+ uppercase word
- * [a-zA-Z]+ alphabetical words
- * [a-zA-Z0-9]+ alphanumeric strings
- * * represents zero or more instances
- * + represents one or more instances
- * "something here" will look for the entire string 'something here' within the haystack
- */ 
-char* rstrstr(char* haystack, char* needle) {
-    regex_t expr;
-    regmatch_t tracker;
-
-    //Compiles regex string into a usable regex expression
-    if (regcomp(&expr, needle, REG_EXTENDED)) {
-        fprintf(stderr, "Unable to build regex expression");
-        return NULL;
-    }
-    //Looks for first instance of regex expression in HAYSTACK
-    if (regexec(&expr, haystack, 1, &tracker, REG_EXTENDED)) {
-        return NULL;
-    }
-    return haystack + tracker.rm_so;
-}
-
-/**
- * Verifies that a string is somewhere in stdout.
- * Arguments:
- *    expected_output: the string to check
- * Returns:
- *    0 if the string is in stdout,
- *    1 otherwise
- */
-static int in_output(char* expected_output) {
-    if(method == NO_REGEX){
-        if (strstr(test_output, expected_output) != NULL) {
-            print_pass();
-            return 0;
-        }
-    } else {
-        if (rstrstr(test_output, expected_output) != NULL) {
-            print_pass();
-            return 0;
-        }
-    }
-    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-    fprintf_delimiter(stderr, "Expected:");
-    fprintf(stderr, "%s", expected_output);
-    fprintf_delimiter(stderr, "Got:");
-    fprintf(stderr, "%s\n", test_output);
-    return 1;
-}
-
-/**
- * Verifies that a string is somewhere in stdout ***after the last call to
- * this function***
- *
- * Ex: If output contains "A", "B", "C" and we call in_rest_of_output("B")
- * The function will return true (start scanning from the beginning)
- * If we then call in_rest_of_output("A"), the function will return FALSE.
- * i.e. There is no "A" after "B".
- *
- * Arguments:
- *    expected_output: the string to check
- * Returns:
- *    0 if the string is in stdout,
- *    1 otherwise
- */
-static int in_rest_of_output(char* expected_output) {
-    
-    // do not use regex
-    if(method == NO_REGEX) {
-        if ((rest_of_test_output = strstr(rest_of_test_output, expected_output)) != NULL) {
-            print_pass();
-            rest_of_test_output += strlen(expected_output);
-            return 0;
-        }
-    }
-    else {
-        if ((rest_of_test_output = rstrstr(rest_of_test_output, expected_output)) != NULL) {
-            print_pass();
-            rest_of_test_output += strlen(expected_output);
-            return 0;
-        }
-    }
-    fprintf(stderr, "%s: check %d failed\n", global_test_name, check_num);
-    fprintf_delimiter(stderr, "Expected:");
-    fprintf(stderr, "%s", expected_output);
-    fprintf_delimiter(stderr, "Got:");
-    fprintf(stderr, "%s\n", test_output);
-    return 1;
-}
-
-// Checks that the strings in ordered_strings_to_check and unordered_strings_to_check match the output
-void check_strings() {
-    int check_failed = 0;
-
-    // checks the strings in ordered_strings_to_check
-    for(int i = 0; i < current_ordered_pos; i++) {
-        check_failed |= in_rest_of_output(ordered_strings_to_check[i]);
-    }
-
-    // checks the strings in unordered_strings_to_check
-    for(int i = 0; i < current_unordered_pos; i++){
-        check_failed |= in_output(unordered_strings_to_check[i]);
-    }
-
-    // free memory allocated for ordered_strings_to_check strings and reset variables
-    if(ordered_strings_to_check != NULL) {
-        for(int i = 0; i < current_unordered_pos; i++) {
-            free(ordered_strings_to_check[i]);
-        }
-        free(ordered_strings_to_check);
-        ordered_strings_to_check = NULL;
-        current_ordered_pos = 0;
-        max_ordered_strings = 0;
-    }
-
-    // free memory allocated for unordered_strings_to_check strings and reset variables
-    if(unordered_strings_to_check != NULL) {
-        for(int i = 0; i < current_unordered_pos; i++){
-            free(unordered_strings_to_check[i]);
-        }
-        free(unordered_strings_to_check);
-        unordered_strings_to_check = NULL;
-        current_unordered_pos = 0;
-        max_unordered_strings = 0;
-    }
-
-    method = NO_REGEX;
-
-    // Exit with exit code 1 if any single check failed
-    if (check_failed) {
-        exit(1);
-    }
-}
-
-// ************************* OUTPUT APPEND FUNCTIONS ************************ //
 
 // Adds the string to be verified to the ordered_strings_to_check pointer
 void add_ordered_string_output(char* output) {
@@ -586,26 +591,26 @@ void check_device_not_connected(uint64_t dev_uid) {
 }
 
 // Returns if arrays are the same. Otherwise, exit(1)
-void same_param_value_array(uint8_t dev_type, uint64_t UID, param_val_t expected[]) {
+void same_param_value_array(uint8_t dev_type, uint64_t uid, param_val_t expected[]) {
     device_t* dev = get_device(dev_type);
     for (int i = 0; i < dev->num_params; i++) {
-        same_param_value(dev->name, UID, dev->params[i].name, dev->params[i].type, expected[i]);
+        same_param_value(dev->name, uid, dev->params[i].name, dev->params[i].type, expected[i]);
     }
 }
 
 // Returns if input params are the same. Otherwise, exit(1). Calls check_param_range
-void same_param_value(char* dev_name, uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected) {
-    check_param_range(dev_name, UID, param_name, param_type, expected, expected);
+void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected) {
+    check_param_range(dev_name, uid, param_name, param_type, expected, expected);
 }
 
 // Returns if value is between the expected high and expected low
-void check_param_range(char* dev_name , uint64_t UID, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high){
+void check_param_range(char* dev_name , uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high){
     uint8_t dev_type = device_name_to_type(dev_name);
     device_t* dev = get_device(dev_type);
 
     param_val_t vals_after[dev->num_params];
     uint32_t param_idx = (uint32_t)get_param_idx(dev_type, param_name);
-    device_read_uid(UID, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
     param_val_t received = vals_after[param_idx];
 
     switch (param_type) {
