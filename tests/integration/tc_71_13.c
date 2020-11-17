@@ -7,12 +7,9 @@
 
 #define NUM_TO_CONNECT 3
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 int main() {
     // Setup
-    start_test("Hotplug Multiple UnstableTestDevices", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Hotplug Multiple UnstableTestDevices", "", "", NO_REGEX);
 
     // Connect multiple UnstableTestDevices
     for (int i = 0; i < NUM_TO_CONNECT; i++) {

@@ -6,11 +6,8 @@
  * first Gamepad State packet arrives on Runtime from Dawn.
  */
 
-#define ORDERED_STRINGS 1
-#define UNORDERED_STRINGS 0
-
 int main() {
-    start_test("UDP; no devices connected", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("UDP; no devices connected", "", "", NO_REGEX);
 
     // Send gamepad and check that the custom data is received
     uint32_t buttons = (1 << BUTTON_A) | (1 << L_TRIGGER) | (1 << DPAD_DOWN);

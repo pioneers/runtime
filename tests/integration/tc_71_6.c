@@ -8,9 +8,6 @@
 
 #define NUM_TO_CONNECT MAX_DEVICES
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 void check_max_devices_connected() {
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
         check_device_connected(i);
@@ -19,7 +16,7 @@ void check_max_devices_connected() {
 
 int main() {
     // Setup
-    start_test("Hotplug MAX_DEVICES + 1", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Hotplug MAX_DEVICES + 1", "", "", NO_REGEX);
 
     // Connect MAX_DEVICES
     for (int i = 0; i < NUM_TO_CONNECT; i++) {

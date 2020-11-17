@@ -9,8 +9,6 @@
 #define UID1 0x1234
 #define UID2 0x4321
 
-#define ORDERED_STRINGS 37
-#define UNORDERED_STRINGS 0
 // global variables to hold device subscriptions
 dev_subs_t dev1_subs = {UID1, "SimpleTestDevice", 0};
 dev_subs_t dev2_subs = {UID2, "SimpleTestDevice", 0};
@@ -46,7 +44,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
 
 int main() {
     // setup
-    start_test("device subscription test", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("device subscription test", "", "", NO_REGEX);
     dev_subs[0] = dev1_subs;
     dev_subs[1] = dev2_subs;
 

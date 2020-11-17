@@ -11,9 +11,6 @@
 #define UID3 0x3412
 #define UID4 0x4123
 
-#define ORDERED_STRINGS 15
-#define UNORDERED_STRINGS 0
-
 // We don't check the contents of the arriving data, we only check that
 // the devices that we expect to be present are coming in.
 
@@ -21,7 +18,7 @@ int main() {
     int port1, port2, port3;
 
     // setup
-    start_test("receive device data, general", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("receive device data, general", "", "", NO_REGEX);
 
     // poke the system
     // send gamepad state so net_handler starts sending device data packets

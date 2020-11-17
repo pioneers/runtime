@@ -7,12 +7,9 @@
 
 #define UID 0x123
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 int main() {
     // Setup
-    start_test("Hotplug ForeignTestDevice", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Hotplug ForeignTestDevice", "", "", NO_REGEX);
 
     // Connect a ForeignTestDevice
     check_device_not_connected(UID);

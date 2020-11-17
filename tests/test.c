@@ -2,6 +2,7 @@
 
 #define DELIMITER_WIDTH 80
 #define MAX_STRING_LENGTH 128
+#define BASE_STRING_CHECKS 8 
 
 pthread_t output_handler_tid;                   // holds thread ID of output handler thread
 int save_std_out;                               // saved standard output file descriptor to return to normal printing after test
@@ -17,7 +18,7 @@ int current_ordered_pos = 0;                    // current position in ordered_s
 int current_unordered_pos = 0;                  // current position in unordered_strings_to_check
 int max_ordered_strings = 0;                    // maximum amount of ordered strings to check for a given test
 int max_unordered_strings = 0;                  // maximum amount of unordered strings to check for a given test
-int method = 0;                                 // whether to use standard checking or regex for output comparison      
+int method = NO_REGEX;                                 // whether to use standard checking or regex for output comparison      
 
 /**
  * This thread prints output to terminal and also copies it to standard output
@@ -135,7 +136,7 @@ static void stop_runtime() {
 // ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
 // creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
-void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks, int comparison_method) {
+void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
@@ -148,26 +149,22 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     strcpy(global_test_name, test_description);
 
     // general string checks needed
-    if(ordered_string_checks != 0){
-        ordered_strings_to_check = malloc(ordered_string_checks * sizeof(char*));
-        current_ordered_pos = 0;
-        if (ordered_strings_to_check == NULL){
-            fprintf(stderr, "strings to check: %s\n", strerror(errno));
-        }
-        max_ordered_strings = ordered_string_checks;
+    ordered_strings_to_check = malloc(BASE_STRING_CHECKS * sizeof(char*));
+    current_ordered_pos = 0;
+    if (ordered_strings_to_check == NULL){
+        fprintf(stderr, "strings to check: %s\n", strerror(errno));
     }
+    max_ordered_strings = BASE_STRING_CHECKS;
 
-    if(unordered_string_checks != 0){
-        unordered_strings_to_check = malloc(unordered_string_checks * sizeof(char*));
-        current_unordered_pos = 0;
-        if (unordered_strings_to_check == NULL){
-            fprintf(stderr, "strings to check: %s\n", strerror(errno));
-        }
-        max_unordered_strings = unordered_string_checks;
+    unordered_strings_to_check = malloc(BASE_STRING_CHECKS * sizeof(char*));
+    current_unordered_pos = 0;
+    if (unordered_strings_to_check == NULL){
+        fprintf(stderr, "strings to check: %s\n", strerror(errno));
     }
+    max_unordered_strings = BASE_STRING_CHECKS;
 
     // use regex to compare outputs
-    if(comparison_method == 1){
+    if(comparison_method == REGEX) {
         method = comparison_method;
     }
 
@@ -352,7 +349,7 @@ void check_strings() {
 
     // free memory allocated for ordered_strings_to_check strings and reset variables
     if(ordered_strings_to_check != NULL) {
-        for(int i = 0; i < current_ordered_pos; i++) {
+        for(int i = 0; i < current_unordered_pos; i++) {
             free(ordered_strings_to_check[i]);
         }
         free(ordered_strings_to_check);
@@ -372,7 +369,7 @@ void check_strings() {
         max_unordered_strings = 0;
     }
 
-    method = 0;
+    method = NO_REGEX;
 
     // Exit with exit code 1 if any single check failed
     if (check_failed) {
@@ -387,8 +384,12 @@ void add_ordered_string_output(char* output) {
 
     // Adding more strings than the max amount stated
     if(current_ordered_pos >= max_ordered_strings){
-        fprintf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
-        return;
+        ordered_strings_to_check = realloc(ordered_strings_to_check, 2 * max_ordered_strings * sizeof(char *));
+        if(ordered_strings_to_check == NULL){
+            fprintf(stderr, "Resizing ordered_strings_to_check failed");
+            return;
+        }
+        max_ordered_strings = 2 * max_ordered_strings;
     }
     ordered_strings_to_check[current_ordered_pos] = (char*)malloc(strlen(output) + 1);
 
@@ -407,14 +408,17 @@ void add_ordered_string_output(char* output) {
 void add_unordered_string_output(char* output) {
 
     // Adding more strings than the max amount stated
-    if(current_unordered_pos >= max_unordered_strings){
-        fprintf(stderr, "add_string_output: Cannot exceed maximum amount of strings to check");
-        return;
+    if(current_unordered_pos >= max_unordered_strings) {
+        unordered_strings_to_check = realloc(unordered_strings_to_check, 2 * max_unordered_strings * sizeof(char *));
+        if(unordered_strings_to_check == NULL) {
+            fprintf(stderr, "Resizing add_unordered_string_output failed");
+            return;
+        }
     }
 
     unordered_strings_to_check[current_unordered_pos] = (char*)malloc(strlen(output) + 1);
 
-    if ((unordered_strings_to_check[current_unordered_pos]) == NULL){
+    if ((unordered_strings_to_check[current_unordered_pos]) == NULL) {
         fprintf(stderr, "add unordered output: %s\n", strerror(errno));
         return;
     }
