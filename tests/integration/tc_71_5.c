@@ -4,13 +4,10 @@
  */
 #include "../test.h"
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 #define UID 0x123
 
 int main() {
-    start_test("Simple Hotplug", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Simple Hotplug", "", "", NO_REGEX);
 
     // Connect a device then disconnect it
     check_device_not_connected(UID);

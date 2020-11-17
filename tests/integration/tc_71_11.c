@@ -6,12 +6,9 @@
 
 #define UID 0x123
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 int main() {
     // Setup
-    start_test("Simple Device Read", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Simple Device Read", "", "", NO_REGEX);
 
     // Connect a device
     char *dev_name = "SimpleTestDevice";

@@ -5,12 +5,9 @@
 
 #define UID 0x123
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 int main() {
     // Setup
-    start_test("Invalid Write", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Invalid Write", "", "", NO_REGEX);
 
     // Connect a device
     char *dev_name = "SimpleTestDevice";

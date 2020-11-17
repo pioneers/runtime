@@ -7,8 +7,6 @@
  * exception occurs.
  */
 
-#define ORDERED_STRINGS 9
-#define UNORDERED_STRINGS 0
 
 // we have to skip the File: <file path> because on the pi it's /home/pi/runtime
 // but on Docker it's /root/runtime
@@ -23,7 +21,7 @@ char check_output_9[] =
 
 int main() {
     // set everything up
-    start_test("executor sanity test", "executor_sanity", "executor_sanity", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("executor sanity test", "executor_sanity", "executor_sanity", NO_REGEX);
 
     // poke the system
     // this section checks the autonomous code (should generate some print statements)

@@ -41,7 +41,7 @@
  *    ** 1 - Regex Used  
  * No return value.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int ordered_string_checks, int unordered_string_checks, int comparison_method);
+void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method);
 
 /**
  * Stops runtime, takes care of resetting the plumbing of the outputs at the

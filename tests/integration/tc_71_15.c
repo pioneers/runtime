@@ -7,12 +7,9 @@
 // The UID of GeneralTestDevice to connect and reference in sanity_write.py
 #define UID 0x0123456789ABCDEF
 
-#define ORDERED_STRINGS 0
-#define UNORDERED_STRINGS 0
-
 int main() {
     // Setup
-    start_test("Sanity Write", "sanity_write", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("Sanity Write", "sanity_write", "", NO_REGEX);
 
     // Connect GeneralTestDevice
     char *dev_name = "GeneralTestDevice";

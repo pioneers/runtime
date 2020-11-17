@@ -5,11 +5,8 @@
  * from Dawn are rejected by shared memory and an error message is sent back to Dawn.
  */
 
-#define ORDERED_STRINGS 4
-#define UNORDERED_STRINGS 0
-
 int main() {
-    start_test("nonexistent device subscription", "", "", ORDERED_STRINGS, UNORDERED_STRINGS, NO_REGEX);
+    start_test("nonexistent device subscription", "", "", NO_REGEX);
 
     // poke
     dev_subs_t data1 = {.uid = 50, .name = "ServoControl", .params = 0b11};
