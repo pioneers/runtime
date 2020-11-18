@@ -37,6 +37,13 @@
 #define SUB_START_Y 1
 #define SUB_START_X (DEVICE_START_X + DEVICE_WIDTH)
 
+// Column sizes in device window
+const int value_width = strlen("123.000000") + 2; // String representation of float length
+const int param_idx_col = 5;
+const int param_name_col = param_idx_col + strlen("Param Idx") + 2;
+const int command_val_col = param_name_col + strlen("increasing_even") + 2; // Sample long parameter name
+const int data_val_col = command_val_col + value_width;
+
 // ******************************** WINDOWS ********************************* //
 WINDOW* robot_desc_win;
 WINDOW* gamepad_win;
@@ -47,12 +54,12 @@ WINDOW* device_win;
 char** joystick_names;
 char** button_names;
 uint32_t catalog = 0; // Shared memory catalog (bitmap of connected devices)
+dev_id_t dev_ids[MAX_DEVICES]; // Device identifying info on each shm-connected device
 
 // ******************************** UTILS ********************************* //
 
 // Returns the string representation of a bitmap; LSB is left most character
-char* bitmap_string(uint32_t bitmap) {
-    char str[33];
+void bitmap_string(uint32_t bitmap, char str[]) {
     for (int i = 0; i < 32; i++) {
         if (bitmap & (1 < i)) {
             str[i] = '1';
@@ -61,7 +68,6 @@ char* bitmap_string(uint32_t bitmap) {
         }
     }
     str[32] = '\0';
-    return str;
 }
 // ***************************** SHARED MEMORY ****************************** //
 
@@ -135,7 +141,8 @@ void init() {
     box(sub_win, 0, 0);
     // Device info (device data)
     device_win = newwin(DEVICE_HEIGHT, DEVICE_WIDTH, DEVICE_START_Y, DEVICE_START_X);
-    box(device_win, 0, 0);
+    mvwprintw(device_win, 1, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+
     refresh();
 }
 
@@ -211,44 +218,71 @@ void display_gamepad_state() {
     wrefresh(gamepad_win);
 }
 
-// Displays a device's current state of parameters
+/**
+ * Displays a device's current state of parameters
+ * Arguments:
+ *    shm_idx: the index of shared memory of the device to display
+ */
 void display_device(int shm_idx) {
-    // Print
-    int line = 1; // Line number is relative to the window
-    mvwprintw(device_win, line++, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-    line++; // Leave a space between header and contents
-    mvwprintw(device_win, line++, 1, "dev_ix = 0: name = SimpleTestDevice, type = 62, year = 62, uid = %llu", 1);
+    // Get newest shm data
+    get_catalog(&catalog);
+    get_device_identifiers(dev_ids);
+    // Device is not connected at this shared memory index
+    if (!(catalog & (1 << shm_idx))) {
+        mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, "Use the left and right arrow keys to inspect the previous or next device!");
+        box(device_win, 0, 0);
+        wrefresh(device_win);
+        return;
+    }
+    int line = 3;
+    const int table_header_line = line + 1;
 
-    // Column start of each column
-    const int value_width = strlen("123.000000") + 2; // String representation of float length
-    const int param_idx_col = 5;
-    const int param_name_col = param_idx_col + strlen("Param Idx") + 2;
-    const int command_val_col = param_name_col + strlen("increasing_even") + 2; // Sample long parameter name
-    const int data_val_col = command_val_col + value_width;
-
-    // Create table with schema (param_idx (int), name (str), command (variable), data (variable))
-    mvwprintw(device_win, line, param_idx_col, "Param Idx");
-    mvwprintw(device_win, line, param_name_col, "Parameter Name");
-    mvwprintw(device_win, line, command_val_col, "Command");
-    mvwprintw(device_win, line, data_val_col, "Data");
-    mvwhline(device_win, line + 1, param_idx_col, 0, data_val_col + value_width - 6); // Horizontal line
-    // Vertical Lines
-    mvwvline(device_win, line, param_name_col - 1, 0, MAX_PARAMS + 2);
-    mvwvline(device_win, line, command_val_col - 1, 0, MAX_PARAMS + 2);
-    mvwvline(device_win, line, data_val_col - 1, 0, MAX_PARAMS + 2);
+    // Print current device
+    device_t* device = get_device(dev_ids[shm_idx].type);
+    wclrtoeol(device_win); // Clear previous string
+    mvwprintw(device_win, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type,  dev_ids[shm_idx].year,  dev_ids[shm_idx].uid);
     line += 2;
 
-    // Print values
-    int num_params = MAX_PARAMS; // TODO
-    for (int i = 0; i < num_params; i++) {
+    // Print all command values and data values
+    param_val_t command_vals[device->num_params];
+    param_val_t data_vals[device->num_params];
+    device_read(shm_idx, EXECUTOR, COMMAND, ~0, command_vals);
+    device_read(shm_idx, EXECUTOR, DATA, ~0, data_vals);
+    for (int i = 0; i < device->num_params; i++) {
+        wclrtoeol(device_win); // Clear previous joystick position
         mvwprintw(device_win, line, param_idx_col, "%d", i);
-        mvwprintw(device_win, line, param_name_col, "%s", "increasing_even");
-        mvwprintw(device_win, line, command_val_col, "0.000000");
-        mvwprintw(device_win, line, data_val_col, "0.000000");
-        line++;
+        mvwprintw(device_win, line, param_name_col, "%s", device->params[i].name);
+        switch (device->params[i].type) {
+            case INT:
+                mvwprintw(device_win, line, command_val_col, "%d", command_vals[i].p_i);
+                mvwprintw(device_win, line, data_val_col, "%d", data_vals[i].p_i);
+                break;
+            case FLOAT:
+                mvwprintw(device_win, line, command_val_col, "%f", command_vals[i].p_f);
+                mvwprintw(device_win, line, data_val_col, "%f", data_vals[i].p_f);
+                break;
+            case BOOL:
+                mvwprintw(device_win, line, command_val_col, "%s", command_vals[i].p_b ? "TRUE" : "FALSE");
+                mvwprintw(device_win, line, data_val_col, "%s", data_vals[i].p_b ? "TRUE" : "FALSE");
+                break;
+        }
+        wmove(gamepad_win, ++line, 5);
     }
 
+    // Draw table with schema (param_idx (int), name (str), command (variable), data (variable))
+    mvwprintw(device_win, table_header_line, param_idx_col, "Param Idx");
+    mvwprintw(device_win, table_header_line, param_name_col, "Parameter Name");
+    mvwprintw(device_win, table_header_line, command_val_col, "Command");
+    mvwprintw(device_win, table_header_line, data_val_col, "Data");
+    mvwhline(device_win, table_header_line + 1, param_idx_col, 0, data_val_col + value_width - 6); // Horizontal line
+    // Vertical Lines
+    mvwvline(device_win, table_header_line, param_name_col - 1, 0, MAX_PARAMS + 2);
+    mvwvline(device_win, table_header_line, command_val_col - 1, 0, MAX_PARAMS + 2);
+    mvwvline(device_win, table_header_line, data_val_col - 1, 0, MAX_PARAMS + 2);
+
+    // Box and refresh
     mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, "Use the left and right arrow keys to inspect the previous or next device!");
+    box(device_win, 0, 0);
     wrefresh(device_win);
 }
 
@@ -276,12 +310,12 @@ int main(int argc, char** argv) {
     // signal handler to clean up shm
     signal(SIGINT, sigint_handler);
 
-    // Start UI
-    initscr();
-
     // Start shm
     start_shm();
     sleep(1); // ALlow shm to initialize
+
+    // Start UI
+    initscr();
 
     // Init variables
     init();
@@ -289,13 +323,14 @@ int main(int argc, char** argv) {
     // Update windows
     int loop_ctr = 0;
     while (1) {
-        get_catalog(&catalog);
+        // Update UI
         display_robot_desc();
         display_gamepad_state();
-        display_device(0);
+        display_device(0); // TODO: Show device based on arrow keys
         display_subscriptions();
+        // Throttle refresh rate
         sleep(1); // TODO: Use FPS
-        mvprintw(0, 0, "loop %d; Catalog: %s", loop_ctr++, bitmap_string(catalog));
+        mvprintw(0, 0, "loop %d; Catalog: 0x%016X", loop_ctr++, catalog);
         refresh();
     }
 
