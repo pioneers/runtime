@@ -32,6 +32,10 @@ net_handler_cli: cli/net_handler_cli.o client/net_handler_client.o ../net_handle
 shm_cli: cli/shm_cli.o client/shm_client.o ../shm_wrapper/shm_wrapper.o \
 	../runtime_util/runtime_util.o ../logger/logger.o
 	$(CC) $^ -o $@ $(LIBS)
+	
+shm_ui: cli/shm_ui.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c
+	gcc -lncurses $^ -o $@ $(LIBS)
+	./shm_ui
 
 executor_cli: cli/executor_cli.o client/executor_client.o ../runtime_util/runtime_util.o \
 	../logger/logger.o
