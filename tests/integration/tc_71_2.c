@@ -7,16 +7,6 @@
  * exception occurs.
  */
 
-char check_output_1[] = "Autonomous setup has begun!\n";
-
-char check_output_2[] = "autonomous printing again\n";
-
-char check_output_3[] = "\tRUN_MODE = AUTO\n";
-
-char check_output_4[] = "\tRUN_MODE = IDLE\n";
-
-char check_output_5[] =
-    "Traceback (most recent call last):\n";
 
 // we have to skip the File: <file path> because on the pi it's /home/pi/runtime
 // but on Docker it's /root/runtime
@@ -25,60 +15,44 @@ char check_output_6[] =
     "    oops = 1 / 0\n"
     "ZeroDivisionError: division by zero\n";
 
-char check_output_7[] = "Python function teleop_main call failed\n";
-
-char check_output_8[] = "\tRUN_MODE = TELEOP\n";
-
 char check_output_9[] =
     "Challenge 0 result: 9302\n"
     "Challenge 1 result: [2, 661, 35963]";
 
-char check_output_10[] = "Suppressing output: too many messages...";
-
 int main() {
     // set everything up
-    start_test("executor sanity test");
-    start_shm();
-    start_net_handler();
-    start_executor("executor_sanity", "executor_sanity");
+    start_test("executor sanity test", "executor_sanity", "executor_sanity", NO_REGEX);
 
     // poke the system
     // this section checks the autonomous code (should generate some print statements)
     send_start_pos(SHEPHERD, RIGHT);
+    add_ordered_string_output("Autonomous setup has begun!\n");
+
+    // Verify auto mode
     send_run_mode(SHEPHERD, AUTO);
+    add_ordered_string_output("autonomous printing again\n");
     sleep(1);
-    print_shm();
-    sleep(2);
+    check_run_mode(AUTO);
+
+    // Verify idle mode
     send_run_mode(SHEPHERD, IDLE);
-    print_shm();
+    sleep(1);
+    check_run_mode(IDLE);
 
     // this section checks the teleop code (should generate division by zero error)
     send_run_mode(DAWN, TELEOP);
-    print_shm();
+    add_ordered_string_output("Traceback (most recent call last):\n");
+    add_ordered_string_output(check_output_6);
+    add_ordered_string_output("Python function teleop_main call failed\n");
+    check_run_mode(TELEOP);
+
     send_run_mode(DAWN, IDLE);
-    print_shm();
 
     // this section runs the coding challenges (should not error or time out)
     char* inputs[] = {"2039", "190172344"};
     send_challenge_data(DAWN, inputs, 2);
+    add_ordered_string_output(check_output_9);
 
-    // stop all the processes
-    stop_executor();
-    stop_net_handler();
-    stop_shm();
     end_test();
-
-    // check outputs
-    in_rest_of_output(check_output_1, NO_REGEX);
-    in_rest_of_output(check_output_2, NO_REGEX);
-    in_rest_of_output(check_output_3, NO_REGEX);
-    in_rest_of_output(check_output_2, NO_REGEX);
-    in_rest_of_output(check_output_4, NO_REGEX);
-    in_rest_of_output(check_output_5, NO_REGEX);
-    in_rest_of_output(check_output_6, NO_REGEX);
-    in_rest_of_output(check_output_7, NO_REGEX);
-    in_rest_of_output(check_output_8, NO_REGEX);
-    in_rest_of_output(check_output_9, NO_REGEX);
-
     return 0;
 }

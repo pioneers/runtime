@@ -5,32 +5,19 @@
  */
 #include "../test.h"
 
-char no_device[] = "no connected devices";
-char unknown_device[] = "A non-PiE device was recently plugged in. Please unplug immediately";
+#define UID 0x123
 
 int main() {
     // Setup
-    start_test("Hotplug UnresponsiveTestDevice");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
-    sleep(1);
+    start_test("Hotplug UnresponsiveTestDevice", "", "", NO_REGEX);
 
     // Connect an UnresponsiveTestDevice
-    print_dev_ids();                                          // No device
-    connect_virtual_device("UnresponsiveTestDevice", 0x123);  // Unknown device
+    check_device_not_connected(UID);
+    connect_virtual_device("UnresponsiveTestDevice", UID);
     sleep(2);
-    print_dev_ids();  // No device
+    check_device_not_connected(UID);
 
     // Clean up
-    disconnect_all_devices();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
-
-    in_rest_of_output(no_device, NO_REGEX);
-    in_rest_of_output(unknown_device, NO_REGEX);
-    in_rest_of_output(no_device, NO_REGEX);
     return 0;
 }
