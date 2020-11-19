@@ -44,10 +44,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
 
 int main() {
     // setup
-    start_test("device subscription test");
-    start_shm();
-    start_net_handler();
-    start_dev_handler();
+    start_test("device subscription test", "", "", NO_REGEX);
     dev_subs[0] = dev1_subs;
     dev_subs[1] = dev2_subs;
 
@@ -63,66 +60,55 @@ int main() {
     // verify that we're receiving all parameters
     sleep(1);
     print_next_dev_data();
-
+    add_ordered_string_output(dev1_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(flipflop);
+    add_ordered_string_output(myint);
+    add_ordered_string_output(dev2_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(flipflop);
+    add_ordered_string_output(myint);
+    add_ordered_string_output(custom_dev_header);
     // send subs that requests only a few parameters
     send_subs(0b11, 0b101);
+    add_ordered_string_output(dev1_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(dev2_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(flipflop);
+    add_ordered_string_output(custom_dev_header);
 
     // send subs that requests fewer parameters
     send_subs(0b1, 0b100);
+    add_ordered_string_output(dev1_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(dev2_header);
+    add_ordered_string_output(flipflop);
+    add_ordered_string_output(custom_dev_header);
 
-    // send subs that requests more parameters
     send_subs(0b11, 0b11);
+    add_ordered_string_output(dev1_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(dev2_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(custom_dev_header);
 
     // send subs that requests the same parameters as last time
     send_subs(0b11, 0b11);
-
+    add_ordered_string_output(dev1_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(dev2_header);
+    add_ordered_string_output(increasing);
+    add_ordered_string_output(doubling);
+    add_ordered_string_output(custom_dev_header);
     // stop the system
-    disconnect_all_devices();
-    stop_dev_handler();
-    stop_net_handler();
-    stop_shm();
     end_test();
-
-    // check outputs
-    // first sub request
-    in_rest_of_output(dev1_header, NO_REGEX);
-    in_rest_of_output(increasing, NO_REGEX);
-    in_rest_of_output(doubling, NO_REGEX);
-    in_rest_of_output(flipflop, NO_REGEX);
-    in_rest_of_output(myint, NO_REGEX);
-    in_rest_of_output(dev2_header, NO_REGEX);
-    in_rest_of_output(increasing, NO_REGEX);
-    in_rest_of_output(doubling, NO_REGEX);
-    in_rest_of_output(flipflop, NO_REGEX);
-    in_rest_of_output(myint, NO_REGEX);
-    in_rest_of_output(custom_dev_header, NO_REGEX);
-
-    // second sub request
-    in_rest_of_output(dev1_header, NO_REGEX);
-    in_rest_of_output(increasing, NO_REGEX);
-    in_rest_of_output(doubling, NO_REGEX);
-    in_rest_of_output(dev2_header, NO_REGEX);
-    in_rest_of_output(increasing, NO_REGEX);
-    in_rest_of_output(flipflop, NO_REGEX);
-    in_rest_of_output(custom_dev_header, NO_REGEX);
-
-    // third sub request
-    in_rest_of_output(dev1_header, NO_REGEX);
-    in_rest_of_output(increasing, NO_REGEX);
-    in_rest_of_output(dev2_header, NO_REGEX);
-    in_rest_of_output(flipflop, NO_REGEX);
-    in_rest_of_output(custom_dev_header, NO_REGEX);
-
-    // fourth and fifth sub requests
-    for (int i = 0; i < 2; i++) {
-        in_rest_of_output(dev1_header, NO_REGEX);
-        in_rest_of_output(increasing, NO_REGEX);
-        in_rest_of_output(doubling, NO_REGEX);
-        in_rest_of_output(dev2_header, NO_REGEX);
-        in_rest_of_output(increasing, NO_REGEX);
-        in_rest_of_output(doubling, NO_REGEX);
-        in_rest_of_output(custom_dev_header, NO_REGEX);
-    }
 
     return 0;
 }
