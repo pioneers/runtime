@@ -7,7 +7,7 @@
 set -e
 
 UPDATE_ZIP='/tmp/runtime.zip'
-DEST='/home/pi/test'
+DEST='/home/pi/'
 
 while [ ! -f $UPDATE_ZIP ]
 do
@@ -21,7 +21,7 @@ SERVICES="executor dev_handler net_handler shm_stop shm_start"
 
 cd systemd && sudo systemctl stop $SERVICES
 
-unzip -o /tmp/runtime.zip -d ~/
+unzip -o $UPDATE_ZIP -d $DEST
 
 printf "Zip file extracted, robot rebooting\n"
 sudo shutdown -r now
