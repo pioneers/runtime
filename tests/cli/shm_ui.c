@@ -8,6 +8,7 @@
 
 #include "../../shm_wrapper/shm_wrapper.h"
 #include "../../runtime_util/runtime_util.h"
+#include "../../logger/logger.h"
 
 // Constants for defining the refresh rate of the UI
 // This is also how often we poll shared memory for updates
@@ -55,6 +56,7 @@ char** joystick_names;
 char** button_names;
 uint32_t catalog = 0; // Shared memory catalog (bitmap of connected devices)
 dev_id_t dev_ids[MAX_DEVICES]; // Device identifying info on each shm-connected device
+int blank_device_win = 0; // Bool of whether the device_win is currently blank
 
 // ******************************** UTILS ********************************* //
 
@@ -69,6 +71,7 @@ void bitmap_string(uint32_t bitmap, char str[]) {
     }
     str[32] = '\0';
 }
+
 // ***************************** SHARED MEMORY ****************************** //
 
 void start_shm() {
@@ -138,7 +141,7 @@ void init() {
     mvwprintw(gamepad_win, 1, 1, "~~~~~~~~~~Gamepad State~~~~~~~~~~");
     // Subscriptions (devices and parameters)
     sub_win = newwin(SUB_HEIGHT, SUB_WIDTH, SUB_START_Y, SUB_START_X);
-    box(sub_win, 0, 0);
+    mvwprintw(sub_win, 1, 1, "~~~~~~~~~~~~~~~~~SUBSCRIPTIONS~~~~~~~~~~~~~~~~~~");
     // Device info (device data)
     device_win = newwin(DEVICE_HEIGHT, DEVICE_WIDTH, DEVICE_START_Y, DEVICE_START_X);
     mvwprintw(device_win, 1, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
@@ -224,32 +227,47 @@ void display_gamepad_state() {
  *    shm_idx: the index of shared memory of the device to display
  */
 void display_device(int shm_idx) {
-    // Get newest shm data
-    get_catalog(&catalog);
-    get_device_identifiers(dev_ids);
     // Device is not connected at this shared memory index
     if (!(catalog & (1 << shm_idx))) {
+        // Clear the window if not clear already
+        if (!blank_device_win) {
+            wclear(device_win);
+            mvwprintw(device_win, 1, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+            mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, "Use the left and right arrow keys to inspect the previous or next device!");
+            box(device_win, 0, 0);
+            wrefresh(device_win);
+            blank_device_win = 1; // Flag that the device window is cleared
+        }
+        return;
+    } else if (blank_device_win) { // Window was previously clear; Put back title and box
+        mvwprintw(device_win, 1, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
         mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, "Use the left and right arrow keys to inspect the previous or next device!");
         box(device_win, 0, 0);
         wrefresh(device_win);
-        return;
+        blank_device_win = 0;
+    } else { // Switching from one connected device to another
+        log_printf(DEBUG, "Displaying connected device; blank_device_win = 0");
     }
+
     int line = 3;
     const int table_header_line = line + 1;
 
     // Print current device
     device_t* device = get_device(dev_ids[shm_idx].type);
+    if (device == NULL) {
+        log_printf(DEBUG, "device == NULL");
+    }
     wclrtoeol(device_win); // Clear previous string
     mvwprintw(device_win, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type,  dev_ids[shm_idx].year,  dev_ids[shm_idx].uid);
     line += 2;
 
     // Print all command values and data values
-    param_val_t command_vals[device->num_params];
-    param_val_t data_vals[device->num_params];
+    param_val_t command_vals[MAX_PARAMS];
+    param_val_t data_vals[MAX_PARAMS];
     device_read(shm_idx, EXECUTOR, COMMAND, ~0, command_vals);
     device_read(shm_idx, EXECUTOR, DATA, ~0, data_vals);
     for (int i = 0; i < device->num_params; i++) {
-        wclrtoeol(device_win); // Clear previous joystick position
+        wclrtoeol(device_win); // Clear previous parameter entry
         mvwprintw(device_win, line, param_idx_col, "%d", i);
         mvwprintw(device_win, line, param_name_col, "%s", device->params[i].name);
         switch (device->params[i].type) {
@@ -266,7 +284,12 @@ void display_device(int shm_idx) {
                 mvwprintw(device_win, line, data_val_col, "%s", data_vals[i].p_b ? "TRUE" : "FALSE");
                 break;
         }
-        wmove(gamepad_win, ++line, 5);
+        wmove(device_win, ++line, 5);
+    }
+    // Clear non-existent parameters
+    for (int i = device->num_params; i < MAX_PARAMS; i++) {
+        wclrtoeol(device_win); // Clear previous joystick position
+        wmove(device_win, ++line, 5);
     }
 
     // Draw table with schema (param_idx (int), name (str), command (variable), data (variable))
@@ -288,15 +311,27 @@ void display_device(int shm_idx) {
 
 // Displays the changed and requested devices and params
 void display_subscriptions() {
-    int line = 1; // Line number is relative to the window
-    mvwprintw(sub_win, line++, 1, "~~~~~~~~~~~~~~~~~SUBSCRIPTIONS~~~~~~~~~~~~~~~~~~");
-    line++; // Leave a space between header and contents
-    mvwprintw(sub_win, line++, 1, "Devices:");
+    // Get shm subscriptions
+    uint32_t sub_map[MAX_DEVICES + 1];
+    get_sub_requests(sub_map, DEV_HANDLER);
+
+    // Print device subscription bitmap
+    int line = 3;
+    mvwprintw(sub_win, line++, 1, "Devices: 0x%llX", sub_map[0]);
     line++;
+
+    // Print parameter subscriptions (one bitmap for each device)
     mvwprintw(sub_win, line++, 1, "Parameters:");
     for (int i = 0; i < MAX_DEVICES; i++) {
-        mvwprintw(sub_win, line++, 5, "Device %02d: %032d", i, 0); // TODO:
+        wclrtoeol(sub_win);
+        if (sub_map[0] & (1 << i)) {
+            mvwprintw(sub_win, line, 5, "Device %02d: 0x%llX", i, sub_map[i]);
+        }
+        wmove(gamepad_win, ++line, 5);
     }
+
+    // Box and refresh
+    box(sub_win, 0, 0);
     wrefresh(sub_win);
 }
 
@@ -309,6 +344,7 @@ void sigint_handler(int signum) {
 int main(int argc, char** argv) {
     // signal handler to clean up shm
     signal(SIGINT, sigint_handler);
+    logger_init(TEST);
 
     // Start shm
     start_shm();
@@ -320,17 +356,45 @@ int main(int argc, char** argv) {
     // Init variables
     init();
 
+    // Turn on keyboard input for device_win
+    keypad(device_win, 1);
+    nodelay(device_win, 1); // Make getch() non-blocking (return ERR if no input)
+
     // Update windows
     int loop_ctr = 0;
+    int device_selection = 0;
     while (1) {
+        // Handle selection based on arrow keys and catalog state
+        switch (wgetch(device_win)) {
+            case KEY_LEFT:
+                // Move selection to next lowest connected device or 0
+                if (device_selection > 0) {
+                    device_selection--;
+                }
+                break;
+            case KEY_RIGHT:
+                // Move selection to next lowest connected device or MAX_DEVICES - 1
+                if (device_selection < MAX_DEVICES - 1) {
+                    device_selection++;
+                }
+                break;
+            default:
+                break;
+        }
+
+        // Get newest shm data
+        get_catalog(&catalog);
+        get_device_identifiers(dev_ids);
+
         // Update UI
         display_robot_desc();
         display_gamepad_state();
-        display_device(0); // TODO: Show device based on arrow keys
+        display_device(device_selection);
         display_subscriptions();
+
         // Throttle refresh rate
-        sleep(1); // TODO: Use FPS
-        mvprintw(0, 0, "loop %d; Catalog: 0x%016X", loop_ctr++, catalog);
+        usleep(50000); // TODO: Use FPS (1/FPS  100000)
+        mvprintw(0, 0, "loop %d; Catalog: 0x%016X; device_selection: %02d", loop_ctr++, catalog, device_selection);
         refresh();
     }
 
