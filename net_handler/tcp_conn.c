@@ -231,7 +231,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
             uint32_t requests = 0;
             for (int j = 0; j < req_device->n_params; j++) {
                 // Place a sub request for each parameter that has its boolean value set to 1
-                if (req_device->params[i]->val_case == PARAM__VAL_BVAL) {
+                if (req_device->params[j]->val_case == PARAM__VAL_BVAL) {
                     requests |= (req_device->params[j]->bval << j);
                 }
             }
