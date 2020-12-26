@@ -28,11 +28,11 @@
 #define SHEPHERD_PORT 6101      // Port for Shepherd as a TCP socket client
 #define DAWN_PORT 7101          // Port for Dawn as a TCP socket client
 
-#define RASPI_UDP_PORT 9000     // Port for Runtime as a UDP socket server
+#define RASPI_UDP_PORT 9000  // Port for Runtime as a UDP socket server
 
-#define MAX_NUM_LOGS 16         // Maximum number of logs that can be sent in one msg
+#define MAX_NUM_LOGS 16  // Maximum number of logs that can be sent in one msg
 
-#define BUFFER_OFFSET 3         // Num bytes at the beginning of a buffer for metadata (message type and length) See net_util::make_buf()
+#define BUFFER_OFFSET 3  // Num bytes at the beginning of a buffer for metadata (message type and length) See net_util::make_buf()
 
 //All the different possible messages the network handler works with. The order must be the same between net_handler and clients
 typedef enum net_msg {
