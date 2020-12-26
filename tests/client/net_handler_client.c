@@ -52,9 +52,9 @@ static int connect_tcp(robot_desc_field_t client) {
     }
 
     // set the elements of serv_addr
-    struct sockaddr_in serv_addr = {0};      // initialize everything to 0
-    serv_addr.sin_family = AF_INET;          // use IPv4
-    serv_addr.sin_port = htons(RASPI_PORT);  // want to connect to raspi port
+    struct sockaddr_in serv_addr = {0};          // initialize everything to 0
+    serv_addr.sin_family = AF_INET;              // use IPv4
+    serv_addr.sin_port = htons(RASPI_TCP_PORT);  // want to connect to raspi port
     serv_addr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
 
     // connect to the server
