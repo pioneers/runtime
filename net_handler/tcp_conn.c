@@ -49,7 +49,7 @@ static void tcp_conn_cleanup(void* args) {
 static void send_log_msg(int conn_fd, FILE* log_file) {
     char nextline[MAX_LOG_LEN];  //next log line read from FIFO pipe
     Text log_msg = TEXT__INIT;   //initialize a new Text protobuf message
-    log_msg.n_payload = 0;      // The number of logs in this payload
+    log_msg.n_payload = 0;       // The number of logs in this payload
     log_msg.payload = malloc(MAX_NUM_LOGS * sizeof(char*));
     if (log_msg.payload == NULL) {
         log_printf(FATAL, "send_log_msg: Failed to malloc payload for logs");
