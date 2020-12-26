@@ -23,16 +23,16 @@
 #include "pbc_gen/start_pos.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
 
-#define RASPI_ADDR "127.0.0.1"
-#define RASPI_PORT 8101  //well-known port of TCP listening socket used by runtime on raspi
-#define SHEPHERD_PORT 6101
-#define DAWN_PORT 7101
+#define RASPI_ADDR "127.0.0.1"  // The IP address of Runtime (Raspberry Pi) that clients can request a connection to
+#define RASPI_TCP_PORT 8101     // Port for Runtime as a TCP socket server
+#define SHEPHERD_PORT 6101      // Port for Shepherd as a TCP socket client
+#define DAWN_PORT 7101          // Port for Dawn as a TCP socket client
 
-#define RASPI_UDP_PORT 9000
+#define RASPI_UDP_PORT 9000     // Port for Runtime as a UDP socket server
 
-#define MAX_NUM_LOGS 16  //maximum number of logs that can be sent in one msg
+#define MAX_NUM_LOGS 16         // Maximum number of logs that can be sent in one msg
 
-#define BUFFER_OFFSET 3
+#define BUFFER_OFFSET 3         // Num bytes at the beginning of a buffer for metadata (message type and length) See net_util::make_buf()
 
 //All the different possible messages the network handler works with. The order must be the same between net_handler and clients
 typedef enum net_msg {
@@ -47,15 +47,12 @@ typedef enum net_msg {
 
 /*
  * Prepares a buffer of uint8_t for receiving a packed protobuf message of the specified type and length.
- * Also converts the specified length of message from unsigned to uint16_t and returns it in the third argument.
- * Returns the prepared buffer containing the message type in the first element and the length in the second and third elements.
  * The prepared buffer must be freed by the caller.
  * Arguments:
  *    - net_msg_t msg_type: one of the message types defined in net_util.h
  *    - unsigned len_pb: length of the serialized bytes returned by the protobuf function *__get_packed_size()
- *    - uint16_t *len_pb_uint16: upon successful return, will hold the given len_pb as a uint16_t (useful for pointer arithmetic)
  * Return:
- *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
+ *    - pointer to uint8_t that was malloc'ed, with the first BUFFER_OFFSET bytes set appropriately and with exactly enough space
  *      to fit the rest of the serialized message into
  */
 uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb);
