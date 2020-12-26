@@ -29,7 +29,7 @@ static int socket_setup(int* sockfd) {
     //set the elements of serv_addr
     serv_addr.sin_family = AF_INET;                 //use IPv4
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);  //use any IP interface on raspi
-    serv_addr.sin_port = htons(RASPI_PORT);         //assign a port number
+    serv_addr.sin_port = htons(RASPI_TCP_PORT);         //assign a port number
 
     //bind socket to well-known IP_addr:port
     if ((bind(*sockfd, (struct sockaddr*) &serv_addr, sizeof(struct sockaddr_in))) != 0) {

@@ -49,10 +49,10 @@ static void tcp_conn_cleanup(void* args) {
 static void send_log_msg(int conn_fd, FILE* log_file) {
     char nextline[MAX_LOG_LEN];  //next log line read from FIFO pipe
     Text log_msg = TEXT__INIT;   //initialize a new Text protobuf message
-    log_msg.n_payload = 0;
+    log_msg.n_payload = 0;      // The number of logs in this payload
     log_msg.payload = malloc(MAX_NUM_LOGS * sizeof(char*));
     if (log_msg.payload == NULL) {
-        log_printf(FATAL, "send_log_msg: Failed to malloc");
+        log_printf(FATAL, "send_log_msg: Failed to malloc payload for logs");
         exit(1);
     }
 
@@ -61,7 +61,7 @@ static void send_log_msg(int conn_fd, FILE* log_file) {
         if (fgets(nextline, MAX_LOG_LEN, log_file) != NULL) {
             log_msg.payload[log_msg.n_payload] = malloc(strlen(nextline) + 1);
             if (log_msg.payload[log_msg.n_payload] == NULL) {
-                log_printf(FATAL, "send_log_msg: Failed to malloc");
+                log_printf(FATAL, "send_log_msg: Failed to malloc log message of length %d", strlen(nextline) + 1);
                 exit(1);
             }
             strcpy(log_msg.payload[log_msg.n_payload], nextline);
@@ -225,10 +225,12 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
             log_printf(ERROR, "recv_new_msg: Cannot unpack dev_data msg");
             return -2;
         }
+        // For each device, place sub requests for the requested parameters
         for (int i = 0; i < dev_data_msg->n_devices; i++) {
             Device* req_device = dev_data_msg->devices[i];
             uint32_t requests = 0;
             for (int j = 0; j < req_device->n_params; j++) {
+                // Place a sub request for each parameter that has its boolean value set to 1
                 if (req_device->params[i]->val_case == PARAM__VAL_BVAL) {
                     requests |= (req_device->params[j]->bval << j);
                 }

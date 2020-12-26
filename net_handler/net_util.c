@@ -1,18 +1,5 @@
 #include "net_util.h"
 
-/*
- * Prepares a buffer of uint8_t for receiving a packed protobuf message of the specified type and length.
- * Also converts the specified length of message from unsigned to uint16_t and returns it in the third argument.
- * Returns the prepared buffer containing the message type in the first element and the length in the second and third elements.
- * The prepared buffer must be freed by the caller.
- * Arguments:
- *    - net_msg_t msg_type: one of the message types defined in net_util.h
- *    - unsigned len_pb: length of the serialized bytes returned by the protobuf function *__get_packed_size()
- *    - uint16_t *len_pb_uint16: upon successful return, will hold the given len_pb as a uint16_t (useful for pointer arithmetic)
- * Return:
- *    - pointer to uint8_t that was malloc'ed, with the first three bytes set appropriately and with exactly enough space
- *      to fit the rest of the serialized message into
- */
 uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb) {
     uint8_t* send_buf = malloc(len_pb + 3);
     if (send_buf == NULL) {
@@ -26,18 +13,6 @@ uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb) {
     return send_buf;
 }
 
-/*
- * Parses a message from the given file descriptor into its separate components and stores them in provided pointers
- * Arguments:
- *    - int *fd: pointer to file descriptor from which to read the incoming message
- *    - net_msg_t *msg_type: message type of the incoming message will be stored in this location upon successful return
- *    - uint16_t *len_pb: serialized length, in bytes, of the incoming message will be stored in this location upon successful return
- *    - uint8_t *buf: serialized message will be stored starting at this location upon successful return
- * Return:
- *    - 1: successful return
- *    - 0: EOF encountered when reading from fd
- *    - -1: Error encountered when reading from fd
- */
 int parse_msg(int fd, net_msg_t* msg_type, uint16_t* len_pb, uint8_t** buf) {
     int result;
     uint8_t type;
