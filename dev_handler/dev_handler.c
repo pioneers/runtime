@@ -439,7 +439,7 @@ void* receiver(void* relay_cast) {
             // Message was broken... try to read the next message
             continue;
         }
-        if (msg->message_id == DEVICE_DATA || msg->message_id != LOG) {
+        if (msg->message_id == DEVICE_DATA || msg->message_id == LOG) {
             // Update last received message time
             pthread_mutex_lock(&relay->relay_lock);
             relay->last_received_msg_time = millis();
