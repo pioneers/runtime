@@ -61,20 +61,20 @@ typedef enum {
 
 // TODO: write a descriptive comment here once we know this works
 static void handle_enc_a_tick() {
-    if (digitalRead(AENC2)) {
-        enc_a++;
-    } else {
-        enc_a--;
-    }
+	if (digitalRead(AENC2)) {
+		enc_a++;
+	} else {
+		enc_a--;
+	}
 }
 
 // TODO: write a descriptive comment here once we know this works
 static void handle_enc_b_tick() {
-    if (digitalRead(BENC2)) {
-        enc_b++;
-    } else {
-        enc_b--;
-    }
+	if (digitalRead(BENC2)) {
+		enc_b++;
+	} else {
+		enc_b--;
+	}
 }
 
 //*********************************** MAIN KOALABEAR CODE ***********************************//
@@ -87,7 +87,7 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
     // initialize encoders
     enc_a = enc_b = 0.0;
     attachInterrupt(digitalPinToInterrupt(AENC1), handle_enc_a_tick, RISING);  // set interrupt service routines for encoder pins
-    attachInterrupt(digitalPinToInterrupt(BENC1), handle_enc_b_tick, RISING);
+    attachInterrupt(digitalPinToInterrupt(BENC2), handle_enc_b_tick, RISING);
 
     // initialize PID controllers
     this->pid_a = new PID();

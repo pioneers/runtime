@@ -12,7 +12,7 @@ const int Messenger::PAYLOAD_SIZE_BYTES = 1;  // Bytes in payload size field of 
 const int Messenger::CHECKSUM_BYTES = 1;      // Bytes in checksum field of packet
 
 // Sizes for ACKNOWLEDGEMENT message
-const int Messenger::DEV_ID_TYPE_BYTES = 2;  // Bytes in device type field of dev id
+const int Messenger::DEV_ID_TYPE_BYTES = 1;  // Bytes in device type field of dev id
 const int Messenger::DEV_ID_YEAR_BYTES = 1;  // Bytes in year field of dev id
 const int Messenger::DEV_ID_UID_BYTES = 8;   // Bytes in uid field of dev id
 
