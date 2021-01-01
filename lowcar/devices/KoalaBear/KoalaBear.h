@@ -38,7 +38,6 @@ class KoalaBear : public Device {
     float target_speed_a, target_speed_b;  // target speeds of motors
     float deadband_a, deadband_b;          // deadbands of motors
     uint8_t pid_enabled_a, pid_enabled_b;  // whether or not motors are enabled
-    volatile uint32_t enc_a, enc_b;        // encoder values of motors
     PID *pid_a, *pid_b;                    // PID controllers for motors
     LEDKoala* led;                         // for controlling the KoalaBear LED
     unsigned long prev_led_time;
