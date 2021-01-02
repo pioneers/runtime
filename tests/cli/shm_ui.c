@@ -228,21 +228,23 @@ void display_gamepad_state() {
  *    shm_idx: the index of shared memory of the device to display
  */
 void display_device(int shm_idx) {
+    const char* window_header = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
+    const char* note = "Use the left and right arrow keys to inspect the previous or next device!";
     // Device is not connected at this shared memory index
     if (!(catalog & (1 << shm_idx))) {
         // Clear the window if not clear already
         if (!blank_device_win) {
             wclear(device_win);
-            mvwprintw(device_win, 1, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-            mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, "Use the left and right arrow keys to inspect the previous or next device!");
+            mvwprintw(device_win, 1, 1, window_header);
+            mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, note);
             box(device_win, 0, 0);
             wrefresh(device_win);
             blank_device_win = 1; // Flag that the device window is cleared
         }
         return;
     } else if (blank_device_win) { // Window was previously clear; Put back title and box
-        mvwprintw(device_win, 1, 1, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Description~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-        mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, "Use the left and right arrow keys to inspect the previous or next device!");
+        mvwprintw(device_win, 1, 1, window_header);
+        mvwprintw(device_win, DEVICE_HEIGHT - 2, 1, note);
         box(device_win, 0, 0);
         wrefresh(device_win);
         blank_device_win = 0;
@@ -265,36 +267,43 @@ void display_device(int shm_idx) {
     // Print all command values and data values
     param_val_t command_vals[MAX_PARAMS];
     param_val_t data_vals[MAX_PARAMS];
+    uint32_t cmd_map_all_devs[MAX_DEVICES + 1];
+    get_cmd_map(cmd_map_all_devs);
+    uint32_t cmd_map = cmd_map_all_devs[shm_idx + 1]; // We care about only the specified device
     device_read(shm_idx, EXECUTOR, COMMAND, ~0, command_vals);
     device_read(shm_idx, EXECUTOR, DATA, ~0, data_vals);
+    int display_cmd_val; // Flag for whether we should display the command value for a parameter
     for (int i = 0; i < device->num_params; i++) {
         wclrtoeol(device_win); // Clear previous parameter entry
         // For each parameter, print the index and its name
         mvwprintw(device_win, line, param_idx_col, "%d", i);
         mvwprintw(device_win, line, param_name_col, "%s", device->params[i].name);
-        // Print the command stream value and the data stream value
-        // If the parameter is read-only, display "RD_ONLY" instead of its command value
+        // Determine whether we need to display the command value
+        if (device->params[i].write == 0) { // Read-only parameter
+            mvwprintw(device_win, line, command_val_col, "RD_ONLY");
+            display_cmd_val = 0;
+        } else if ((cmd_map & (1 << i)) == 0) { // No command to this parameter
+            mvwprintw(device_win, line, command_val_col, "NONE");
+            display_cmd_val = 0;
+        } else { // There is a command for the write-able parameter
+            display_cmd_val = 1;
+        }
+        // Display values according to the parameter's type
         switch (device->params[i].type) {
             case INT:
-                if (device->params[i].write == 0) {
-                    mvwprintw(device_win, line, command_val_col, "RD_ONLY");
-                } else {
+                if (display_cmd_val) {
                     mvwprintw(device_win, line, command_val_col, "%d", command_vals[i].p_i);
                 }
                 mvwprintw(device_win, line, data_val_col, "%d", data_vals[i].p_i);
                 break;
             case FLOAT:
-                if (device->params[i].write == 0) {
-                    mvwprintw(device_win, line, command_val_col, "RD_ONLY");
-                } else {
+                if (display_cmd_val) {
                     mvwprintw(device_win, line, command_val_col, "%f", command_vals[i].p_f);
                 }
                 mvwprintw(device_win, line, data_val_col, "%f", data_vals[i].p_f);
                 break;
             case BOOL:
-                if (device->params[i].write == 0) {
-                    mvwprintw(device_win, line, command_val_col, "RD_ONLY");
-                } else {
+                if (display_cmd_val) {
                     mvwprintw(device_win, line, command_val_col, "%s", command_vals[i].p_b ? "TRUE" : "FALSE");
                 }
                 mvwprintw(device_win, line, data_val_col, "%s", data_vals[i].p_b ? "TRUE" : "FALSE");
@@ -305,7 +314,7 @@ void display_device(int shm_idx) {
     }
     // Clear non-existent parameters
     for (int i = device->num_params; i < MAX_PARAMS; i++) {
-        wclrtoeol(device_win); // Clear previous joystick position
+        wclrtoeol(device_win);
         wmove(device_win, ++line, 5);
     }
 
