@@ -1,6 +1,6 @@
 #include "PID.h"
 
-#define MAX_TPS 2700.0   // maximum encoder ticks per second that a motor can go (determined empirically)
+#define MAX_TPS 2700.0  // maximum encoder ticks per second that a motor can go (determined empirically)
 
 PID::PID() {
     this->kp = this->ki = this->kd = 0.0;
@@ -11,11 +11,11 @@ PID::PID() {
 }
 
 float PID::compute(float curr_pos) {
-    unsigned long curr_time = micros();                                                                 // get the current time
-    float interval_secs = ((float) (curr_time - this->prev_time)) / 1000000.0;                         	// compute time passed between loops, in seconds
-    float desired_pos = this->prev_desired_pos + (velocity_to_tps(this->velocity) * interval_secs);		// compute the desired position at this time
-    float error = desired_pos - curr_pos;                                                               // compute the error as the set point (desired position) - process variable (current position)
-    this->integral += error * interval_secs;                                                            // compute the new value of this->integral using right-rectangle approximation
+    unsigned long curr_time = micros();                                                              // get the current time
+    float interval_secs = ((float) (curr_time - this->prev_time)) / 1000000.0;                       // compute time passed between loops, in seconds
+    float desired_pos = this->prev_desired_pos + (velocity_to_tps(this->velocity) * interval_secs);  // compute the desired position at this time
+    float error = desired_pos - curr_pos;                                                            // compute the error as the set point (desired position) - process variable (current position)
+    this->integral += error * interval_secs;                                                         // compute the new value of this->integral using right-rectangle approximation
 
     // output = kp * error + ki * integral of error * kd * "derivative" of error
     float output = (this->kp * error) + (this->ki * this->integral) + (this->kd * ((error - this->prev_error) / interval_secs));
@@ -25,14 +25,14 @@ float PID::compute(float curr_pos) {
     this->prev_pos = curr_pos;
     this->prev_desired_pos = desired_pos;
     this->prev_time = curr_time;
-	
-	// if target speed is 0, output 0 automatically (prevent jittering when motor stopped) and reset integral to 0
-	if (this->velocity == 0.0) {
-		this->integral = 0.0;
-		return 0.0;
-	} else {
-		return output;
-	}
+
+    // if target speed is 0, output 0 automatically (prevent jittering when motor stopped) and reset integral to 0
+    if (this->velocity == 0.0) {
+        this->integral = 0.0;
+        return 0.0;
+    } else {
+        return output;
+    }
 }
 
 void PID::set_coefficients(float kp, float ki, float kd) {
