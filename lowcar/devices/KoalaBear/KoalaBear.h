@@ -35,12 +35,12 @@ class KoalaBear : public Device {
     virtual void device_actions();
 
   private:
-    float velocity_a, velocity_b;           // student-specified velocities of motors, range [-1.0, 1.0]
-    float deadband_a, deadband_b;           // deadbands of motors
-    uint8_t invert_a, invert_b;             // true if Motor A should rotate in opposite direction of default; false for default direction
-    uint8_t pid_enabled_a, pid_enabled_b;   // true if using PID control; false if using manual drive mode
-    PID *pid_a, *pid_b;                     // PID controllers for motors
-    LEDKoala* led;                          // for controlling the KoalaBear LED
+    float velocity_a, velocity_b;          // student-specified velocities of motors, range [-1.0, 1.0]
+    float deadband_a, deadband_b;          // deadbands of motors
+    uint8_t invert_a, invert_b;            // true if Motor A should rotate in opposite direction of default; false for default direction
+    uint8_t pid_enabled_a, pid_enabled_b;  // true if using PID control; false if using manual drive mode
+    PID *pid_a, *pid_b;                    // PID controllers for motors
+    LEDKoala* led;                         // for controlling the KoalaBear LED
     unsigned long prev_led_time;
     int curr_led_mtr;
 

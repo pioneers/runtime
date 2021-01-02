@@ -19,7 +19,7 @@ pthread_t dawn_tid, shepherd_tid;
 static void tcp_conn_cleanup(void* args) {
     tcp_conn_args_t* tcp_args = (tcp_conn_args_t*) args;
     robot_desc_write(RUN_MODE, IDLE);
-    
+
     log_printf(DEBUG, "About to close conn_fd for %d\n", tcp_args->client);
     if (close(tcp_args->conn_fd) != 0) {
         log_printf(ERROR, "Failed to close conn_fd: %s", strerror(errno));

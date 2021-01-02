@@ -66,7 +66,7 @@ static void reset_params() {
             }
             uint32_t params_to_reset = 0;
             param_val_t zero_params[MAX_PARAMS] = {0};  // By default we reset to 0
-            
+
             // reset KoalaBear velocity_a, velocity_b params to 0
             if (strcmp(device->name, "KoalaBear") == 0) {
                 for (int j = 0; j < device->num_params; j++) {
@@ -79,7 +79,7 @@ static void reset_params() {
                 device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, params_to_reset, zero_params);
             }
             params_to_reset = 0;
-            
+
             // TODO: if more params for more devices need to be reset, follow construction above ^
         }
     }
