@@ -18,7 +18,7 @@ class PID {
 
     // Private field setters
     void set_coefficients(float kp, float ki, float kd);
-    void set_target_speed(float new_target_speed);
+    void set_velocity(float velocity);
     void set_position(float curr_pos);
 
     // Private field getters
@@ -29,7 +29,7 @@ class PID {
   private:
     float kp, ki, kd;
     float prev_error, prev_pos, prev_desired_pos;
-    float target_speed;
+    float velocity;
     float integral;
     unsigned long prev_time;
 
@@ -43,7 +43,7 @@ class PID {
      * Returns:
      *    the converted value to encoder ticks
      */
-    float duty_cycle_to_tps(float duty_cycle);
+    float velocity_to_tps(float velocity);
 };
 
 #endif

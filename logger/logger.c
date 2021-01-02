@@ -291,12 +291,11 @@ void log_printf(log_level_t level, char* format, ...) {
 
     // expands the format string into msg
     va_start(args, format);
-    if ((ret = vsnprintf(msg, sizeof(msg), format, args)) != 0) {
-        if (ret >= sizeof(msg)) {
-            printf("ERROR: log message was too long!");
-        } else if (ret < 0) {
-            printf("ERROR: vsnprintf encountered some error");
-        }
+    ret = vsnprintf(msg, sizeof(msg), format, args);
+    if (ret >= sizeof(msg)) {
+        printf("ERROR: log message was too long!");
+    } else if (ret < 0) {
+        printf("ERROR: vsnprintf encountered some error");
     }
     va_end(args);
 

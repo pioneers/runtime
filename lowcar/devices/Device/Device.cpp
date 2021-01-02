@@ -66,7 +66,7 @@ void Device::loop() {
 
     // If it's been too long since we received a PING, disable the device
     if ((this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
-        device_disable();
+        device_reset();
         this->enabled = FALSE;
     }
 
@@ -108,8 +108,8 @@ void Device::device_enable() {
     return;  // by default, enabling the device does nothing
 }
 
-void Device::device_disable() {
-    return;  // by default, disabling the device does nothing
+void Device::device_reset() {
+    return;  // by default, resetting the device does nothing
 }
 
 void Device::device_actions() {
