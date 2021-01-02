@@ -84,8 +84,8 @@ device_t KoalaBear = {
     .params = {
         {.name = "duty_cycle_a", .type = FLOAT, .read = 1, .write = 1},
         {.name = "deadband_a", .type = FLOAT, .read = 1, .write = 1},
-        {.name = "current_a", .type = FLOAT, .read = 1, .write = 1},
-        {.name = "pid_enabled_a", .type = BOOL, .read = 1, .write = 1},
+        {.name = "invert_a", .type = BOOL, .read = 1, .write = 1},
+        {.name = "manual_enabled_a", .type = BOOL, .read = 1, .write = 1},
         {.name = "pid_kp_a", .type = FLOAT, .read = 1, .write = 1},
         {.name = "pid_ki_a", .type = FLOAT, .read = 1, .write = 1},
         {.name = "pid_kd_a", .type = FLOAT, .read = 1, .write = 1},
@@ -93,8 +93,8 @@ device_t KoalaBear = {
         // Same params as above except for motor b
         {.name = "duty_cycle_b", .type = FLOAT, .read = 1, .write = 1},
         {.name = "deadband_b", .type = FLOAT, .read = 1, .write = 1},
-        {.name = "current_b", .type = FLOAT, .read = 1, .write = 1},
-        {.name = "pid_enabled_b", .type = BOOL, .read = 1, .write = 1},
+        {.name = "invert_b", .type = BOOL, .read = 1, .write = 1},
+        {.name = "manual_enabled_b", .type = BOOL, .read = 1, .write = 1},
         {.name = "pid_kp_b", .type = FLOAT, .read = 1, .write = 1},
         {.name = "pid_ki_b", .type = FLOAT, .read = 1, .write = 1},
         {.name = "pid_kd_b", .type = FLOAT, .read = 1, .write = 1},
