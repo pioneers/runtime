@@ -1,5 +1,7 @@
 #include "PID.h"
 
+#define MAX_TPS 2700.0   // maximum encoder ticks per second that a motor can go (determined empirically)
+
 PID::PID() {
     this->kp = this->ki = this->kd = 0.0;
     this->prev_error = this->prev_pos = this->prev_desired_pos = 0.0;
@@ -57,5 +59,5 @@ float PID::get_kd() { return this->kd; }
 // *********************** HELPER FUNCTIONS *********************** //
 
 float PID::duty_cycle_to_tps(float duty_cycle) {
-    return 2700.0 * duty_cycle;  // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
+    return MAX_TPS * duty_cycle;
 }

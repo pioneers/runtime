@@ -30,6 +30,10 @@ uint16_t torque_read_data;
 
 //******************************* KOALABEAR CONSTANTS AND PARAMS ****************************//
 
+// ----------------------> CHANGE THIS TO IMPLEMENT MAX SPEED FOR KARTS <----------------------
+#define MAX_DUTY_CYCLE 0.5 // maximum duty cycle to cap how fast the motors can go: range (0, 1] 
+// --------------------------------------------------------------------------------------------
+
 // default values for PID controllers
 #define KP_DEFAULT 0.035
 #define KI_DEFAULT 0.005
@@ -63,10 +67,18 @@ typedef enum {
 } mtrs;
 
 //******************************* ENCODER TICK INTERRPUT HANDLERS ***************************//
-
+// holds current encoder values of motors; they're volatile because all variables used
+// in interrupt service routines must be volatile
 volatile int32_t enc_a, enc_b;
 
-// TODO: write a descriptive comment here once we know this works
+// These functions are interrupt service routines (ISR) and are basically functions
+// that are called whenever something happens on a particular pin. In this case,
+// the function is called when the Arduino senses a rising edge on one of the
+// encoder pins. Depending on whether the other encoder pin is high or low, we can
+// deduce the direction of the rotation and therefore increment or decrement the
+// encoder tick count accordingly. You can see the interrupt triggers being set in
+// the KoalaBear device constructor (setting to call these functions when one of the
+// encoder pins encounters a rising edge).
 static void handle_enc_a_tick() {
 	if (digitalRead(AENC2)) {
 		enc_a++;
@@ -75,7 +87,6 @@ static void handle_enc_a_tick() {
 	}
 }
 
-// TODO: write a descriptive comment here once we know this works
 static void handle_enc_b_tick() {
 	if (digitalRead(BENC2)) {
 		enc_b++;
@@ -175,6 +186,9 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
 		// Params for Motor A
         case DUTY_CYCLE_A:
             this->target_speed_a = ((float*) data_buf)[0];
+			// limit to range [-1.0, 1.0]
+			this->target_speed_a = (this->target_speed_a > 1.0) ? 1.0 : this->target_speed_a;
+			this->target_speed_a = (this->target_speed_a < -1.0) ? -1.0 : this->target_speed_a;
             return sizeof(float);
         case DEADBAND_A:
             this->deadband_a = ((float*) data_buf)[0];
@@ -186,19 +200,19 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             this->manual_enabled_a = data_buf[0];
             return sizeof(uint8_t);
         case PID_KP_A:
-			// ignore executor setting all coefficients to 0 going into idle
+			// ignore executor setting all coefficients to 0 when going into idle
 			if (((double*) data_buf)[0] != 0.0) {
 	            this->pid_a->set_coefficients(((double*) data_buf)[0], this->pid_a->get_ki(), this->pid_a->get_kd());
 			}
             return sizeof(float);
         case PID_KI_A:
-			// ignore executor setting all coefficients to 0 going into idle
+			// ignore executor setting all coefficients to 0 when going into idle
 			if (((double*) data_buf)[0] != 0.0) {
             	this->pid_a->set_coefficients(this->pid_a->get_kp(), ((double*) data_buf)[0], this->pid_a->get_kd());
 			}
             return sizeof(float);
         case PID_KD_A:
-			// ignore executor setting all coefficients to 0 going into idle
+			// ignore executor setting all coefficients to 0 when going into idle
 			if (((double*) data_buf)[0] != 0.0) {
             	this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double*) data_buf)[0]);
 			}
@@ -211,6 +225,9 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
         // Params for Motor B
         case DUTY_CYCLE_B:
             this->target_speed_b = ((float*) data_buf)[0];
+			// limit to range [-1.0, 1.0]
+			this->target_speed_b = (this->target_speed_b > 1.0) ? 1.0 : this->target_speed_b;
+			this->target_speed_b = (this->target_speed_b < -1.0) ? -1.0 : this->target_speed_b;
             return sizeof(float);
         case DEADBAND_B:
             this->deadband_b = ((float*) data_buf)[0];
@@ -222,19 +239,19 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             this->manual_enabled_b = data_buf[0];
             return sizeof(uint8_t);
         case PID_KP_B:
-			// ignore executor setting all coefficients to 0 going into idle
+			// ignore executor setting all coefficients to 0 when going into idle
 			if (((double*) data_buf)[0] != 0.0) {
 	            this->pid_b->set_coefficients(((double*) data_buf)[0], this->pid_b->get_ki(), this->pid_b->get_kd());
 			}
             return sizeof(float);
         case PID_KI_B:
-			// ignore executor setting all coefficients to 0 going into idle
+			// ignore executor setting all coefficients to 0 when going into idle
 			if (((double*) data_buf)[0] != 0.0) {
             	this->pid_b->set_coefficients(this->pid_b->get_kp(), ((double*) data_buf)[0], this->pid_b->get_kd());
 			}
             return sizeof(float);
         case PID_KD_B:
-			// ignore executor setting all coefficients to 0 going into idle
+			// ignore executor setting all coefficients to 0 when going into idle
 			if (((double*) data_buf)[0] != 0.0) {
             	this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double*) data_buf)[0]);
 			}
@@ -294,9 +311,10 @@ void KoalaBear::device_actions() {
         this->led->ctrl_LEDs(this->target_speed_b, this->deadband_b, TRUE);
     }
 	
-	// compute the actual target speed of motors (depending on whether direction is inverted)
-	actual_target_a = (this->invert_a) ? this->target_speed_a * -1.0 : this->target_speed_a;
-	actual_target_b = (this->invert_b) ? this->target_speed_b * -1.0 : this->target_speed_b;
+	// compute the actual target speed of motors (depending on whether direction is inverted, max duty cycle, and acceleration)
+	// TODO: some acceleration calculation here too
+	actual_target_a = MAX_DUTY_CYCLE * ((this->invert_a) ? this->target_speed_a * -1.0 : this->target_speed_a);
+	actual_target_b = MAX_DUTY_CYCLE * ((this->invert_b) ? this->target_speed_b * -1.0 : this->target_speed_b);
 	
 	// compute the actual duty cycle to command the motors at (depending on whether manual drive is enabled)
     if (this->manual_enabled_a) {
@@ -340,6 +358,8 @@ void KoalaBear::drive(float target, uint8_t mtr) {
     // Sanity check: If |target| == 1, move max speed --> pwm_difference == 255
     //               If |target| == 0, stop moving    --> pwm_difference == 0
     int pwm_difference = (int) (target * direction * 255.0);  // A number between 0 and 255 inclusive (255 is stop; 0 is max speed);
+	pwm_difference = (pwm_difference < 0) ? 0 : pwm_difference;
+	pwm_difference = (pwm_difference > 255) ? 255 : pwm_difference;
 
     if (direction > 0) {  // Moving forwards
         currpwm1 -= pwm_difference;
