@@ -23,8 +23,14 @@ float PID::compute(float curr_pos) {
     this->prev_pos = curr_pos;
     this->prev_desired_pos = desired_pos;
     this->prev_time = curr_time;
-
-    return output;
+	
+	// if target speed is 0, output 0 automatically (prevent jittering when motor stopped) and reset integral to 0
+	if (this->target_speed == 0.0) {
+		this->integral = 0.0;
+		return 0.0;
+	} else {
+		return output;
+	}
 }
 
 void PID::set_coefficients(float kp, float ki, float kd) {
@@ -51,5 +57,5 @@ float PID::get_kd() { return this->kd; }
 // *********************** HELPER FUNCTIONS *********************** //
 
 float PID::duty_cycle_to_tps(float duty_cycle) {
-    return 300.0 * duty_cycle;  // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
+    return 2700.0 * duty_cycle;  // TODO: determine this function. will probably be of the form y = kx (if not can go do a regression on a calculator after some tests)
 }

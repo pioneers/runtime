@@ -35,11 +35,12 @@ class KoalaBear : public Device {
     virtual void device_actions();
 
   private:
-    float target_speed_a, target_speed_b;  // target speeds of motors
-    float deadband_a, deadband_b;          // deadbands of motors
-    uint8_t pid_enabled_a, pid_enabled_b;  // whether or not motors are enabled
-    PID *pid_a, *pid_b;                    // PID controllers for motors
-    LEDKoala* led;                         // for controlling the KoalaBear LED
+    float target_speed_a, target_speed_b;           // target speeds of motors
+    float deadband_a, deadband_b;                   // deadbands of motors
+    uint8_t invert_a, invert_b;                     // whether or not motors are going in default direction
+    uint8_t manual_enabled_a, manual_enabled_b;     // whether or not PID on motors is enabled
+    PID *pid_a, *pid_b;                             // PID controllers for motors
+    LEDKoala* led;                                  // for controlling the KoalaBear LED
     unsigned long prev_led_time;
     int curr_led_mtr;
 
