@@ -19,7 +19,8 @@ pthread_t dawn_tid, shepherd_tid;
 static void tcp_conn_cleanup(void* args) {
     tcp_conn_args_t* tcp_args = (tcp_conn_args_t*) args;
     robot_desc_write(RUN_MODE, IDLE);
-
+    
+    log_printf(DEBUG, "About to close conn_fd for %d\n", tcp_args->client);
     if (close(tcp_args->conn_fd) != 0) {
         log_printf(ERROR, "Failed to close conn_fd: %s", strerror(errno));
     }
@@ -37,6 +38,7 @@ static void tcp_conn_cleanup(void* args) {
         robot_desc_write(GAMEPAD, DISCONNECTED);  // Disconnect gamepad if Dawn is no longer connected
     }
     free(args);
+    log_printf(DEBUG, "Finished cleaning up TCP connection with %d\n", tcp_args->client);
 }
 
 
@@ -261,6 +263,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
 static void* tcp_process(void* tcp_args) {
     tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
     pthread_cleanup_push(tcp_conn_cleanup, args);
+    int ret;
 
     //variables used for waiting for something to do using select()
     fd_set read_set;
@@ -305,9 +308,13 @@ static void* tcp_process(void* tcp_args) {
 
         //receive new message on socket if it is ready
         if (FD_ISSET(args->conn_fd, &read_set)) {
-            if (recv_new_msg(args->conn_fd, args->challenge_fd) == -1) {
-                log_printf(DEBUG, "client %d has disconnected", args->client);
-                break;
+            if ((ret = recv_new_msg(args->conn_fd, args->challenge_fd)) != 0) {
+                if (ret == -1) {
+                    log_printf(DEBUG, "client %d has disconnected", args->client);
+                    break;
+                } else {
+                    log_printf(ERROR, "error parsing message from client %d", args->client);
+                }
             }
         }
     }

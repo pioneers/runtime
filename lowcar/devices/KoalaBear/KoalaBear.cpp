@@ -28,24 +28,29 @@
 uint16_t ctrl_read_data;
 uint16_t torque_read_data;
 
-volatile int32_t enc_a, enc_b;
+//******************************* KOALABEAR CONSTANTS AND PARAMS ****************************//
 
-//********************************** labels for useful indices **********************************//
+// default values for PID controllers
+#define KP_DEFAULT 0.035
+#define KI_DEFAULT 0.005
+#define KD_DEFAULT 0.0
+
 typedef enum {
     // params for the first motor
-    DUTY_CYCLE_A = 0,  // Student's desired speed between -1 and 1, inclusive
-    DEADBAND_A = 1,    // between 0 and 1, magnitude of duty cycle input under which the motor will not move
-    CURRENT_A = 2,
-    PID_ENABLED_A = 3,  // True if using PID control; False if using manual drive mode
-    PID_KP_A = 4,       // these three are the PID coefficients
+    DUTY_CYCLE_A = 0,      	// Student's desired speed between -1.0 and 1.0, inclusive
+    DEADBAND_A = 1,        	// Between 0 and 1, magnitude of duty cycle input under which the motor will not move
+    INVERT_A = 2,			// True if Motor A should rotate in opposite direction of default; False for default direction
+    MANUAL_ENABLED_A = 3,   // True if using manual drive mode; False if using PID control
+    PID_KP_A = 4,          	// these three are the PID coefficients
     PID_KI_A = 5,
     PID_KD_A = 6,
-    ENC_A = 7,  // encoder position, in ticks
+    ENC_A = 7,             	// encoder position, in ticks
+	
     //same params for the second motor
     DUTY_CYCLE_B = 8,
     DEADBAND_B = 9,
-    CURRENT_B = 10,
-    PID_ENABLED_B = 11,
+    INVERT_B = 10,
+    MANUAL_ENABLED_B = 11,
     PID_KP_B = 12,
     PID_KI_B = 13,
     PID_KD_B = 14,
@@ -58,6 +63,8 @@ typedef enum {
 } mtrs;
 
 //******************************* ENCODER TICK INTERRPUT HANDLERS ***************************//
+
+volatile int32_t enc_a, enc_b;
 
 // TODO: write a descriptive comment here once we know this works
 static void handle_enc_a_tick() {
@@ -83,16 +90,19 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
     // initialize motor values
     this->target_speed_a = this->target_speed_b = 0.0;
     this->deadband_a = this->deadband_b = 0.05;
+	this->invert_a = this->invert_b = FALSE; // by default, motor directions are not inverted
 
     // initialize encoders
     enc_a = enc_b = 0.0;
     attachInterrupt(digitalPinToInterrupt(AENC1), handle_enc_a_tick, RISING);  // set interrupt service routines for encoder pins
-    attachInterrupt(digitalPinToInterrupt(BENC2), handle_enc_b_tick, RISING);
+    attachInterrupt(digitalPinToInterrupt(BENC1), handle_enc_b_tick, RISING);
 
     // initialize PID controllers
     this->pid_a = new PID();
     this->pid_b = new PID();
-    this->pid_enabled_a = this->pid_enabled_b = FALSE;  // TODO: change to true when PID written
+    this->manual_enabled_a = this->manual_enabled_b = FALSE;  // by default, PID control is enabled
+	this->pid_a->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
+	this->pid_b->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
 
     this->led = new LEDKoala();
     this->prev_led_time = millis();
@@ -105,17 +115,18 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
     int32_t* int_buf = (int32_t*) data_buf;
 
     switch (param) {
+		// Params for Motor A
         case DUTY_CYCLE_A:
             float_buf[0] = this->target_speed_a;
             return sizeof(float);
         case DEADBAND_A:
             float_buf[0] = this->deadband_a;
             return sizeof(float);
-        case CURRENT_A:
-            // TODO
-            return sizeof(float);
-        case PID_ENABLED_A:
-            float_buf[0] = this->pid_enabled_a;
+        case INVERT_A:
+			bool_buf[0] = this->invert_a;
+            return sizeof(uint8_t);
+        case MANUAL_ENABLED_A:
+            bool_buf[0] = this->manual_enabled_a;
             return sizeof(uint8_t);
         case PID_KP_A:
             float_buf[0] = this->pid_a->get_kp();
@@ -137,11 +148,11 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
         case DEADBAND_B:
             float_buf[0] = this->deadband_b;
             return sizeof(float);
-        case CURRENT_B:
-            // TODO
-            return sizeof(float);
-        case PID_ENABLED_B:
-            data_buf[0] = this->pid_enabled_b;
+        case INVERT_B:
+			bool_buf[0] = this->invert_b;
+            return sizeof(uint8_t);
+        case MANUAL_ENABLED_B:
+            bool_buf[0] = this->manual_enabled_b;
             return sizeof(uint8_t);
         case PID_KP_B:
             float_buf[0] = this->pid_b->get_kp();
@@ -161,26 +172,36 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
 
 size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
     switch (param) {
+		// Params for Motor A
         case DUTY_CYCLE_A:
-            this->pid_enabled_a = FALSE;  // TODO: remove later once PID added in
             this->target_speed_a = ((float*) data_buf)[0];
             return sizeof(float);
         case DEADBAND_A:
             this->deadband_a = ((float*) data_buf)[0];
             return sizeof(float);
-        case CURRENT_A:
-            break;
-        case PID_ENABLED_A:
-            this->pid_enabled_a = data_buf[0];
+        case INVERT_A:
+			this->invert_a = data_buf[0];
+			return sizeof(uint8_t);
+        case MANUAL_ENABLED_A:
+            this->manual_enabled_a = data_buf[0];
             return sizeof(uint8_t);
         case PID_KP_A:
-            this->pid_a->set_coefficients(((double*) data_buf)[0], this->pid_a->get_ki(), this->pid_a->get_kd());
+			// ignore executor setting all coefficients to 0 going into idle
+			if (((double*) data_buf)[0] != 0.0) {
+	            this->pid_a->set_coefficients(((double*) data_buf)[0], this->pid_a->get_ki(), this->pid_a->get_kd());
+			}
             return sizeof(float);
         case PID_KI_A:
-            this->pid_a->set_coefficients(this->pid_a->get_kp(), ((double*) data_buf)[0], this->pid_a->get_kd());
+			// ignore executor setting all coefficients to 0 going into idle
+			if (((double*) data_buf)[0] != 0.0) {
+            	this->pid_a->set_coefficients(this->pid_a->get_kp(), ((double*) data_buf)[0], this->pid_a->get_kd());
+			}
             return sizeof(float);
         case PID_KD_A:
-            this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double*) data_buf)[0]);
+			// ignore executor setting all coefficients to 0 going into idle
+			if (((double*) data_buf)[0] != 0.0) {
+            	this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double*) data_buf)[0]);
+			}
             return sizeof(float);
         case ENC_A:
             enc_a = ((int32_t*) data_buf)[0];
@@ -189,26 +210,34 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
 
         // Params for Motor B
         case DUTY_CYCLE_B:
-            this->pid_enabled_b = FALSE;  //remove later for PID functionality
             this->target_speed_b = ((float*) data_buf)[0];
             return sizeof(float);
         case DEADBAND_B:
             this->deadband_b = ((float*) data_buf)[0];
             return sizeof(float);
-        case CURRENT_B:
-            break;
-        case PID_ENABLED_B:
-            this->pid_enabled_b = data_buf[0];
+	    case INVERT_B:
+			this->invert_b = data_buf[0];
+			return sizeof(uint8_t);
+        case MANUAL_ENABLED_B:
+            this->manual_enabled_b = data_buf[0];
             return sizeof(uint8_t);
         case PID_KP_B:
-            this->pid_b->set_coefficients(((double*) data_buf)[0], this->pid_b->get_ki(), this->pid_b->get_kd());
+			// ignore executor setting all coefficients to 0 going into idle
+			if (((double*) data_buf)[0] != 0.0) {
+	            this->pid_b->set_coefficients(((double*) data_buf)[0], this->pid_b->get_ki(), this->pid_b->get_kd());
+			}
             return sizeof(float);
         case PID_KI_B:
-            this->pid_b->set_coefficients(this->pid_b->get_kp(), ((double*) data_buf)[0], this->pid_b->get_kd());
+			// ignore executor setting all coefficients to 0 going into idle
+			if (((double*) data_buf)[0] != 0.0) {
+            	this->pid_b->set_coefficients(this->pid_b->get_kp(), ((double*) data_buf)[0], this->pid_b->get_kd());
+			}
             return sizeof(float);
         case PID_KD_B:
-            this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double*) data_buf)[0]);
-            return sizeof(float);
+			// ignore executor setting all coefficients to 0 going into idle
+			if (((double*) data_buf)[0] != 0.0) {
+            	this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double*) data_buf)[0]);
+			}
         case ENC_B:
             enc_b = ((int32_t*) data_buf)[0];
             this->pid_b->set_position((float) enc_b);
@@ -228,8 +257,8 @@ void KoalaBear::device_enable() {
     pinMode(BENC1, INPUT);
     pinMode(BENC2, INPUT);
 
-    this->pid_enabled_a = FALSE;  // TODO: change to true once implemented
-    this->pid_enabled_b = FALSE;
+    this->manual_enabled_a = FALSE;
+    this->manual_enabled_b = FALSE;
 
     this->led->setup_LEDs();
     this->led->test_LEDs();
@@ -241,21 +270,17 @@ void KoalaBear::device_enable() {
 }
 
 void KoalaBear::device_disable() {
-    // digitalWrite(SLEEP, HIGH);
-    //this->pid->setCoefficients(1, 0, 0);
-    //this->pid->resetEncoder();
-
-    this->pid_a->set_coefficients(0.0, 0.0, 0.0);
-    this->pid_b->set_coefficients(0.0, 0.0, 0.0);
+    this->pid_a->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
+    this->pid_b->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
 
     this->target_speed_a = 0.0;
     this->target_speed_b = 0.0;
-    this->pid_enabled_a = FALSE;
-    this->pid_enabled_b = FALSE;
+    this->manual_enabled_a = FALSE;
+    this->manual_enabled_b = FALSE;
 }
 
 void KoalaBear::device_actions() {
-    float target_A, target_B;
+    float command_a, command_b, actual_target_a, actual_target_b;
     unsigned long curr_time = millis();
 
     // switch between displaying info about MTRA and MTRB every 2 seconds
@@ -268,27 +293,33 @@ void KoalaBear::device_actions() {
     } else {
         this->led->ctrl_LEDs(this->target_speed_b, this->deadband_b, TRUE);
     }
-
-    if (this->pid_enabled_a) {
-        this->pid_a->set_target_speed(this->target_speed_a);
-        target_A = this->pid_a->compute((float) enc_a);
+	
+	// compute the actual target speed of motors (depending on whether direction is inverted)
+	actual_target_a = (this->invert_a) ? this->target_speed_a * -1.0 : this->target_speed_a;
+	actual_target_b = (this->invert_b) ? this->target_speed_b * -1.0 : this->target_speed_b;
+	
+	// compute the actual duty cycle to command the motors at (depending on whether manual drive is enabled)
+    if (this->manual_enabled_a) {
+        command_a = actual_target_a;
     } else {
-        target_A = this->target_speed_a;
+        this->pid_a->set_target_speed(actual_target_a);
+        command_a = this->pid_a->compute((float) enc_a);
     }
 
-    if (this->pid_enabled_b) {
-        this->pid_b->set_target_speed(this->target_speed_b);
-        target_B = this->pid_b->compute((float) enc_b);
+    if (this->manual_enabled_b) {
+        command_b = actual_target_b;
     } else {
-        target_B = this->target_speed_b;
+		this->pid_b->set_target_speed(actual_target_b);
+        command_b = this->pid_b->compute((float) enc_b);
     }
-
+	
+	// pins that we write on each loop to ensure we don't break stuff (ask electrical)
     digitalWrite(SLEEP, HIGH);
     digitalWrite(RESET, LOW);
 
-    // send target duty cycle to drive function
-    drive(target_A * -1.0, MTRA);  // by default, MTRA drives the wrong way
-    drive(target_B, MTRB);
+    // send computed duty cycle commands to motors
+    drive(command_a, MTRA);
+    drive(command_b, MTRB);
 }
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//

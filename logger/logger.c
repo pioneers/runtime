@@ -283,6 +283,7 @@ void log_printf(log_level_t level, char* format, ...) {
     static char final_msg[MAX_LOG_LEN];  // final message to be logged to requested locations
     static int len;                      // holding lengths of various strings
     static char msg[MAX_LOG_LEN - 100];  // holds the expanded format string (100 to make room for log header)
+    static int ret;                      // holds return values for lib functions
     va_list args;                        // this holds the variable-length argument list
 
     // lock the mutex around all output functions
@@ -290,7 +291,13 @@ void log_printf(log_level_t level, char* format, ...) {
 
     // expands the format string into msg
     va_start(args, format);
-    vsprintf(msg, format, args);
+    if ((ret = vsnprintf(msg, sizeof(msg), format, args)) != 0) {
+        if (ret >= sizeof(msg)) {
+            printf("ERROR: log message was too long!");
+        } else if (ret < 0) {
+            printf("ERROR: vsnprintf encountered some error");
+        }
+    }
     va_end(args);
 
     // build the message and put into final_msg
