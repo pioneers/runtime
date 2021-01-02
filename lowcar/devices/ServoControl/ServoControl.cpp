@@ -40,7 +40,7 @@ size_t ServoControl::device_write(uint8_t param, uint8_t* data_buf) {
     return sizeof(float);
 }
 
-void ServoControl::device_disable() {
+void ServoControl::device_reset() {
     disable_all();
 }
 

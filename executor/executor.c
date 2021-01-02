@@ -50,7 +50,7 @@ static char* get_mode_str(robot_desc_val_t mode) {
 
 
 /**
- *  Resets all writeable device parameters to 0. This should be called at the end of AUTON and TELEOP.
+ *  Resets relevant parameters to default values. This should be called at the end of AUTON and TELEOP.
  */
 static void reset_params() {
     uint32_t catalog;
@@ -64,15 +64,23 @@ static void reset_params() {
                 log_printf(ERROR, "reset_params: device at index %d with type %d is invalid\n", i, dev_ids[i].type);
                 continue;
             }
-            uint32_t reset_params = 0;
+            uint32_t params_to_reset = 0;
             param_val_t zero_params[MAX_PARAMS] = {0};  // By default we reset to 0
-            for (int j = 0; j < device->num_params; j++) {
-                // Only reset parameters that are writeable
-                if (device->params[j].write) {
-                    reset_params |= (1 << j);
+            
+            // reset KoalaBear velocity_a, velocity_b params to 0
+            if (strcmp(device->name, "KoalaBear") == 0) {
+                for (int j = 0; j < device->num_params; j++) {
+                    if (strcmp(device->params[j].name, "velocity_a") == 0) {
+                        params_to_reset |= (1 << j);
+                    } else if (strcmp(device->params[j].name, "velocity_b") == 0) {
+                        params_to_reset |= (1 << j);
+                    }
                 }
+                device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, params_to_reset, zero_params);
             }
-            device_write_uid(dev_ids[i].uid, EXECUTOR, COMMAND, reset_params, zero_params);
+            params_to_reset = 0;
+            
+            // TODO: if more params for more devices need to be reset, follow construction above ^
         }
     }
 }
