@@ -1,6 +1,7 @@
 /**
  * The UI for shared memory using ncurses.
  * This displays a live view of memory blocks in SHM.
+ * Messages directed to stdout will interfere with the UI.
  */
 #include <curses.h>
 #include <string.h>
@@ -246,13 +247,13 @@ void display_device(int shm_idx) {
         wrefresh(device_win);
         blank_device_win = 0;
     } else { // Switching from one connected device to another
-        log_printf(DEBUG, "Displaying connected device; blank_device_win = 0");
+        // log_printf(DEBUG, "Displaying connected device; blank_device_win = 0");
     }
 
-    int line = 3;
-    const int table_header_line = line + 1;
+    int line = 3; // Our pointer to the current line/row we're writing to
+    const int table_header_line = line + 1; // The line to display the table column names
 
-    // Print current device
+    // Print current device identifiers
     device_t* device = get_device(dev_ids[shm_idx].type);
     if (device == NULL) {
         log_printf(DEBUG, "device == NULL");
@@ -268,22 +269,38 @@ void display_device(int shm_idx) {
     device_read(shm_idx, EXECUTOR, DATA, ~0, data_vals);
     for (int i = 0; i < device->num_params; i++) {
         wclrtoeol(device_win); // Clear previous parameter entry
+        // For each parameter, print the index and its name
         mvwprintw(device_win, line, param_idx_col, "%d", i);
         mvwprintw(device_win, line, param_name_col, "%s", device->params[i].name);
+        // Print the command stream value and the data stream value
+        // If the parameter is read-only, display "RD_ONLY" instead of its command value
         switch (device->params[i].type) {
             case INT:
-                mvwprintw(device_win, line, command_val_col, "%d", command_vals[i].p_i);
+                if (device->params[i].write == 0) {
+                    mvwprintw(device_win, line, command_val_col, "RD_ONLY");
+                } else {
+                    mvwprintw(device_win, line, command_val_col, "%d", command_vals[i].p_i);
+                }
                 mvwprintw(device_win, line, data_val_col, "%d", data_vals[i].p_i);
                 break;
             case FLOAT:
-                mvwprintw(device_win, line, command_val_col, "%f", command_vals[i].p_f);
+                if (device->params[i].write == 0) {
+                    mvwprintw(device_win, line, command_val_col, "RD_ONLY");
+                } else {
+                    mvwprintw(device_win, line, command_val_col, "%f", command_vals[i].p_f);
+                }
                 mvwprintw(device_win, line, data_val_col, "%f", data_vals[i].p_f);
                 break;
             case BOOL:
-                mvwprintw(device_win, line, command_val_col, "%s", command_vals[i].p_b ? "TRUE" : "FALSE");
+                if (device->params[i].write == 0) {
+                    mvwprintw(device_win, line, command_val_col, "RD_ONLY");
+                } else {
+                    mvwprintw(device_win, line, command_val_col, "%s", command_vals[i].p_b ? "TRUE" : "FALSE");
+                }
                 mvwprintw(device_win, line, data_val_col, "%s", data_vals[i].p_b ? "TRUE" : "FALSE");
                 break;
         }
+        // Advance our line to handle the next parameter
         wmove(device_win, ++line, 5);
     }
     // Clear non-existent parameters
