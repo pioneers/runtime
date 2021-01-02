@@ -22,7 +22,7 @@ class ServoControl : public Device {
      * Attaches servo at param to corresponding pin if not attached yet
      */
     virtual size_t device_write(uint8_t param, uint8_t* data_buf);
-    virtual void device_disable();  // calls helper disableAll() to detach all servos
+    virtual void device_reset();  // calls helper disableAll() to detach all servos
 
   private:
     // class constants and variables

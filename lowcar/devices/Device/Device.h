@@ -77,11 +77,11 @@ class Device {
     virtual void device_enable();
 
     /**
-     * Performs necessary cleanup to disable the device
-     * Called when the device hasn't received a PING message from dev handler
-     * for the specified timeout duration.
+     * Performs necessary cleanup to reset the device
+     * Called when we want to reset device to initial state when first plugged in
+     * and establishes a connection with dev_handler
      */
-    virtual void device_disable();
+    virtual void device_reset();
 
     /**
      * The "main" function of a device, performing continuously updating actions.
