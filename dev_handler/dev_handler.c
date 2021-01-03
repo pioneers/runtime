@@ -708,7 +708,8 @@ int connect_socket(const char* socket_name) {
  */
 int serialport_open(const char* port_name) {
     // Open the serialport for reading and writing
-    int fd = open(port_name, O_RDWR);
+    // Need to specify O_NOCTTY to prevent attaching devices from becoming controlling terminals; see wiki
+    int fd = open(port_name, O_RDWR | O_NOCTTY);
     if (fd == -1) {
         log_printf(ERROR, "serialport_open: Unable to open port %s", port_name);
         return -1;
