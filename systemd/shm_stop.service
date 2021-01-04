@@ -1,7 +1,7 @@
 [Unit]
 Description=Shared memory cleanup process for Runtime
 After=dev_handler.service executor.service net_handler.service
-OnFailure=dev_handler.service executor.service net_handler.service shm_stop.service
+OnFailure=dev_handler.service executor.service net_handler.service shm_start.service
 
 [Service]
 Type=oneshot
