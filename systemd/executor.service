@@ -2,10 +2,11 @@
 Description=Executor process for Runtime
 BindsTo=dev_handler.service net_handler.service
 After=shm_start.service
+Conflicts=shm_stop.service
 OnFailure=shm_stop.service
 
 [Service]
-Type=oneshot
+Type=simple
 User=pi
 WorkingDirectory=/home/pi/runtime/executor
 ExecStart=/home/pi/runtime/executor/executor
