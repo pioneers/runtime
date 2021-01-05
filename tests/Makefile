@@ -1,4 +1,4 @@
-LIBS := -pthread -lrt -Wall -lprotobuf-c -Wno-format # Ignore formatting warnings (ex: %llu vs %lu)
+LIBS := -pthread -lrt -Wall -lprotobuf-c
 
 CC := gcc
 

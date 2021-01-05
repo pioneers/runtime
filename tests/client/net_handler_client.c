@@ -98,7 +98,7 @@ static void recv_udp_data(int udp_fd) {
     // display the message's fields.
     for (int i = 0; i < dev_data->n_devices; i++) {
         fprintf(udp_output_fp, "Device No. %d:", i);
-        fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+        fprintf(udp_output_fp, "\ttype = %s, uid = %lu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
         fprintf(udp_output_fp, "\tParams:\n");
         for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
             fprintf(udp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);

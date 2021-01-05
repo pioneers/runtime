@@ -277,7 +277,7 @@ void print_dev_ids() {
     } else {
         for (int i = 0; i < MAX_DEVICES; i++) {
             if (catalog & (1 << i)) {
-                printf("dev_ix = %d: type = %d, year = %d, uid = %llu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+                printf("dev_ix = %d: type = %d, year = %d, uid = %lu\n", i, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
             }
         }
     }
@@ -305,7 +305,7 @@ void print_params(uint32_t devices) {
                 printf("Device at index %d with type %d is invalid\n", i, dev_ids[i].type);
                 continue;
             }
-            printf("dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu\n", i, device->name, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
+            printf("dev_ix = %d: name = %s, type = %d, year = %d, uid = %lu\n", i, device->name, dev_ids[i].type, dev_ids[i].year, dev_ids[i].uid);
 
             for (int s = 0; s < 2; s++) {
                 //print out the stream header
@@ -601,7 +601,7 @@ int device_read_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32
 
     // if device doesn't exist, return immediately
     if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "no device at dev_uid = %llu, read failed", dev_uid);
+        log_printf(ERROR, "no device at dev_uid = %lu, read failed", dev_uid);
         return -1;
     }
 
@@ -627,7 +627,7 @@ int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint3
 
     // if device doesn't exist, return immediately
     if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "no device at dev_uid = %llu, write failed", dev_uid);
+        log_printf(ERROR, "no device at dev_uid = %lu, write failed", dev_uid);
         return -1;
     }
 
@@ -646,7 +646,7 @@ int place_sub_request(uint64_t dev_uid, process_t process, uint32_t params_to_su
         return -1;
     }
     if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "no device at dev_uid = %llu, sub request failed", dev_uid);
+        log_printf(ERROR, "no device at dev_uid = %lu, sub request failed", dev_uid);
         return -1;
     }
     curr_sub_map = (process == NET_HANDLER) ? dev_shm_ptr->net_sub_map : dev_shm_ptr->exec_sub_map;

@@ -395,7 +395,7 @@ static void run_challenges() {
             outputs.payload[i] = "Fatal error";
             continue;
         }
-        int ret_len;
+        long ret_len;
         const char* c_ret = PyUnicode_AsUTF8AndSize(ret_string, &ret_len);
         Py_DECREF(ret_string);
         outputs.payload[i] = malloc(ret_len + 1);

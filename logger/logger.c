@@ -294,7 +294,7 @@ void log_printf(log_level_t level, char* format, ...) {
     ret = vsnprintf(msg, sizeof(msg), format, args);
     if (ret < 0) {
         printf("ERROR: vsnprintf encountered some error");
-    } else if (ret >= sizeof(msg)) {
+    } else if ((unsigned) ret >= sizeof(msg)) {
         printf("ERROR: log message was too long!");
     }
     va_end(args);

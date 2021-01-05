@@ -239,7 +239,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
             }
             int err = place_sub_request(req_device->uid, NET_HANDLER, requests);
             if (err == -1) {
-                log_printf(ERROR, "recv_new_msg: Invalid device subscription, device uid %llu is invalid", req_device->uid);
+                log_printf(ERROR, "recv_new_msg: Invalid device subscription, device uid %lu is invalid", req_device->uid);
             }
         }
         dev_data__free_unpacked(dev_data_msg, NULL);
