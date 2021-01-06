@@ -16,10 +16,11 @@ cd $RUNTIME_DIR
 
 case $1 in
     build)
-        pushd shm_wrapper && make && popd
-        pushd net_handler && make && popd
-        pushd executor && make && popd
-        pushd dev_handler && make && popd
+        shift 1
+        pushd shm_wrapper && make $@ && popd
+        pushd net_handler && make $@ && popd
+        pushd executor    && make $@ && popd
+        pushd dev_handler && make $@ && popd
         ;;
 
     run)
@@ -39,9 +40,9 @@ case $1 in
     clean)
         pushd shm_wrapper && make clean && popd
         pushd net_handler && make clean && popd
-        pushd executor && make clean && popd
+        pushd executor    && make clean && popd
         pushd dev_handler && make clean && popd
-        pushd tests && make clean && popd
+        pushd tests       && make clean && popd
         rm -f /tmp/log-fifo
         rm -f /tmp/challenge.sock
         rm -f /tmp/ttyACM*
