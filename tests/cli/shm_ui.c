@@ -206,10 +206,12 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
  *    catalog: current shared memory catalog; Used to handle when device at shm_idx is invalid
  *    dev_ids: current shared memory device information; used to get device information at shm_idx
  *    shm_idx: the index of shared memory of the device to display
+ *             set to MAX_DEVICES if displaying the custom data block is desired
  */
 void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx) {
     // Special case handling
-    if (!(catalog & (1 << shm_idx))) { // Device is not connected at this shared memory index
+    const int show_custom_data = (shm_idx == MAX_DEVICES);
+    if (!show_custom_data && !(catalog & (1 << shm_idx))) { // Device is not connected at this shared memory index
         // Clear the window if not clear already (Happens when we disconnect a device while we're inspecting it)
         if (!DEVICE_WIN_IS_BLANK) {
             // Clear the entire window, but put back the header and the borders
@@ -238,54 +240,81 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     const int table_header_line = line + 1; // The line to display the table column names
 
     // Print current device's identifiers
-    device_t* device = get_device(dev_ids[shm_idx].type);
-    if (device == NULL) { // This should never happen if the handling above is correct
-        log_printf(DEBUG, "device == NULL");
-    }
+    device_t* device = NULL;
+    wmove(DEVICE_WIN, line, 0);
     wclrtoeol(DEVICE_WIN); // Clear previous string
-    mvwprintw(DEVICE_WIN, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type,  dev_ids[shm_idx].year,  dev_ids[shm_idx].uid);
+    if (show_custom_data) {
+        mvwprintw(DEVICE_WIN, line++, 1, "Custom Data");
+    } else {
+        device = get_device(dev_ids[shm_idx].type);
+        if (device == NULL) { // This should never happen if the handling above is correct
+            log_printf(DEBUG, "device == NULL");
+        }
+        mvwprintw(DEVICE_WIN, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type,  dev_ids[shm_idx].year,  dev_ids[shm_idx].uid);
+    }
+    // Move to the first parameter (Skip the next two lines because we'll display the table headers with the horizontal line)
     line += 2;
-    wmove(DEVICE_WIN, line, 0); // Move to the first parameter
+    wmove(DEVICE_WIN, line, 0); 
 
+    // Number of parameters to display for this specific device
+    uint8_t num_params = 0;
 
-    // Get shared memory data
-
-    // Get shm subscriptions
+    // Init arrays to hold shm data
     uint32_t sub_map_net_handler_all_devs[MAX_DEVICES + 1] = {0};   // Initialize subs to 0
     uint32_t sub_map_executor_all_devs[MAX_DEVICES + 1] = {0};      // Initialize subs to 0
-    get_sub_requests(sub_map_net_handler_all_devs, NET_HANDLER);    // Get subscriptions made by net handler
-    get_sub_requests(sub_map_executor_all_devs, EXECUTOR);          // Get subscriptions made by executor
-    uint32_t sub_map_net_handler = sub_map_net_handler_all_devs[shm_idx + 1];   // We care about only specified device
-    uint32_t sub_map_executor = sub_map_executor_all_devs[shm_idx + 1];         // We care about only specified device
-
-    // Get command values and data values
+    uint32_t cmd_map_all_devs[MAX_DEVICES + 1];
     param_val_t command_vals[MAX_PARAMS];
     param_val_t data_vals[MAX_PARAMS];
-    uint32_t cmd_map_all_devs[MAX_DEVICES + 1];
-    get_cmd_map(cmd_map_all_devs);
-    uint32_t cmd_map = cmd_map_all_devs[shm_idx + 1]; // We care about only the specified device
-    device_read(shm_idx, SHM, COMMAND, ~0, command_vals);
-    device_read(shm_idx, SHM, DATA, ~0, data_vals);
 
+    // Init variables to hold custom data information
+    char custom_param_names[UCHAR_MAX][64];
+    param_type_t custom_param_types[UCHAR_MAX];
+    param_val_t custom_param_values[UCHAR_MAX]; // We're assuming here that the number of logged params is at most MAX_PARAMS
+
+    // Get shm subscriptions
+    if (show_custom_data) {
+        log_data_read(&num_params, custom_param_names, custom_param_types, custom_param_values);
+        // log_printf(DEBUG, "Showing %d custom params", num_params);
+    } else {
+        num_params = device->num_params;
+        // Get shm subscriptions, command values, and data values
+        get_sub_requests(sub_map_net_handler_all_devs, NET_HANDLER);    // Get subscriptions made by net handler
+        get_sub_requests(sub_map_executor_all_devs, EXECUTOR);          // Get subscriptions made by executor
+        get_cmd_map(cmd_map_all_devs);
+        device_read(shm_idx, SHM, COMMAND, ~0, command_vals);
+        device_read(shm_idx, SHM, DATA, ~0, data_vals);
+    }
+    
+    // We care about only the specified device (this is just for the sake of brevity)
+    uint32_t sub_map_net_handler = sub_map_net_handler_all_devs[shm_idx + 1];   
+    uint32_t sub_map_executor = sub_map_executor_all_devs[shm_idx + 1];
+    uint32_t cmd_map = cmd_map_all_devs[shm_idx + 1];
+    
     // Each iteration prints out a row for each parameter
     int display_cmd_val; // Flag for whether we should display the command value for a parameter
-    for (int i = 0; i < device->num_params; i++) {
+    for (int i = 0; i < num_params; i++) {
         wclrtoeol(DEVICE_WIN); // Clear previous parameter entry
 
         // Print the index and its name
         mvwprintw(DEVICE_WIN, line, PARAM_IDX_COL, "%d", i);
-        mvwprintw(DEVICE_WIN, line, PARAM_NAME_COL, "%s", device->params[i].name);
+        mvwprintw(DEVICE_WIN, line, PARAM_NAME_COL, "%s", show_custom_data ? custom_param_names[i] : device->params[i].name);
 
         // Print out subscriptions ("X" iff subbed)
-        if (sub_map_net_handler & (1 << i)) {
+        // Note that subscriptions are irrelevant for custom data
+        //   Runtime will *always* send custom data to net handler
+        //   Executor has nothing to do with the custom data
+        if (show_custom_data || sub_map_net_handler & (1 << i)) {
             mvwprintw(DEVICE_WIN, line, NET_SUB_COL + 1, "X");
         }
-        if (sub_map_executor & (1 << i)) {
+        if (!show_custom_data && sub_map_executor & (1 << i)) {
             mvwprintw(DEVICE_WIN, line, EXE_SUB_COL + 1, "X");
         }
 
         // Determine whether we need to display the command value
-        if (device->params[i].write == 0) { // Read-only parameter
+        if (show_custom_data) {
+            mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "N/A");
+            display_cmd_val = 0;
+        } else if (device->params[i].write == 0) { // Read-only parameter
             mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "RD_ONLY");
             display_cmd_val = 0;
         } else if ((cmd_map & (1 << i)) == 0) { // No command to this parameter
@@ -296,31 +325,35 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         }
 
         // Display values according to the parameter's type
-        switch (device->params[i].type) {
+        param_type_t param_type = (show_custom_data) ? custom_param_types[i] : device->params[i].type;
+        switch (param_type) {
             case INT:
                 if (display_cmd_val) {
                     mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%d", command_vals[i].p_i);
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%d", data_vals[i].p_i);
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%d", (show_custom_data) ? custom_param_values[i].p_i : data_vals[i].p_i);
                 break;
             case FLOAT:
                 if (display_cmd_val) {
                     mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%f", command_vals[i].p_f);
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%f", data_vals[i].p_f);
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%f", (show_custom_data) ? custom_param_values[i].p_f : data_vals[i].p_f);
                 break;
             case BOOL:
                 if (display_cmd_val) {
                     mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%s", command_vals[i].p_b ? "TRUE" : "FALSE");
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%s", data_vals[i].p_b ? "TRUE" : "FALSE");
+                // Boolean value to display is based on whether we're looking at custom data or an actual device
+                // Display the string representation of the boolean
+                int bool_val = (show_custom_data) ? custom_param_values[i].p_b : data_vals[i].p_b;
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%s", bool_val ? "TRUE" : "FALSE");
                 break;
         }
         // Advance our line to handle the next parameter
         wmove(DEVICE_WIN, ++line, 0);
     }
     // Clear non-existent parameters
-    for (int i = device->num_params; i < MAX_PARAMS; i++) {
+    for (int i = num_params; i < MAX_PARAMS; i++) {
         wclrtoeol(DEVICE_WIN);
         wmove(DEVICE_WIN, ++line, 0);
     }
@@ -384,18 +417,23 @@ int main(int argc, char** argv) {
 
     // Update the UI continually (based on refresh rate)
     while (1) {
-        // Detect arrow key inputs to increment/decrement device_selection
+        // Detect arrow key inputs to increment/decrement device_selection with wrapping within [0, MAX_DEVICES] (inclusive)
+        // The device at index MAX_DEVICES is the custom data block, which is visible to Dawn as another "device"
         switch (wgetch(DEVICE_WIN)) {
             case KEY_LEFT:
-                // Move selection to next lowest connected device or 0
+                // Move selection to next lowest connected device or wrap to the highest
                 if (device_selection > 0) {
                     device_selection--;
+                } else {
+                    device_selection = MAX_DEVICES;
                 }
                 break;
             case KEY_RIGHT:
-                // Move selection to next lowest connected device or MAX_DEVICES - 1
-                if (device_selection < MAX_DEVICES - 1) {
+                // Move selection to next lowest connected device or wrap to the lowest
+                if (device_selection < MAX_DEVICES) {
                     device_selection++;
+                } else {
+                    device_selection = 0;
                 }
                 break;
             default:
