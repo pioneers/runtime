@@ -89,9 +89,9 @@ cdef class Gamepad:
             raise NotImplementedError(f'Can only use Gamepad during teleop mode')
         # Convert Python string to C string
         cdef bytes param = param_name.encode('utf-8')
-        cdef uint32_t buttons
+        cdef uint64_t buttons
         cdef float joysticks[4]
-        cdef int err = gamepad_read(&buttons, joysticks)
+        cdef int err = input_read(&buttons, joysticks, GAMEPAD)
         if err == -1:
             raise DeviceError(f"Gamepad isn't connected to Dawn or the robot")
         cdef char** button_names = get_button_names()
