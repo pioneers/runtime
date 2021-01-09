@@ -370,26 +370,28 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     wrefresh(DEVICE_WIN);
 }
 
-// Displays the changed and requested devices and params
-void display_subscriptions() {
+/**
+ * Displays the parameter subscriptions for each connected device by NET_HANDLER and EXECUTOR.
+ * Arguments:
+ *    catalog: current shared memory catalog; Used to display subscriptions for only connected devices
+ */
+void display_subscriptions(uint32_t catalog) {
     // Get shm subscriptions
     uint32_t sub_map[MAX_DEVICES + 1] = {0}; // Initialize subs to 0
-    get_sub_requests(sub_map, DEV_HANDLER);
+    get_sub_requests(sub_map, SHM); // SHM indicates we want subs from both NET_HANDLER and EXECUTOR
 
-    // Print device subscription bitmap
-    int line = 3;
-    mvwprintw(SUB_WIN, line++, 1, "Subscribed devices: 0x%016llX", sub_map[0]);
-    line++;
+    // Note: We won't display sub_map[0] because it is cleared when dev handler polls for subscriptions (i.e. It will almost always look 0)
 
     // Print parameter subscriptions (one bitmap for each device)
+    int line = 3;
     mvwprintw(SUB_WIN, line++, 1, "Subscribed parameters for each device:");
     for (int i = 0; i < MAX_DEVICES; i++) {
         wclrtoeol(SUB_WIN);
-        // Display subscription iff there are any
-        if (sub_map[0] & (1 << i)) {
-            mvwprintw(SUB_WIN, line, 5, "Device %02d: 0x%016llX", i, sub_map[i]);
+        // Show subscription iff device is connected
+        if (catalog & (1 << i)) {
+            mvwprintw(SUB_WIN, line, 5, "Device %02d: 0x%08X", i, sub_map[i + 1]);
         }
-        wmove(GAMEPAD_WIN, ++line, 5);
+        wmove(SUB_WIN, ++line, 5);
     }
 
     // Box and refresh
@@ -459,11 +461,11 @@ int main(int argc, char** argv) {
         display_robot_desc();
         display_gamepad_state(joystick_names, button_names);
         display_device(catalog, dev_ids, device_selection);
-        display_subscriptions();
+        display_subscriptions(catalog);
 
         // Throttle refresh rate
         usleep(100000 / FPS);
-        mvprintw(0, 0, "Catalog: 0x%016X; Selected Device: %02d", catalog, device_selection);
+        mvprintw(0, 0, "Catalog: 0x%08X; Selected Device: %02d", catalog, device_selection);
         refresh();
     }
 
