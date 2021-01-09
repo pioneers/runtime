@@ -67,6 +67,9 @@ WINDOW* DEVICE_WIN;     // Displays device information (id, commands, data, and 
 // Make the left border of DEVICE_WIN to the right of ROBOT_DESC_WIN and GAMEPAD_WIN
 #define DEVICE_START_X (ROBOT_DESC_WIDTH + 1)
 
+// The column at which we display an "X" next to a button name if it's pressed
+const int BUTTON_PRESSED_FLAG_COL = 5 + strlen("button_start") + 2;
+
 // Column positions in device window; Declared as const instead of #define to prevent repeated strlen() computation
 // Each one is determined by taking the previous column and adding the previous column's maximum width
 const int VALUE_WIDTH = strlen("123.000000") + 1; // String representation of float length; Used to determine column widths
@@ -158,7 +161,7 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
 
     // Read gamepad state if gamepad is connected
     uint32_t pressed_buttons = 0;
-    float joystick_vals[4];
+    float joystick_vals[4] = {0};
     int gamepad_connected = (robot_desc_read(GAMEPAD) == CONNECTED) ? 1 : 0;
     if (gamepad_connected) {
         gamepad_read(&pressed_buttons, joystick_vals);
@@ -172,10 +175,8 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     for (int i = 0; i < 4; i++) {
         // Clear previous entry
         wclrtoeol(GAMEPAD_WIN);
-        // Display joystick values iff gamepad is connected
-        if (gamepad_connected) {
-            mvwprintw(GAMEPAD_WIN, line, 5, "%s = %f", joystick_names[i], joystick_vals[i]);
-        }
+        // Display joystick values (This will be 0 if gamepad is not connected)
+        mvwprintw(GAMEPAD_WIN, line, 5, "%s = %f", joystick_names[i], joystick_vals[i]);
         // Advance line pointer for the next joystick
         wmove(GAMEPAD_WIN, ++line, 0);
     }
@@ -186,12 +187,14 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
 
     // Print pressed buttons
     mvwprintw(GAMEPAD_WIN, line++, 1, "Pressed Buttons:");
+    wmove(GAMEPAD_WIN, line, 0);
     for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
         // Move to button row and clear previous entry
         wclrtoeol(GAMEPAD_WIN);
-        // Show button name if pressed
-        if (gamepad_connected && (pressed_buttons & (1 << i))) {
-            mvwprintw(GAMEPAD_WIN, line, 5, "%s", button_names[i]);
+        // Show button name and an "X" next to it if pressed
+        mvwprintw(GAMEPAD_WIN, line, 5, "%s", button_names[i]);
+        if (pressed_buttons & (1 << i)) {
+            mvwprintw(GAMEPAD_WIN, line, BUTTON_PRESSED_FLAG_COL, "X");
         }
         // Move to next button
         wmove(GAMEPAD_WIN, ++line, 0);
