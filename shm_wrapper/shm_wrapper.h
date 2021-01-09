@@ -9,15 +9,17 @@
 #include "../runtime_util/runtime_util.h"  // for runtime constants
 
 // names of various objects used in shm_wrapper; should not be used outside of shm_wrapper.c, shm_start.c, and shm_stop.c
-#define CATALOG_MUTEX_NAME "/ct-mutex"   // name of semaphore used as a mutex on the catalog
-#define CMDMAP_MUTEX_NAME "/cmap-mutex"  // name of semaphore used as a mutex on the command bitmap
-#define SUBMAP_MUTEX_NAME "/smap-mutex"  // name of semaphore used as a mutex on the various subcription bitmaps
-#define DEV_SHM_NAME "/dev-shm"          // name of shared memory block across devices
+#define DEV_SHM_NAME "/dev-shm"        // name of shared memory block across devices
+#define CATALOG_MUTEX_NAME "/cat-sem"  // name of semaphore used as a mutex on the catalog
+#define CMDMAP_MUTEX_NAME "/cmap-sem"  // name of semaphore used as a mutex on the command bitmap
+#define SUBMAP_MUTEX_NAME "/smap-sem"  // name of semaphore used as a mutex on the various subcription bitmaps
 
-#define GPAD_SHM_NAME "/gp-shm"         // name of shared memory block for gamepad
-#define ROBOT_DESC_SHM_NAME "/rd-shm"   // name of shared memory block for robot description
-#define GP_MUTEX_NAME "/gp-sem"         // name of semaphore used as mutex over gamepad shm
-#define RD_MUTEX_NAME "/rd-sem"         // name of semaphore used as mutex over robot description shm
+#define INPUTS_SHM_NAME "/inputs-shm"  // name of shared memory block for inputs
+#define INPUTS_MUTEX_NAME "/inputs-sem"  // name of semaphore used as mutex over inputs shm
+
+#define ROBOT_DESC_SHM_NAME "/rd-shm"  // name of shared memory block for robot description
+#define RD_MUTEX_NAME "/rd-sem"        // name of semaphore used as mutex over robot description shm
+
 #define LOG_DATA_SHM "/log-data-shm"    // name of shared memory block for Robot.log data
 #define LOG_DATA_MUTEX "/log-data-sem"  // name of semaphore used as mutex over Robot.log shm
 
@@ -26,8 +28,9 @@
 // *********************************** SHM TYPEDEFS  ****************************************************** //
 
 // enumerated names for the two associated blocks per device
-typedef enum stream { DATA,
-                      COMMAND } stream_t;
+typedef enum stream { 
+    DATA, COMMAND 
+} stream_t;
 
 // shared memory block that holds device information, data, and commands has this structure
 typedef struct {
@@ -45,16 +48,26 @@ typedef struct {
     sem_t* command_sem;  // semaphore on the command stream of a device
 } dual_sem_t;
 
-// shared memory for gamepad
+
+
+// struct describing an input
 typedef struct {
-    uint32_t buttons;    // bitmap for which buttons are pressed
-    float joysticks[4];  // array to hold joystick positions
-} gamepad_shm_t;
+    uint64_t buttons;           // bitmap for which buttons are pressed
+    float joysticks[4];         // array to hold joystick positions, only for gamepad
+    robot_desc_field_t source;  // which hardware device the command came from, either GAMEPAD or KEYBOARD
+} input_t;
+
+// shared memory for gamepad and keyboard inputs
+typedef struct {
+    input_t inputs[2]; // Index 0 is for GAMEPAD, index 1 is for KEYBOARD, like in the enum. can be modified in the future
+} input_shm_t;
+
 
 // shared memory for robot description
 typedef struct {
-    uint8_t fields[NUM_DESC_FIELDS];  // array to hold the robot state (each is a uint8_t)
+    uint8_t fields[NUM_DESC_FIELDS];  // array to hold the robot state (each is a enum stored as a uint8_t)
 } robot_desc_shm_t;
+
 
 // shared memory for Robot.log data
 typedef struct {
@@ -75,10 +88,10 @@ extern sem_t* catalog_sem;            // semaphore used as a mutex on the catalo
 extern sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
 extern sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
-extern gamepad_shm_t* gp_shm_ptr;     // points to memory-mapped shared memory block for gamepad
-extern robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
-extern sem_t* gp_sem;                 // semaphore used as a mutex on the gamepad
-extern sem_t* rd_sem;                 // semaphore used as a mutex on the robot description
+extern input_shm_t* input_shm_ptr;      // points to memory-mapped shared memory block for user inputs
+extern robot_desc_shm_t* rd_shm_ptr;    // points to memory-mapped shared memory block for robot description
+extern sem_t* input_sem;                // semaphore used as a mutex on the inputs
+extern sem_t* rd_sem;                   // semaphore used as a mutex on the robot description
 
 extern log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for log data specified by executor
 extern sem_t* log_data_sem;               // semaphore used as a mutex on the log data
@@ -119,9 +132,9 @@ void print_params(uint32_t devices);
 void print_robot_desc();
 
 /**
- * Prints the current state of the gamepad in a human-readable way
+ * Prints the current state of the user inputs in a human-readable way
  */
-void print_gamepad_state();
+void print_inputs_state();
 
 /**
  * Prints the current custom logged data in a human-readable way
@@ -283,11 +296,12 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val);
  * Arguments:
  *    pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
  *    joystick_vals[4]: array of 4 floats to which the current joystick states will be read into
+ *    source: which input source to read from, either GAMEPAD or KEYBOARD
  * Returns:
  *    0 on success
- *    -1 on failure (if gamepad is not connected)
+ *    -1 if input is not connected
  */
-int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]);
+int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_field_t source);
 
 /**
  * This function writes the given state of the gamepad to shared memory.
@@ -296,11 +310,12 @@ int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]);
  *    pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
  *        (only the first 17 bits used, since there are 17 buttons)
  *    joystick_vals[4]: array of 4 floats that contain the values to write to the joystick
+ *    source: which input source to write to, either GAMEPAD or KEYBOARD
  * Returns:
  *    0 on success
- *    -1 on failure (if gamepad is not connected)
+ *    -1 if gamepad is not connected
  */
-int gamepad_write(uint32_t pressed_buttons, float joystick_vals[4]);
+int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_field_t source);
 
 /**
  * Write the given custom parameter to shared memory. 
@@ -310,7 +325,8 @@ int gamepad_write(uint32_t pressed_buttons, float joystick_vals[4]);
  *    value: value of the parameter, with the corresponding type filled with data
  * Returns:
  *    0 on success
- *    -1 on failure (maximum number of custom parameters is reached so this parameter isn't written)
+ *   -1 when maximum number of custom parameters is reached
+ *   -2 when the given key is longer than 63 characters
  */
 int log_data_write(char* key, param_type_t type, param_val_t value);
 

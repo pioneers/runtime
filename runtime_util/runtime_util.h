@@ -24,9 +24,10 @@
 
 #define DEVICES_LENGTH 64  // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 5  // Number of fields in the robot description
+#define NUM_DESC_FIELDS 6  // Number of fields in the robot description
 
 #define NUM_GAMEPAD_BUTTONS 17  // Number of gamepad buttons
+#define NUM_KEYBOARD_BUTTONS 26
 
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 
@@ -74,6 +75,16 @@ typedef enum gp_joysticks {
     JOYSTICK_RIGHT_Y
 } gp_joystick_t;
 
+// enumerated names for the fields in the robot description
+typedef enum robot_descs {
+    RUN_MODE,
+    DAWN,
+    SHEPHERD,
+    GAMEPAD,
+    KEYBOARD,
+    START_POS
+} robot_desc_field_t;
+
 // enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
     // values for robot.run_mode
@@ -88,15 +99,6 @@ typedef enum robot_desc_vals {
     LEFT,
     RIGHT
 } robot_desc_val_t;
-
-// enumerated names for the fields in the robot description
-typedef enum robot_descs {
-    RUN_MODE,
-    DAWN,
-    SHEPHERD,
-    GAMEPAD,
-    START_POS
-} robot_desc_field_t;
 
 // enumerated names for the data types device parameters can be
 typedef enum param_type {
@@ -200,6 +202,25 @@ char** get_button_names();
  * Returns an array of joystick names.
  */
 char** get_joystick_names();
+
+
+/**
+ * Get the list of key names corresponding to the keyboard button bitmap.
+ */ 
+char** get_key_names();
+
+
+/**
+ * Convert the robot_desc_field_t to its string representation.
+ * 
+ * Args:
+ *      field: the field to convert
+ * Returns:
+ *      String corresponding to the enum or NULL if string representation doesn't exist yet
+ * 
+ */
+char* field_to_string(robot_desc_field_t field);
+
 
 // ********************************** TIME ********************************** //
 
