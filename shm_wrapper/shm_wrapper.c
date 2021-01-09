@@ -659,7 +659,7 @@ int place_sub_request(uint64_t dev_uid, process_t process, uint32_t params_to_su
         curr_sub_map[dev_ix + 1] = params_to_sub;
         curr_sub_map[0] |= (1 << dev_ix);  // turn on corresponding bit
     }
-
+    
     // release sub_map_sem
     my_sem_post(sub_map_sem, "sub_map_sem");
 
@@ -775,7 +775,11 @@ int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]) {
 
     // if no gamepad connected, then release rd_sem and return
     if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
-        log_printf(ERROR, "tried to read, but no gamepad connected");
+        *pressed_buttons = 0;
+        for (int i = 0; i < 4; i++) {
+            joystick_vals[i] = 0;
+        }
+        log_printf(DEBUG, "tried to read, but no gamepad connected");
         my_sem_post(rd_sem, "robot_desc_mutex");
         return -1;
     }
