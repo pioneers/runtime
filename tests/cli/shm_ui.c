@@ -127,6 +127,7 @@ void display_robot_desc() {
 
     // Print each field (clear previous value before printing current value)
     int line = 3;
+    wmove(ROBOT_DESC_WIN, line, 0);
     wclrtoeol(ROBOT_DESC_WIN);
     mvwprintw(ROBOT_DESC_WIN, line++, 1, "RUN_MODE = %s", (run_mode == IDLE) ? "IDLE" : (run_mode == AUTO ? "AUTO" : (run_mode == TELEOP ? "TELEOP" : "CHALLENGE")));
     wclrtoeol(ROBOT_DESC_WIN);
@@ -151,7 +152,7 @@ void display_robot_desc() {
  */
 void display_gamepad_state(char** joystick_names, char** button_names) {
     // Start at line after the header
-    int line = 2;
+    int line = 2; // Note that this is just a row number; Must use wmove() to actually move the cursor to this line
     wmove(GAMEPAD_WIN, line, 0);
     wclrtoeol(GAMEPAD_WIN); // Clear "No gamepad connected"
 
@@ -164,13 +165,13 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     } else {
         mvwprintw(GAMEPAD_WIN, line, 5, "No gamepad connected!");
     }
-    line++;
+    wmove(GAMEPAD_WIN, ++line, 0);
 
     // Print joysticks
     mvwprintw(GAMEPAD_WIN, line++, 1, "Joystick Positions:");
-    wmove(GAMEPAD_WIN, line, 0); // Move to the first joystick line
     for (int i = 0; i < 4; i++) {
-        wclrtoeol(GAMEPAD_WIN); // Clear previous joystick position
+        // Clear previous entry
+        wclrtoeol(GAMEPAD_WIN);
         // Display joystick values iff gamepad is connected
         if (gamepad_connected) {
             mvwprintw(GAMEPAD_WIN, line, 5, "%s = %f", joystick_names[i], joystick_vals[i]);
@@ -178,17 +179,21 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
         // Advance line pointer for the next joystick
         wmove(GAMEPAD_WIN, ++line, 0);
     }
+
+    // Move to buttons section
     line += 2;
+    wmove(GAMEPAD_WIN, line, 0);
 
     // Print pressed buttons
     mvwprintw(GAMEPAD_WIN, line++, 1, "Pressed Buttons:");
-    wmove(GAMEPAD_WIN, line, 0); // Move to the first button line
     for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-        wclrtoeol(GAMEPAD_WIN); // Clear button name
+        // Move to button row and clear previous entry
+        wclrtoeol(GAMEPAD_WIN);
         // Show button name if pressed
         if (gamepad_connected && (pressed_buttons & (1 << i))) {
             mvwprintw(GAMEPAD_WIN, line, 5, "%s", button_names[i]);
         }
+        // Move to next button
         wmove(GAMEPAD_WIN, ++line, 0);
     }
 
@@ -237,11 +242,11 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     }
 
     int line = 3; // Our pointer to the current line/row we're writing to
+    wmove(DEVICE_WIN, line, 0);
     const int table_header_line = line + 1; // The line to display the table column names
 
     // Print current device's identifiers
     device_t* device = NULL;
-    wmove(DEVICE_WIN, line, 0);
     wclrtoeol(DEVICE_WIN); // Clear previous string
     if (show_custom_data) {
         mvwprintw(DEVICE_WIN, line++, 1, "Custom Data");
