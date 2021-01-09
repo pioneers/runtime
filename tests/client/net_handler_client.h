@@ -1,10 +1,8 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
-#include <sys/time.h>
 #include <sys/wait.h>
 #include "../../net_handler/net_util.h"
-#include "../../runtime_util/runtime_util.h"
 
 typedef struct {
     uint64_t uid;     // what the uid of this device is

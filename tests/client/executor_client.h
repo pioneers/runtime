@@ -1,10 +1,13 @@
 #ifndef EXEC_CLIENT_H
 #define EXEC_CLIENT_H
 
-#include <signal.h>
-#include <stdlib.h>
-#include <sys/wait.h>
-#include "../../runtime_util/runtime_util.h"
+#include <errno.h>     // for errno
+#include <signal.h>    // for SIGINT
+#include <stdio.h>     // for printf, stderr
+#include <stdlib.h>    // for malloc, free, realloc, exit
+#include <string.h>    // for strcat, strcpy
+#include <sys/wait.h>  // for waitpid, pid_t
+#include <unistd.h>    // for execlp, fork, chdir
 
 /**
  * Spawns the executor running student_code
