@@ -342,7 +342,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
     //initialize argument to new connection thread
     tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
     if (args == NULL) {
-        log_printf(FATAL, "start_tcp_conn: Failed to malloc");
+        log_printf(FATAL, "start_tcp_conn: Failed to malloc args");
         exit(1);
     }
     args->client = client;
