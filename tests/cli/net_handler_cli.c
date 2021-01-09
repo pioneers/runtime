@@ -241,7 +241,7 @@ void prompt_challenge_data() {
 
 void prompt_device_data() {
     char nextcmd[MAX_CMD_LEN];
-    char dev_names[DEVICES_LENGTH][32];  // for holding the names of the devices
+    char dev_names[DEVICES_LENGTH][32];  // for holding the names of the valid devices
     int num_devices = 0;
     uint8_t dev_type;
     long long int temp;
@@ -259,13 +259,6 @@ void prompt_device_data() {
 
     // enter prompt loop
     while (1) {
-        // subscribe to another device?
-        printf("Type \"done\" if ready to send message; type anything else to continue: ");
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-        if (strcmp(nextcmd, "done\n") == 0) {
-            break;
-        }
-
         // ask for UID
         while (1) {
             printf("Enter the UID of the device, in base 10: ");
@@ -299,42 +292,51 @@ void prompt_device_data() {
                 return;
             }
 
+            // Assign type and make sure it's an integer
+            dev_type = (uint8_t) strtol(nextcmd, NULL, 10);
             errno = 0;
-            if ((dev_type = (uint8_t) strtol(nextcmd, NULL, 10)) == 0 && errno != 0) {
+            if (errno != 0) {
                 printf("Did not enter integer: %s\n", nextcmd);
                 continue;
             }
 
-            if ((curr_dev = get_device(dev_type)) == NULL) {
+            // Make sure the type refers to a valid device
+            curr_dev = get_device(dev_type);
+            if (curr_dev == NULL) {
                 printf("Did not specify a valid device type: %s\n", nextcmd);
                 continue;
             }
+
+            // Assign name to data
+            data[num_devices].name = malloc(strlen(curr_dev->name) + 1);
+            strcpy(data[num_devices].name, curr_dev->name);
             break;
         }
 
         // fetch parameters and prompt user "y" or "n" on each one
-        curr_dev = get_device(device_name_to_type(data[num_devices].name));
         data[num_devices].params = 0;
         printf("Now specify whether to subscribe to given param or not.\n");
-        printf("If a subscription is desired, type lowercase letter \"y\", if not type \"n\"\n");
+        printf("If a subscription is desired, type lowercase letter \"y\". Otherwise, press anything else: \n");
         for (int i = 0; i < curr_dev->num_params; i++) {
-            while (1) {
-                printf("\t%s? ", curr_dev->params[i].name);
-                fgets(nextcmd, MAX_CMD_LEN, stdin);
-                if (strcmp(nextcmd, "abort\n") == 0) {
-                    return;
-                }
-                if (strcmp(nextcmd, "y\n") == 0) {
-                    data[num_devices].params |= (1 << i);
-                    break;
-                } else if (strcmp(nextcmd, "n\n") == 0) {
-                    break;
-                } else {
-                    printf("Input is not \"y\" or \"n\": %s\n", nextcmd);
-                }
+            printf("\t%s? ", curr_dev->params[i].name);
+            fgets(nextcmd, MAX_CMD_LEN, stdin);
+            // Abort subscription completely if "abort"
+            if (strcmp(nextcmd, "abort\n") == 0) {
+                return;
+            }
+            // Add subscription if "y"
+            if (strcmp(nextcmd, "y\n") == 0) {
+                data[num_devices].params |= (1 << i);
             }
         }
         num_devices++;
+
+        // subscribe to another device?
+        printf("Type \"next\" to add another device subscription. If ready to send queued subscriptions, type anything else: \n");
+        fgets(nextcmd, MAX_CMD_LEN, stdin);
+        if (strcmp(nextcmd, "next\n") != 0) {
+            break;
+        }
     }
 
     // send

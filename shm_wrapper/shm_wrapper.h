@@ -225,13 +225,14 @@ int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint3
 int place_sub_request(uint64_t dev_uid, process_t process, uint32_t params_to_sub);
 
 /**
- * Get current subscription requests for all devices. Should only be called by dev_handler
+ * Get current subscription requests for all devices.
  * Arguments:
  *    sub_map[MAX_DEVICES + 1]: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
  *        (expects an array of 33 elements, where the 0th index is a bitmap indicating which devices require a new sub request to be sent,
  *        and the remaining 32 elements indicate what the subscription request to each device should be if there are changes)
- *    process: If EXECUTOR, fills with executor subscriptions. If NET_HANDLER, fills with net_handler subscriptions. 
- *             If DEV_HANDLER, fills with subscriptions of both and also manages the bitmap. Else, fills with subscriptions of both.
+ *    process: If EXECUTOR, fills with executor subscriptions. If NET_HANDLER, fills with net_handler subscriptions.
+ *             If neither EXECUTOR nor NET_HANDLER, fill with subscriptions of both EXECUTOR and NET_HANDLER.
+ *             If DEV_HANDLER, also reset bitmap indicating which devices have new subscriptions.
  */
 void get_sub_requests(uint32_t sub_map[MAX_DEVICES + 1], process_t process);
 
