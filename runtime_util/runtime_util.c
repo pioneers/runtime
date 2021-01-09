@@ -247,9 +247,10 @@ int8_t get_param_idx(uint8_t dev_type, char* param_name) {
     return -1;
 }
 
-char* BUTTON_NAMES[] = {
+char* BUTTON_NAMES[NUM_GAMEPAD_BUTTONS] = {
     "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
     "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"};
+
 char* JOYSTICK_NAMES[] = {
     "joystick_left_x", "joystick_left_y", "joystick_right_x", "joystick_right_y"};
 
@@ -259,6 +260,25 @@ char** get_button_names() {
 
 char** get_joystick_names() {
     return JOYSTICK_NAMES;
+}
+
+char* KEY_NAMES[NUM_KEYBOARD_BUTTONS] = {
+    "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"
+};
+
+char** get_key_names() {
+    return KEY_NAMES;
+}
+
+
+char* field_to_string(robot_desc_field_t field) {
+    if (field == GAMEPAD) {
+        return "Gamepad";
+    }
+    else if (field == KEYBOARD) {
+        return "Keyboard";
+    }
+    return NULL;
 }
 
 // ********************************** TIME ********************************** //

@@ -193,6 +193,8 @@ cdef class Robot:
             value: value of the parameter. Must be an int, float, or bool.
         
         """
+        if len(key) >= 64:
+            raise ValueError(f"Cannot log parameter {key} since it is more than 63 characters long")
         cdef param_val_t param
         cdef param_type_t param_type
         cdef bytes key_bytes = key.encode('utf-8')
@@ -211,6 +213,8 @@ cdef class Robot:
         cdef int err = log_data_write(key_bytes, param_type, param)
         if err == -1:
             raise IndexError(f"Maximum number of 255 log data keys reached. can't add key {key}")
+        elif err == -2:
+            raise RuntimeError(f"Robot's Runtime code has a bug in log_data_write")
         
 
 

@@ -8,9 +8,9 @@ sem_t* catalog_sem;            // semaphore used as a mutex on the catalog
 sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
 sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
-gamepad_shm_t* gp_shm_ptr;     // points to memory-mapped shared memory block for gamepad
+input_shm_t* input_shm_ptr;    // points to memory-mapped shared memory block for user inputs
 robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
-sem_t* gp_sem;                 // semaphore used as a mutex on the gamepad
+sem_t* input_sem;              // semaphore used as a mutex on the inputs
 sem_t* rd_sem;                 // semaphore used as a mutex on the robot description
 
 log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for log data specified by executor
@@ -212,7 +212,7 @@ static void shm_close() {
     my_sem_close(catalog_sem, "catalog sem");
     my_sem_close(cmd_map_sem, "cmd map sem");
     my_sem_close(sub_map_sem, "sub map sem");
-    my_sem_close(gp_sem, "gamepad_mutex");
+    my_sem_close(input_sem, "inputs_mutex");
     my_sem_close(rd_sem, "robot_desc_mutex");
     my_sem_close(log_data_sem, "log data mutex");
 
@@ -220,8 +220,8 @@ static void shm_close() {
     if (munmap(dev_shm_ptr, sizeof(dev_shm_t)) == -1) {
         log_printf(ERROR, "munmap: dev_shm. %s", strerror(errno));
     }
-    if (munmap(gp_shm_ptr, sizeof(gamepad_shm_t)) == -1) {
-        log_printf(ERROR, "munmap: gp_shm. %s", strerror(errno));
+    if (munmap(input_shm_ptr, sizeof(input_shm_t)) == -1) {
+        log_printf(ERROR, "munmap: input_shm. %s", strerror(errno));
     }
     if (munmap(rd_shm_ptr, sizeof(robot_desc_shm_t)) == -1) {
         log_printf(ERROR, "munmap: robot_desc_shm. %s", strerror(errno));
@@ -353,6 +353,9 @@ void print_robot_desc() {
             case GAMEPAD:
                 printf("\tGAMEPAD = %s\n", (rd_shm_ptr->fields[GAMEPAD] == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
                 break;
+            case KEYBOARD:
+                printf("\tKEYBOARD = %s\n", (rd_shm_ptr->fields[KEYBOARD] == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
+                break;
             case START_POS:
                 printf("\tSTART_POS = %s\n", (rd_shm_ptr->fields[START_POS] == LEFT) ? "LEFT" : "RIGHT");
                 break;
@@ -367,30 +370,37 @@ void print_robot_desc() {
     my_sem_post(rd_sem, "robot_desc_mutex (in print)");
 }
 
-void print_gamepad_state() {
-    char** button_names = get_button_names();
-    char** joystick_names = get_joystick_names();
-    uint32_t buttons;
+void print_inputs_state() {
+    uint64_t buttons;
     float joysticks[4];
+    char** button_names[] = {get_button_names(), get_key_names()};
+    int button_lengths[] = {NUM_GAMEPAD_BUTTONS, NUM_KEYBOARD_BUTTONS};
+    char** joystick_names = get_joystick_names();
 
-    printf("Current Gamepad State:\n");
-    if (gamepad_read(&buttons, joysticks) == -1) {
-        printf("\tNo gamepad currently connected\n");
-    } else {
-        printf("\tPushed Buttons:\n");
-        // only print pushed buttons (so we don't print out many lines of output each time we all this function)
-        for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-            if (buttons & (1 << i)) {
-                printf("\t\t%s\n", button_names[i]);
+    for (int i = 0; i < 2; i++) {
+        robot_desc_field_t source = GAMEPAD + i; // Assumes that KEYBOARD is right after GAMEPAD in robot_desc_field_t enum
+        if (robot_desc_read(source) == DISCONNECTED) { 
+            printf("No %s currently connected\n", field_to_string(source));
+        } else {
+            printf("%s is connected\n", field_to_string(source));
+            input_read(&buttons, joysticks, source);
+            printf("\tPushed Buttons:\n");
+            // only print pushed buttons
+            for (int j = 0; j < button_lengths[i]; j++) {
+                if (buttons & (1 << j)) {
+                    printf("\t\t%s\n", button_names[i][j]);
+                }
+            }
+            if (i == 0) { // Joystick only exists for GAMEPAD device
+                printf("\tJoystick Positions:\n");
+                // print joystick positions
+                for (int j = 0; j < 4; j++) {
+                    printf("\t\t%s = %f\n", joystick_names[j], joysticks[j]);
+                }
             }
         }
-        printf("\tJoystick Positions:\n");
-        // print joystick positions
-        for (int i = 0; i < 4; i++) {
-            printf("\t\t%s = %f\n", joystick_names[i], joysticks[i]);
-        }
-        printf("\n");
     }
+    printf("\n");
     fflush(stdout);
 }
 
@@ -437,7 +447,7 @@ void shm_init() {
     catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
     cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
     sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
-    gp_sem = my_sem_open(GP_MUTEX_NAME, "gamepad mutex");
+    input_sem = my_sem_open(INPUTS_MUTEX_NAME, "inputs mutex");
     rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
     log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
     for (int i = 0; i < MAX_DEVICES; i++) {
@@ -453,7 +463,7 @@ void shm_init() {
 
     // open dev shm block and map to client process virtual memory
     if ((fd_shm = shm_open(DEV_SHM_NAME, O_RDWR, 0)) == -1) {  // no O_CREAT
-        log_printf(FATAL, "shm_open dev_shm %s", strerror(errno));
+        log_printf(FATAL, "shm_open dev_shm: %s", strerror(errno));
         exit(1);
     }
     if ((dev_shm_ptr = mmap(NULL, sizeof(dev_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
@@ -461,20 +471,20 @@ void shm_init() {
         exit(1);
     }
     if (close(fd_shm) == -1) {
-        log_printf(ERROR, "close dev_shm %s", strerror(errno));
+        log_printf(ERROR, "close dev_shm: %s", strerror(errno));
     }
 
     // open gamepad shm block and map to client process virtual memory
-    if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR, 0)) == -1) {  // no O_CREAT
-        log_printf(FATAL, "shm_open: gamepad_shm. %s", strerror(errno));
+    if ((fd_shm = shm_open(INPUTS_SHM_NAME, O_RDWR, 0)) == -1) {  // no O_CREAT
+        log_printf(FATAL, "shm_open: input_shm. %s", strerror(errno));
         exit(1);
     }
-    if ((gp_shm_ptr = mmap(NULL, sizeof(gamepad_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-        log_printf(FATAL, "mmap: gamepad_shm. %s", strerror(errno));
+    if ((input_shm_ptr = mmap(NULL, sizeof(input_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
+        log_printf(FATAL, "mmap: input_shm. %s", strerror(errno));
         exit(1);
     }
     if (close(fd_shm) == -1) {
-        log_printf(ERROR, "close: gamepad_shm. %s", strerror(errno));
+        log_printf(ERROR, "close: input_shm. %s", strerror(errno));
     }
 
     // open robot desc shm block and map to client process virtual memory
@@ -587,7 +597,7 @@ void device_disconnect(int dev_ix) {
 int device_read(int dev_ix, process_t process, stream_t stream, uint32_t params_to_read, param_val_t* params) {
     // check catalog to see if dev_ix is valid, if not then return immediately
     if (!(dev_shm_ptr->catalog & (1 << dev_ix))) {
-        log_printf(ERROR, "no device at dev_ix = %d, read failed", dev_ix);
+        log_printf(ERROR, "device_read: no device at dev_ix = %d, read failed", dev_ix);
         return -1;
     }
 
@@ -601,7 +611,7 @@ int device_read_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32
 
     // if device doesn't exist, return immediately
     if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "no device at dev_uid = %llu, read failed", dev_uid);
+        log_printf(ERROR, "device_read_uid: no device at dev_uid = %llu, read failed", dev_uid);
         return -1;
     }
 
@@ -613,7 +623,7 @@ int device_read_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32
 int device_write(int dev_ix, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params) {
     // check catalog to see if dev_ix is valid, if not then return immediately
     if (!(dev_shm_ptr->catalog & (1 << dev_ix))) {
-        log_printf(ERROR, "no device at dev_ix = %d, write failed", dev_ix);
+        log_printf(ERROR, "device_write: no device at dev_ix = %d, write failed", dev_ix);
         return -1;
     }
 
@@ -627,7 +637,7 @@ int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint3
 
     // if device doesn't exist, return immediately
     if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "no device at dev_uid = %llu, write failed", dev_uid);
+        log_printf(ERROR, "device_write_uid: no device at dev_uid = %llu, write failed", dev_uid);
         return -1;
     }
 
@@ -642,11 +652,11 @@ int place_sub_request(uint64_t dev_uid, process_t process, uint32_t params_to_su
 
     // validate request and obtain dev_ix, sub_map
     if (process != NET_HANDLER && process != EXECUTOR) {
-        log_printf(ERROR, "calling place_sub_request from process %u", process);
+        log_printf(ERROR, "place_sub_request: calling place_sub_request from incorrect process %u", process);
         return -1;
     }
     if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "no device at dev_uid = %llu, sub request failed", dev_uid);
+        log_printf(ERROR, "place_sub_request: no device at dev_uid = %llu, sub request failed", dev_uid);
         return -1;
     }
     curr_sub_map = (process == NET_HANDLER) ? dev_shm_ptr->net_sub_map : dev_shm_ptr->exec_sub_map;
@@ -769,13 +779,18 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val) {
     my_sem_post(rd_sem, "robot_desc_mutex");
 }
 
-int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]) {
+int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_field_t source) {
+    if (source != GAMEPAD && source != KEYBOARD) {
+        log_printf(FATAL, "input_read: incorrect API usage, can only read inputs for GAMEPAD and KEYBOARD.");
+        exit(1);
+    }
+
     // wait on rd_sem
     my_sem_wait(rd_sem, "robot_desc_mutex");
 
-    // if no gamepad connected, then release rd_sem and return
-    if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
-        log_printf(ERROR, "tried to read, but no gamepad connected");
+    // if input isn't connected, then release rd_sem and return
+    if (rd_shm_ptr->fields[source] == DISCONNECTED) {
+        log_printf(ERROR, "input_read: no %s connected", field_to_string(source));
         my_sem_post(rd_sem, "robot_desc_mutex");
         return -1;
     }
@@ -784,26 +799,32 @@ int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]) {
     my_sem_post(rd_sem, "robot_desc_mutex");
 
     // wait on gp_sem
-    my_sem_wait(gp_sem, "gamepad_mutex");
+    my_sem_wait(input_sem, "input_mutex");
 
-    *pressed_buttons = gp_shm_ptr->buttons;
+    int index = source - GAMEPAD; // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
+    *pressed_buttons = input_shm_ptr->inputs[index].buttons;
     for (int i = 0; i < 4; i++) {
-        joystick_vals[i] = gp_shm_ptr->joysticks[i];
+        joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
     }
 
     // release gp_sem
-    my_sem_post(gp_sem, "gamepad_mutex");
+    my_sem_post(input_sem, "input_mutex");
 
     return 0;
 }
 
-int gamepad_write(uint32_t pressed_buttons, float joystick_vals[4]) {
+int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_field_t source) {
+    if (source != GAMEPAD && source != KEYBOARD) {
+        log_printf(FATAL, "input_write: incorrect API usage, can only write inputs for GAMEPAD and KEYBOARD.");
+        exit(1);
+    }
+
     // wait on rd_sem
     my_sem_wait(rd_sem, "robot_desc_mutex");
 
-    // if no gamepad connected, then release rd_sem and return
-    if (rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
-        log_printf(ERROR, "tried to write, but no gamepad connected");
+    // if input isn't connected, then release rd_sem and return
+    if (rd_shm_ptr->fields[source] == DISCONNECTED) {
+        log_printf(ERROR, "input_write: no %s connected", field_to_string(source));
         my_sem_post(rd_sem, "robot_desc_mutex");
         return -1;
     }
@@ -812,15 +833,16 @@ int gamepad_write(uint32_t pressed_buttons, float joystick_vals[4]) {
     my_sem_post(rd_sem, "robot_desc_mutex");
 
     // wait on gp_sem
-    my_sem_wait(gp_sem, "gamepad_mutex");
+    my_sem_wait(input_sem, "input_mutex");
 
-    gp_shm_ptr->buttons = pressed_buttons;
+    int index = source - GAMEPAD; // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
+    input_shm_ptr->inputs[index].buttons = pressed_buttons;
     for (int i = 0; i < 4; i++) {
-        gp_shm_ptr->joysticks[i] = joystick_vals[i];
+        input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];
     }
 
     // release gp_sem
-    my_sem_post(gp_sem, "gamepad_mutex");
+    my_sem_post(input_sem, "input_mutex");
 
     return 0;
 }
@@ -837,10 +859,16 @@ int log_data_write(char* key, param_type_t type, param_val_t value) {
         }
     }
 
-    // return if we didn't find the log data corresponding to this key
+    // return if we ran out of keys for log data
     if (idx == UCHAR_MAX) {
         log_printf(ERROR, "Maximum number of %d log data keys reached. can't add key %s", UCHAR_MAX, key);
         return -1;
+    }
+
+    // 64 is max key size in log data SHM block
+    if (strlen(key) >= 64) {
+        log_printf(ERROR, "Key name %s for log data is longer than 64 characters", key);
+        return -2;
     }
 
     // copy over the name, type, and parameter of the log data into the shared memory block
