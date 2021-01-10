@@ -3,39 +3,18 @@ LDFLAGS=$(shell pkg-config --libs libprotobuf-c)
 LIBS=-pthread -lrt -Wall
 
 GEN_FOLDER=pbc_gen
-TEST_FOLDER=protobuf_tests
 GEN_FILES:=$(GEN_FOLDER)/*.c
 
 all: $(GEN_FOLDER)/* net_handler
 
+clean:
+	rm -f $(GEN_FOLDER)/*
+	rm -f net_handler
+	
+# makes the generated protobuf-c files in the pbc_gen folder
 $(GEN_FOLDER)/*: $(wildcard protos/*.proto)
 	cd protos && protoc-c --c_out ../$(GEN_FOLDER) *.proto
 
-clean:
-	rm -f $(GEN_FOLDER)/*
-	rm -f $(shell find protobuf_tests -type f ! -name "*.*")
-	rm -f net_handler
-
-proto_tests: $(GEN_FOLDER)/* log runmode gpstate devdata client server
-
-log: log_in log_out
-runmode: runmode_in runmode_out
-gpstate: gpstate_in gpstate_out
-devdata: devdata_in devdata_out
-
-# $@ is variable to the recipe name
-%: $(TEST_FOLDER)/%.c
-	gcc $(GEN_FILES) $(TEST_FOLDER)/$@.c -o $(TEST_FOLDER)/$@ $(LDFLAGS)
-
-run_%: $(TEST_FOLDER)/%.c
-	@echo %
-	%_out | %_in
-
-client: protobuf_tests/tcp_pb_client.c pbc_gen/text.pb-c.c
-	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
-
-server: protobuf_tests/tcp_pb_server.c pbc_gen/text.pb-c.c
-	gcc $^ -o protobuf_tests/$@ $(LDFLAGS)
-
+# makes the actual net_handler executable
 net_handler: net_util.c net_handler.c udp_conn.c tcp_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c 
 	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS)
