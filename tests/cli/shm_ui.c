@@ -162,8 +162,7 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     // Read gamepad state if gamepad is connected
     uint32_t pressed_buttons = 0;
     float joystick_vals[4] = {0};
-    int gamepad_connected = (robot_desc_read(GAMEPAD) == CONNECTED) ? 1 : 0;
-    if (gamepad_connected) {
+    if (robot_desc_read(GAMEPAD) == CONNECTED) {
         gamepad_read(&pressed_buttons, joystick_vals);
     } else {
         mvwprintw(GAMEPAD_WIN, line, 5, "No gamepad connected!");
@@ -256,7 +255,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     } else {
         device = get_device(dev_ids[shm_idx].type);
         if (device == NULL) { // This should never happen if the handling above is correct
-            log_printf(DEBUG, "device == NULL");
+            log_printf(ERROR, "device == NULL");
         }
         mvwprintw(DEVICE_WIN, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type,  dev_ids[shm_idx].year,  dev_ids[shm_idx].uid);
     }
@@ -282,7 +281,6 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     // Get shm subscriptions
     if (show_custom_data) {
         log_data_read(&num_params, custom_param_names, custom_param_types, custom_param_values);
-        // log_printf(DEBUG, "Showing %d custom params", num_params);
     } else {
         num_params = device->num_params;
         // Get shm subscriptions, command values, and data values
@@ -334,27 +332,26 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
 
         // Display values according to the parameter's type
         param_type_t param_type = (show_custom_data) ? custom_param_types[i] : device->params[i].type;
+        param_val_t param_val = (show_custom_data) ? custom_param_values[i] : data_vals[i];
         switch (param_type) {
             case INT:
                 if (display_cmd_val) {
                     mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%d", command_vals[i].p_i);
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%d", (show_custom_data) ? custom_param_values[i].p_i : data_vals[i].p_i);
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%d", param_val.p_i);
                 break;
             case FLOAT:
                 if (display_cmd_val) {
                     mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%f", command_vals[i].p_f);
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%f", (show_custom_data) ? custom_param_values[i].p_f : data_vals[i].p_f);
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%f", param_val.p_f);
                 break;
             case BOOL:
+                // Display the string representation of the boolean
                 if (display_cmd_val) {
                     mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%s", command_vals[i].p_b ? "TRUE" : "FALSE");
                 }
-                // Boolean value to display is based on whether we're looking at custom data or an actual device
-                // Display the string representation of the boolean
-                int bool_val = (show_custom_data) ? custom_param_values[i].p_b : data_vals[i].p_b;
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%s", bool_val ? "TRUE" : "FALSE");
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%s", param_val.p_b ? "TRUE" : "FALSE");
                 break;
         }
         // Advance our line to handle the next parameter
@@ -390,19 +387,20 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
 // ********************************** MAIN ********************************** //
 
 // Sending SIGINT to the process will stop shared memory
-void sigint_handler(int signum) {
+void clean_up(int signum) {
     stop_shm();
+    endwin();
     exit(0);
 }
 
 int main(int argc, char** argv) {
     // signal handler to clean up shm
-    signal(SIGINT, sigint_handler);
+    signal(SIGINT, clean_up);
     logger_init(TEST);
 
     // Start shm
     start_shm();
-    sleep(1); // ALlow shm to initialize
+    sleep(1); // Allow shm to initialize
 
     // Start UI
     initscr();
@@ -463,8 +461,7 @@ int main(int argc, char** argv) {
         refresh();
     }
 
-    // End UI on key press
-    getch();
+    // Properly clean up
     stop_shm();
     endwin();
     return 0;
