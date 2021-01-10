@@ -801,7 +801,7 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
     // wait on gp_sem
     my_sem_wait(input_sem, "input_mutex");
 
-    int index = source - GAMEPAD;  // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
+    int index = source == GAMEPAD ? 0 : 1;
     *pressed_buttons = input_shm_ptr->inputs[index].buttons;
     for (int i = 0; i < 4; i++) {
         joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
@@ -865,8 +865,7 @@ int log_data_write(char* key, param_type_t type, param_val_t value) {
         return -1;
     }
 
-    // 64 is max key size in log data SHM block
-    if (strlen(key) >= 64) {
+    if (strlen(key) >= LOG_KEY_LENGTH) {
         log_printf(ERROR, "Key name %s for log data is longer than 64 characters", key);
         return -2;
     }
@@ -887,7 +886,7 @@ int log_data_write(char* key, param_type_t type, param_val_t value) {
     return 0;
 }
 
-void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]) {
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][LOG_KEY_LENGTH], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]) {
     // wait on log_data_sem
     my_sem_wait(log_data_sem, "log_data_mutex");
 

@@ -5,6 +5,7 @@ cdef extern from "../runtime_util/runtime_util.h":
     int MAX_PARAMS
     int NUM_GAMEPAD_BUTTONS
     int NUM_KEYBOARD_BUTTONS
+    int LOG_KEY_LENGTH
     ctypedef enum process_t:
         EXECUTOR
     ctypedef struct device_t:

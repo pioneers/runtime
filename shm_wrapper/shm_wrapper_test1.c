@@ -352,7 +352,7 @@ void sanity_gamepad_test() {
 
     printf("Begin sanity gamepad test...\n");
 
-    buttons = (1 << BUTTON_A) | (1 << BUTTON_XBOX);  // push some random buttons
+    buttons = get_button_bit("button_a") | get_button_bit("button_xbox");  // push some random buttons
     joystick_vals[JOYSTICK_LEFT_X] = -0.4854;
     joystick_vals[JOYSTICK_LEFT_Y] = 0.58989;
     joystick_vals[JOYSTICK_RIGHT_X] = 0.9898;

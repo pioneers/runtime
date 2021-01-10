@@ -71,10 +71,10 @@ typedef struct {
 
 // shared memory for Robot.log data
 typedef struct {
-    uint8_t num_params;             // number of quantities the student wants to log
-    char names[UCHAR_MAX][64];      // keys (names) of quantities that student wants to log
-    param_val_t params[UCHAR_MAX];  // values of quantities that student wants to log
-    param_type_t types[UCHAR_MAX];  // types of the values that student wants to log
+    uint8_t num_params;                     // number of quantities the student wants to log
+    char names[UCHAR_MAX][LOG_KEY_LENGTH];  // keys (names) of quantities that student wants to log
+    param_val_t params[UCHAR_MAX];          // values of quantities that student wants to log
+    param_type_t types[UCHAR_MAX];          // types of the values that student wants to log
 } log_data_shm_t;
 
 // *********************************** SHM EXTERNAL VARIABLES  ******************************************** //
@@ -294,7 +294,7 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val);
  * Reads current state of the gamepad to the provided pointers.
  * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
  * Arguments:
- *    pressed_buttons: pointer to 32-bit bitmap to which the current button bitmap state will be read into
+ *    pressed_buttons: pointer to 64-bit bitmap to which the current button bitmap state will be read into
  *    joystick_vals[4]: array of 4 floats to which the current joystick states will be read into
  *    source: which input source to read from, either GAMEPAD or KEYBOARD
  * Returns:
@@ -307,8 +307,8 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
  * This function writes the given state of the gamepad to shared memory.
  * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
  * Arguments:
- *    pressed_buttons: a 32-bit bitmap that corresponds to which buttons are currently pressed
- *        (only the first 17 bits used, since there are 17 buttons)
+ *    pressed_buttons: a 64-bit bitmap that corresponds to which buttons are currently pressed. 
+ *                     only some of the bits are used, depending on the input source
  *    joystick_vals[4]: array of 4 floats that contain the values to write to the joystick
  *    source: which input source to write to, either GAMEPAD or KEYBOARD
  * Returns:

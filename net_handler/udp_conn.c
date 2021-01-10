@@ -24,7 +24,7 @@ static void* send_device_data(void* args) {
 
     param_val_t custom_params[UCHAR_MAX];
     param_type_t custom_types[UCHAR_MAX];
-    char custom_names[UCHAR_MAX][64];
+    char custom_names[UCHAR_MAX][LOG_KEY_LENGTH];
     uint8_t num_params;
 
     while (1) {
@@ -198,7 +198,7 @@ static void* send_device_data(void* args) {
 
 
 static void* update_inputs(void* args) {
-    static int size = 128;
+    static int size = 128;  // No specific reason, just needs to be large enough to receive all UserInputs data
     uint8_t buffer[size];
     int recvlen;
 
@@ -219,7 +219,8 @@ static void* update_inputs(void* args) {
         }
         for (int i = 0; i < inputs->n_inputs; i++) {
             Input* input = inputs->inputs[i];
-            robot_desc_field_t source = GAMEPAD + input->source;  // Assumes that order in enum is GAMEPAD, KEYBOARD
+            // Convert Protobuf source enum to Runtime source enum
+            robot_desc_field_t source = input->source == SOURCE__GAMEPAD ? GAMEPAD : KEYBOARD;
             robot_desc_write(source, input->connected ? CONNECTED : DISCONNECTED);
             if (input->connected) {
                 if (source == GAMEPAD && input->n_axes != 4) {

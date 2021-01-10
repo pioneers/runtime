@@ -446,6 +446,7 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
 
     // free everything
     free(input.axes);
+    free(inputs.inputs);
     free(send_buf);
 }
 

@@ -29,7 +29,7 @@ int main() {
 
     // Start the timer and press A
     int32_t start = millis() % 1000000000;  // 9 digits, just like TimeTestDevice
-    buttons |= (1 << BUTTON_A);
+    buttons |= get_button_bit("button_a");
     send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // Unpress "A"
