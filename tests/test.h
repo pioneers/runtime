@@ -78,9 +78,10 @@ void add_unordered_string_output(char* output);
  *    expected_buttons: the expected bitmap of pressed buttons
  *    expected_joysticks: the expected joystick values
  *                        (Use gp_joystick_t enum in runtime util for indexing)
+ *    source: which input source to check against, either GAMEPAD or KEYBOARD
  * No return value. (Will exit with status code 1 if incorrect gamepad state)
  */
-void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]);
+void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
 
 // ***************************** RUN MODE CHECK ***************************** //
 

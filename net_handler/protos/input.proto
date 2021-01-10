@@ -6,8 +6,18 @@ syntax = "proto3";
 
 option optimize_for = LITE_RUNTIME;
 
-message GpState {
+enum Source {
+    GAMEPAD = 0;
+    KEYBOARD = 1;
+}
+
+message Input {
     bool connected = 1;
-    fixed32 buttons = 2;
+    fixed64 buttons = 2;
     repeated float axes = 3;
+    Source source = 4;
+}
+
+message UserInputs {
+    repeated Input inputs = 1;
 }

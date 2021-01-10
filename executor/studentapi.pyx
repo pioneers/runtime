@@ -93,7 +93,7 @@ cdef class Gamepad:
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, GAMEPAD)
         if err == -1:
-            raise DeviceError(f"Gamepad isn't connected to Dawn or the robot")
+            raise DeviceError(f"Gamepad isn't connected to Dawn")
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
@@ -105,6 +105,39 @@ cdef class Gamepad:
             if param == joystick_names[i]:
                 return joysticks[i]
         raise KeyError(f"Invalid gamepad parameter {param_name}")
+
+
+cdef class Keyboard:
+    """
+    The API for accessing the keyboard.
+    """
+    cdef bint available
+
+    def __cinit__(self):
+        """Initializes the mode of the robot. """
+        self.available = robot_desc_read(RUN_MODE) == TELEOP
+
+    cpdef get_value(self, str param_name):
+        """
+        Get a keyboard parameter if the robot is in teleop.
+
+        Args:
+            param: the name of the parameter to read. TODO: Add link to possible params
+        """
+        if not self.available:
+            raise NotImplementedError(f'Can only use Keyboard during teleop mode')
+        # Convert Python string to C string
+        cdef bytes param = param_name.encode('utf-8')
+        cdef uint64_t buttons
+        cdef float joysticks[4]
+        cdef int err = input_read(&buttons, joysticks, KEYBOARD)
+        if err == -1:
+            raise DeviceError(f"Keyboard isn't connected to Dawn")
+        cdef char** key_names = get_key_names()
+        for i in range(NUM_KEYBOARD_BUTTONS):
+            if param == key_names[i]:
+                return bool(buttons & (1 << i))
+        raise KeyError(f"Invalid keyboard parameter {param_name}")
 
 
 class ThreadWrapper(threading.Thread):

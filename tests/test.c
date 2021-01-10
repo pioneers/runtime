@@ -429,9 +429,9 @@ void add_unordered_string_output(char* output) {
 // ************************* GAMEPAD CHECK FUNCTIONS ************************ //
 
 // Helper function to print a 32-bitmap to stderr on a new line
-static void print_bitmap(uint32_t bitmap) {
+static void print_bitmap(uint64_t bitmap) {
     uint8_t bit;
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 64; i++) {
         bit = ((bitmap & (1 << i)) == 0) ? 0 : 1;
         fprintf(stderr, "%d", bit);
     }
@@ -446,14 +446,14 @@ static void print_joysticks(float joystick_vals[4]) {
     fprintf(stderr, "JOYSTICK_RIGHT_Y: %f\n", joystick_vals[JOYSTICK_RIGHT_Y]);
 }
 
-void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
-    uint32_t pressed_buttons;
+void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source) {
+    uint64_t pressed_buttons;
     float joystick_vals[4];
     // Read in the current gamepad state
-    if (gamepad_read(&pressed_buttons, joystick_vals) != 0) {
+    if (input_read(&pressed_buttons, joystick_vals, source) != 0) {
         print_fail();
         fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", "Gamepad is not connected");
+        fprintf(stderr, "%s is not connected\n", field_to_string(source));
         end_test();
         exit(1);
     }
@@ -470,18 +470,20 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
         exit(1);
     }
     // Verify that the joysticks are correct
-    for (int i = 0; i < 4; i++) {
-        // Fail on the first incorrect joystick value encountered
-        if (joystick_vals[i] != expected_joysticks[i]) {
-            print_fail();
-            // Print all expected joysticks to stderr
-            fprintf_delimiter(stderr, "Expected Joysticks:");
-            print_joysticks(joystick_vals);
-            // Print all current joysticks to stderr
-            fprintf_delimiter(stderr, "Got:");
-            print_joysticks(joystick_vals);
-            end_test();
-            exit(1);
+    if (source == GAMEPAD) {
+        for (int i = 0; i < 4; i++) {
+            // Fail on the first incorrect joystick value encountered
+            if (joystick_vals[i] != expected_joysticks[i]) {
+                print_fail();
+                // Print all expected joysticks to stderr
+                fprintf_delimiter(stderr, "Expected Joysticks:");
+                print_joysticks(joystick_vals);
+                // Print all current joysticks to stderr
+                fprintf_delimiter(stderr, "Got:");
+                print_joysticks(joystick_vals);
+                end_test();
+                exit(1);
+            }
         }
     }
     print_pass();

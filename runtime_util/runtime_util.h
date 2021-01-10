@@ -26,8 +26,8 @@
 
 #define NUM_DESC_FIELDS 6  // Number of fields in the robot description
 
-#define NUM_GAMEPAD_BUTTONS 17  // Number of gamepad buttons
-#define NUM_KEYBOARD_BUTTONS 26
+#define NUM_GAMEPAD_BUTTONS 17
+#define NUM_KEYBOARD_BUTTONS 47
 
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 

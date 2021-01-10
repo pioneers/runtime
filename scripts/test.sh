@@ -66,6 +66,13 @@ function run_tests {
 # installs function clean_up as SIGINT handler
 trap 'sigint_handler' INT
 
+getopts "e" opt
+if [ $opt != "e" ]; then
+	# Make errors exit bash script
+	set -e
+fi
+shift $(($OPTIND - 1))
+
 # build all of Runtime
 ./runtime build
 

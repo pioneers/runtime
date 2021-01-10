@@ -49,9 +49,10 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
  * Arguments:
  *    - buttons: bitmap of which buttons are pressed. mappings are in runtime_util.h
  *    - joystick_vals[4]: values for the four joystick values. mappings are in runtime_util.h
+ *    - source: which hardware source to send input to, GAMEPAD or KEYBOARD
  * No return value.
  */
-void send_gamepad_state(uint32_t buttons, float joystick_vals[4]);
+void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_t source);
 
 /**
  * Sends a Challenge Data message from the specified client with the specified data

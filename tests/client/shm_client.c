@@ -57,4 +57,5 @@ void print_shm() {
     print_sub_map();
     print_robot_desc();
     print_inputs_state();
+    print_custom_data();
 }

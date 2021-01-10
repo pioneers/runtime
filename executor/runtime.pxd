@@ -4,6 +4,7 @@ cdef extern from "../runtime_util/runtime_util.h":
     int MAX_DEVICES
     int MAX_PARAMS
     int NUM_GAMEPAD_BUTTONS
+    int NUM_KEYBOARD_BUTTONS
     ctypedef enum process_t:
         EXECUTOR
     ctypedef struct device_t:
@@ -28,6 +29,7 @@ cdef extern from "../runtime_util/runtime_util.h":
         CONNECTED, DISCONNECTED, LEFT, RIGHT, AUTO, TELEOP
     char** get_button_names() nogil
     char** get_joystick_names() nogil
+    char** get_key_names() nogil
     device_t* get_device(uint8_t dev_type) nogil
 
 

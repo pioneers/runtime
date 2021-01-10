@@ -96,7 +96,7 @@ void prompt_start_pos() {
     send_start_pos(client, pos);
 }
 
-void prompt_gamepad_state() {
+void prompt_user_input() {
     uint32_t buttons = 0;
     float joystick_vals[4];
     char nextcmd[MAX_CMD_LEN];
@@ -175,7 +175,7 @@ void prompt_gamepad_state() {
 
     // send
     printf("Sending Gamepad State message!\n\n");
-    send_gamepad_state(buttons, joystick_vals);
+    send_user_input(buttons, joystick_vals, GAMEPAD);
 }
 
 void prompt_challenge_data() {
@@ -414,8 +414,8 @@ int main() {
             prompt_run_mode();
         } else if (strcmp(nextcmd, "start pos\n") == 0) {
             prompt_start_pos();
-        } else if (strcmp(nextcmd, "gamepad state\n") == 0) {
-            prompt_gamepad_state();
+        } else if (strcmp(nextcmd, "user input\n") == 0) {
+            prompt_user_input();
         } else if (strcmp(nextcmd, "challenge data\n") == 0) {
             prompt_challenge_data();
         } else if (strcmp(nextcmd, "device data\n") == 0) {
