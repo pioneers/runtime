@@ -8,9 +8,9 @@ int main() {
     start_test("keyboard_input", "keyboard_input", "", NO_REGEX);
 
     connect_virtual_device("SimpleTestDevice", 20);
-    
+
     float garbage[4];
-    uint64_t buttons = 1 << 25; // 'z'
+    uint64_t buttons = 1 << 25;  // 'z'
     send_user_input(buttons, garbage, KEYBOARD);
     sleep(.1);
     check_inputs(buttons, garbage, KEYBOARD);
@@ -18,7 +18,7 @@ int main() {
     send_run_mode(DAWN, TELEOP);
     sleep(.1);
 
-    buttons = 1 << 24; // 'y'
+    buttons = 1 << 24;  // 'y'
     send_user_input(buttons, garbage, KEYBOARD);
     sleep(.1);
     check_inputs(buttons, garbage, KEYBOARD);
@@ -26,7 +26,7 @@ int main() {
     add_ordered_string_output("1");
     add_ordered_string_output("1");
 
-    buttons = 1; // 'a'
+    buttons = 1;  // 'a'
     send_user_input(buttons, garbage, KEYBOARD);
     sleep(1);
     check_inputs(buttons, garbage, KEYBOARD);

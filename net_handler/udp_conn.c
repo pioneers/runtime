@@ -1,6 +1,6 @@
 #include "udp_conn.h"
 
-pthread_t input_thread, device_thread;               // thread IDs for receiving gamepad data and sending device data
+pthread_t input_thread, device_thread;            // thread IDs for receiving gamepad data and sending device data
 int socket_fd = -1;                               // the UDP socket's file descriptor
 struct sockaddr_in dawn_addr = {0};               // the address of our client, which should be Dawn
 socklen_t addr_len = sizeof(struct sockaddr_in);  // length of the address
@@ -219,7 +219,7 @@ static void* update_inputs(void* args) {
         }
         for (int i = 0; i < inputs->n_inputs; i++) {
             Input* input = inputs->inputs[i];
-            robot_desc_field_t source = GAMEPAD + input->source; // Assumes that order in enum is GAMEPAD, KEYBOARD
+            robot_desc_field_t source = GAMEPAD + input->source;  // Assumes that order in enum is GAMEPAD, KEYBOARD
             robot_desc_write(source, input->connected ? CONNECTED : DISCONNECTED);
             if (input->connected) {
                 if (source == GAMEPAD && input->n_axes != 4) {

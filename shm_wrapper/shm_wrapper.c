@@ -378,8 +378,8 @@ void print_inputs_state() {
     char** joystick_names = get_joystick_names();
 
     for (int i = 0; i < 2; i++) {
-        robot_desc_field_t source = GAMEPAD + i; // Assumes that KEYBOARD is right after GAMEPAD in robot_desc_field_t enum
-        if (robot_desc_read(source) == DISCONNECTED) { 
+        robot_desc_field_t source = GAMEPAD + i;  // Assumes that KEYBOARD is right after GAMEPAD in robot_desc_field_t enum
+        if (robot_desc_read(source) == DISCONNECTED) {
             printf("No %s currently connected\n", field_to_string(source));
         } else {
             printf("%s is connected\n", field_to_string(source));
@@ -391,7 +391,7 @@ void print_inputs_state() {
                     printf("\t\t%s\n", button_names[i][j]);
                 }
             }
-            if (i == 0) { // Joystick only exists for GAMEPAD device
+            if (i == 0) {  // Joystick only exists for GAMEPAD device
                 printf("\tJoystick Positions:\n");
                 // print joystick positions
                 for (int j = 0; j < 4; j++) {
@@ -801,7 +801,7 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
     // wait on gp_sem
     my_sem_wait(input_sem, "input_mutex");
 
-    int index = source - GAMEPAD; // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
+    int index = source - GAMEPAD;  // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
     *pressed_buttons = input_shm_ptr->inputs[index].buttons;
     for (int i = 0; i < 4; i++) {
         joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
@@ -835,7 +835,7 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
     // wait on gp_sem
     my_sem_wait(input_sem, "input_mutex");
 
-    int index = source - GAMEPAD; // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
+    int index = source - GAMEPAD;  // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
     input_shm_ptr->inputs[index].buttons = pressed_buttons;
     for (int i = 0; i < 4; i++) {
         input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];
