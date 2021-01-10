@@ -29,18 +29,18 @@
 #include <string.h>
 #include <sys/wait.h>
 
-#include "../client/shm_client.h"
-#include "../../shm_wrapper/shm_wrapper.h"
-#include "../../runtime_util/runtime_util.h"
 #include "../../logger/logger.h"
+#include "../../runtime_util/runtime_util.h"
+#include "../../shm_wrapper/shm_wrapper.h"
+#include "../client/shm_client.h"
 
 // The refresh rate of the UI and how often we poll shared memory data
 #define FPS 2
 
 // ******************************** WINDOWS ********************************* //
-WINDOW* ROBOT_DESC_WIN; // Displays the robot description (clients connected, run mode, start position, gamepad connected)
-WINDOW* GAMEPAD_WIN;    // Displays gamepad state (joystick values and what buttons are pressed)
-WINDOW* DEVICE_WIN;     // Displays device information (id, commands, data, and subscriptions) for a single device at a time based on user input
+WINDOW* ROBOT_DESC_WIN;  // Displays the robot description (clients connected, run mode, start position, gamepad connected)
+WINDOW* GAMEPAD_WIN;     // Displays gamepad state (joystick values and what buttons are pressed)
+WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and subscriptions) for a single device at a time based on user input
 
 // ************************** SIZES AND POSITIONS *************************** //
 // Some windows' dimensions are defined in terms of others so that their borders align
@@ -72,13 +72,13 @@ const int BUTTON_PRESSED_FLAG_COL = 5 + strlen("button_start") + 2;
 
 // Column positions in device window; Declared as const instead of #define to prevent repeated strlen() computation
 // Each one is determined by taking the previous column and adding the previous column's maximum width
-const int VALUE_WIDTH = strlen("123.000000") + 1; // String representation of float length; Used to determine column widths
-const int PARAM_IDX_COL = 5; // The column at which we display the parameter index
-const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("Index") + 1; // The column at which we display the parameter name
-const int NET_SUB_COL = PARAM_NAME_COL + strlen("increasing_even") + 1; // The column at which we display whether the parameter is subbed by net handler
-const int EXE_SUB_COL = NET_SUB_COL + strlen("NET") + 1; // The column at which we display whether the parameter is subbed by executor
-const int COMMAND_VAL_COL = EXE_SUB_COL + strlen("EXE") + 1; // The column at which we display the command stream
-const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH; // The column at which we display the data stream
+const int VALUE_WIDTH = strlen("123.000000") + 1;                        // String representation of float length; Used to determine column widths
+const int PARAM_IDX_COL = 5;                                             // The column at which we display the parameter index
+const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("Index") + 1;          // The column at which we display the parameter name
+const int NET_SUB_COL = PARAM_NAME_COL + strlen("increasing_even") + 1;  // The column at which we display whether the parameter is subbed by net handler
+const int EXE_SUB_COL = NET_SUB_COL + strlen("NET") + 1;                 // The column at which we display whether the parameter is subbed by executor
+const int COMMAND_VAL_COL = EXE_SUB_COL + strlen("EXE") + 1;             // The column at which we display the command stream
+const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                  // The column at which we display the data stream
 
 // **************************** MISC GLOBAL VARS **************************** //
 
@@ -155,9 +155,9 @@ void display_robot_desc() {
  */
 void display_gamepad_state(char** joystick_names, char** button_names) {
     // Start at line after the header
-    int line = 2; // Note that this is just a row number; Must use wmove() to actually move the cursor to this line
+    int line = 2;  // Note that this is just a row number; Must use wmove() to actually move the cursor to this line
     wmove(GAMEPAD_WIN, line, 0);
-    wclrtoeol(GAMEPAD_WIN); // Clear "No gamepad connected"
+    wclrtoeol(GAMEPAD_WIN);  // Clear "No gamepad connected"
 
     // Read gamepad state if gamepad is connected
     uint32_t pressed_buttons = 0;
@@ -218,7 +218,7 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
 void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx) {
     // Special case handling
     const int show_custom_data = (shm_idx == MAX_DEVICES);
-    if (!show_custom_data && !(catalog & (1 << shm_idx))) { // Device is not connected at this shared memory index
+    if (!show_custom_data && !(catalog & (1 << shm_idx))) {  // Device is not connected at this shared memory index
         // Clear the window if not clear already (Happens when we disconnect a device while we're inspecting it)
         if (!DEVICE_WIN_IS_BLANK) {
             // Clear the entire window, but put back the header and the borders
@@ -227,11 +227,11 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
             mvwprintw(DEVICE_WIN, DEVICE_HEIGHT - 2, 1, NOTE);
             box(DEVICE_WIN, 0, 0);
             wrefresh(DEVICE_WIN);
-            DEVICE_WIN_IS_BLANK = 1; // Flag that the device window is cleared
+            DEVICE_WIN_IS_BLANK = 1;  // Flag that the device window is cleared
         }
         // Return because there is no data to display for a disconnected device
         return;
-    } else if (DEVICE_WIN_IS_BLANK) { // Window was previously clear (i.e Switching from no device to a connected device)
+    } else if (DEVICE_WIN_IS_BLANK) {  // Window was previously clear (i.e Switching from no device to a connected device)
         // Put back title and box
         mvwprintw(DEVICE_WIN, 1, 1, DEVICE_WIN_HEADER);
         mvwprintw(DEVICE_WIN, DEVICE_HEIGHT - 2, 1, NOTE);
@@ -239,36 +239,36 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         wrefresh(DEVICE_WIN);
         // Note that we will display data, so DEVICE_WIN will no longer be "empty"
         DEVICE_WIN_IS_BLANK = 0;
-    } else { 
+    } else {
         // Switching from one connected device to another
     }
 
-    int line = 3; // Our pointer to the current line/row we're writing to
+    int line = 3;  // Our pointer to the current line/row we're writing to
     wmove(DEVICE_WIN, line, 0);
-    const int table_header_line = line + 1; // The line to display the table column names
+    const int table_header_line = line + 1;  // The line to display the table column names
 
     // Print current device's identifiers
     device_t* device = NULL;
-    wclrtoeol(DEVICE_WIN); // Clear previous string
+    wclrtoeol(DEVICE_WIN);  // Clear previous string
     if (show_custom_data) {
         mvwprintw(DEVICE_WIN, line++, 1, "Custom Data");
     } else {
         device = get_device(dev_ids[shm_idx].type);
-        if (device == NULL) { // This should never happen if the handling above is correct
+        if (device == NULL) {  // This should never happen if the handling above is correct
             log_printf(ERROR, "device == NULL");
         }
-        mvwprintw(DEVICE_WIN, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type,  dev_ids[shm_idx].year,  dev_ids[shm_idx].uid);
+        mvwprintw(DEVICE_WIN, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type, dev_ids[shm_idx].year, dev_ids[shm_idx].uid);
     }
     // Move to the first parameter (Skip the next two lines because we'll display the table headers with the horizontal line)
     line += 2;
-    wmove(DEVICE_WIN, line, 0); 
+    wmove(DEVICE_WIN, line, 0);
 
     // Number of parameters to display for this specific device
     uint8_t num_params = 0;
 
     // Init arrays to hold shm data
-    uint32_t sub_map_net_handler_all_devs[MAX_DEVICES + 1] = {0};   // Initialize subs to 0
-    uint32_t sub_map_executor_all_devs[MAX_DEVICES + 1] = {0};      // Initialize subs to 0
+    uint32_t sub_map_net_handler_all_devs[MAX_DEVICES + 1] = {0};  // Initialize subs to 0
+    uint32_t sub_map_executor_all_devs[MAX_DEVICES + 1] = {0};     // Initialize subs to 0
     uint32_t cmd_map_all_devs[MAX_DEVICES + 1];
     param_val_t command_vals[MAX_PARAMS];
     param_val_t data_vals[MAX_PARAMS];
@@ -276,7 +276,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     // Init variables to hold custom data information
     char custom_param_names[UCHAR_MAX][64];
     param_type_t custom_param_types[UCHAR_MAX];
-    param_val_t custom_param_values[UCHAR_MAX]; // We're assuming here that the number of logged params is at most MAX_PARAMS
+    param_val_t custom_param_values[UCHAR_MAX];  // We're assuming here that the number of logged params is at most MAX_PARAMS
 
     // Get shm subscriptions
     if (show_custom_data) {
@@ -284,22 +284,22 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     } else {
         num_params = device->num_params;
         // Get shm subscriptions, command values, and data values
-        get_sub_requests(sub_map_net_handler_all_devs, NET_HANDLER);    // Get subscriptions made by net handler
-        get_sub_requests(sub_map_executor_all_devs, EXECUTOR);          // Get subscriptions made by executor
+        get_sub_requests(sub_map_net_handler_all_devs, NET_HANDLER);  // Get subscriptions made by net handler
+        get_sub_requests(sub_map_executor_all_devs, EXECUTOR);        // Get subscriptions made by executor
         get_cmd_map(cmd_map_all_devs);
         device_read(shm_idx, SHM, COMMAND, ~0, command_vals);
         device_read(shm_idx, SHM, DATA, ~0, data_vals);
     }
-    
+
     // We care about only the specified device (this is just for the sake of brevity)
-    uint32_t sub_map_net_handler = sub_map_net_handler_all_devs[shm_idx + 1];   
+    uint32_t sub_map_net_handler = sub_map_net_handler_all_devs[shm_idx + 1];
     uint32_t sub_map_executor = sub_map_executor_all_devs[shm_idx + 1];
     uint32_t cmd_map = cmd_map_all_devs[shm_idx + 1];
-    
+
     // Each iteration prints out a row for each parameter
-    int display_cmd_val; // Flag for whether we should display the command value for a parameter
+    int display_cmd_val;  // Flag for whether we should display the command value for a parameter
     for (int i = 0; i < num_params; i++) {
-        wclrtoeol(DEVICE_WIN); // Clear previous parameter entry
+        wclrtoeol(DEVICE_WIN);  // Clear previous parameter entry
 
         // Print the index and its name
         mvwprintw(DEVICE_WIN, line, PARAM_IDX_COL, "%d", i);
@@ -320,13 +320,13 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         if (show_custom_data) {
             mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "N/A");
             display_cmd_val = 0;
-        } else if (device->params[i].write == 0) { // Read-only parameter
+        } else if (device->params[i].write == 0) {  // Read-only parameter
             mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "RD_ONLY");
             display_cmd_val = 0;
-        } else if ((cmd_map & (1 << i)) == 0) { // No command to this parameter
+        } else if ((cmd_map & (1 << i)) == 0) {  // No command to this parameter
             mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "NONE");
             display_cmd_val = 0;
-        } else { // There is a command for the write-able parameter
+        } else {  // There is a command for the write-able parameter
             display_cmd_val = 1;
         }
 
@@ -370,7 +370,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     mvwprintw(DEVICE_WIN, table_header_line, EXE_SUB_COL, "EXE");
     mvwprintw(DEVICE_WIN, table_header_line, COMMAND_VAL_COL, "Command");
     mvwprintw(DEVICE_WIN, table_header_line, DATA_VAL_COL, "Data");
-    mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - 5); // Horizontal line
+    mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - 5);  // Horizontal line
     // Vertical Lines
     mvwvline(DEVICE_WIN, table_header_line, PARAM_NAME_COL - 1, 0, MAX_PARAMS + 2);
     mvwvline(DEVICE_WIN, table_header_line, NET_SUB_COL - 1, 0, MAX_PARAMS + 2);
@@ -400,7 +400,7 @@ int main(int argc, char** argv) {
 
     // Start shm
     start_shm();
-    sleep(1); // Allow shm to initialize
+    sleep(1);  // Allow shm to initialize
 
     // Start UI
     initscr();
@@ -411,12 +411,12 @@ int main(int argc, char** argv) {
     // Init variables for gamepad and shm data
     char** joystick_names = get_joystick_names();
     char** button_names = get_button_names();
-    uint32_t catalog = 0; // Shared memory catalog (bitmap of connected devices)
-    dev_id_t dev_ids[MAX_DEVICES]; // Device identifying info on each shm-connected device
+    uint32_t catalog = 0;           // Shared memory catalog (bitmap of connected devices)
+    dev_id_t dev_ids[MAX_DEVICES];  // Device identifying info on each shm-connected device
 
     // Turn on keyboard input for DEVICE_WIN
     keypad(DEVICE_WIN, 1);
-    nodelay(DEVICE_WIN, 1); // Make getch() non-blocking (return ERR if no input)
+    nodelay(DEVICE_WIN, 1);  // Make getch() non-blocking (return ERR if no input)
 
     // Holds the current device selection
     int device_selection = 0;
