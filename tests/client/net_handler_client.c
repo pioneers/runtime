@@ -421,7 +421,7 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     inputs.inputs[0] = &input;
 
     input.connected = 1;
-    input.source = source - GAMEPAD; // Assuming that enum order is GAMEPAD, KEYBOARD
+    input.source = source - GAMEPAD;  // Assuming that enum order is GAMEPAD, KEYBOARD
     input.buttons = buttons;
     input.n_axes = 4;
     input.axes = malloc(sizeof(double) * 4);

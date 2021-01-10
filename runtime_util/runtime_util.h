@@ -206,7 +206,7 @@ char** get_joystick_names();
 
 /**
  * Get the list of key names corresponding to the keyboard button bitmap.
- */ 
+ */
 char** get_key_names();
 
 

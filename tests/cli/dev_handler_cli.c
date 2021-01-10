@@ -11,8 +11,7 @@ char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] = {
     "SimpleTestDevice",
     "UnresponsiveTestDevice",
     "ForeignTestDevice",
-    "UnstableTestDevice"
-};
+    "UnstableTestDevice"};
 
 char nextcmd[MAX_CMD_LEN];
 

@@ -14,7 +14,7 @@
 #define CMDMAP_MUTEX_NAME "/cmap-sem"  // name of semaphore used as a mutex on the command bitmap
 #define SUBMAP_MUTEX_NAME "/smap-sem"  // name of semaphore used as a mutex on the various subcription bitmaps
 
-#define INPUTS_SHM_NAME "/inputs-shm"  // name of shared memory block for inputs
+#define INPUTS_SHM_NAME "/inputs-shm"    // name of shared memory block for inputs
 #define INPUTS_MUTEX_NAME "/inputs-sem"  // name of semaphore used as mutex over inputs shm
 
 #define ROBOT_DESC_SHM_NAME "/rd-shm"  // name of shared memory block for robot description
@@ -28,8 +28,9 @@
 // *********************************** SHM TYPEDEFS  ****************************************************** //
 
 // enumerated names for the two associated blocks per device
-typedef enum stream { 
-    DATA, COMMAND 
+typedef enum stream {
+    DATA,
+    COMMAND
 } stream_t;
 
 // shared memory block that holds device information, data, and commands has this structure
@@ -49,7 +50,6 @@ typedef struct {
 } dual_sem_t;
 
 
-
 // struct describing an input
 typedef struct {
     uint64_t buttons;           // bitmap for which buttons are pressed
@@ -59,7 +59,7 @@ typedef struct {
 
 // shared memory for gamepad and keyboard inputs
 typedef struct {
-    input_t inputs[2]; // Index 0 is for GAMEPAD, index 1 is for KEYBOARD, like in the enum. can be modified in the future
+    input_t inputs[2];  // Index 0 is for GAMEPAD, index 1 is for KEYBOARD, like in the enum. can be modified in the future
 } input_shm_t;
 
 
@@ -88,10 +88,10 @@ extern sem_t* catalog_sem;            // semaphore used as a mutex on the catalo
 extern sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
 extern sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
-extern input_shm_t* input_shm_ptr;      // points to memory-mapped shared memory block for user inputs
-extern robot_desc_shm_t* rd_shm_ptr;    // points to memory-mapped shared memory block for robot description
-extern sem_t* input_sem;                // semaphore used as a mutex on the inputs
-extern sem_t* rd_sem;                   // semaphore used as a mutex on the robot description
+extern input_shm_t* input_shm_ptr;    // points to memory-mapped shared memory block for user inputs
+extern robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
+extern sem_t* input_sem;              // semaphore used as a mutex on the inputs
+extern sem_t* rd_sem;                 // semaphore used as a mutex on the robot description
 
 extern log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for log data specified by executor
 extern sem_t* log_data_sem;               // semaphore used as a mutex on the log data
