@@ -13,12 +13,13 @@ Runtime can be divided into a few neatly containerized parts:
 * **The Network Handler**: abbreviated `net_handler`, this is a process in Runtime, and is responsible for all communication between the Raspberry Pi and Dawn, and between the Raspberry Pi and Shepherd.
 * **The Device Handler**: abbreviated `dev_handler`, this is a process in Runtime, and is responsible for all communication between the Raspberry Pi and all the devices that are attached to the robot at any given time.
 * **The Executor**: this is a process in Runtime, and is responsible for running the student code that is uploaded to the robot from Dawn.
-* **The Shared Memory Wrappers**: abbreviated `shm_wrapper` and `shm_wrapper_aux`, these two are tools that facilitate the efficient communication between the above three processes. Think of these wrappers as the "glue" that holds the three processes together, and lets them talk to each other.
+* **The Shared Memory Wrappers**: abbreviated `shm_wrapper`, this is the tool that facilitates the efficient communication between the above three processes. Think of this wrapper as the "glue" that holds the three processes together, and lets them talk to each other.
 * **The Logger**: this is the tool that Runtime uses to gather all the logs generated at various places in the code (including by student code) and outputs them to a terminal window, to a file, to Dawn over the network, or to some combination of the three.
 * **The Device Code**: codenamed "`lowcar`" <sup id="return1">[1](#footnote1)</sup> this is the set of all the code on the Arduinos that directly control an individual device that is connected to the robot. All of this code is collectively called the "lowcar library".
 * **The Systemd Services**: this is a collection of system services that allow Runtime to start automatically when the Raspberry Pi is turned on, recover when Runtime crashes, and automatically get and install new Runtime updates from this Github.
 * **The Runtime Utility**: this is a collection of helper functions and defined constants that are used throughout Runtime. Most of them have to do with certain Runtime configuration values, maximum sizes for certain messages, or retrieving information about the different types of `lowcar` devices.
 * **The Scripts**: this is a collection of shell scripts that do general things to all of Runtime, such as build it, run it, and test it. There is also a tool to flash `lowcar` devices. All of them are called by the `runtime` script in the root directory.
+* **The Test Framework**: this is a collection of clients, command-line-interfaces, tools, visual aids, scripts, and test programs that we use to diagnose problems with Runtime as well as run automated tests of the entire system, without the need to use a real robot, or have a working version of Dawn or Shepherd.
 
 In addition to these parts, there are a number of configuration files for Runtime to manage the various tools that we use. They are listed here, with a brief explanation about what they do:
 
@@ -47,9 +48,9 @@ As a baseline, Runtime uses the following commonly used tools that should alread
 Runtime has the following third-party library dependencies:
 
 * `Cython`: this library is used by `executor` to implement the Student API in a way that is both callable from Runtime (which is written in C) and from student code (which is written in Python)
-    * Read more here https://github.com/pioneers/runtime/wiki/Cython
+    * Read more [here](https://github.com/pioneers/runtime/wiki/Cython)
 * Google `protobuf` and `protobuf-c`: Google `protobuf` is the library that we use to serialize our messages between Runtime and Shepherd, and Runtime and Dawn. 
-	* Read more here https://github.com/pioneers/runtime/wiki/Protobufs
+	* Read more [here](https://github.com/pioneers/runtime/wiki/Protobufs)
 
 #### Installing Cython
 
