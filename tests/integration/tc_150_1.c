@@ -12,7 +12,7 @@ int main() {
     float garbage[4];
     uint64_t buttons = 1 << 25;  // 'z'
     send_user_input(buttons, garbage, KEYBOARD);
-    sleep(.1);
+    sleep(.2);
     check_inputs(buttons, garbage, KEYBOARD);
 
     send_run_mode(DAWN, TELEOP);
