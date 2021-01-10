@@ -1,7 +1,7 @@
 /**
  * Functions to start, stop, and conduct tests.
  * Includes (but not limited to) string output matching, device parameter
- * checks, gamepad checks, and what devices are connected and aren't connected.
+ * checks, user input checks, and what devices are connected and aren't connected.
  *
  * All tests must begin with start_test() and finish with end_test()
  * The other functions defined in this header file can be used to verify the
@@ -70,16 +70,16 @@ void add_ordered_string_output(char* output);
  */
 void add_unordered_string_output(char* output);
 
-// ************************* GAMEPAD CHECK FUNCTIONS ************************ //
+// ************************* USER INPUT CHECK FUNCTIONS ************************ //
 
 /**
- * Verifies that the the state of the gamepad is as expected in shared memory.
+ * Verifies that the the state of the inputs is as expected in shared memory.
  * Arguments:
  *    expected_buttons: the expected bitmap of pressed buttons
  *    expected_joysticks: the expected joystick values
  *                        (Use gp_joystick_t enum in runtime util for indexing)
  *    source: which input source to check against, either GAMEPAD or KEYBOARD
- * No return value. (Will exit with status code 1 if incorrect gamepad state)
+ * No return value. (Will exit with status code 1 if incorrect input state)
  */
 void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
 

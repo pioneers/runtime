@@ -71,11 +71,11 @@ cdef class Gamepad:
     Attributes:
         mode: The execution state of the robot.
     """
-    cdef bint available
+    cdef bint available  # Treat as Python bool
 
     def __cinit__(self):
         """Initializes the mode of the robot. """
-        self.available = robot_desc_read(RUN_MODE) == TELEOP
+        self.available = (robot_desc_read(RUN_MODE) == TELEOP)
 
 
     cpdef get_value(self, str param_name):
@@ -111,11 +111,11 @@ cdef class Keyboard:
     """
     The API for accessing the keyboard.
     """
-    cdef bint available
+    cdef bint available  # Treat as Python bool
 
     def __cinit__(self):
         """Initializes the mode of the robot. """
-        self.available = robot_desc_read(RUN_MODE) == TELEOP
+        self.available = (robot_desc_read(RUN_MODE) == TELEOP)
 
     cpdef get_value(self, str param_name):
         """
@@ -226,7 +226,7 @@ cdef class Robot:
             value: value of the parameter. Must be an int, float, or bool.
         
         """
-        if len(key) >= 64:
+        if len(key) >= LOG_KEY_LENGTH:
             raise ValueError(f"Cannot log parameter {key} since it is more than 63 characters long")
         cdef param_val_t param
         cdef param_type_t param_type
@@ -256,7 +256,7 @@ cdef class Robot:
         Get a device value. 
         
         Args:
-            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
+            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and device_uid is 64-bit UID assigned by LowCar.
             param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
         """
         # Convert Python string to C string
@@ -307,7 +307,7 @@ cdef class Robot:
         Set a device parameter.
         
         Args:
-            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
+            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and device_uid is 64-bit UID assigned by LowCar.
             param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
             value: Value to set for the param. The type of the value can be seen at https://pioneers.berkeley.edu/software/robot_api.html
         """

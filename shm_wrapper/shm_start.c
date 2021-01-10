@@ -69,7 +69,7 @@ int main() {
         log_printf(ERROR, "close devices: %s", strerror(errno));
     }
 
-    // create gamepad shm block
+    // create inputs shm block
     if ((fd_shm = shm_open(INPUTS_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
         log_printf(FATAL, "shm_open input_shm: %s", strerror(errno));
         exit(1);
@@ -133,6 +133,8 @@ int main() {
             input_shm_ptr->inputs[j].joysticks[i] = 0.0;
         }
     }
+    input_shm_ptr->inputs[0].source = GAMEPAD;
+    input_shm_ptr->inputs[1].source = KEYBOARD;
     rd_shm_ptr->fields[RUN_MODE] = IDLE;
     rd_shm_ptr->fields[DAWN] = DISCONNECTED;
     rd_shm_ptr->fields[SHEPHERD] = DISCONNECTED;

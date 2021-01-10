@@ -10,7 +10,7 @@ int main() {
     start_test("UDP; no devices connected", "", "", NO_REGEX);
 
     // Send gamepad and check that the custom data is received
-    uint32_t buttons = (1 << BUTTON_A) | (1 << L_TRIGGER) | (1 << DPAD_DOWN);
+    uint64_t buttons = get_button_bit("button_a") | get_button_bit("l_trigger") | get_button_bit("dpad_down");
     float joystick_vals[] = {-0.1, 0.0, 0.1, 0.99};
     send_user_input(buttons, joystick_vals, GAMEPAD);
     sleep(1);

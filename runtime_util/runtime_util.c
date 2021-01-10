@@ -262,6 +262,15 @@ char** get_joystick_names() {
     return JOYSTICK_NAMES;
 }
 
+uint64_t get_button_bit(char* button_name) {
+    for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
+        if (strcmp(button_name, BUTTON_NAMES[i]) == 0) {
+            return 1 << i;
+        }
+    }
+    return -1;
+}
+
 char* KEY_NAMES[NUM_KEYBOARD_BUTTONS] = {
     "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
     "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", ",", ".", "/", ";", "'", "[", "]", "left_arrow", "right_arrow", "up_arrow", "down_arrow"};
@@ -270,14 +279,33 @@ char** get_key_names() {
     return KEY_NAMES;
 }
 
+uint64_t get_key_bit(char* key_name) {
+    for (int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
+        if (strcmp(key_name, KEY_NAMES[i]) == 0) {
+            return 1 << i;
+        }
+    }
+    return -1;
+}
+
 
 char* field_to_string(robot_desc_field_t field) {
-    if (field == GAMEPAD) {
-        return "Gamepad";
-    } else if (field == KEYBOARD) {
-        return "Keyboard";
+    switch (field) {
+        case GAMEPAD:
+            return "Gamepad";
+        case KEYBOARD:
+            return "Keyboard";
+        case RUN_MODE:
+            return "Run Mode";
+        case DAWN:
+            return "Dawn";
+        case SHEPHERD:
+            return "Shepherd";
+        case START_POS:
+            return "Start Pos";
+        default:
+            return NULL;
     }
-    return NULL;
 }
 
 // ********************************** TIME ********************************** //

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-printf "first here\n"
-pkill executor
-printf "second\n"
-pkill dev_handler
-printf "third\n"
-pkill net_handler
-printf "fourth\n"
+printf "Killing executor\n"
+pkill -INT executor
+printf "Killing dev_handler\n"
+pkill -INT dev_handler
+printf "Killing net_handler\n"
+pkill -INT net_handler
+printf "Removing SHM\n"
 cd shm_wrapper && ./shm_stop
 printf "Killed everything\n"

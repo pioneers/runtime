@@ -8,8 +8,6 @@
 #     runtime run                        (to run run.sh)
 #     runtime test integration/tc_68_2   (to run the automated test tc_68_2)
 
-set -e  # Makes any errors exit the script
-
 RUNTIME_DIR=$(dirname "${BASH_SOURCE[0]}")
 
 cd $RUNTIME_DIR
@@ -17,10 +15,14 @@ cd $RUNTIME_DIR
 case $1 in
     build)
         shift 1
-        pushd shm_wrapper && make $@ && popd
-        pushd net_handler && make $@ && popd
-        pushd executor    && make $@ && popd
-        pushd dev_handler && make $@ && popd
+        pushd shm_wrapper && make $@
+        popd
+        pushd net_handler && make $@
+        popd
+        pushd executor    && make $@
+        popd
+        pushd dev_handler && make $@
+        popd
         ;;
 
     run)

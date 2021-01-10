@@ -8,25 +8,28 @@ int main() {
     start_test("keyboard_input", "keyboard_input", "", NO_REGEX);
 
     connect_virtual_device("SimpleTestDevice", 20);
+    sleep(.5);
 
     float garbage[4];
-    uint64_t buttons = 1 << 25;  // 'z'
+    uint64_t buttons = get_key_bit("z");
     send_user_input(buttons, garbage, KEYBOARD);
-    sleep(.2);
+    sleep(.5);
     check_inputs(buttons, garbage, KEYBOARD);
 
     send_run_mode(DAWN, TELEOP);
     sleep(.1);
 
-    buttons = 1 << 24;  // 'y'
+    buttons = get_key_bit("y");
     send_user_input(buttons, garbage, KEYBOARD);
     sleep(.1);
     check_inputs(buttons, garbage, KEYBOARD);
     sleep(1);
+
+    // Check that student code is run properly which will print out the current value of MY_INT, which is 1
     add_ordered_string_output("1");
     add_ordered_string_output("1");
 
-    buttons = 1;  // 'a'
+    buttons = get_key_bit("a");
     send_user_input(buttons, garbage, KEYBOARD);
     sleep(1);
     check_inputs(buttons, garbage, KEYBOARD);
