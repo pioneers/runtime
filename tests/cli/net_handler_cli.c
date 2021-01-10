@@ -293,8 +293,8 @@ void prompt_device_data() {
             }
 
             // Assign type and make sure it's an integer
+            errno = 0; // If strtol errors, errno will be set to a nonzero number. See https://man7.org/linux/man-pages/man3/strtol.3.html
             dev_type = (uint8_t) strtol(nextcmd, NULL, 10);
-            errno = 0;
             if (errno != 0) {
                 printf("Did not enter integer: %s\n", nextcmd);
                 continue;

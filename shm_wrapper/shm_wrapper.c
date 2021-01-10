@@ -779,7 +779,7 @@ int gamepad_read(uint32_t* pressed_buttons, float joystick_vals[4]) {
         for (int i = 0; i < 4; i++) {
             joystick_vals[i] = 0;
         }
-        log_printf(DEBUG, "tried to read, but no gamepad connected");
+        log_printf(ERROR, "tried to read, but no gamepad connected");
         my_sem_post(rd_sem, "robot_desc_mutex");
         return -1;
     }
