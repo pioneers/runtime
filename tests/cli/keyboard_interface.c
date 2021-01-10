@@ -95,7 +95,7 @@ int main() {
     start_net_handler();
     sleep(2);
     // Connect dummy gamepad and start teleop mode
-    send_gamepad_state(0, joystick_vals);
+    send_user_input(0, joystick_vals, GAMEPAD);
     send_run_mode(DAWN, TELEOP);
     sleep(2);
 
@@ -155,7 +155,7 @@ int main() {
             }
         }
 
-        send_gamepad_state(buttons, joystick_vals);
+        send_user_input(buttons, joystick_vals, GAMEPAD);
         printf("SENT GAMEPAD STATE: %d\n", buttons);
     }
     return 0;

@@ -19,7 +19,7 @@
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
 char* module_name;
-PyObject *pModule, *pAPI, *pRobot, *pGamepad;
+PyObject *pModule, *pAPI, *pRobot, *pGamepad, *pKeyboard;
 robot_desc_val_t mode = IDLE;  // current robot mode
 pid_t pid;                     // pid for mode process
 int challenge_fd;              // challenge socket
@@ -151,9 +151,25 @@ static void executor_init(char* student_code) {
     }
     Py_DECREF(gamepad_class);
 
+    //checks to make sure there is a Keyboard class, then instantiates it
+    PyObject* keyboard_class = PyObject_GetAttrString(pAPI, "Keyboard");
+    if (keyboard_class == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not find Keyboard class");
+        exit(1);
+    }
+    pKeyboard = PyObject_CallObject(keyboard_class, NULL);
+    if (pKeyboard == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not instantiate Keyboard");
+        exit(1);
+    }
+    Py_DECREF(keyboard_class);
+
     // Insert student API into the student code
     int err = PyObject_SetAttrString(pModule, "Robot", pRobot);
     err |= PyObject_SetAttrString(pModule, "Gamepad", pGamepad);
+    err |= PyObject_SetAttrString(pModule, "Keyboard", pKeyboard);
     if (err != 0) {
         PyErr_Print();
         log_printf(ERROR, "Could not insert API into student code.");
@@ -213,7 +229,7 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
             //if the time the Python function took was greater than max_time, warn that it's taking too long
             time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
             if (timeout != NULL && time > max_time) {
-                log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop in the code.", func_name, (long) (max_time / 1e6));
+                log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop or sleep in the code. This is probably not what you intended.", func_name, (long) (max_time / 1e6));
             }
             //if the time the Python function took was less than min_time, sleep to slow down execution
             if (time < min_time) {

@@ -57,8 +57,12 @@ case $1 in
         scripts/update.sh
         ;;
 
+    stop)
+        scripts/stop.sh
+        ;;
+
     *)
-        commands="build run test format clean flash update"
+        commands="build run test format clean flash update stop"
         printf "Runtime script needs another argument from:\n\n$commands\n\n"
         ;;
 esac
