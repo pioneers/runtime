@@ -8,12 +8,11 @@ int main() {
     start_test("keyboard_input", "keyboard_input", "", NO_REGEX);
 
     connect_virtual_device("SimpleTestDevice", 20);
-    sleep(.5);
-
+    sleep(1);
     float garbage[4];
     uint64_t buttons = get_key_bit("z");
     send_user_input(buttons, garbage, KEYBOARD);
-    sleep(.5);
+    sleep(1);
     check_inputs(buttons, garbage, KEYBOARD);
 
     send_run_mode(DAWN, TELEOP);
