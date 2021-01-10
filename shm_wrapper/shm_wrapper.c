@@ -801,7 +801,7 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
     // wait on gp_sem
     my_sem_wait(input_sem, "input_mutex");
 
-    int index = source == GAMEPAD ? 0 : 1;
+    int index = (source == GAMEPAD) ? 0 : 1;
     *pressed_buttons = input_shm_ptr->inputs[index].buttons;
     for (int i = 0; i < 4; i++) {
         joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
@@ -835,7 +835,7 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
     // wait on gp_sem
     my_sem_wait(input_sem, "input_mutex");
 
-    int index = source - GAMEPAD;  // Assumes KEYBOARD is after GAMEPAD in robot_desc_field_t enum
+    int index = (source == GAMEPAD) ? 0 : 1;
     input_shm_ptr->inputs[index].buttons = pressed_buttons;
     for (int i = 0; i < 4; i++) {
         input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];

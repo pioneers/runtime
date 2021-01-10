@@ -220,7 +220,7 @@ static void* update_inputs(void* args) {
         for (int i = 0; i < inputs->n_inputs; i++) {
             Input* input = inputs->inputs[i];
             // Convert Protobuf source enum to Runtime source enum
-            robot_desc_field_t source = input->source == SOURCE__GAMEPAD ? GAMEPAD : KEYBOARD;
+            robot_desc_field_t source = (input->source == SOURCE__GAMEPAD) ? GAMEPAD : KEYBOARD;
             robot_desc_write(source, input->connected ? CONNECTED : DISCONNECTED);
             if (input->connected) {
                 if (source == GAMEPAD && input->n_axes != 4) {
