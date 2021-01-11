@@ -46,35 +46,37 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 // Some windows' dimensions are defined in terms of others so that their borders align
 
 // Enough to fit each value
-#define ROBOT_DESC_HEIGHT 10
+#define ROBOT_DESC_HEIGHT 8
 // ROBOT_DESC_WIDTH is enough to fit GAMEPAD_WIDTH (which needs to be wider than ROBOT_DESC)
 #define ROBOT_DESC_WIDTH 35
-#define ROBOT_DESC_START_Y 1
-#define ROBOT_DESC_START_X 1
+#define ROBOT_DESC_START_Y 3
+#define ROBOT_DESC_START_X 0
 
 // GAMEPAD_HEIGHT is enough to fit all the joysticks and buttons
-#define GAMEPAD_HEIGHT 30
+#define GAMEPAD_HEIGHT 28
 #define GAMEPAD_WIDTH ROBOT_DESC_WIDTH
 // Display GAMEPAD_WIN below ROBOT_DESC
 #define GAMEPAD_START_Y (ROBOT_DESC_START_Y + ROBOT_DESC_HEIGHT)
-#define GAMEPAD_START_X 1
+#define GAMEPAD_START_X ROBOT_DESC_START_X
 
-// Make the bottom border of DEVICE_WIN align with GAMEPAD_WIN's bottom border
-#define DEVICE_HEIGHT (GAMEPAD_START_Y + GAMEPAD_HEIGHT - 1)
+// DEVICE_HEIGHT should be large enough to display all the parameters,
+// with extra lines for device id, the table itself, and the message about using the arrow keys
+#define DEVICE_HEIGHT (MAX_PARAMS + 7)
 // DEVICE_WIDTH is enough to fit the information for each parameter
 #define DEVICE_WIDTH 75
-#define DEVICE_START_Y 1
+#define DEVICE_START_Y 0
 // Make the left border of DEVICE_WIN to the right of ROBOT_DESC_WIN and GAMEPAD_WIN
 #define DEVICE_START_X (ROBOT_DESC_WIDTH + 1)
 
-// The column at which we display an "X" next to a button name if it's pressed
-const int BUTTON_PRESSED_FLAG_COL = 5 + strlen("button_start") + 2;
+// The left-most column at which we display something in each window
+// (i.e. There will be INDENT - 1 spaces between the left border and the first character)
+#define INDENT 3
 
 // Column positions in device window; Declared as const instead of #define to prevent repeated strlen() computation
 // Each one is determined by taking the previous column and adding the previous column's maximum width
 const int VALUE_WIDTH = strlen("123.000000") + 1;                        // String representation of float length; Used to determine column widths
-const int PARAM_IDX_COL = 5;                                             // The column at which we display the parameter index
-const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("Index") + 1;          // The column at which we display the parameter name
+const int PARAM_IDX_COL = INDENT;                                             // The column at which we display the parameter index
+const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("00") + 1;          // The column at which we display the parameter name (Idx column is 2 digits wide)
 const int NET_SUB_COL = PARAM_NAME_COL + strlen("increasing_even") + 1;  // The column at which we display whether the parameter is subbed by net handler
 const int EXE_SUB_COL = NET_SUB_COL + strlen("NET") + 1;                 // The column at which we display whether the parameter is subbed by executor
 const int COMMAND_VAL_COL = EXE_SUB_COL + strlen("EXE") + 1;             // The column at which we display the command stream
@@ -97,7 +99,7 @@ const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                  // The 
 int DEVICE_WIN_IS_BLANK = 0;
 
 // The header of DEVICE_WIN; Useful for clearing and redrawing DEVICE_WIN
-#define DEVICE_WIN_HEADER "~~~~~~~~~~~~~~~~~~~~~~~~~~~~Device Information~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+#define DEVICE_WIN_HEADER "~~~~~~~~~~~~~~~~~~~~~~~~~~~~DEVICE INFORMATION~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
 // The note displayed at the bottom of DEVICE_WIN
 const char* NOTE = "Use the left and right arrow keys to inspect the previous or next device!";
@@ -112,14 +114,19 @@ const char* NOTE = "Use the left and right arrow keys to inspect the previous or
 void init_windows() {
     // Robot description
     ROBOT_DESC_WIN = newwin(ROBOT_DESC_HEIGHT, ROBOT_DESC_WIDTH, ROBOT_DESC_START_Y, ROBOT_DESC_START_X);
-    mvwprintw(ROBOT_DESC_WIN, 1, 1, "~~~~~~~~Robot Description~~~~~~~~");
+    wattron(ROBOT_DESC_WIN, A_BOLD);
+    mvwprintw(ROBOT_DESC_WIN, 1, 1, "~~~~~~~~ROBOT DESCRIPTION~~~~~~~~");
+    wattroff(ROBOT_DESC_WIN, A_BOLD);
     // Gamepad
     GAMEPAD_WIN = newwin(GAMEPAD_HEIGHT, GAMEPAD_WIDTH, GAMEPAD_START_Y, GAMEPAD_START_X);
-    mvwprintw(GAMEPAD_WIN, 1, 1, "~~~~~~~~~~Gamepad State~~~~~~~~~~");
+    wattron(GAMEPAD_WIN, A_BOLD);
+    mvwprintw(GAMEPAD_WIN, 1, 1, "~~~~~~~~~~GAMEPAD STATE~~~~~~~~~~");
+    wattroff(GAMEPAD_WIN, A_BOLD);
     // Device info (device data)
     DEVICE_WIN = newwin(DEVICE_HEIGHT, DEVICE_WIDTH, DEVICE_START_Y, DEVICE_START_X);
+    wattron(DEVICE_WIN, A_BOLD);
     mvwprintw(DEVICE_WIN, 1, 1, DEVICE_WIN_HEADER);
-
+    wattroff(DEVICE_WIN, A_BOLD);
     refresh();
 }
 
@@ -133,18 +140,18 @@ void display_robot_desc() {
     robot_desc_val_t start_pos = robot_desc_read(START_POS);
 
     // Print each field (clear previous value before printing current value)
-    int line = 3;
+    int line = 2;
     wmove(ROBOT_DESC_WIN, line, 0);
     wclrtoeol(ROBOT_DESC_WIN);
-    mvwprintw(ROBOT_DESC_WIN, line++, 1, "RUN_MODE = %s", (run_mode == IDLE) ? "IDLE" : (run_mode == AUTO ? "AUTO" : (run_mode == TELEOP ? "TELEOP" : "CHALLENGE")));
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "RUN_MODE\t= %s", (run_mode == IDLE) ? "IDLE" : (run_mode == AUTO ? "AUTO" : (run_mode == TELEOP ? "TELEOP" : "CHALLENGE")));
     wclrtoeol(ROBOT_DESC_WIN);
-    mvwprintw(ROBOT_DESC_WIN, line++, 1, "DAWN = %s", (dawn_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "DAWN\t\t= %s", (dawn_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
     wclrtoeol(ROBOT_DESC_WIN);
-    mvwprintw(ROBOT_DESC_WIN, line++, 1, "SHEPHERD = %s", (shepherd_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "SHEPHERD\t= %s", (shepherd_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
     wclrtoeol(ROBOT_DESC_WIN);
-    mvwprintw(ROBOT_DESC_WIN, line++, 1, "GAMEPAD = %s", (gamepad_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "GAMEPAD\t= %s", (gamepad_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
     wclrtoeol(ROBOT_DESC_WIN);
-    mvwprintw(ROBOT_DESC_WIN, line++, 1, "START_POS = %s", (start_pos == LEFT) ? "LEFT" : "RIGHT");
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "START_POS\t= %s", (start_pos == LEFT) ? "LEFT" : "RIGHT");
 
     // Box and refresh
     box(ROBOT_DESC_WIN, 0, 0);
@@ -166,10 +173,11 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     // Read gamepad state if gamepad is connected
     uint32_t pressed_buttons = 0;
     float joystick_vals[4] = {0};
-    if (robot_desc_read(GAMEPAD) == CONNECTED) {
+    int gamepad_connected = (robot_desc_read(GAMEPAD) == CONNECTED);
+    if (gamepad_connected) {
         gamepad_read(&pressed_buttons, joystick_vals);
     } else {
-        mvwprintw(GAMEPAD_WIN, line, 5, "No gamepad connected!");
+        mvwprintw(GAMEPAD_WIN, line, INDENT, "No gamepad connected!");
     }
     wmove(GAMEPAD_WIN, ++line, 0);
 
@@ -179,13 +187,13 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
         // Clear previous entry
         wclrtoeol(GAMEPAD_WIN);
         // Display joystick values (This will be 0 if gamepad is not connected)
-        mvwprintw(GAMEPAD_WIN, line, 5, "%s = %f", joystick_names[i], joystick_vals[i]);
+        mvwprintw(GAMEPAD_WIN, line, INDENT, "%s\t= %.4f", joystick_names[i], joystick_vals[i]);
         // Advance line pointer for the next joystick
         wmove(GAMEPAD_WIN, ++line, 0);
     }
 
     // Move to buttons section
-    line += 2;
+    line++;
     wmove(GAMEPAD_WIN, line, 0);
 
     // Print pressed buttons
@@ -194,11 +202,14 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
         // Move to button row and clear previous entry
         wclrtoeol(GAMEPAD_WIN);
-        // Show button name and an "X" next to it if pressed
-        mvwprintw(GAMEPAD_WIN, line, 5, "%s", button_names[i]);
+        // Show button name; If pressed, make it bold. Else, dim
         if (pressed_buttons & (1 << i)) {
-            mvwprintw(GAMEPAD_WIN, line, BUTTON_PRESSED_FLAG_COL, "X");
+            wattron(GAMEPAD_WIN, A_BOLD);
+        } else {
+            wattron(GAMEPAD_WIN, A_DIM);
         }
+        mvwprintw(GAMEPAD_WIN, line, INDENT, "%s", button_names[i]);
+        wattroff(GAMEPAD_WIN, A_BOLD | A_DIM); // Turn off any text attributes
         // Move to next button
         wmove(GAMEPAD_WIN, ++line, 0);
     }
@@ -227,7 +238,10 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         if (!DEVICE_WIN_IS_BLANK) {
             // Clear the entire window, but put back the header and the borders
             wclear(DEVICE_WIN);
+            wattron(DEVICE_WIN, A_BOLD);
             mvwprintw(DEVICE_WIN, 1, 1, DEVICE_WIN_HEADER);
+            wattroff(DEVICE_WIN, A_BOLD);
+            mvwprintw(DEVICE_WIN, 2, 1, "This device was disconnected!");
             mvwprintw(DEVICE_WIN, DEVICE_HEIGHT - 2, 1, NOTE);
             box(DEVICE_WIN, 0, 0);
             wrefresh(DEVICE_WIN);
@@ -247,7 +261,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         // Switching from one connected device to another
     }
 
-    int line = 3;  // Our pointer to the current line/row we're writing to
+    int line = 2;  // Our pointer to the current line/row we're writing to
     wmove(DEVICE_WIN, line, 0);
     const int table_header_line = line + 1;  // The line to display the table column names
 
@@ -255,7 +269,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     device_t* device = NULL;
     wclrtoeol(DEVICE_WIN);  // Clear previous string
     if (show_custom_data) {
-        mvwprintw(DEVICE_WIN, line++, 1, "Custom Data");
+        mvwprintw(DEVICE_WIN, line++, INDENT, "Custom Data:");
     } else {
         device = get_device(dev_ids[shm_idx].type);
         if (device == NULL) {  // This should never happen if the handling above is correct
@@ -368,13 +382,13 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     }
 
     // Draw table
-    mvwprintw(DEVICE_WIN, table_header_line, PARAM_IDX_COL, "Index");
+    mvwprintw(DEVICE_WIN, table_header_line, PARAM_IDX_COL, "#");
     mvwprintw(DEVICE_WIN, table_header_line, PARAM_NAME_COL, "Parameter Name");
     mvwprintw(DEVICE_WIN, table_header_line, NET_SUB_COL, "NET");
     mvwprintw(DEVICE_WIN, table_header_line, EXE_SUB_COL, "EXE");
     mvwprintw(DEVICE_WIN, table_header_line, COMMAND_VAL_COL, "Command");
     mvwprintw(DEVICE_WIN, table_header_line, DATA_VAL_COL, "Data");
-    mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - 5);  // Horizontal line
+    mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - INDENT);  // Horizontal line
     // Vertical Lines
     mvwvline(DEVICE_WIN, table_header_line, PARAM_NAME_COL - 1, 0, MAX_PARAMS + 2);
     mvwvline(DEVICE_WIN, table_header_line, NET_SUB_COL - 1, 0, MAX_PARAMS + 2);
@@ -464,7 +478,13 @@ int main(int argc, char** argv) {
 
         // Throttle refresh rate
         usleep(100000 / FPS);
-        mvprintw(0, 0, "Catalog: 0x%08X; Selected Device: %02d", catalog, device_selection);
+
+        // Display catalog and current device selection
+        int line = 0;
+        mvprintw(line++, 1, "Shared Memory Dashboard");
+        mvprintw(line++, 1, "Catalog:\t  0x%08X", catalog);
+        mvprintw(line++, 1, "Selected Device: %02d", device_selection);
+
         refresh();
     }
 
