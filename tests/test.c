@@ -649,3 +649,28 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
     }
     print_pass();
 }
+
+// Returns if the latency is neither too high nor too low
+void check_latency(char* dev_name, uint64_t uid, char* param_name, int32_t lower_bound_latency, int32_t upper_bound_latency, int32_t start_time) {
+    uint8_t dev_type = device_name_to_type(dev_name);
+    device_t* dev = get_device(dev_type);
+
+    param_val_t vals_after[dev->num_params];
+    uint32_t param_idx = (uint32_t) get_param_idx(dev_type, param_name);
+    device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    param_val_t received = vals_after[param_idx];
+    int32_t elapsed_time = received.p_i - start_time;
+    fprintf(stderr, "Time received is %d\n", received.p_i);
+    if(elapsed_time >= upper_bound_latency && elapsed_time < lower_bound_latency){
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "%s >= %d\n", param_name, lower_bound_latency);
+        fprintf(stderr, "%s < %d\n", param_name, upper_bound_latency);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s == %d\n", param_name, elapsed_time);
+        end_test();
+        exit(1);
+    }
+    print_pass();
+
+}
