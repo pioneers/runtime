@@ -75,8 +75,8 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 // Column positions in device window; Declared as const instead of #define to prevent repeated strlen() computation
 // Each one is determined by taking the previous column and adding the previous column's maximum width
 const int VALUE_WIDTH = strlen("123.000000") + 1;                        // String representation of float length; Used to determine column widths
-const int PARAM_IDX_COL = INDENT;                                             // The column at which we display the parameter index
-const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("00") + 1;          // The column at which we display the parameter name (Idx column is 2 digits wide)
+const int PARAM_IDX_COL = INDENT;                                        // The column at which we display the parameter index
+const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("00") + 1;             // The column at which we display the parameter name (Idx column is 2 digits wide)
 const int NET_SUB_COL = PARAM_NAME_COL + strlen("increasing_even") + 1;  // The column at which we display whether the parameter is subbed by net handler
 const int EXE_SUB_COL = NET_SUB_COL + strlen("NET") + 1;                 // The column at which we display whether the parameter is subbed by executor
 const int COMMAND_VAL_COL = EXE_SUB_COL + strlen("EXE") + 1;             // The column at which we display the command stream
@@ -219,7 +219,7 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
                 wattron(GAMEPAD_WIN, A_DIM);
             }
             mvwprintw(GAMEPAD_WIN, line, INDENT, "%s", button_names[i]);
-            wattroff(GAMEPAD_WIN, A_BOLD | A_DIM); // Turn off any text attributes
+            wattroff(GAMEPAD_WIN, A_BOLD | A_DIM);  // Turn off any text attributes
         }
         // Move to next button
         wmove(GAMEPAD_WIN, ++line, 0);
