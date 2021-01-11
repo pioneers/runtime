@@ -102,6 +102,10 @@ int DEVICE_WIN_IS_BLANK = 0;
 // The note displayed at the bottom of DEVICE_WIN
 const char* NOTE = "Use the left and right arrow keys to inspect the previous or next device!";
 
+// The number of possible "devices" displayed
+// (The normal MAX_DEVICES plus the custom data block, which is presented as a "device" with parameters)
+#define DEVICE_WRAP (MAX_DEVICES + 1)
+
 // ******************************** NCURSES ********************************* //
 
 // Initializes ncurses windows
@@ -419,36 +423,39 @@ int main(int argc, char** argv) {
     nodelay(DEVICE_WIN, 1);  // Make getch() non-blocking (return ERR if no input)
 
     // Holds the current device selection
-    int device_selection = 0;
+    int device_selection = MAX_DEVICES;  // Initialize to custom data, which is always present
 
     // Update the UI continually (based on refresh rate)
     while (1) {
-        // Detect arrow key inputs to increment/decrement device_selection with wrapping within [0, MAX_DEVICES] (inclusive)
-        // The device at index MAX_DEVICES is the custom data block, which is visible to Dawn as another "device"
+        // Get newest shm data
+        get_catalog(&catalog);
+        get_device_identifiers(dev_ids);
+
+        // Detect arrow key inputs to increase/decrease device_selection
+        int direction = 0;
         switch (wgetch(DEVICE_WIN)) {
             case KEY_LEFT:
-                // Move selection to next lowest connected device or wrap to the highest
-                if (device_selection > 0) {
-                    device_selection--;
-                } else {
-                    device_selection = MAX_DEVICES;
-                }
+                direction = -1;
                 break;
             case KEY_RIGHT:
-                // Move selection to next lowest connected device or wrap to the lowest
-                if (device_selection < MAX_DEVICES) {
-                    device_selection++;
-                } else {
-                    device_selection = 0;
-                }
+                direction = 1;
                 break;
             default:
                 break;
         }
 
-        // Get newest shm data
-        get_catalog(&catalog);
-        get_device_identifiers(dev_ids);
+        // Device selection is updated, with wrapping within [0, MAX_DEVICES] (inclusive)
+        // The device selection will move to the closest connected device in that direction, in
+        // The device at index MAX_DEVICES is the custom data block, which is visible to Dawn as another "device"
+        if (direction != 0) {  // User wants to change device being displayed
+            // Increment/decrement device selection first, then
+            // While the device selection is not a connected device and not the custom data,
+            // move it in the selected direction
+            do {
+                device_selection += direction;
+                device_selection = (device_selection + DEVICE_WRAP) % DEVICE_WRAP;
+            } while (device_selection != MAX_DEVICES && !(catalog & (1 << device_selection)));
+        }
 
         // Update each window
         display_robot_desc();
