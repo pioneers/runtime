@@ -10,7 +10,6 @@
 #include "../test.h"
 
 #define TIME_DEV_UID 123
-#define LOWER_BOUND_LATENCY 0
 #define UPPER_BOUND_LATENCY 5
 
 int main() {
@@ -43,7 +42,7 @@ int main() {
     sleep(1);
 
     // Check the latency between the button pressed and its change to TIMESTAMP
-    check_latency("TimeTestDevice", TIME_DEV_UID, "TIMESTAMP", LOWER_BOUND_LATENCY, UPPER_BOUND_LATENCY, start);
+    check_latency("TimeTestDevice", TIME_DEV_UID, "TIMESTAMP", UPPER_BOUND_LATENCY, start);
 
     // Stop all processes
     end_test();
