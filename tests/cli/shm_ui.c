@@ -182,12 +182,18 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     wmove(GAMEPAD_WIN, ++line, 0);
 
     // Print joysticks
-    mvwprintw(GAMEPAD_WIN, line++, 1, "Joystick Positions:");
+    wclrtoeol(GAMEPAD_WIN);
+    if (gamepad_connected) {
+        mvwprintw(GAMEPAD_WIN, line, 1, "Joystick Positions:");
+    }
+    wmove(GAMEPAD_WIN, ++line, 0);
     for (int i = 0; i < 4; i++) {
         // Clear previous entry
         wclrtoeol(GAMEPAD_WIN);
         // Display joystick values (This will be 0 if gamepad is not connected)
-        mvwprintw(GAMEPAD_WIN, line, INDENT, "%s\t= %.4f", joystick_names[i], joystick_vals[i]);
+        if (gamepad_connected) {
+            mvwprintw(GAMEPAD_WIN, line, INDENT, "%s\t= %.4f", joystick_names[i], joystick_vals[i]);
+        }
         // Advance line pointer for the next joystick
         wmove(GAMEPAD_WIN, ++line, 0);
     }
@@ -197,19 +203,24 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     wmove(GAMEPAD_WIN, line, 0);
 
     // Print pressed buttons
-    mvwprintw(GAMEPAD_WIN, line++, 1, "Pressed Buttons:");
-    wmove(GAMEPAD_WIN, line, 0);
+    wclrtoeol(GAMEPAD_WIN);
+    if (gamepad_connected) {
+        mvwprintw(GAMEPAD_WIN, line, 1, "Pressed Buttons:");
+    }
+    wmove(GAMEPAD_WIN, ++line, 0);
     for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
         // Move to button row and clear previous entry
         wclrtoeol(GAMEPAD_WIN);
         // Show button name; If pressed, make it bold. Else, dim
-        if (pressed_buttons & (1 << i)) {
-            wattron(GAMEPAD_WIN, A_BOLD);
-        } else {
-            wattron(GAMEPAD_WIN, A_DIM);
+        if (gamepad_connected) {
+            if (pressed_buttons & (1 << i)) {
+                wattron(GAMEPAD_WIN, A_BOLD);
+            } else {
+                wattron(GAMEPAD_WIN, A_DIM);
+            }
+            mvwprintw(GAMEPAD_WIN, line, INDENT, "%s", button_names[i]);
+            wattroff(GAMEPAD_WIN, A_BOLD | A_DIM); // Turn off any text attributes
         }
-        mvwprintw(GAMEPAD_WIN, line, INDENT, "%s", button_names[i]);
-        wattroff(GAMEPAD_WIN, A_BOLD | A_DIM); // Turn off any text attributes
         // Move to next button
         wmove(GAMEPAD_WIN, ++line, 0);
     }
