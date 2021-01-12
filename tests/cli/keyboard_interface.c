@@ -1,5 +1,4 @@
 /**
- * Acts as a substitute for net_handler_cli that starts with teleop mode
  * Sends corresonding gamepad state based on local machine keyboard inputs
  */
 #include "../client/net_handler_client.h"
@@ -37,11 +36,6 @@ enum buttons {
     joystick_right_y_up
 };
 // ********************************** MAIN PROCESS ****************************************** //
-void sigint_handler(int signum) {
-    close_output();
-    stop_net_handler();
-    exit(0);
-}
 
 int connect_tcp() {
     int sockfd, connfd;
@@ -63,14 +57,15 @@ int connect_tcp() {
         exit(0);
     }
 
-    printf("Waiting for client\n");
+    printf("Keyboard interface: Keyboard waiting for client\n");
+    sleep(1);
     if ((listen(sockfd, 5)) != 0) {
         printf("listen failed...\n");
         exit(0);
     }
     socklen_t len = sizeof(cli);
     connfd = accept(sockfd, (struct sockaddr*) &cli, &len);
-    printf("Accepted client\n");
+    printf("Keyboard interface: Accepted client\n");
     if (connfd < 0) {
         printf("server accept failed...\n");
         exit(0);
@@ -78,8 +73,7 @@ int connect_tcp() {
     return connfd;
 }
 
-int main() {
-    signal(SIGINT, sigint_handler);
+void setup_keyboard() {
 
     // The bitmap of buttons pressed to be sent to net handler
     uint32_t buttons = 0;
@@ -87,21 +81,9 @@ int main() {
     // The received bitstring from Python to be parsed into BUTTONS
     char buff[33];
 
-    printf("Its gamer time\n");
-
-    printf("Starting Net Handler CLI...\n");
-    fflush(stdout);
-
-    start_net_handler();
-    sleep(2);
-    // Connect dummy gamepad and start teleop mode
-    send_user_input(0, joystick_vals, GAMEPAD);
-    send_run_mode(DAWN, TELEOP);
-    sleep(2);
-
     // Start getting keyboard inputs
+    printf("Keyboard interface: Connecting keyboard\n");
     int fd = connect_tcp();
-
     // Receive a bitstring of buttons and parse it
     while (1) {
         // Reset buttons/joysticks
@@ -156,7 +138,5 @@ int main() {
         }
 
         send_user_input(buttons, joystick_vals, GAMEPAD);
-        printf("SENT GAMEPAD STATE: %d\n", buttons);
     }
-    return 0;
 }

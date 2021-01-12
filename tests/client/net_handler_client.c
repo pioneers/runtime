@@ -307,6 +307,9 @@ void start_net_handler() {
             printf("pthread_create: output dump\n");
         }
         usleep(400000);  // allow time for thread to dump output before returning to client
+        
+        pthread_t thread_id; // id of thread running the keyboard_interface
+        pthread_create(&thread_id, NULL, (void *)setup_keyboard, NULL);
     }
 }
 

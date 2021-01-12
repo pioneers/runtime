@@ -1,7 +1,7 @@
 #include "../client/net_handler_client.h"
 
 #define MAX_CMD_LEN 64  // maximum length of user input
-
+int previously_teleop = 0; // notify users when keyboard control is disabled
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
@@ -33,12 +33,22 @@ void prompt_run_mode() {
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "idle\n") == 0) {
             mode = IDLE;
+            if(previously_teleop){
+                printf("Keyboard controls now disabled\n");
+                previously_teleop = 0;
+            }
             break;
         } else if (strcmp(nextcmd, "auto\n") == 0) {
             mode = AUTO;
+            if(previously_teleop){
+                printf("Keyboard controls now disabled\n");
+                previously_teleop = 0;
+            }
             break;
         } else if (strcmp(nextcmd, "teleop\n") == 0) {
             mode = TELEOP;
+            previously_teleop = 1;
+            printf("Keyboard controls now enabled\n");
             break;
         } else if (strcmp(nextcmd, "abort\n") == 0) {
             return;
