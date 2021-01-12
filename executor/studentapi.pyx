@@ -408,20 +408,30 @@ def get_all_params(code_file) -> Dict[str, List[str]]:
     except FileNotFoundError as e:
         f = open(f"../tests/student_code/{code_file}.py", "r")	
 	
-    for i, line in enumerate(f):
-        line = line.lstrip() # Remove whitespace
+    # Iterate through each line; Note that the line number in a text editor is (i + 1) for iteration i
+    for i, line in enumerate(f.readlines()):
+        # Remove whitespace
+        line = line.strip()
+        # Remove commented out text in the line (entire line may be a commentas well)
         comment = line.find("#")
         if comment != -1:
-            line = line[:comment] # Remove commented lines
+            line = line[:comment] 
         # Find regex of exact functions and get their arguments
-        matches = [re.search(r"Robot.set_value\((.*)\)", line), re.search(r"Robot.get_value\((.*)\)", line)]
-        for res in matches:
-            if res:
+        # Regex will match 'Robot.get_value(<device>, <param>)' in every line
+        # Note: There may be multiple matches per line
+        # Each function call match will group the first and second argument
+        # Ex: matches = [('MOTOR', "'velocity'"), ('2_1234', "'left'"), ('MTR_A', 'param_name')]
+        matches = re.findall(r"Robot\.get_value\(\s*(.+?)\s*,\s*(.+?)\s*\)", line)
+        for args in matches: # args is a tuple containing first and second arguments
+            if args:
                 try:
-                    # Find parameters by splitting by optional space and comma or parenthesis
-                    params = re.split(r"\s?[,\(\)]\s?", res[1])
-                    param_dict[eval(params[0])].add(eval(params[1]))
+                    # We need to eval() because arguments may be variables
+                    # Note that variables must be globally (not locally) defined
+                    device_type_uid = eval(args[0])
+                    param_name = eval(args[1])
+                    param_dict[device_type_uid].add(param_name)
+                    log_printf(DEBUG, f"Line {i + 1}: Subbed to {device_type_uid}'s {param_name}".encode())
                 except Exception as e:
-                    log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
+                    log_printf(DEBUG, f"Error parsing student code on line {i + 1}: {str(e)}".encode())
     return param_dict
 
