@@ -90,6 +90,13 @@ Then, extract the files with
 
 You might need to install `wget` and `tar` with `sudo apt-get -y install wget tar`.
 
+### Installing ncurses for Shared Memory UI
+The Shared Memory UI allows the user to have a real-time view of data flowing in and out of shared memory.
+This is analogous to the "shm_cli" among dev_handler_cli, executor_cli, and net_handler_cli.
+Note that the UI is used in development only as a debugging tool and should not be used in production.<br />
+The command below will install ncurses on Raspbian / Debian machines:
+1. `sudo apt-get -y install libncurses5-dev libncursesw5-dev`
+
 ## Runtime Script and Usage
 
 We use the bash script `runtime` in this root directory as the entrypoint to our code. You can call it with `./runtime <args>` in this folder. However, you can also have it be callable from any directory by adding it to your `PATH` variable. This can be done automatically adding the following line to your `~/.bashrc` file:

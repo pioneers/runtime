@@ -17,15 +17,15 @@ clean:
 
 ################################## CLI TARGETS #################################
 
-cli: net_handler_cli shm_cli executor_cli dev_handler_cli keyboard_interface devices
+cli: net_handler_cli shm_ui executor_cli dev_handler_cli keyboard_interface devices
 
 net_handler_cli: cli/net_handler_cli.* client/net_handler_client.* ../net_handler/net_util.* \
 	../runtime_util/runtime_util.* ../logger/logger.c $(PBC_FILES)
 	$(CC) $^ -o $@ $(LIBS)
 
-shm_cli: cli/shm_cli.c client/shm_client.* ../shm_wrapper/shm_wrapper.* \
-	../runtime_util/runtime_util.* ../logger/logger.c
-	$(CC) $^ -o $@ $(LIBS)
+shm_ui: cli/shm_ui.o client/shm_client.o ../shm_wrapper/shm_wrapper.o \
+	../runtime_util/runtime_util.o ../logger/logger.o
+	$(CC) -lncurses $^ -o $@ $(LIBS)
 
 executor_cli: cli/executor_cli.* client/executor_client.*
 	$(CC) $^ -o $@ $(LIBS)
