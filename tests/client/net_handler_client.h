@@ -87,4 +87,10 @@ void print_next_dev_data();
  */
 void update_tcp_output_fp(char* output_address);
 
+/**
+* Setups connection to keyboard_inputs python script. Processes incoming inputs and translates
+* it to gamepad and joystick info to send through the send_gamepad_state() function
+*/
+void setup_keyboard();
+
 #endif

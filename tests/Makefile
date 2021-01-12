@@ -17,9 +17,9 @@ clean:
 
 ################################## CLI TARGETS #################################
 
-cli: net_handler_cli shm_ui executor_cli dev_handler_cli keyboard_interface devices
+cli: net_handler_cli shm_ui executor_cli dev_handler_cli devices
 
-net_handler_cli: cli/net_handler_cli.* client/net_handler_client.* ../net_handler/net_util.* \
+net_handler_cli: cli/net_handler_cli.* cli/keyboard_interface.* client/net_handler_client.* ../net_handler/net_util.* \
 	../runtime_util/runtime_util.* ../logger/logger.c $(PBC_FILES)
 	$(CC) $^ -o $@ $(LIBS)
 
@@ -32,10 +32,6 @@ executor_cli: cli/executor_cli.* client/executor_client.*
 
 dev_handler_cli: client/dev_handler_client.* cli/dev_handler_cli.*
 	$(CC) $^ -o $@
-
-keyboard_interface: cli/keyboard_interface.c ../net_handler/*.* client/net_handler_client.* cli/net_handler_cli.c
-	gcc cli/keyboard_interface.c client/net_handler_client.c ../net_handler/net_util.c \
-	../net_handler/pbc_gen/*.c ../runtime_util/runtime_util.c ../logger/logger.c -o $@ $(LIBS)
 
 ################################ VIRTUAL DEVICES ###############################
 
