@@ -93,6 +93,16 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
  */
 void check_run_mode(robot_desc_val_t expected_run_mode);
 
+// ***************************** START POS CHECK ***************************** //
+
+/**
+ * Verifies that the current robot start position is as expected in shared memory.
+ * Arguments:
+ *    expected_start_pos: the expected start position.
+ * No return value. (Will exit with status code 1 if incorrect start pos)
+ */
+void check_start_pos(robot_desc_val_t expected_start_pos);
+
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**
