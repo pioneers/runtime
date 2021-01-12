@@ -42,7 +42,7 @@ int main() {
     sleep(1);
 
     // Check the latency between the button pressed and its change to TIMESTAMP
-    check_latency("TimeTestDevice", TIME_DEV_UID, "TIMESTAMP", UPPER_BOUND_LATENCY, start);
+    check_latency(TIME_DEV_UID, UPPER_BOUND_LATENCY, start);
 
     // Stop all processes
     end_test();
