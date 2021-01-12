@@ -12,7 +12,8 @@ import struct       # for TCP encoding
 HOST = '127.0.0.1'
 PORT = 5006
 ADDRESS = (HOST, PORT)
-map = {
+
+gamepad_map = {
     "BUTTON_A" : 0,
     "BUTTON_B" : 1,
     "BUTTON_X" : 2,
@@ -67,6 +68,53 @@ controls = {
         keyboard.Key.up : map["JOYSTICK_RIGHT_Y_UP"]
     }
 
+keyboardKeys = [keyboard.KeyCode(char="a"),
+                keyboard.KeyCode(char="b"),
+                keyboard.KeyCode(char="c"),
+                keyboard.KeyCode(char="d"),
+                keyboard.KeyCode(char="e"),
+                keyboard.KeyCode(char="f"),
+                keyboard.KeyCode(char="g"),
+                keyboard.KeyCode(char="h"),
+                keyboard.KeyCode(char="i"),
+                keyboard.KeyCode(char="j"),
+                keyboard.KeyCode(char="k"),
+                keyboard.KeyCode(char="l"),
+                keyboard.KeyCode(char="m"),
+                keyboard.KeyCode(char="n"),
+                keyboard.KeyCode(char="o"),
+                keyboard.KeyCode(char="p"),
+                keyboard.KeyCode(char="q"),
+                keyboard.KeyCode(char="r"),
+                keyboard.KeyCode(char="s"),
+                keyboard.KeyCode(char="t"),
+                keyboard.KeyCode(char="u"),
+                keyboard.KeyCode(char="v"),
+                keyboard.KeyCode(char="w"),
+                keyboard.KeyCode(char="x"),
+                keyboard.KeyCode(char="y"),
+                keyboard.KeyCode(char="z"),
+                keyboard.KeyCode(char="1"),
+                keyboard.KeyCode(char="2"),
+                keyboard.KeyCode(char="3"),
+                keyboard.KeyCode(char="4"),
+                keyboard.KeyCode(char="5"),
+                keyboard.KeyCode(char="6"),
+                keyboard.KeyCode(char="7"),
+                keyboard.KeyCode(char="8"),
+                keyboard.KeyCode(char="9"),
+                keyboard.KeyCode(char="0"),
+                keyboard.KeyCode(char=","),
+                keyboard.KeyCode(char="."),
+                keyboard.KeyCode(char="/"),
+                keyboard.KeyCode(char=";"),
+                keyboard.KeyCode(char="'"),
+                keyboard.KeyCode(char="["),
+                keyboard.KeyCode(char="]"),
+                keyboard.Key.left,
+                keyboard.Key.right,
+                keyboard.Key.up,
+                keyboard.Key.down]
 #################################### Set Up & Clean up ####################################
 
 def connect_tcp():
@@ -82,22 +130,35 @@ def handler(signal_received, frame):
 
 #################################### Listening & Writing ####################################
 
-def activate_bit(on):
-    bits[on] = "1"
+def activate_gamepad_bit(on):
+    gamepad_bits[on] = "1"
 
-def deactivate_bit(off):
-    bits[off] = "0" 
+def deactivate_gamepad_bit(off):
+    gamepad_bits[off] = "0" 
+
+def activate_keyboard_bit(on):
+    keyboard_bits[on] = "1"
+
+def deactivate_keyboard_bit(off):
+    keyboard_bits[off] = "0"
 
 def on_press(key):
     mutex.acquire()
     if key in controls:
-        activate_bit(controls[key])
+        activate_gamepad_bit(controls[key])
+    
+    if key in keyboardKeys:
+        activate_keyboard_bit(keyboardKeys.index(keys))
+
     mutex.release()
 
 def on_release(key):
     mutex.acquire()
     if key in controls:
-        deactivate_bit(controls[key])
+        deactivate_gamepad_bit(controls[key])
+
+    if key in keyboardKeys:
+        deactivate_keyboard_bit(keyboardKeys.index(keys))
 
     elif key == keyboard.Key.esc:
         mutex.release()
@@ -114,9 +175,15 @@ def write_to_socket():
     sock = connect_tcp()
     while(True):
         mutex.acquire()
-        string_to_send = ''.join(bits)
-        print("sending", string_to_send.encode())
-        sock.send(string_to_send.encode()) # send the 'bitstring' over tcp using socket object
+        
+        gamepad_to_send = ''.join(gamepad_bits)
+        print("sending gamepad", gamepad_to_send.encode())
+        sock.send(gamepad_to_send.encode()) # send the gamepad 'bitstring' over tcp using socket object
+
+        keyboard_to_send = ''.join(keyboard_bits)
+        print("sending keyboard", keyboard_to_send.encode())
+        sock.send(keyboard_to_send.encode()) # same as above but for the keyboard 'bitstring'
+
         mutex.release()
         sleep(0.05) # allows for the listener to modify the bitstring
 
@@ -124,8 +191,10 @@ def write_to_socket():
 
 def main():
     signal(SIGINT, handler) 
-    global bits
-    bits = list("0" * len(controls)) # 'bitstring' to be modified and sent 
+    global gamepad_bits
+    global keyboard_bits
+    gamepad_bits = list("0" * len(controls)) # 'bitstring' for gamepad
+    keyboard_bits = list("0" * len(keyboardKeys)) # 'bitstring' for keyboard
     global mutex
     mutex = threading.Lock() # used to avoid race conditions when reading and sending data
     keyboard_control()
