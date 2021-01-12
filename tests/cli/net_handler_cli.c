@@ -1,7 +1,7 @@
 #include "../client/net_handler_client.h"
 
 #define MAX_CMD_LEN 64  // maximum length of user input
-int previously_teleop = 0; // notify users when keyboard control is disabled
+
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
@@ -9,7 +9,7 @@ void prompt_run_mode() {
     robot_desc_field_t client = SHEPHERD;
     robot_desc_val_t mode = IDLE;
     char nextcmd[MAX_CMD_LEN];
-
+    int keyboard_enabled = 0; // notify users when keyboard control is enabled/disabled
     // get client to send as
     while (1) {
         printf("Send as DAWN or SHEPHERD: ");
@@ -33,22 +33,15 @@ void prompt_run_mode() {
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "idle\n") == 0) {
             mode = IDLE;
-            if(previously_teleop){
-                printf("Keyboard controls now disabled\n");
-                previously_teleop = 0;
-            }
+            keyboard_enabled = 0;
             break;
         } else if (strcmp(nextcmd, "auto\n") == 0) {
             mode = AUTO;
-            if(previously_teleop){
-                printf("Keyboard controls now disabled\n");
-                previously_teleop = 0;
-            }
+            keyboard_enabled = 0;
             break;
         } else if (strcmp(nextcmd, "teleop\n") == 0) {
             mode = TELEOP;
-            previously_teleop = 1;
-            printf("Keyboard controls now enabled\n");
+            keyboard_enabled = 1;
             break;
         } else if (strcmp(nextcmd, "abort\n") == 0) {
             return;
@@ -58,7 +51,10 @@ void prompt_run_mode() {
     }
 
     // send
-    printf("Sending Run Mode message!\n\n");
+    printf("Sending Run Mode message!\n");
+    if(keyboard_enabled){
+        printf("Keyboard controls now enabled!\n\n");
+    }
     send_run_mode(client, mode);
 }
 
@@ -104,88 +100,6 @@ void prompt_start_pos() {
     // send
     printf("Sending Start Pos message!\n\n");
     send_start_pos(client, pos);
-}
-
-void prompt_user_input() {
-    uint32_t buttons = 0;
-    float joystick_vals[4];
-    char nextcmd[MAX_CMD_LEN];
-    char** list_of_names;
-    int button_ix = 0;
-    int set_joysticks = 0;
-
-    // get which buttons are pressed
-    printf("Specify which of the following buttons are pressed\n\t(type the number corresponding to the named button):\n");
-    list_of_names = get_button_names();
-    for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
-        printf("\t%4d %s\n", i, list_of_names[i]);
-    }
-    printf("After you have finished setting buttons, type \"done\"\n");
-    printf("If you accidentally set a button, you can unset the button by typing its name again\n");
-
-    while (1) {
-        printf("Set/unset this button: ");
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-
-        // check for these first
-        if (strcmp(nextcmd, "done\n") == 0) {
-            break;
-        } else if (strcmp(nextcmd, "abort\n") == 0) {
-            return;
-        }
-
-        // get the index of the button that was specified
-        errno = 0;
-        if ((button_ix = (int) strtol(nextcmd, NULL, 10)) == 0 && errno != 0) {
-            printf("Did not enter integer: %s\n", nextcmd);
-            continue;
-        }
-
-        if (button_ix < 0 || button_ix >= NUM_GAMEPAD_BUTTONS) {
-            printf("Not a valid button index: %s\n", nextcmd);
-            continue;
-        }
-
-        // otherwise set that bit in buttons
-        if (buttons & (1 << button_ix)) {
-            buttons &= ~(1 << button_ix);
-            printf("\tUnset button %s\n", list_of_names[button_ix]);
-        } else {
-            buttons |= (1 << button_ix);
-            printf("\tSet button %s\n", list_of_names[button_ix]);
-        }
-    }
-
-    // get the joystick values to send
-    printf("Specify the values of the four joysticks (values -1.0 <= val <= 1.0):\n");
-    list_of_names = get_joystick_names();
-    for (int i = 0; i < 4; i++) {
-        printf("\t%s\n", list_of_names[i]);
-    }
-
-    while (set_joysticks != 4) {
-        printf("Set the value for %s: ", list_of_names[set_joysticks]);
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-
-        if (strcmp(nextcmd, "abort\n") == 0) {
-            return;
-        }
-
-        errno = 0;
-        if (((joystick_vals[set_joysticks] = strtof(nextcmd, NULL)) == 0) && errno != 0) {
-            printf("Input is not a float: %s\n", nextcmd);
-        }
-        if (joystick_vals[set_joysticks] >= 1.0 || joystick_vals[set_joysticks] <= -1.0) {
-            printf("Input is outside of range of joystick: %s\n", nextcmd);
-            continue;
-        }
-        printf("\tOk! %s set to %f\n", list_of_names[set_joysticks], joystick_vals[set_joysticks]);
-        set_joysticks++;
-    }
-
-    // send
-    printf("Sending Gamepad State message!\n\n");
-    send_user_input(buttons, joystick_vals, GAMEPAD);
 }
 
 void prompt_challenge_data() {
@@ -381,7 +295,6 @@ void display_help() {
     printf("All commands should be typed in all lower case (including when being prompted to send messages)\n");
     printf("\trun mode           send a Run Mode message\n");
     printf("\tstart pos          send a Start Pos message\n");
-    printf("\tgamepad state      send a Gamepad State message\n");
     printf("\tchallenge data     send a Challenge Data message\n");
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
@@ -424,8 +337,6 @@ int main() {
             prompt_run_mode();
         } else if (strcmp(nextcmd, "start pos\n") == 0) {
             prompt_start_pos();
-        } else if (strcmp(nextcmd, "user input\n") == 0) {
-            prompt_user_input();
         } else if (strcmp(nextcmd, "challenge data\n") == 0) {
             prompt_challenge_data();
         } else if (strcmp(nextcmd, "device data\n") == 0) {

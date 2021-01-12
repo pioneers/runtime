@@ -44,7 +44,7 @@ int connect_tcp() {
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1) {
-        printf("socket creation failed...\n");
+        printf("Keyboard interface: socket creation failed...\n");
         exit(0);
     }
 
@@ -53,21 +53,22 @@ int connect_tcp() {
     servaddr.sin_port = htons(PORT);
 
     if ((bind(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr))) != 0) {
-        printf("socket bind failed... %s\n", strerror(errno));
+        printf("Keyboard interface: socket bind failed... %s\n", strerror(errno));
         exit(0);
     }
 
     printf("Keyboard interface: Keyboard waiting for client\n");
-    sleep(1);
+    sleep(2);
+    
     if ((listen(sockfd, 5)) != 0) {
-        printf("listen failed...\n");
+        printf("Keyboard interface: listen failed...\n");
         exit(0);
     }
     socklen_t len = sizeof(cli);
     connfd = accept(sockfd, (struct sockaddr*) &cli, &len);
     printf("Keyboard interface: Accepted client\n");
     if (connfd < 0) {
-        printf("server accept failed...\n");
+        printf("Keyboard interface: server accept failed...\n");
         exit(0);
     }
     return connfd;
@@ -76,10 +77,14 @@ int connect_tcp() {
 void setup_keyboard() {
 
     // The bitmap of buttons pressed to be sent to net handler
-    uint32_t buttons = 0;
+    uint64_t gamepad_buttons = 0;
     float joystick_vals[4] = {0};
-    // The received bitstring from Python to be parsed into BUTTONS
-    char buff[33];
+    // The received gamepad bitstring from Python to be parsed into BUTTONS
+    char gamepad_buff[33];
+
+    uint64_t keyboard_buttons = 0;
+    // The received keyboard bitstring from Python
+    char keyboard_buff[48];
 
     // Start getting keyboard inputs
     printf("Keyboard interface: Connecting keyboard\n");
@@ -87,17 +92,22 @@ void setup_keyboard() {
     // Receive a bitstring of buttons and parse it
     while (1) {
         // Reset buttons/joysticks
-        buttons = 0;
-        memset(buff, 0, 32 * sizeof(char));
+        gamepad_buttons = 0;
+        memset(gamepad_buff, 0, 32 * sizeof(char));
         memset(joystick_vals, 0, 4 * sizeof(float));
         // Read in bit string of size 32, not sizeof(buf)(33) since we are being sent a 32 len string
-        recv(fd, buff, sizeof(buff) - 1, 0);
-        buff[32] = '\0';
+        recv(fd, gamepad_buff, sizeof(gamepad_buff) - 1, 0);
+        gamepad_buff[32] = '\0';
 
+        // Reset keyboard
+        keyboard_buttons = 0;
+        memset(keyboard_buff, 0, 47 * sizeof(char));
+        recv(fd, keyboard_buff, sizeof(keyboard_buff) - 1, 0);
+        keyboard_buff[47] = '\0';
         // Parse joystick values
         for (int i = joystick_left_x_right; i <= joystick_right_y_up; i++) {
             float pushed = 0;
-            if (buff[i] == '1') {
+            if (gamepad_buff[i] == '1') {
                 pushed = .25;
             }
             if (pushed != 0) {
@@ -130,13 +140,21 @@ void setup_keyboard() {
             }
         }
 
-        // Parse the buttons TODO: EXTEND TO BUTTON_XBOX
+        // Set bitmap for gamepad
         for (int i = button_a; i <= button_xbox; i++) {
-            if (buff[i] == '1') {
-                buttons |= (1 << i);
+            if (gamepad_buff[i] == '1') {
+                gamepad_buttons |= (1 << i);
             }
         }
 
-        send_user_input(buttons, joystick_vals, GAMEPAD);
+        // Set bitmap for keyboard
+        for(int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
+            if(keyboard_buff[i] == '1') {
+                keyboard_buttons |= (1 << i);
+            }
+        }
+
+        send_user_input(gamepad_buttons, joystick_vals, GAMEPAD);
+        send_user_input(keyboard_buttons, joystick_vals, KEYBOARD);
     }
 }
