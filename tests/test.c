@@ -527,6 +527,23 @@ void check_run_mode(robot_desc_val_t expected_run_mode) {
     print_pass();
 }
 
+// ***************************** START POS CHECK ***************************** //
+
+void check_start_pos(robot_desc_val_t expected_start_pos) {
+    // Read current start pos
+    robot_desc_val_t curr_start_pos = robot_desc_read(START_POS);
+    if (curr_start_pos != expected_start_pos) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected Start Pos:");
+        fprintf(stderr, "%s\n", (expected_start_pos == LEFT) ? "LEFT" : "RIGHT");
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", (curr_start_pos == LEFT) ? "LEFT" : "RIGHT");
+        end_test();
+        exit(1);
+    }
+    print_pass();
+}
+
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**

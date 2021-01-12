@@ -15,8 +15,7 @@ int main() {
 
     // Verify start position
     send_start_pos(SHEPHERD, RIGHT);
-    print_shm();
-    add_ordered_string_output("\tSTART_POS = RIGHT\n\n");
+    check_start_pos(RIGHT);
 
     end_test();
     return 0;
