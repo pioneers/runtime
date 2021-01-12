@@ -326,7 +326,7 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
  * Returns:
  *    0 on success
  *   -1 when maximum number of custom parameters is reached
- *   -2 when the given key is longer than 63 characters
+ *   -2 when the given key is longer than LOG_KEY_LENGTH characters
  */
 int log_data_write(char* key, param_type_t type, param_val_t value);
 
