@@ -6,7 +6,7 @@
 #    - handle excessive parentheses
 #
 # Expected subscriptions:
-#    62_2: ['FLIP_FLOP', 'DECREASING', 'INCREASING]
+#    62_2: ['FLIP_FLOP', 'DOUBLING', 'INCREASING]
 #    63_1: ['EXP_ONE_PT_ONE', 'INCREASING_ODD', 'DECREASING_ODD']
 
 SIMPLE = '62_2'
@@ -21,7 +21,7 @@ param_name = "DECREASING_ODD"
 
 def autonomous_setup():
     # Try strange parenthesis combinations and single/double quotes
-    if ((Robot.get_value(SIMPLE_1, 'FLIP_FLOP')) or Robot.get_value(SIMPLE_2, "DECREASING")):
+    if ((Robot.get_value(SIMPLE_1, 'FLIP_FLOP')) or Robot.get_value(SIMPLE_2, "DOUBLING")):
         # Try no spacing between args
         param_val = Robot.get_value(SIMPLE,"INCREASING")
 
