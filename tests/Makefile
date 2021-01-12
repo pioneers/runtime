@@ -21,7 +21,7 @@ clean:
 
 ################################## CLI TARGETS #################################
 
-cli: net_handler_cli shm_cli executor_cli dev_handler_cli keyboard_interface
+cli: net_handler_cli shm_ui executor_cli dev_handler_cli keyboard_interface
 
 PBC_FILES := $(wildcard ../net_handler/pbc_gen/*.c)
 
@@ -29,9 +29,9 @@ net_handler_cli: cli/net_handler_cli.o client/net_handler_client.o ../net_handle
 	../runtime_util/runtime_util.o $(PBC_FILES:.c=.o) ../logger/logger.o
 	$(CC) $^ -o $@ $(LIBS)
 
-shm_cli: cli/shm_cli.o client/shm_client.o ../shm_wrapper/shm_wrapper.o \
+shm_ui: cli/shm_ui.o client/shm_client.o ../shm_wrapper/shm_wrapper.o \
 	../runtime_util/runtime_util.o ../logger/logger.o
-	$(CC) $^ -o $@ $(LIBS)
+	$(CC) -lncurses $^ -o $@ $(LIBS)
 
 executor_cli: cli/executor_cli.o client/executor_client.o ../runtime_util/runtime_util.o \
 	../logger/logger.o
