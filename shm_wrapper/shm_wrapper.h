@@ -320,7 +320,7 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
 /**
  * Write the given custom parameter to shared memory. 
  * Arguments:
- *    key: name of the parameter
+ *    key: name of the parameter. Must be at most LOG_KEY_LENGTH characters, including the null terminator
  *    type: type of the parameter
  *    value: value of the parameter, with the corresponding type filled with data
  * Returns:
@@ -334,7 +334,7 @@ int log_data_write(char* key, param_type_t type, param_val_t value);
  * Reads the custom log data from shared memory.
  * Arguments:
  *    num_params: pointer to an int that will get filled with the number of custom parameters
- *    names: 2D char array that will be filled with the parameter names, up to `num_params`. Assumes that every parameter name is less than 64 characters long
+ *    names: 2D char array that will be filled with the parameter names, up to `num_params`. Ever name is at most LOG_KEY_LENGTH characters long
  *    types: array that will be filled with the parameter types, up to `num_params`
  *    values: array that will be filled with the parameter values, up to `num_params`
  */
