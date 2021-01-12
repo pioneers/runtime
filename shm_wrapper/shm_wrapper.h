@@ -326,7 +326,7 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
  * Returns:
  *    0 on success
  *   -1 when maximum number of custom parameters is reached
- *   -2 when the given key is longer than LOG_KEY_LENGTH characters
+ *   -2 when the given key is longer than LOG_KEY_LENGTH characters, including the null terminator
  */
 int log_data_write(char* key, param_type_t type, param_val_t value);
 
@@ -338,6 +338,6 @@ int log_data_write(char* key, param_type_t type, param_val_t value);
  *    types: array that will be filled with the parameter types, up to `num_params`
  *    values: array that will be filled with the parameter values, up to `num_params`
  */
-void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][64], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
+void log_data_read(uint8_t* num_params, char names[UCHAR_MAX][LOG_KEY_LENGTH], param_type_t types[UCHAR_MAX], param_val_t values[UCHAR_MAX]);
 
 #endif

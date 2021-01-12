@@ -866,7 +866,7 @@ int log_data_write(char* key, param_type_t type, param_val_t value) {
     }
 
     if (strlen(key) >= LOG_KEY_LENGTH) {
-        log_printf(ERROR, "Key name %s for log data is longer than 64 characters", key);
+        log_printf(ERROR, "Key name %s for log data is longer than %d characters", key, LOG_KEY_LENGTH);
         return -2;
     }
 

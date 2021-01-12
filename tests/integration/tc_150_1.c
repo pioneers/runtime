@@ -20,13 +20,13 @@ int main() {
 
     buttons = get_key_bit("y");
     send_user_input(buttons, garbage, KEYBOARD);
-    sleep(.1);
+    sleep(.3);
     check_inputs(buttons, garbage, KEYBOARD);
     sleep(1);
 
-    // Check that student code is run properly which will print out the current value of MY_INT, which is 1
-    add_ordered_string_output("1");
-    add_ordered_string_output("1");
+    // Check that student code is run properly which will print out the current value of MY_INT twice, which should be 1
+    add_ordered_string_output(") 1\n");
+    add_ordered_string_output(") 1\n");
 
     buttons = get_key_bit("a");
     send_user_input(buttons, garbage, KEYBOARD);
