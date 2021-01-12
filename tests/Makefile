@@ -23,8 +23,8 @@ net_handler_cli: cli/net_handler_cli.* client/net_handler_client.* ../net_handle
 	../runtime_util/runtime_util.* ../logger/logger.c $(PBC_FILES)
 	$(CC) $^ -o $@ $(LIBS)
 
-shm_ui: cli/shm_ui.o client/shm_client.o ../shm_wrapper/shm_wrapper.o \
-	../runtime_util/runtime_util.o ../logger/logger.o
+shm_ui: cli/shm_ui.c client/shm_client.c ../shm_wrapper/shm_wrapper.c \
+	../runtime_util/runtime_util.c ../logger/logger.c
 	$(CC) -lncurses $^ -o $@ $(LIBS)
 
 executor_cli: cli/executor_cli.* client/executor_client.*

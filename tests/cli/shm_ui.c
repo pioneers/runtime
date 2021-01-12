@@ -171,11 +171,11 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     wclrtoeol(GAMEPAD_WIN);  // Clear "No gamepad connected"
 
     // Read gamepad state if gamepad is connected
-    uint32_t pressed_buttons = 0;
+    uint64_t pressed_buttons = 0;
     float joystick_vals[4] = {0};
     int gamepad_connected = (robot_desc_read(GAMEPAD) == CONNECTED);
     if (gamepad_connected) {
-        gamepad_read(&pressed_buttons, joystick_vals);
+        input_read(&pressed_buttons, joystick_vals, GAMEPAD);
     } else {
         mvwprintw(GAMEPAD_WIN, line, INDENT, "No gamepad connected!");
     }

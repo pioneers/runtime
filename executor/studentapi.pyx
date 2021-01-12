@@ -227,7 +227,7 @@ cdef class Robot:
         
         """
         if len(key) >= LOG_KEY_LENGTH:
-            raise ValueError(f"Cannot log parameter {key} since it is more than 63 characters long")
+            raise ValueError(f"Cannot log parameter {key} since it is more than {LOG_KEY_LENGTH} characters long")
         cdef param_val_t param
         cdef param_type_t param_type
         cdef bytes key_bytes = key.encode('utf-8')
