@@ -18,4 +18,4 @@ shm_stop: shm_stop.c $(FILES)
 	gcc $^ -o $@ $(LIBS)
 
 clean:
-	rm test1 test2 shm_start shm_stop
+	rm -f test1 test2 shm_start shm_stop

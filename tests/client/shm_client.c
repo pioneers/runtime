@@ -56,5 +56,6 @@ void print_shm() {
     print_cmd_map();
     print_sub_map();
     print_robot_desc();
-    print_gamepad_state();
+    print_inputs_state();
+    print_custom_data();
 }

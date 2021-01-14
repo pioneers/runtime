@@ -16,7 +16,7 @@ executor: executor.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_
 studentapi.c: studentapi.pyx runtime.pxd
 	$(py) setup.py build_ext -i
 
-test_api: studentapi test_studentapi.py
+test_api: studentapi.c test_studentapi.py
 	- $(py) test_studentapi.py
 
 clean:

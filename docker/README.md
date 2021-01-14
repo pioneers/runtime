@@ -34,7 +34,7 @@ to open up a bash terminal in the container. You can repeat this command to get 
 
 To stop the container, do 
 
-    docker-compose down
+    docker-compose down -t 1
 
 # Usage with Docker CLI (Intermediate)
 

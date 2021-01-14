@@ -347,7 +347,7 @@ void single_thread_load_test_uid() {
 
 // sanity gamepad test
 void sanity_gamepad_test() {
-    uint32_t buttons;
+    uint64_t buttons;
     float joystick_vals[4];
 
     sync();
@@ -355,8 +355,8 @@ void sanity_gamepad_test() {
     printf("Begin sanity gamepad test...\n");
 
     for (int i = 0; i < 7; i++) {
-        gamepad_read(&buttons, joystick_vals);
-        printf("buttons = %d\t joystick_vals = (", buttons);
+        input_read(&buttons, joystick_vals, GAMEPAD);
+        printf("buttons = %llu\t joystick_vals = (", buttons);
         for (int j = 0; j < 4; j++) {
             printf("%f, ", joystick_vals[j]);
         }
