@@ -665,7 +665,7 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
 }
 
 // Returns if the latency is neither too high nor negative
-void check_latency(uint64_t uid, int32_t upper_bound_latency, int32_t start_time) {
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint32_t start_time) {
     char* param_name = "TIMESTAMP";
     uint8_t dev_type = device_name_to_type("TimeTestDevice");
     if(dev_type == -1){
@@ -687,8 +687,12 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, int32_t start_time
     if(success < 0){
         fprintf(stderr, "Error reading device with UID: %llu", uid);
     }
+    
+    // shorten to last 9 digits, like the TimeTestDevice's TIMESTAMP
+    int32_t start_time_shortened = start_time  % 1000000000; 
+
     param_val_t end_time = vals_after[param_idx];
-    int32_t elapsed_time = end_time.p_i - start_time;
+    int32_t elapsed_time = end_time.p_i - start_time_shortened;
     fprintf(stderr, "Time received is %d\n", end_time.p_i);
     if(elapsed_time >= upper_bound_latency && elapsed_time < 0){
         print_fail();
