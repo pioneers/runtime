@@ -153,9 +153,9 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
 /**
 * Checks the latency between an action and the TIMESTAMP parameter on a TimeTestDevice
  * Arguments:
- *    uid: uniquie identifier of device
+ *    uid: unique identifier of TimeTestDevice
  *    upper_bound_latency: The expected upperbound latency
- *    start_time: The time right before the button is pressed
+ *    start_time: The start of a timer provided by the test case(in ms)
 */
-void check_latency(uint64_t uid, int32_t upper_bound_latency, int32_t start_time);
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint32_t start_time);
 #endif
