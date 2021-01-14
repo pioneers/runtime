@@ -352,37 +352,37 @@ void sanity_gamepad_test() {
 
     printf("Begin sanity gamepad test...\n");
 
-    buttons = 34788240;  // push some random buttons
+    buttons = get_button_bit("button_a") | get_button_bit("button_xbox");  // push some random buttons
     joystick_vals[JOYSTICK_LEFT_X] = -0.4854;
     joystick_vals[JOYSTICK_LEFT_Y] = 0.58989;
     joystick_vals[JOYSTICK_RIGHT_X] = 0.9898;
     joystick_vals[JOYSTICK_RIGHT_Y] = -0.776;
 
-    gamepad_write(buttons, joystick_vals);
-    print_gamepad_state();
+    input_write(buttons, joystick_vals, GAMEPAD);
+    print_inputs_state();
     sleep(1);
 
     buttons = 0;  // no buttons pushed
-    gamepad_write(buttons, joystick_vals);
-    print_gamepad_state();
+    input_write(buttons, joystick_vals, GAMEPAD);
+    print_inputs_state();
     sleep(1);
 
-    buttons = 789597848;  // push smoe different random buttons
+    buttons = 789597848;  // push some different random buttons
     joystick_vals[JOYSTICK_LEFT_X] = -0.9489;
     joystick_vals[JOYSTICK_LEFT_Y] = 0.0;
     joystick_vals[JOYSTICK_RIGHT_X] = 1.0;
     joystick_vals[JOYSTICK_RIGHT_Y] = -1.0;
 
-    gamepad_write(buttons, joystick_vals);
-    print_gamepad_state();
+    input_write(buttons, joystick_vals, GAMEPAD);
+    print_inputs_state();
     sleep(1);
 
     buttons = 0;
     for (int i = 0; i < 4; i++) {
         joystick_vals[i] = 0.0;
     }
-    gamepad_write(buttons, joystick_vals);
-    print_gamepad_state();
+    input_write(buttons, joystick_vals, GAMEPAD);
+    print_inputs_state();
     printf("Done!\n\n");
 }
 
@@ -490,6 +490,7 @@ int main() {
     single_thread_load_test_uid();
 
     robot_desc_write(GAMEPAD, CONNECTED);
+    robot_desc_write(KEYBOARD, DISCONNECTED);
     sanity_gamepad_test();
 
     sanity_robot_desc_test();

@@ -22,19 +22,19 @@ int main() {
     // Connect gamepad
     uint32_t buttons = 0;
     float joystick_vals[4] = {0};
-    send_gamepad_state(buttons, joystick_vals);
+    send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // Start teleop mode
     send_run_mode(SHEPHERD, TELEOP);
 
     // Start the timer and press A
     int32_t start = millis() % 1000000000;  // 9 digits, just like TimeTestDevice
-    buttons |= (1 << BUTTON_A);
-    send_gamepad_state(buttons, joystick_vals);
+    buttons |= get_button_bit("button_a");
+    send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // Unpress "A"
     buttons = 0;
-    send_gamepad_state(buttons, joystick_vals);
+    send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // Let processing happen
     printf("Pressed 'A' at time %d\n", start);

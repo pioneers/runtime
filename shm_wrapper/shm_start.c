@@ -36,7 +36,7 @@ int main() {
     catalog_sem = my_sem_open_create(CATALOG_MUTEX_NAME, "catalog mutex");
     cmd_map_sem = my_sem_open_create(CMDMAP_MUTEX_NAME, "cmd map mutex");
     sub_map_sem = my_sem_open_create(SUBMAP_MUTEX_NAME, "sub map mutex");
-    gp_sem = my_sem_open_create(GP_MUTEX_NAME, "gamepad mutex");
+    input_sem = my_sem_open_create(INPUTS_MUTEX_NAME, "inputs mutex");
     rd_sem = my_sem_open_create(RD_MUTEX_NAME, "robot desc mutex");
     log_data_sem = my_sem_open_create(LOG_DATA_MUTEX, "log data mutex");
     for (int i = 0; i < MAX_DEVICES; i++) {
@@ -54,36 +54,36 @@ int main() {
 
     // create device shm block
     if ((fd_shm = shm_open(DEV_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
-        log_printf(FATAL, "shm_open: %s", strerror(errno));
+        log_printf(FATAL, "shm_open devices: %s", strerror(errno));
         exit(1);
     }
     if (ftruncate(fd_shm, sizeof(dev_shm_t)) == -1) {
-        log_printf(FATAL, "ftruncate: %s", strerror(errno));
+        log_printf(FATAL, "ftruncate devices: %s", strerror(errno));
         exit(1);
     }
     if ((dev_shm_ptr = mmap(NULL, sizeof(dev_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-        log_printf(FATAL, "mmap: %s", strerror(errno));
+        log_printf(FATAL, "mmap devices: %s", strerror(errno));
         exit(1);
     }
     if (close(fd_shm) == -1) {
-        log_printf(ERROR, "close: %s", strerror(errno));
+        log_printf(ERROR, "close devices: %s", strerror(errno));
     }
 
-    // create gamepad shm block
-    if ((fd_shm = shm_open(GPAD_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
-        log_printf(FATAL, "shm_open gamepad_shm: %s", strerror(errno));
+    // create inputs shm block
+    if ((fd_shm = shm_open(INPUTS_SHM_NAME, O_RDWR | O_CREAT, 0660)) == -1) {
+        log_printf(FATAL, "shm_open input_shm: %s", strerror(errno));
         exit(1);
     }
-    if (ftruncate(fd_shm, sizeof(gamepad_shm_t)) == -1) {
-        log_printf(FATAL, "ftruncate gamepad_shm: %s", strerror(errno));
+    if (ftruncate(fd_shm, sizeof(input_shm_t)) == -1) {
+        log_printf(FATAL, "ftruncate input_shm: %s", strerror(errno));
         exit(1);
     }
-    if ((gp_shm_ptr = mmap(NULL, sizeof(gamepad_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
-        log_printf(FATAL, "mmap gamepad_shm: %s", strerror(errno));
+    if ((input_shm_ptr = mmap(NULL, sizeof(input_shm_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd_shm, 0)) == MAP_FAILED) {
+        log_printf(FATAL, "mmap input_shm: %s", strerror(errno));
         exit(1);
     }
     if (close(fd_shm) == -1) {
-        log_printf(ERROR, "close gamepad_shm: %s", strerror(errno));
+        log_printf(ERROR, "close input_shm: %s", strerror(errno));
     }
 
     // create robot description shm block
@@ -127,14 +127,19 @@ int main() {
         dev_shm_ptr->net_sub_map[i] = -1;  // By default, net handler will subscribe to all parameters on all devices
         dev_shm_ptr->exec_sub_map[i] = 0;
     }
-    gp_shm_ptr->buttons = 0;
-    for (int i = 0; i < 4; i++) {
-        gp_shm_ptr->joysticks[i] = 0.0;
+    for (int j = 0; j < 2; j++) {
+        input_shm_ptr->inputs[j].buttons = 0;
+        for (int i = 0; i < 4; i++) {
+            input_shm_ptr->inputs[j].joysticks[i] = 0.0;
+        }
     }
+    input_shm_ptr->inputs[0].source = GAMEPAD;
+    input_shm_ptr->inputs[1].source = KEYBOARD;
     rd_shm_ptr->fields[RUN_MODE] = IDLE;
     rd_shm_ptr->fields[DAWN] = DISCONNECTED;
     rd_shm_ptr->fields[SHEPHERD] = DISCONNECTED;
     rd_shm_ptr->fields[GAMEPAD] = DISCONNECTED;
+    rd_shm_ptr->fields[KEYBOARD] = DISCONNECTED;
     rd_shm_ptr->fields[START_POS] = LEFT;
 
     memset(log_data_shm_ptr, 0, sizeof(log_data_shm_t));

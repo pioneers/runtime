@@ -10,11 +10,11 @@ int main() {
     start_test("UDP; no devices connected", "", "", NO_REGEX);
 
     // Send gamepad and check that the custom data is received
-    uint32_t buttons = (1 << BUTTON_A) | (1 << L_TRIGGER) | (1 << DPAD_DOWN);
+    uint64_t buttons = get_button_bit("button_a") | get_button_bit("l_trigger") | get_button_bit("dpad_down");
     float joystick_vals[] = {-0.1, 0.0, 0.1, 0.99};
-    send_gamepad_state(buttons, joystick_vals);
+    send_user_input(buttons, joystick_vals, GAMEPAD);
     sleep(1);
-    check_gamepad(buttons, joystick_vals);
+    send_user_input(buttons, joystick_vals, GAMEPAD);
     print_next_dev_data();
     add_ordered_string_output("Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n");
 

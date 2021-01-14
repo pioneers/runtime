@@ -18,7 +18,7 @@
 
 //include compiled protobuf headers
 #include "pbc_gen/device.pb-c.h"
-#include "pbc_gen/gamepad.pb-c.h"
+#include "pbc_gen/input.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 #include "pbc_gen/text.pb-c.h"

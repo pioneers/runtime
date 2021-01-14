@@ -407,36 +407,46 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
-void send_gamepad_state(uint32_t buttons, float joystick_vals[4]) {
-    GpState gp_state = GP_STATE__INIT;
-    uint8_t* send_buf;
-    uint16_t len;
+void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_t source) {
+    UserInputs inputs = USER_INPUTS__INIT;
 
     // build the message
-    gp_state.connected = 1;
-    gp_state.buttons = buttons;
-    gp_state.n_axes = 4;
-    gp_state.axes = malloc(sizeof(double) * 4);
-    if (gp_state.axes == NULL) {
-        printf("send_gamepad_state: Failed to malloc\n");
+    inputs.n_inputs = 1;
+    inputs.inputs = malloc(sizeof(Input*) * inputs.n_inputs);
+    if (inputs.inputs == NULL) {
+        printf("send_user_input: Failed to malloc inputs\n");
+        exit(1);
+    }
+    Input input = INPUT__INIT;
+    inputs.inputs[0] = &input;
+
+    input.connected = 1;
+    input.source = (source == GAMEPAD) ? SOURCE__GAMEPAD : SOURCE__KEYBOARD;
+    input.buttons = buttons;
+    input.n_axes = 4;
+    input.axes = malloc(sizeof(double) * 4);
+    if (input.axes == NULL) {
+        printf("send_user_input: Failed to malloc axes\n");
         exit(1);
     }
     for (int i = 0; i < 4; i++) {
-        gp_state.axes[i] = joystick_vals[i];
+        input.axes[i] = joystick_vals[i];
     }
-    len = gp_state__get_packed_size(&gp_state);
-    send_buf = malloc(len);
+
+    uint16_t len = user_inputs__get_packed_size(&inputs);
+    uint8_t* send_buf = malloc(len);
     if (send_buf == NULL) {
-        printf("send_gamepad_state: Failed to malloc\n");
+        printf("send_user_input: Failed to malloc buffer\n");
         exit(1);
     }
-    gp_state__pack(&gp_state, send_buf);
+    user_inputs__pack(&inputs, send_buf);
 
     // send the message
     sendto(nh_udp_fd, send_buf, len, 0, (struct sockaddr*) &udp_servaddr, sizeof(struct sockaddr_in));
 
     // free everything
-    free(gp_state.axes);
+    free(input.axes);
+    free(inputs.inputs);
     free(send_buf);
 }
 

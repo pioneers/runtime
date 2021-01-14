@@ -39,7 +39,7 @@ int main() {
 
     // unlink all shared memory blocks
     my_shm_unlink(DEV_SHM_NAME, "dev_shm");
-    my_shm_unlink(GPAD_SHM_NAME, "gamepad_shm");
+    my_shm_unlink(INPUTS_SHM_NAME, "input_shm");
     my_shm_unlink(ROBOT_DESC_SHM_NAME, "robot_desc_shm");
     my_shm_unlink(LOG_DATA_SHM, "log_data_shm");
 
@@ -47,7 +47,7 @@ int main() {
     my_sem_unlink(CATALOG_MUTEX_NAME, "catalog mutex");
     my_sem_unlink(CMDMAP_MUTEX_NAME, "cmd map mutex");
     my_sem_unlink(SUBMAP_MUTEX_NAME, "sub map mutex");
-    my_sem_unlink(GP_MUTEX_NAME, "gamepad mutex");
+    my_sem_unlink(INPUTS_MUTEX_NAME, "input mutex");
     my_sem_unlink(RD_MUTEX_NAME, "robot desc mutex");
     my_sem_unlink(LOG_DATA_MUTEX, "log data mutex");
     for (int i = 0; i < MAX_DEVICES; i++) {
