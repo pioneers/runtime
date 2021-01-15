@@ -1,4 +1,5 @@
 #include "../client/net_handler_client.h"
+#include "keyboard_interface.h"
 
 #define MAX_CMD_LEN 64  // maximum length of user input
 
@@ -310,6 +311,13 @@ void sigint_handler(int signum) {
     exit(0);
 }
 
+void connect_keyboard() {
+    pthread_t keyboard_id; // id of thread running the keyboard_interface
+    if(pthread_create(&keyboard_id, NULL, (void *)setup_keyboard, NULL) != 0) {
+        printf("pthread create: setup keyboard");
+    } 
+}
+
 int main() {
     char nextcmd[MAX_CMD_LEN];  // to hold nextline
     int stop = 0;
@@ -321,7 +329,11 @@ int main() {
 
     // start the net handler and connect all of its output locations to file descriptors in this process
     start_net_handler();
-
+    
+    // execute the keyboard_interface on a seperate thread
+    connect_keyboard();
+    sleep(1);
+    
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
         // get the next command
