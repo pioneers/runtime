@@ -61,7 +61,7 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 
 // DEVICE_HEIGHT should be large enough to display all the parameters,
 // with extra lines for device id, the table itself, and the message about using the arrow keys
-#define DEVICE_HEIGHT (MAX_PARAMS + 7)
+#define DEVICE_HEIGHT (MAX_PARAMS + 6)
 // DEVICE_WIDTH is enough to fit the information for each parameter
 #define DEVICE_WIDTH 75
 #define DEVICE_START_Y 0
@@ -101,12 +101,65 @@ int DEVICE_WIN_IS_BLANK = 0;
 // The header of DEVICE_WIN; Useful for clearing and redrawing DEVICE_WIN
 #define DEVICE_WIN_HEADER "~~~~~~~~~~~~~~~~~~~~~~~~~~~~DEVICE INFORMATION~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-// The note displayed at the bottom of DEVICE_WIN
-const char* NOTE = "Use the left and right arrow keys to inspect the previous or next device!";
-
 // The number of possible "devices" displayed
 // (The normal MAX_DEVICES plus the custom data block, which is presented as a "device" with parameters)
 #define DEVICE_WRAP (MAX_DEVICES + 1)
+
+// ******************************** UTLITY ********************************** //
+
+// Display the header and box for DEVICE_WIN. Does NOT refresh.
+void display_empty_device() {
+    // Display header in bold
+    wattron(DEVICE_WIN, A_BOLD);
+    mvwprintw(DEVICE_WIN, 1, 1, DEVICE_WIN_HEADER);
+    wattroff(DEVICE_WIN, A_BOLD);
+
+    // Redraw box
+    box(DEVICE_WIN, 0, 0);
+}
+
+// Displays the controls for the UI.
+void display_controls() {
+    const int y = DEVICE_START_Y + DEVICE_HEIGHT;
+    const int x = DEVICE_START_X;
+    attron(A_BOLD);
+    // Left
+    move(y, x);
+    addch(ACS_LARROW | A_REVERSE);
+    printw(" Previous  ");
+
+    // Right
+    addch(ACS_RARROW | A_REVERSE);
+    printw(" Next\n");
+
+    attroff(A_BOLD);
+
+    printw("\tUnfocus this terminal to ignore inputs");
+    refresh();
+}
+
+/**
+ * Displays the (empty) parameter table in DEVICE_WIN.
+ * Does NOT refresh.
+ * Arguments:
+ *    table_header_line: The line/row at which the column names should display in DEVICE_WIN
+ */
+void display_param_table(int table_header_line) {
+    // Draw table
+    mvwprintw(DEVICE_WIN, table_header_line, PARAM_IDX_COL, "#");
+    mvwprintw(DEVICE_WIN, table_header_line, PARAM_NAME_COL, "Parameter Name");
+    mvwprintw(DEVICE_WIN, table_header_line, NET_SUB_COL, "NET");
+    mvwprintw(DEVICE_WIN, table_header_line, EXE_SUB_COL, "EXE");
+    mvwprintw(DEVICE_WIN, table_header_line, COMMAND_VAL_COL, "Command");
+    mvwprintw(DEVICE_WIN, table_header_line, DATA_VAL_COL, "Data");
+    mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - INDENT);  // Horizontal line
+    // Vertical Lines
+    mvwvline(DEVICE_WIN, table_header_line, PARAM_NAME_COL - 1, 0, MAX_PARAMS + 2);
+    mvwvline(DEVICE_WIN, table_header_line, NET_SUB_COL - 1, 0, MAX_PARAMS + 2);
+    mvwvline(DEVICE_WIN, table_header_line, EXE_SUB_COL - 1, 0, MAX_PARAMS + 2);
+    mvwvline(DEVICE_WIN, table_header_line, COMMAND_VAL_COL - 1, 0, MAX_PARAMS + 2);
+    mvwvline(DEVICE_WIN, table_header_line, DATA_VAL_COL - 1, 0, MAX_PARAMS + 2);
+}
 
 // ******************************** NCURSES ********************************* //
 
@@ -192,7 +245,7 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
         wclrtoeol(GAMEPAD_WIN);
         // Display joystick values (This will be 0 if gamepad is not connected)
         if (gamepad_connected) {
-            mvwprintw(GAMEPAD_WIN, line, INDENT, "%s\t= %.4f", joystick_names[i], joystick_vals[i]);
+            mvwprintw(GAMEPAD_WIN, line, INDENT, "%s\t= % .3f", joystick_names[i], joystick_vals[i]);
         }
         // Advance line pointer for the next joystick
         wmove(GAMEPAD_WIN, ++line, 0);
@@ -249,12 +302,8 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         if (!DEVICE_WIN_IS_BLANK) {
             // Clear the entire window, but put back the header and the borders
             wclear(DEVICE_WIN);
-            wattron(DEVICE_WIN, A_BOLD);
-            mvwprintw(DEVICE_WIN, 1, 1, DEVICE_WIN_HEADER);
-            wattroff(DEVICE_WIN, A_BOLD);
             mvwprintw(DEVICE_WIN, 2, 1, "This device was disconnected!");
-            mvwprintw(DEVICE_WIN, DEVICE_HEIGHT - 2, 1, NOTE);
-            box(DEVICE_WIN, 0, 0);
+            display_empty_device();
             wrefresh(DEVICE_WIN);
             DEVICE_WIN_IS_BLANK = 1;  // Flag that the device window is cleared
         }
@@ -262,10 +311,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         return;
     } else if (DEVICE_WIN_IS_BLANK) {  // Window was previously clear (i.e Switching from no device to a connected device)
         // Put back title and box
-        mvwprintw(DEVICE_WIN, 1, 1, DEVICE_WIN_HEADER);
-        mvwprintw(DEVICE_WIN, DEVICE_HEIGHT - 2, 1, NOTE);
-        box(DEVICE_WIN, 0, 0);
-        wrefresh(DEVICE_WIN);
+        display_empty_device();
         // Note that we will display data, so DEVICE_WIN will no longer be "empty"
         DEVICE_WIN_IS_BLANK = 0;
     } else {
@@ -286,7 +332,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         if (device == NULL) {  // This should never happen if the handling above is correct
             log_printf(ERROR, "device == NULL");
         }
-        mvwprintw(DEVICE_WIN, line++, 1, "dev_ix = %d: name = %s, type = %d, year = %d, uid = %llu", shm_idx, device->name, dev_ids[shm_idx].type, dev_ids[shm_idx].year, dev_ids[shm_idx].uid);
+        mvwprintw(DEVICE_WIN, line++, 1, "[%s] Type %d; Year %d; UID = %llu", device->name, dev_ids[shm_idx].type, dev_ids[shm_idx].year, dev_ids[shm_idx].uid);
     }
     // Move to the first parameter (Skip the next two lines because we'll display the table headers with the horizontal line)
     line += 2;
@@ -346,6 +392,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         }
 
         // Determine whether we need to display the command value
+        wattron(DEVICE_WIN, A_DIM);
         if (show_custom_data) {
             mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "N/A");
             display_cmd_val = 0;
@@ -358,6 +405,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         } else {  // There is a command for the write-able parameter
             display_cmd_val = 1;
         }
+        wattroff(DEVICE_WIN, A_DIM);
 
         // Display values according to the parameter's type
         param_type_t param_type = (show_custom_data) ? custom_param_types[i] : device->params[i].type;
@@ -365,15 +413,15 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         switch (param_type) {
             case INT:
                 if (display_cmd_val) {
-                    mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%d", command_vals[i].p_i);
+                    mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "% d", command_vals[i].p_i);
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%d", param_val.p_i);
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "% d", param_val.p_i);
                 break;
             case FLOAT:
                 if (display_cmd_val) {
-                    mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "%f", command_vals[i].p_f);
+                    mvwprintw(DEVICE_WIN, line, COMMAND_VAL_COL, "% .3f", command_vals[i].p_f);
                 }
-                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "%f", param_val.p_f);
+                mvwprintw(DEVICE_WIN, line, DATA_VAL_COL, "% .3f", param_val.p_f);
                 break;
             case BOOL:
                 // Display the string representation of the boolean
@@ -392,23 +440,10 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         wmove(DEVICE_WIN, ++line, 0);
     }
 
-    // Draw table
-    mvwprintw(DEVICE_WIN, table_header_line, PARAM_IDX_COL, "#");
-    mvwprintw(DEVICE_WIN, table_header_line, PARAM_NAME_COL, "Parameter Name");
-    mvwprintw(DEVICE_WIN, table_header_line, NET_SUB_COL, "NET");
-    mvwprintw(DEVICE_WIN, table_header_line, EXE_SUB_COL, "EXE");
-    mvwprintw(DEVICE_WIN, table_header_line, COMMAND_VAL_COL, "Command");
-    mvwprintw(DEVICE_WIN, table_header_line, DATA_VAL_COL, "Data");
-    mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - INDENT);  // Horizontal line
-    // Vertical Lines
-    mvwvline(DEVICE_WIN, table_header_line, PARAM_NAME_COL - 1, 0, MAX_PARAMS + 2);
-    mvwvline(DEVICE_WIN, table_header_line, NET_SUB_COL - 1, 0, MAX_PARAMS + 2);
-    mvwvline(DEVICE_WIN, table_header_line, EXE_SUB_COL - 1, 0, MAX_PARAMS + 2);
-    mvwvline(DEVICE_WIN, table_header_line, COMMAND_VAL_COL - 1, 0, MAX_PARAMS + 2);
-    mvwvline(DEVICE_WIN, table_header_line, DATA_VAL_COL - 1, 0, MAX_PARAMS + 2);
+    // Display table
+    display_param_table(table_header_line);
 
     // Box and refresh
-    mvwprintw(DEVICE_WIN, DEVICE_HEIGHT - 2, 1, NOTE);
     box(DEVICE_WIN, 0, 0);
     wrefresh(DEVICE_WIN);
 }
@@ -436,6 +471,9 @@ int main(int argc, char** argv) {
 
     // Inititalize ncurses windows
     init_windows();
+
+    // Display controls
+    display_controls();
 
     // Init variables for gamepad and shm data
     char** joystick_names = get_joystick_names();
