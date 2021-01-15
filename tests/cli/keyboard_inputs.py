@@ -9,11 +9,10 @@ import struct       # for TCP encoding
 
 ################################# GLOBAL VARS ##################################
 # TCP Setup
-HOST = '127.0.0.1'
+HOST = '192.168.1.75'
 PORT = 5006
 ADDRESS = (HOST, PORT)
-
-gamepad_map = {
+map = {
     "BUTTON_A" : 0,
     "BUTTON_B" : 1,
     "BUTTON_X" : 2,
@@ -148,7 +147,7 @@ def on_press(key):
         activate_gamepad_bit(controls[key])
     
     if key in keyboardKeys:
-        activate_keyboard_bit(keyboardKeys.index(keys))
+        activate_keyboard_bit(keyboardKeys.index(key))
 
     mutex.release()
 
@@ -158,7 +157,7 @@ def on_release(key):
         deactivate_gamepad_bit(controls[key])
 
     if key in keyboardKeys:
-        deactivate_keyboard_bit(keyboardKeys.index(keys))
+        deactivate_keyboard_bit(keyboardKeys.index(key))
 
     elif key == keyboard.Key.esc:
         mutex.release()
@@ -175,15 +174,12 @@ def write_to_socket():
     sock = connect_tcp()
     while(True):
         mutex.acquire()
-        
         gamepad_to_send = ''.join(gamepad_bits)
         print("sending gamepad", gamepad_to_send.encode())
-        sock.send(gamepad_to_send.encode()) # send the gamepad 'bitstring' over tcp using socket object
-
+        sock.send(gamepad_to_send.encode()) # send the 'bitstring' over tcp using socket object
         keyboard_to_send = ''.join(keyboard_bits)
         print("sending keyboard", keyboard_to_send.encode())
-        sock.send(keyboard_to_send.encode()) # same as above but for the keyboard 'bitstring'
-
+        sock.send(keyboard_to_send.encode())
         mutex.release()
         sleep(0.05) # allows for the listener to modify the bitstring
 
@@ -193,8 +189,8 @@ def main():
     signal(SIGINT, handler) 
     global gamepad_bits
     global keyboard_bits
-    gamepad_bits = list("0" * len(controls)) # 'bitstring' for gamepad
-    keyboard_bits = list("0" * len(keyboardKeys)) # 'bitstring' for keyboard
+    gamepad_bits = list("0" * len(controls)) # 'bitstring' to be modified and sent 
+    keyboard_bits = list("0" * len(keyboardKeys))
     global mutex
     mutex = threading.Lock() # used to avoid race conditions when reading and sending data
     keyboard_control()
