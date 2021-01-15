@@ -37,6 +37,9 @@
 // The refresh rate of the UI and how often we poll shared memory data
 #define FPS 2
 
+// The absolute threshold that must meet for joysticks to not appear dim
+#define JOYSTICK_DEADBAND 0.1
+
 // ******************************** WINDOWS ********************************* //
 WINDOW* ROBOT_DESC_WIN;  // Displays the robot description (clients connected, run mode, start position, gamepad connected)
 WINDOW* GAMEPAD_WIN;     // Displays gamepad state (joystick values and what buttons are pressed)
@@ -54,7 +57,7 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 
 // GAMEPAD_HEIGHT is enough to fit all the joysticks and buttons
 #define GAMEPAD_HEIGHT 28
-#define GAMEPAD_WIDTH ROBOT_DESC_WIDTH
+#define GAMEPAD_WIDTH 20
 // Display GAMEPAD_WIN below ROBOT_DESC
 #define GAMEPAD_START_Y (ROBOT_DESC_START_Y + ROBOT_DESC_HEIGHT)
 #define GAMEPAD_START_X ROBOT_DESC_START_X
@@ -173,7 +176,7 @@ void init_windows() {
     // Gamepad
     GAMEPAD_WIN = newwin(GAMEPAD_HEIGHT, GAMEPAD_WIDTH, GAMEPAD_START_Y, GAMEPAD_START_X);
     wattron(GAMEPAD_WIN, A_BOLD);
-    mvwprintw(GAMEPAD_WIN, 1, 1, "~~~~~~~~~~GAMEPAD STATE~~~~~~~~~~");
+    mvwprintw(GAMEPAD_WIN, 1, 1, "~~~~~GAMEPAD~~~~~~");
     wattroff(GAMEPAD_WIN, A_BOLD);
     // Device info (device data)
     DEVICE_WIN = newwin(DEVICE_HEIGHT, DEVICE_WIDTH, DEVICE_START_Y, DEVICE_START_X);
@@ -230,14 +233,14 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
     if (gamepad_connected) {
         input_read(&pressed_buttons, joystick_vals, GAMEPAD);
     } else {
-        mvwprintw(GAMEPAD_WIN, line, INDENT, "No gamepad connected!");
+        mvwprintw(GAMEPAD_WIN, line, INDENT, "Not connected!");
     }
     wmove(GAMEPAD_WIN, ++line, 0);
 
     // Print joysticks
     wclrtoeol(GAMEPAD_WIN);
     if (gamepad_connected) {
-        mvwprintw(GAMEPAD_WIN, line, 1, "Joystick Positions:");
+        mvwprintw(GAMEPAD_WIN, line, 1, "Joysticks:");
     }
     wmove(GAMEPAD_WIN, ++line, 0);
     for (int i = 0; i < 4; i++) {
@@ -245,7 +248,21 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
         wclrtoeol(GAMEPAD_WIN);
         // Display joystick values (This will be 0 if gamepad is not connected)
         if (gamepad_connected) {
-            mvwprintw(GAMEPAD_WIN, line, INDENT, "%s\t= % .3f", joystick_names[i], joystick_vals[i]);
+            // Print name of joystick (ignore the prefix "joystick_")
+            // Ignoring the prefix is purely an aeshethic thing.
+            mvwprintw(GAMEPAD_WIN, line, INDENT, "%s:", joystick_names[i] + strlen("joystick_"));
+            if (i <= 1) { // joystick_left_x and joystick_left_y
+                // Add a space to line up with joystick_right_x and joystick_right_y
+                // "right" has one more character than "left"
+                // This is purely an aesthetic thing
+                waddch(GAMEPAD_WIN, ' ');
+            }
+            // If joystick vals aren't at least JOYSTICK_DEADBAND, display dim
+            if (-JOYSTICK_DEADBAND < joystick_vals[i] && joystick_vals[i] < JOYSTICK_DEADBAND) {
+                wattron(GAMEPAD_WIN, A_DIM);
+            }
+            wprintw(GAMEPAD_WIN, "% .3f", joystick_vals[i]);
+            wattroff(GAMEPAD_WIN, A_DIM);
         }
         // Advance line pointer for the next joystick
         wmove(GAMEPAD_WIN, ++line, 0);
