@@ -675,12 +675,6 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_tim
         exit(1);
     }
     device_t* dev = get_device(dev_type);
-    if(dev == NULL){
-        print_fail();
-        fprintf(stderr, "Type: %d not found\n", dev_type);
-        end_test();
-        exit(1);
-    }
     param_val_t vals_after[dev->num_params];
     int8_t param_idx = get_param_idx(dev_type, param_name);
     if(param_idx < 0) {
