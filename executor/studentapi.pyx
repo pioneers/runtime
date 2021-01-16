@@ -394,7 +394,8 @@ def get_all_params(_code_file) -> Dict[str, List[str]]:
 
     """
     # NOTE: Variable names shared in this function and _code_file can cause undefined behavior
-    # Thus, we prefix our variable names with an underscore to make them weak private
+    # Thus, we prefix our variable names with an underscore which makes them unlikely to be used by students
+
     _code = importlib.import_module(_code_file)
     # Finds all global variables in student code
     _var = [n for n in dir(_code) if not n.startswith("_")]
@@ -430,7 +431,6 @@ def get_all_params(_code_file) -> Dict[str, List[str]]:
                     # We need to eval() because arguments may be variables
                     # Note that variables must be globally (not locally) defined
                     _param_dict[eval(_args[0])].add(eval(_args[1]))
-                    # log_printf(DEBUG, f"Line {_i + 1}: Subbed to {eval(_args[0])}'s {eval(_args[1])}".encode())
                 except Exception as e:
                     log_printf(WARN, f"Error parsing student code on line {_i + 1}: {str(e)}".encode())
     return _param_dict
