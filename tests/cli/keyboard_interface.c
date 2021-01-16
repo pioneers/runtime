@@ -72,7 +72,7 @@ void setup_keyboard() {
         keyboard_buttons = 0;
         memset(keyboard_buff, 0, NUM_KEYBOARD_BUTTONS * sizeof(char));
         recv(fd, keyboard_buff, NUM_KEYBOARD_BUTTONS, 0);
-        keyboard_buff[47] = '\0';
+        keyboard_buff[NUM_KEYBOARD_BUTTONS] = '\0';
         // Parse joystick values
         for (int i = joystick_left_x_right; i <= joystick_right_y_up; i++) {
             float pushed = 0;
@@ -110,7 +110,7 @@ void setup_keyboard() {
         }
 
         // Set bitmap for gamepad
-        for (int i = 0; i <= NUM_GAMEPAD_BUTTONS; i++) {
+        for (int i = 0; i < NUM_GAMEPAD_BUTTONS; i++) {
             if (gamepad_buff[i] == '1') {
                 gamepad_buttons |= (1 << i);
             }
