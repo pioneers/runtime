@@ -29,16 +29,15 @@ int main() {
     send_run_mode(SHEPHERD, TELEOP);
 
     // Start the timer and press A
-    int32_t start = millis();  // 9 digits, just like TimeTestDevice
+    uint64_t start = millis();  // 9 digits, just like TimeTestDevice
     buttons |= get_button_bit("button_a");
     send_user_input(buttons, joystick_vals, GAMEPAD);
-
+    sleep(1);
     // Unpress "A"
     buttons = 0;
     send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // Let processing happen
-    printf("Pressed 'A' at time %d\n", start);
     sleep(1);
 
     // Check the latency between the button pressed and its change to TIMESTAMP
