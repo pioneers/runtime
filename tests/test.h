@@ -155,7 +155,7 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
  * Arguments:
  *    uid: unique identifier of TimeTestDevice
  *    upper_bound_latency: The expected upperbound latency
- *    start_time: The start of a timer provided by the test case(in ms)
+ *    start_time: The start of a timer provided by the test case(in ms), usually a call to the millis() function
 */
-void check_latency(uint64_t uid, int32_t upper_bound_latency, uint32_t start_time);
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_time);
 #endif
