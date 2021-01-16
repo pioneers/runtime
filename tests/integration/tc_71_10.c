@@ -29,7 +29,7 @@ int main() {
     send_run_mode(SHEPHERD, TELEOP);
 
     // Start the timer and press A
-    uint64_t start = millis();  // 9 digits, just like TimeTestDevice
+    uint64_t start = millis(); // Start of timer
     buttons |= get_button_bit("button_a");
     send_user_input(buttons, joystick_vals, GAMEPAD);
     sleep(1);
