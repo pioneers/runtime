@@ -10,7 +10,7 @@ void prompt_run_mode() {
     robot_desc_field_t client = SHEPHERD;
     robot_desc_val_t mode = IDLE;
     char nextcmd[MAX_CMD_LEN];
-    int keyboard_enabled = 0; // notify users when keyboard control is enabled/disabled
+    int keyboard_enabled = 0;  // notify users when keyboard control is enabled/disabled
     // get client to send as
     while (1) {
         printf("Send as DAWN or SHEPHERD: ");
@@ -53,7 +53,7 @@ void prompt_run_mode() {
 
     // send
     printf("Sending Run Mode message!\n");
-    if(keyboard_enabled){
+    if (keyboard_enabled) {
         printf("Keyboard controls now enabled!\n\n");
     }
     send_run_mode(client, mode);
@@ -312,10 +312,10 @@ void sigint_handler(int signum) {
 }
 
 void connect_keyboard() {
-    pthread_t keyboard_id; // id of thread running the keyboard_interface
-    if(pthread_create(&keyboard_id, NULL, (void *)setup_keyboard, NULL) != 0) {
+    pthread_t keyboard_id;  // id of thread running the keyboard_interface
+    if (pthread_create(&keyboard_id, NULL, (void*) setup_keyboard, NULL) != 0) {
         printf("pthread create: setup keyboard");
-    } 
+    }
 }
 
 int main() {
@@ -329,11 +329,11 @@ int main() {
 
     // start the net handler and connect all of its output locations to file descriptors in this process
     start_net_handler();
-    
+
     // execute the keyboard_interface on a seperate thread
     connect_keyboard();
     sleep(1);
-    
+
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
         // get the next command

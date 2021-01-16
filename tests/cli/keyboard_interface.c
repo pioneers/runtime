@@ -3,6 +3,34 @@
  */
 #include "keyboard_interface.h"
 
+enum buttons {
+    button_a,
+    button_b,
+    button_x,
+    button_y,
+    l_bumper,
+    r_bumper,
+    l_trigger,
+    r_trigger,
+    button_back,
+    button_start,
+    l_stick,
+    r_stick,
+    dpad_up,
+    dpad_down,
+    dpad_left,
+    dpad_right,
+    button_xbox,
+    joystick_left_x_right,
+    joystick_left_x_left,
+    joystick_left_y_down,
+    joystick_left_y_up,
+    joystick_right_x_left,
+    joystick_right_x_right,
+    joystick_right_y_down,
+    joystick_right_y_up
+};
+
 // ********************************** HELPER FUNCTIONS ****************************************** //
 
 int connect_tcp() {
@@ -26,7 +54,7 @@ int connect_tcp() {
     }
 
     printf("connect_tcp: Keyboard waiting for client\n");
-    
+
     if ((listen(sockfd, 5)) != 0) {
         printf("connect_tcp: listen failed...\n");
         exit(0);
@@ -44,7 +72,6 @@ int connect_tcp() {
 // ********************************** MAIN PROCESS ****************************************** //
 
 void setup_keyboard() {
-
     // The bitmap of buttons pressed to be sent to net handler
     uint64_t gamepad_buttons = 0;
     float joystick_vals[4] = {0};
@@ -117,14 +144,13 @@ void setup_keyboard() {
         }
 
         // Set bitmap for keyboard
-        for(int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
-            if(keyboard_buff[i] == '1') {
+        for (int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
+            if (keyboard_buff[i] == '1') {
                 keyboard_buttons |= (1 << i);
             }
         }
 
         send_user_input(gamepad_buttons, joystick_vals, GAMEPAD);
         send_user_input(keyboard_buttons, joystick_vals, KEYBOARD);
-
     }
 }
