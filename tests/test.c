@@ -694,7 +694,7 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint32_t start_tim
     param_val_t end_time = vals_after[param_idx];
     int32_t elapsed_time = end_time.p_i - start_time_shortened;
     fprintf(stderr, "Time received is %d\n", end_time.p_i);
-    if(elapsed_time >= upper_bound_latency && elapsed_time < 0){
+    if(elapsed_time >= upper_bound_latency || elapsed_time < 0){
         print_fail();
         fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "0 <= %s < %d\n", param_name, upper_bound_latency);
