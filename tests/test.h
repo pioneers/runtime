@@ -93,6 +93,30 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
  */
 void check_run_mode(robot_desc_val_t expected_run_mode);
 
+// ***************************** START POS CHECK ***************************** //
+
+/**
+ * Verifies that the current robot start position is as expected in shared memory.
+ * Arguments:
+ *    expected_start_pos: the expected start position.
+ * No return value. (Will exit with status code 1 if incorrect start pos)
+ */
+void check_start_pos(robot_desc_val_t expected_start_pos);
+
+// *************************** SUBSCRIPTION CHECK **************************** //
+
+/**
+ * Verifies that the current subscriptions are as expected in shared memory.
+ * Arguments:
+ *    dev_uid: the device uid to check subscriptions on
+ *    expected_sub_map: the expected bitmap of parameter subscriptions
+ *    process: the process that is expected to have made the aforementioned subscriptions
+ *             Choose from: NET_HANDLER, EXECUTOR, or TEST
+ *             Set as TEST if it doesn't matter who made the subscription.
+ * No return value. (Will exit with status code 1 if incorrect subscriptions)
+ */
+void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t process);
+
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**

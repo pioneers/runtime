@@ -87,24 +87,6 @@ static void print_bitmap(int num_bits, uint32_t bitmap) {
 }
 
 /**
- * Function that returns dev_ix of specified device if it exists (-1 if it doesn't)
- * Arguments:
- *    dev_uid: 64-bit unique ID of the device
- * Returns: device index in shared memory of the specified device, -1 if specified device is not in shared memory
- */
-static int get_dev_ix_from_uid(uint64_t dev_uid) {
-    int dev_ix = -1;
-
-    for (int i = 0; i < MAX_DEVICES; i++) {
-        if ((dev_shm_ptr->catalog & (1 << i)) && (dev_shm_ptr->dev_ids[i].uid == dev_uid)) {
-            dev_ix = i;
-            break;
-        }
-    }
-    return dev_ix;
-}
-
-/**
  * Function that does the actual reading into shared memory for device_read and device_read_uid
  * Takes care of updating the param bitmap for fast transfer of commands from executor to device handler
  * Arguments:
@@ -437,6 +419,18 @@ void generate_sem_name(stream_t stream, int dev_ix, char* name) {
     } else if (stream == COMMAND) {
         sprintf(name, "/command_sem_%d", dev_ix);
     }
+}
+
+int get_dev_ix_from_uid(uint64_t dev_uid) {
+    int dev_ix = -1;
+
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if ((dev_shm_ptr->catalog & (1 << i)) && (dev_shm_ptr->dev_ids[i].uid == dev_uid)) {
+            dev_ix = i;
+            break;
+        }
+    }
+    return dev_ix;
 }
 
 void shm_init() {
