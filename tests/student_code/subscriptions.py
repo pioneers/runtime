@@ -29,7 +29,7 @@ def autonomous_setup():
         param_val = Robot.get_value(  GENERAL ,    'EXP_ONE_PT_ONE' )
          
         # Try a variable as the parameter name
-        param_val = Robot.get_value(GENERAL, parameter )
+        param_val = Robot.get_value('63' + '_' + str(1) , parameter )
 
         # Try a studentapi variable as the parameter name
         param_val = Robot.get_value(GENERAL, param_name )

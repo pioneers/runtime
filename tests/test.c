@@ -550,25 +550,10 @@ void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t p
     // Read current subscriptions by the specified process
     uint32_t curr_sub_map[MAX_DEVICES + 1];
     get_sub_requests(curr_sub_map, process);
-    // Get the shm idx of the specified device
-    dev_id_t dev_ids[MAX_DEVICES];
-    uint32_t catalog;
 
-    get_device_identifiers(dev_ids);
-    get_catalog(&catalog);
-    int shm_idx = -1;
-    if (catalog != 0) {
-        // Iterate through devices
-        for (int i = 0; i < MAX_DEVICES; i++) {
-            if (catalog & (1 << i)) {             // Connected device at index i
-                if (dev_ids[i].uid == dev_uid) {  // Match
-                    shm_idx = i;
-                    break;
-                }
-            }
-        }
-    }
-    if (catalog == 0 || shm_idx == -1) {  // Specified device is not connected
+    // Get the shm idx of the specified device
+    int shm_idx = get_dev_ix_from_uid(dev_uid);
+    if (shm_idx == -1) {  // Specified device is not connected
         print_fail();
         fprintf_delimiter(stderr, "Expected:");
         fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
