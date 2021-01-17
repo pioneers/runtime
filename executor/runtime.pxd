@@ -46,7 +46,6 @@ cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
     ctypedef enum stream_t:
         DATA, COMMAND
     void shm_init()
-    void shm_stop()
     int device_read_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_read, param_val_t *params)
     int device_write_uid(uint64_t device_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t *params)
     int input_read (uint64_t *pressed_buttons, float *joystick_vals, robot_desc_field_t source)
