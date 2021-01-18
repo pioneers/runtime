@@ -31,6 +31,8 @@
 #define NUM_GAMEPAD_BUTTONS 17
 #define NUM_KEYBOARD_BUTTONS 47
 
+#define NUM_GAMEPAD_JOYSTICKS 4
+
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 
 #define CHALLENGE_LEN 128  // The maximum input/output string length for a challenge
