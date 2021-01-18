@@ -20,7 +20,7 @@ int main() {
 
     buttons = get_key_bit("y");
     send_user_input(buttons, garbage, KEYBOARD);
-    sleep(.3);
+    sleep(.8);
     check_inputs(buttons, garbage, KEYBOARD);
     sleep(1);
 
