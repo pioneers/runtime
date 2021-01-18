@@ -154,6 +154,14 @@ void print_custom_data();
 void generate_sem_name(stream_t stream, int dev_ix, char* name);
 
 /**
+ * Returns the index in the SHM block of the specified device if it exists (-1 if it doesn't)
+ * Arguments:
+ *    dev_uid: 64-bit unique ID of the device
+ * Returns: device index in shared memory of the specified device, -1 if specified device is not in shared memory
+ */
+int get_dev_ix_from_uid(uint64_t dev_uid);
+
+/**
  * Call this function from every process that wants to use the shared memory wrapper
  * No return value (will exit on fatal errors).
  * Will configure process to close all shared memory and semaphores on process exit.
