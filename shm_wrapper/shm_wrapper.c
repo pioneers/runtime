@@ -797,9 +797,12 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
 
     int index = (source == GAMEPAD) ? 0 : 1;
     *pressed_buttons = input_shm_ptr->inputs[index].buttons;
-    for (int i = 0; i < 4; i++) {
-        joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
+    if (source == GAMEPAD) {
+        for (int i = 0; i < 4; i++) {
+            joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
+        }
     }
+    
 
     // release gp_sem
     my_sem_post(input_sem, "input_mutex");
