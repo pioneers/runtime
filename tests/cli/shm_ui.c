@@ -43,6 +43,7 @@
 // ******************************** WINDOWS ********************************* //
 WINDOW* ROBOT_DESC_WIN;  // Displays the robot description (clients connected, run mode, start position, gamepad connected)
 WINDOW* GAMEPAD_WIN;     // Displays gamepad state (joystick values and what buttons are pressed)
+WINDOW* KEYBOARD_WIN;    // Displays keyboard state (what buttons are pressed)
 WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and subscriptions) for a single device at a time based on user input
 
 // ************************** SIZES AND POSITIONS *************************** //
@@ -51,7 +52,7 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 // Enough to fit each value
 #define ROBOT_DESC_HEIGHT 8
 // ROBOT_DESC_WIDTH is enough to fit GAMEPAD_WIDTH (which needs to be wider than ROBOT_DESC)
-#define ROBOT_DESC_WIDTH 35
+#define ROBOT_DESC_WIDTH 40
 #define ROBOT_DESC_START_Y 3
 #define ROBOT_DESC_START_X 0
 
@@ -62,6 +63,12 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 #define GAMEPAD_START_Y (ROBOT_DESC_START_Y + ROBOT_DESC_HEIGHT)
 #define GAMEPAD_START_X ROBOT_DESC_START_X
 
+// Display KEYBOARD_WIN next to GAMEPAD_WIN
+#define KEYBOARD_HEIGHT GAMEPAD_HEIGHT
+#define KEYBOARD_WIDTH GAMEPAD_WIDTH
+#define KEYBOARD_START_Y GAMEPAD_START_Y
+#define KEYBOARD_START_X (GAMEPAD_START_X + GAMEPAD_WIDTH)
+
 // DEVICE_HEIGHT should be large enough to display all the parameters,
 // with extra lines for device id, the table itself, and the message about using the arrow keys
 #define DEVICE_HEIGHT (MAX_PARAMS + 6)
@@ -69,7 +76,7 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 #define DEVICE_WIDTH 75
 #define DEVICE_START_Y 0
 // Make the left border of DEVICE_WIN to the right of ROBOT_DESC_WIN and GAMEPAD_WIN
-#define DEVICE_START_X (ROBOT_DESC_WIDTH + 1)
+#define DEVICE_START_X (KEYBOARD_START_X + KEYBOARD_WIDTH)
 
 // The left-most column at which we display something in each window
 // (i.e. There will be INDENT - 1 spaces between the left border and the first character)
@@ -124,7 +131,7 @@ void display_empty_device() {
 // Displays the controls for the UI.
 void display_controls() {
     const int y = DEVICE_START_Y + DEVICE_HEIGHT;
-    const int x = DEVICE_START_X;
+    const int x = DEVICE_START_X + 1; // ALign with DEVICE_WIN left border
     attron(A_BOLD);
     // Left
     move(y, x);
@@ -171,13 +178,18 @@ void init_windows() {
     // Robot description
     ROBOT_DESC_WIN = newwin(ROBOT_DESC_HEIGHT, ROBOT_DESC_WIDTH, ROBOT_DESC_START_Y, ROBOT_DESC_START_X);
     wattron(ROBOT_DESC_WIN, A_BOLD);
-    mvwprintw(ROBOT_DESC_WIN, 1, 1, "~~~~~~~~ROBOT DESCRIPTION~~~~~~~~");
+    mvwprintw(ROBOT_DESC_WIN, 1, 1, "~~~~~~~~~~ROBOT DESCRIPTION~~~~~~~~~~~");
     wattroff(ROBOT_DESC_WIN, A_BOLD);
     // Gamepad
     GAMEPAD_WIN = newwin(GAMEPAD_HEIGHT, GAMEPAD_WIDTH, GAMEPAD_START_Y, GAMEPAD_START_X);
     wattron(GAMEPAD_WIN, A_BOLD);
     mvwprintw(GAMEPAD_WIN, 1, 1, "~~~~~GAMEPAD~~~~~~");
     wattroff(GAMEPAD_WIN, A_BOLD);
+    // Keyboard
+    KEYBOARD_WIN = newwin(KEYBOARD_HEIGHT, KEYBOARD_WIDTH, KEYBOARD_START_Y, KEYBOARD_START_X);
+    wattron(KEYBOARD_WIN, A_BOLD);
+    mvwprintw(KEYBOARD_WIN, 1, 1, "~~~~~KEYBOARD~~~~~");
+    wattroff(KEYBOARD_WIN, A_BOLD);
     // Device info (device data)
     DEVICE_WIN = newwin(DEVICE_HEIGHT, DEVICE_WIDTH, DEVICE_START_Y, DEVICE_START_X);
     wattron(DEVICE_WIN, A_BOLD);
@@ -301,6 +313,58 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
 }
 
 /**
+ * Reads the current keyboard state and displays it.
+ * Arguments:
+ *    key_names: the array of keyboard button names
+ */
+void display_keyboard_state(char** key_names) {
+    // Start at line after the header
+    int line = 2;  // Note that this is just a row number; Must use wmove() to actually move the cursor to this line
+    wmove(KEYBOARD_WIN, line, 0);
+    wclrtoeol(KEYBOARD_WIN);  // Clear "Not connected!"
+
+    // Read KEYBOARD state if KEYBOARD is connected
+    uint64_t pressed_buttons = 0;
+    int keyboard_connected = (robot_desc_read(KEYBOARD) == CONNECTED);
+    if (keyboard_connected) {
+        input_read(&pressed_buttons, NULL, KEYBOARD);
+    } else {
+        mvwprintw(KEYBOARD_WIN, line, INDENT, "Not connected!");
+    }
+
+    // Print pressed buttons
+    wmove(KEYBOARD_WIN, ++line, 0); // Move to the first button
+    const int buttons_first_line = line; // The first line that we display a button
+    int column = INDENT; // We'll display the keyboard buttons in two columns.
+    for (int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
+        // Clear line from ptr to EOL in the window.
+        // Note that a line may be cleared multiple times in this loop, as we have multiple columns.
+        wclrtoeol(KEYBOARD_WIN);
+        // Show button name; If pressed, make it bold. Else, dim
+        if (keyboard_connected) {
+            if (pressed_buttons & (1L << i)) {
+                wattron(KEYBOARD_WIN, A_BOLD);
+            } else {
+                wattron(KEYBOARD_WIN, A_DIM);
+            }
+            mvwprintw(KEYBOARD_WIN, line, column, "%s", key_names[i]);
+            wattroff(KEYBOARD_WIN, A_BOLD | A_DIM);  // Turn off any text attributes
+        }
+        // Move to next button
+        line++;
+        if (line == KEYBOARD_HEIGHT - 1) { // Move to next column (line == KEYBOARD_HEIGHT - 1 is the border)
+            column += INDENT;
+            line = buttons_first_line;
+        }
+        wmove(KEYBOARD_WIN, line, column);
+    }
+
+    // Draw box and refresh
+    box(KEYBOARD_WIN, 0, 0);
+    wrefresh(KEYBOARD_WIN);
+}
+
+/**
  * Displays a device's current state of parameters in a formatted table.
  * NET (NET_HANDLER) and EXE (EXECUTOR) refers to whether the parameter is subscribed by the process.
  * Param Idx (int) | Name (str) | NET (bool) | EXE (bool) | Command (var) | Data (var)
@@ -400,7 +464,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         // Print out subscriptions ("X" iff subbed)
         // Note that subscriptions are irrelevant for custom data
         //   Runtime will *always* send custom data to net handler
-        //   Executor has nothing to do with the custom data
+        //   Executor initializes custom data parameters and never reads them
         if (show_custom_data || sub_map_net_handler & (1 << i)) {
             mvwprintw(DEVICE_WIN, line, NET_SUB_COL + 1, "X");
         }
@@ -495,6 +559,7 @@ int main(int argc, char** argv) {
     // Init variables for gamepad and shm data
     char** joystick_names = get_joystick_names();
     char** button_names = get_button_names();
+    char** key_names = get_key_names();
     uint32_t catalog = 0;           // Shared memory catalog (bitmap of connected devices)
     dev_id_t dev_ids[MAX_DEVICES];  // Device identifying info on each shm-connected device
 
@@ -540,6 +605,7 @@ int main(int argc, char** argv) {
         // Update each window
         display_robot_desc();
         display_gamepad_state(joystick_names, button_names);
+        display_keyboard_state(key_names);
         display_device(catalog, dev_ids, device_selection);
 
         // Throttle refresh rate
