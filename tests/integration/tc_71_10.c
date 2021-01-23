@@ -10,6 +10,7 @@
 #include "../test.h"
 
 #define TIME_DEV_UID 123
+#define UPPER_BOUND_LATENCY 5
 
 int main() {
     // Setup
@@ -28,25 +29,19 @@ int main() {
     send_run_mode(SHEPHERD, TELEOP);
 
     // Start the timer and press A
-    int32_t start = millis() % 1000000000;  // 9 digits, just like TimeTestDevice
+    uint64_t start = millis();  // Start of timer
     buttons |= get_button_bit("button_a");
     send_user_input(buttons, joystick_vals, GAMEPAD);
-
+    sleep(1);
     // Unpress "A"
     buttons = 0;
     send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // Let processing happen
-    printf("Pressed 'A' at time %d\n", start);
     sleep(1);
 
-    // Read the timestamp (param 1) of when BUTTON_A was received on the device
-    param_val_t params[2];
-    device_read_uid(TIME_DEV_UID, EXECUTOR, DATA, 0b11, params);
-    int32_t end = params[1].p_i;
-    printf("Device received 'A' at time %d\n", end);
-
-    printf("Latency: %d - %d == %d milliseconds\n", end, start, end - start);
+    // Check the latency between the button pressed and its change to TIMESTAMP
+    check_latency(TIME_DEV_UID, UPPER_BOUND_LATENCY, start);
 
     // Stop all processes
     end_test();

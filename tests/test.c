@@ -650,11 +650,20 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
 // Returns if value is between the expected high and expected low
 void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high) {
     uint8_t dev_type = device_name_to_type(dev_name);
+    if (dev_type == -1) {
+        print_fail();
+        fprintf(stderr, "%s type not found\n", dev_name);
+        end_test();
+        exit(1);
+    }
     device_t* dev = get_device(dev_type);
 
     param_val_t vals_after[dev->num_params];
     uint32_t param_idx = (uint32_t) get_param_idx(dev_type, param_name);
-    device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    int success = device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    if (success < 0) {
+        fprintf(stderr, "Error reading device with UID: %llu", uid);
+    }
     param_val_t received = vals_after[param_idx];
 
     switch (param_type) {
@@ -693,6 +702,57 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
                 end_test();
                 exit(1);
             }
+    }
+    print_pass();
+}
+
+// Returns if the latency is neither too high nor negative
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_time) {
+    char* param_name = "TIMESTAMP";
+    uint8_t dev_type = device_name_to_type("TimeTestDevice");
+    if (dev_type == -1) {
+        print_fail();
+        fprintf(stderr, "TimeTestDevice type not found\n");
+        end_test();
+        exit(1);
+    }
+    device_t* dev = get_device(dev_type);
+    param_val_t vals_after[dev->num_params];
+    int8_t param_idx = get_param_idx(dev_type, param_name);
+    if (param_idx < 0) {
+        print_fail();
+        fprintf(stderr, "Could not find param_idx\n");
+        end_test();
+        exit(1);
+    }
+    int success = device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    if (success < 0) {
+        fprintf(stderr, "Error reading device with UID: %llu", uid);
+    }
+
+    // shorten to last 9 digits, like the TimeTestDevice's TIMESTAMP
+    uint32_t start_time_shortened = start_time % 1000000000;
+    param_val_t end_time = vals_after[param_idx];
+
+    int32_t elapsed_time = end_time.p_i - start_time_shortened;
+
+    if (elapsed_time >= upper_bound_latency) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "0 <= %s < %d\n", param_name, upper_bound_latency);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s == %d\n", param_name, elapsed_time);
+        end_test();
+        exit(1);
+    } else if (elapsed_time < 0) {
+        print_fail();
+        fprintf_delimiter(stderr, "Elapsed time is negative!");
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "Elapsed time == %d\n", param_name, elapsed_time);
+        fprintf(stderr, "Start time(shortened) == %d\n", param_name, start_time_shortened);
+        fprintf(stderr, "End time == %d\n", param_name, end_time.p_i);
+        end_test();
+        exit(1);
     }
     print_pass();
 }
