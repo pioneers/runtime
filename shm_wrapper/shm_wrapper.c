@@ -591,7 +591,7 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
             joystick_vals[i] = input_shm_ptr->inputs[index].joysticks[i];
         }
     }
-    
+
 
     // release gp_sem
     my_sem_post(input_sem, "input_mutex");

@@ -131,7 +131,7 @@ void display_empty_device() {
 // Displays the controls for the UI.
 void display_controls() {
     const int y = DEVICE_START_Y + DEVICE_HEIGHT;
-    const int x = DEVICE_START_X + 1; // ALign with DEVICE_WIN left border
+    const int x = DEVICE_START_X + 1;  // ALign with DEVICE_WIN left border
     attron(A_BOLD);
     // Left
     move(y, x);
@@ -263,7 +263,7 @@ void display_gamepad_state(char** joystick_names, char** button_names) {
             // Print name of joystick (ignore the prefix "joystick_")
             // Ignoring the prefix is purely an aeshethic thing.
             mvwprintw(GAMEPAD_WIN, line, INDENT, "%s:", joystick_names[i] + strlen("joystick_"));
-            if (i <= 1) { // joystick_left_x and joystick_left_y
+            if (i <= 1) {  // joystick_left_x and joystick_left_y
                 // Add a space to line up with joystick_right_x and joystick_right_y
                 // "right" has one more character than "left"
                 // This is purely an aesthetic thing
@@ -333,9 +333,9 @@ void display_keyboard_state(char** key_names) {
     }
 
     // Print pressed buttons
-    wmove(KEYBOARD_WIN, ++line, 0); // Move to the first button
-    const int buttons_first_line = line; // The first line that we display a button
-    int column = INDENT; // We'll display the keyboard buttons in two columns.
+    wmove(KEYBOARD_WIN, ++line, 0);       // Move to the first button
+    const int buttons_first_line = line;  // The first line that we display a button
+    int column = INDENT;                  // We'll display the keyboard buttons in two columns.
     for (int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
         // Clear line from ptr to EOL in the window.
         // Note that a line may be cleared multiple times in this loop, as we have multiple columns.
@@ -352,7 +352,7 @@ void display_keyboard_state(char** key_names) {
         }
         // Move to next button
         line++;
-        if (line == KEYBOARD_HEIGHT - 1) { // Move to next column (line == KEYBOARD_HEIGHT - 1 is the border)
+        if (line == KEYBOARD_HEIGHT - 1) {  // Move to next column (line == KEYBOARD_HEIGHT - 1 is the border)
             column += INDENT;
             line = buttons_first_line;
         }
