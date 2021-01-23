@@ -174,4 +174,12 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
  */
 void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high);
 
+/**
+* Checks the latency between an action and the TIMESTAMP parameter on a TimeTestDevice
+ * Arguments:
+ *    uid: unique identifier of TimeTestDevice
+ *    upper_bound_latency: The expected upperbound latency
+ *    start_time: The start of a timer provided by the test case(in ms), usually a call to the millis() function
+*/
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_time);
 #endif
