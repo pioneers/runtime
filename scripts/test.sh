@@ -44,9 +44,9 @@ function run_tests {
 		printf "Running $test...\n"
 		./$test
 
-		# if that test failed, set all_is_well to 1
-		if [[ $? == 1 ]]; then
-			failing_tests="$failing_tests $test"  # add this test to list of failing testse
+		# if that test failed, set failed to 1
+		if [[ $? != 0 ]]; then
+			failing_tests="$failing_tests $test"  # add this test to list of failing tests
 			failed=1
 		fi
 	done
