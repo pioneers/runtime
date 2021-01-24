@@ -94,6 +94,8 @@ static void send_log_msg(int conn_fd, FILE* log_file) {
     uint8_t* send_buf = make_buf(LOG_MSG, len_pb);
     text__pack(&log_msg, send_buf + BUFFER_OFFSET);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
 
+    // log_printf(DEBUG, "send_log_msg: protobuf length %u, num lines %d \n", len_pb, log_msg.n_payload);
+
     //send message on socket
     if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_log_msg: sending log message over socket failed: %s", strerror(errno));
@@ -304,7 +306,7 @@ static void* tcp_process(void* tcp_args) {
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
         // If client wants logs, logs are availble to send, and FIFO doesn't have an EOF, send logs
-        if (args->send_logs && FD_ISSET(log_fd, &read_set) && feof(args->log_file) != 0) {
+        if (args->send_logs && FD_ISSET(log_fd, &read_set)) {
             send_log_msg(args->conn_fd, args->log_file);
         }
 
