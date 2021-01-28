@@ -448,7 +448,6 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     free(input.axes);
     free(inputs.inputs);
     free(send_buf);
-    // usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges) {
