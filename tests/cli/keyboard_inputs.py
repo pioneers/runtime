@@ -9,7 +9,7 @@ import struct       # for TCP encoding
 
 ################################# GLOBAL VARS ##################################
 # TCP Setup
-HOST = '192.168.1.75'
+HOST = '127.0.0.1'
 PORT = 5006
 ADDRESS = (HOST, PORT)
 map = {
@@ -175,10 +175,12 @@ def write_to_socket():
     while(True):
         mutex.acquire()
         gamepad_to_send = ''.join(gamepad_bits)
-        print("sending gamepad", gamepad_to_send.encode())
+        if (gamepad_bits != list("0" * len(controls))):
+            print("sending gamepad", gamepad_to_send.encode())
         sock.send(gamepad_to_send.encode()) # send the 'bitstring' over tcp using socket object
         keyboard_to_send = ''.join(keyboard_bits)
-        print("sending keyboard", keyboard_to_send.encode())
+        if (keyboard_bits != list("0" * len(keyboardKeys))):
+            print("sending keyboard", keyboard_to_send.encode())
         sock.send(keyboard_to_send.encode())
         mutex.release()
         sleep(0.05) # allows for the listener to modify the bitstring

@@ -96,51 +96,6 @@ extern sem_t* rd_sem;                 // semaphore used as a mutex on the robot 
 extern log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for log data specified by executor
 extern sem_t* log_data_sem;               // semaphore used as a mutex on the log data
 
-// ******************************************* PRINTING UTILITIES ***************************************** //
-
-/**
- * Prints the current values in the command bitmap
- */
-void print_cmd_map();
-
-/**
- * Prints the current values in the subscription bitmap
- */
-void print_sub_map();
-
-/**
- * Prints the device identification info of the currently attached devices
- */
-void print_dev_ids();
-
-/**
- * Prints the catalog (i.e. how many and at which indices devices are currently attached)
- */
-void print_catalog();
-
-/**
- * Prints the params of the specified devices
- * Arguments:
- *    devices: bitmap specifying which devices should have their parameters printed
- *        (specifying nonexistent devices will be ignored without error)
- */
-void print_params(uint32_t devices);
-
-/**
- * Prints the current values of the robot description in a human-readable way
- */
-void print_robot_desc();
-
-/**
- * Prints the current state of the user inputs in a human-readable way
- */
-void print_inputs_state();
-
-/**
- * Prints the current custom logged data in a human-readable way
- */
-void print_custom_data();
-
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
 /**
