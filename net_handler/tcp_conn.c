@@ -304,7 +304,7 @@ static void* tcp_process(void* tcp_args) {
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
         // If client wants logs, logs are availble to send, and FIFO doesn't have an EOF, send logs
-        if (args->send_logs && FD_ISSET(log_fd, &read_set) && feof(args->log_file) != 0) {
+        if (args->send_logs && FD_ISSET(log_fd, &read_set)) {
             send_log_msg(args->conn_fd, args->log_file);
         }
 
