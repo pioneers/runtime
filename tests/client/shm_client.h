@@ -14,10 +14,4 @@ void start_shm();
  */
 void stop_shm();
 
-/**
- * Print the current state of the shared memory to the standard output of the calling process
- * Uses the printing utility functions in shm_wrapper.h to do this
- */
-void print_shm();
-
 #endif
