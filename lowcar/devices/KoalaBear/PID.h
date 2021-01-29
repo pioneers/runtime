@@ -28,12 +28,19 @@ class PID {
 
   private:
     float kp, ki, kd;
-    float prev_error, prev_pos, prev_desired_pos;
+    float prev_pos, prev_desired_pos;
     float velocity;
     float integral;
-    unsigned long prev_time;
+    float *prev_error;
+    unsigned long *prev_time;
 
     // ************************** HELPER FUNCTIONS ************************** //
+    
+    float sum(float nums[], int i);
+    
+    float average(float nums[], int i);
+    
+    float regression (unsigned long x_vals[], float y_vals[], int number);
 
     /**
      * Converts speed (in duty cycle units from -1.0 to 1.0) to
