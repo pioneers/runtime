@@ -31,17 +31,17 @@ uint16_t torque_read_data;
 //******************************* KOALABEAR CONSTANTS AND PARAMS ****************************//
 
 // ----------------------> CHANGE THIS TO IMPLEMENT MAX SPEED FOR KARTS <----------------------
-#define MAX_DUTY_CYCLE 1.0  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
+#define MAX_DUTY_CYCLE 0.75  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
 // --------------------------------------------------------------------------------------------
 
 // --------------------> CHANGE THIS TO IMPLEMENT ACCELERATION FOR KARTS <---------------------
-#define ACCEL 1.0			// acceleration of motors, in duty cycle units per second squared
+#define ACCEL 0.7			// acceleration of motors, in duty cycle units per second squared
 // --------------------------------------------------------------------------------------------
 
 // default values for PID controllers; PID control is explained in the Wiki!
-#define KP_DEFAULT 0.25
-#define KI_DEFAULT 0.0
-#define KD_DEFAULT 0.0
+#define KP_DEFAULT 0.045
+#define KI_DEFAULT 0.35
+#define KD_DEFAULT 0.001
 
 typedef enum {
     // params for the first motor
@@ -116,7 +116,7 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
     // initialize PID controllers
     this->pid_a = new PID();
     this->pid_b = new PID();
-    this->pid_enabled_a = this->pid_enabled_b = FALSE;  // by default, PID control is enabled
+    this->pid_enabled_a = this->pid_enabled_b = TRUE;  // by default, PID control is enabled
     this->pid_a->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
     this->pid_b->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
 
@@ -215,8 +215,11 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double*) data_buf)[0]);
             return sizeof(float);
         case ENC_A:
+			// detaching the interrupt here prevets race codition on enc_a variable between this and the interrupt service routine
+			detachInterrupt(digitalPinToInterrupt(AENC1));
             enc_a = ((int32_t*) data_buf)[0];
             this->pid_a->set_position((float) enc_a);
+		    attachInterrupt(digitalPinToInterrupt(AENC1), handle_enc_a_tick, RISING);
             return sizeof(int32_t);
 
         // Params for Motor B
@@ -245,8 +248,11 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double*) data_buf)[0]);
             return sizeof(float);
         case ENC_B:
+			// detaching the interrupt here prevets race codition on enc_b variable between this and the interrupt service routine
+			detachInterrupt(digitalPinToInterrupt(BENC1));
             enc_b = ((int32_t*) data_buf)[0];
             this->pid_b->set_position((float) enc_b);
+		    attachInterrupt(digitalPinToInterrupt(BENC1), handle_enc_b_tick, RISING);
             return sizeof(int32_t);
         default:
             return 0;
@@ -313,9 +319,9 @@ void KoalaBear::device_actions() {
     }
 
     // compute the actual target speed of motors (depending on whether direction is inverted, max duty cycle, and acceleration)
-	// acceleration calculation
-	this->curr_velocity_a = this->curr_velocity_a + (ACCEL * ((this->velocity_a - this->curr_velocity_a > 0) ? 1.0 : -1.0) * interval_secs);
-	this->curr_velocity_b = this->curr_velocity_b + (ACCEL * ((this->velocity_b - this->curr_velocity_b > 0) ? 1.0 : -1.0) * interval_secs);
+	// acceleration calculation: delta V = sign(V) * a * delta t
+	this->curr_velocity_a = this->curr_velocity_a + (((this->velocity_a - this->curr_velocity_a > 0) ? 1.0 : -1.0) * ACCEL * interval_secs);
+	this->curr_velocity_b = this->curr_velocity_b + (((this->velocity_b - this->curr_velocity_b > 0) ? 1.0 : -1.0) * ACCEL * interval_secs);
 		
 	// inversion and max duty cycle calculation
     adjusted_velocity_a = MAX_DUTY_CYCLE * ((this->invert_a) ? this->curr_velocity_a * -1.0 : this->curr_velocity_a);
