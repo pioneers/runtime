@@ -34,7 +34,7 @@ class PID {
     float *prev_error, *prev_time;
 
     // ************************** HELPER FUNCTIONS ************************** //
-    
+
     /**
      * Finds the sum of the first i elements of the provided array
      * Arguments:
@@ -44,7 +44,7 @@ class PID {
      *    nums[0] + nums[1] + ... + nums[i - 1]
      */
     float sum(float nums[], int i);
-    
+
     /**
      * Finds the average of the first i elements of the provided array
      * Arguments:
@@ -54,7 +54,7 @@ class PID {
      *    (nums[0] + nums[1] + ... + nums[i - 1]) / i
      */
     float average(float nums[], int i);
-    
+
     /**
      * Computes the linear least squares regression of the points
      * given by x_vals and y_vals, where the x_vals array contains
@@ -68,7 +68,7 @@ class PID {
      * Returns:
      *    Slope of regression line through the given points
      */
-    float regression (float x_vals[], float y_vals[], int number);
+    float regression(float x_vals[], float y_vals[], int number);
 
     /**
      * Converts speed (in duty cycle units from -1.0 to 1.0) to

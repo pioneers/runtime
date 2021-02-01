@@ -144,18 +144,18 @@ void Messenger::lowcar_printf(char* format, ...) {
 }
 
 void Messenger::lowcar_print_float(char* name, float val) {
-	char sign = (val < 0.0) ? '-' : ' ';				 // Holds sign of the value
-	if (val < 0.0) {
-		val *= -1.0;
-	}
+    char sign = (val < 0.0) ? '-' : ' ';  // Holds sign of the value
+    if (val < 0.0) {
+        val *= -1.0;
+    }
     int whole_val = (int) val;                           // Part of val to the left of the decimal point
     int thousandths = (int) ((val - whole_val) * 1000);  // The 3 digits to the right of the decimal point
-	
-	if (sign == '-') {
-		this->lowcar_printf("%s: %c%d.%03d", name, sign, whole_val, thousandths);
-	} else {
-	    this->lowcar_printf("%s:%c%d.%03d", name, sign, whole_val, thousandths);
-	}
+
+    if (sign == '-') {
+        this->lowcar_printf("%s: %c%d.%03d", name, sign, whole_val, thousandths);
+    } else {
+        this->lowcar_printf("%s:%c%d.%03d", name, sign, whole_val, thousandths);
+    }
 }
 
 void Messenger::lowcar_flush() {
