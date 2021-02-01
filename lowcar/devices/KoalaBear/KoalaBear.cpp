@@ -328,7 +328,7 @@ void KoalaBear::device_actions() {
 	if (this->velocity_b == 0.0 && adjusted_velocity_b < this->deadband_b && adjusted_velocity_b > (this->deadband_b * -1.0)) {
 		this->curr_velocity_b = adjusted_velocity_b = 0.0;
 	}
-
+	
     // compute the actual duty cycle to command the motors at (depending on whether pid is enabled)
     if (this->pid_enabled_a) {
         this->pid_a->set_velocity(adjusted_velocity_a);
