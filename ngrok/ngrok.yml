@@ -1,5 +1,0 @@
-authtoken: 1m5RoH5PZCjItFUYuTzgzG3lIuo_2AAYPXXfJgPomZAJyPd9J
-tunnels:
-  ssh:
-    proto: tcp
-    addr: 22
