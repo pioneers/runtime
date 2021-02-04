@@ -31,13 +31,17 @@ uint16_t torque_read_data;
 //******************************* KOALABEAR CONSTANTS AND PARAMS ****************************//
 
 // ----------------------> CHANGE THIS TO IMPLEMENT MAX SPEED FOR KARTS <----------------------
-#define MAX_DUTY_CYCLE 0.5  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
+#define MAX_DUTY_CYCLE 0.75  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
+// --------------------------------------------------------------------------------------------
+
+// --------------------> CHANGE THIS TO IMPLEMENT ACCELERATION FOR KARTS <---------------------
+#define ACCEL 0.7  // acceleration of motors, in duty cycle units per second squared
 // --------------------------------------------------------------------------------------------
 
 // default values for PID controllers; PID control is explained in the Wiki!
-#define KP_DEFAULT 0.035
-#define KI_DEFAULT 0.005
-#define KD_DEFAULT 0.0
+#define KP_DEFAULT 0.045
+#define KI_DEFAULT 0.35
+#define KD_DEFAULT 0.001
 
 typedef enum {
     // params for the first motor
@@ -102,6 +106,7 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
     this->velocity_a = this->velocity_b = 0.0;
     this->deadband_a = this->deadband_b = 0.05;
     this->invert_a = this->invert_b = FALSE;  // by default, motor directions are not inverted
+    this->curr_velocity_a = this->curr_velocity_b = 0.0;
 
     // initialize encoders
     enc_a = enc_b = 0.0;
@@ -116,8 +121,9 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
     this->pid_b->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
 
     this->led = new LEDKoala();
-    this->prev_led_time = millis();
+    this->prev_led_time = this->prev_loop_time = millis();
     this->curr_led_mtr = MTRA;
+    this->online = FALSE;
 }
 
 size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
@@ -209,8 +215,11 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double*) data_buf)[0]);
             return sizeof(float);
         case ENC_A:
+            // detaching the interrupt here prevets race codition on enc_a variable between this and the interrupt service routine
+            detachInterrupt(digitalPinToInterrupt(AENC1));
             enc_a = ((int32_t*) data_buf)[0];
             this->pid_a->set_position((float) enc_a);
+            attachInterrupt(digitalPinToInterrupt(AENC1), handle_enc_a_tick, RISING);
             return sizeof(int32_t);
 
         // Params for Motor B
@@ -239,8 +248,11 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double*) data_buf)[0]);
             return sizeof(float);
         case ENC_B:
+            // detaching the interrupt here prevets race codition on enc_b variable between this and the interrupt service routine
+            detachInterrupt(digitalPinToInterrupt(BENC1));
             enc_b = ((int32_t*) data_buf)[0];
             this->pid_b->set_position((float) enc_b);
+            attachInterrupt(digitalPinToInterrupt(BENC1), handle_enc_b_tick, RISING);
             return sizeof(int32_t);
         default:
             return 0;
@@ -275,13 +287,25 @@ void KoalaBear::device_reset() {
 
     this->velocity_a = 0.0;
     this->velocity_b = 0.0;
+    this->curr_velocity_a = 0.0;
+    this->curr_velocity_b = 0.0;
     this->pid_enabled_a = TRUE;
     this->pid_enabled_b = TRUE;
+    this->online = FALSE;
 }
 
 void KoalaBear::device_actions() {
+    // if we just got started looping, save a value for prev_loop_time and immediately return
+    // prevents extremely large interval_secs (and therefore large extraneous motions on startup)
+    if (!this->online) {
+        this->prev_loop_time = millis();
+        this->online = TRUE;
+        return;
+    }
+
     float duty_cycle_a, duty_cycle_b, adjusted_velocity_a, adjusted_velocity_b;
     unsigned long curr_time = millis();
+    float interval_secs = ((float) (curr_time - this->prev_loop_time)) / 1000.0;  // compute time passed between loops, in seconds
 
     // switch between displaying info about MTRA and MTRB every 2 seconds
     if (curr_time - this->prev_led_time > 2000) {
@@ -295,9 +319,21 @@ void KoalaBear::device_actions() {
     }
 
     // compute the actual target speed of motors (depending on whether direction is inverted, max duty cycle, and acceleration)
-    // TODO: some acceleration calculation here too
-    adjusted_velocity_a = MAX_DUTY_CYCLE * ((this->invert_a) ? this->velocity_a * -1.0 : this->velocity_a);
-    adjusted_velocity_b = MAX_DUTY_CYCLE * ((this->invert_b) ? this->velocity_b * -1.0 : this->velocity_b);
+    // acceleration calculation: delta V = sign(V) * a * delta t
+    this->curr_velocity_a = this->curr_velocity_a + (((this->velocity_a - this->curr_velocity_a > 0) ? 1.0 : -1.0) * ACCEL * interval_secs);
+    this->curr_velocity_b = this->curr_velocity_b + (((this->velocity_b - this->curr_velocity_b > 0) ? 1.0 : -1.0) * ACCEL * interval_secs);
+
+    // inversion and max duty cycle calculation
+    adjusted_velocity_a = MAX_DUTY_CYCLE * ((this->invert_a) ? this->curr_velocity_a * -1.0 : this->curr_velocity_a);
+    adjusted_velocity_b = MAX_DUTY_CYCLE * ((this->invert_b) ? this->curr_velocity_b * -1.0 : this->curr_velocity_b);
+
+    // this logic makes sure that the robot doesn't oscillate around 0 when the student wants the robot to stop
+    if (this->velocity_a == 0.0 && adjusted_velocity_a < this->deadband_a && adjusted_velocity_a > (this->deadband_a * -1.0)) {
+        this->curr_velocity_a = adjusted_velocity_a = 0.0;
+    }
+    if (this->velocity_b == 0.0 && adjusted_velocity_b < this->deadband_b && adjusted_velocity_b > (this->deadband_b * -1.0)) {
+        this->curr_velocity_b = adjusted_velocity_b = 0.0;
+    }
 
     // compute the actual duty cycle to command the motors at (depending on whether pid is enabled)
     if (this->pid_enabled_a) {
@@ -321,6 +357,9 @@ void KoalaBear::device_actions() {
     // send computed duty cycle commands to motors
     drive(duty_cycle_a, MTRA);
     drive(duty_cycle_b, MTRB);
+
+    // update prev_loop_time
+    this->prev_loop_time = curr_time;
 }
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//

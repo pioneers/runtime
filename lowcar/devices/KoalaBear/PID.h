@@ -28,12 +28,47 @@ class PID {
 
   private:
     float kp, ki, kd;
-    float prev_error, prev_pos, prev_desired_pos;
+    float prev_pos, prev_desired_pos;
     float velocity;
     float integral;
-    unsigned long prev_time;
+    float *prev_error, *prev_time;
 
     // ************************** HELPER FUNCTIONS ************************** //
+
+    /**
+     * Finds the sum of the first i elements of the provided array
+     * Arguments:
+     *    nums: Array of elements to be summed
+     *    i: Number of elements of nums to sum
+     * Returns:
+     *    nums[0] + nums[1] + ... + nums[i - 1]
+     */
+    float sum(float nums[], int i);
+
+    /**
+     * Finds the average of the first i elements of the provided array
+     * Arguments:
+     *    nums: Array of elements to be averaged
+     *    i: Number of elements of nums to use in computing average
+     * Returns:
+     *    (nums[0] + nums[1] + ... + nums[i - 1]) / i
+     */
+    float average(float nums[], int i);
+
+    /**
+     * Computes the linear least squares regression of the points
+     * given by x_vals and y_vals, where the x_vals array contains
+     * the x values of the points to use and y_vals array contains
+     * the y values of the points to use. The number of points to use
+     * is given by the number argument.
+     * Arguments:
+     *    x_vals: Array of x values of the points to calculate regression through
+     *    y_vals: Array of y values of the points to calculate regression through
+     *    number: Number of points to use in calculating regression
+     * Returns:
+     *    Slope of regression line through the given points
+     */
+    float regression(float x_vals[], float y_vals[], int number);
 
     /**
      * Converts speed (in duty cycle units from -1.0 to 1.0) to
