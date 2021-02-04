@@ -24,7 +24,9 @@
 
 #define DEVICES_LENGTH 64  // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 6  // Number of fields in the robot description
+#define NUM_DESC_FIELDS_PERM 6  // Number of permanent fields in the robot description
+#define NUM_DESC_FIELDS_TEMP 3  // Number of temporary fields in the robot description (related to game)
+#define NUM_DESC_FIELDS (NUM_DESC_FIELDS_PERM + NUM_DESC_FIELDS_TEMP)
 
 #define LOG_KEY_LENGTH 64  // Max length of a key for custom Robot.log data
 
@@ -60,12 +62,17 @@ typedef enum gp_joysticks {
 
 // enumerated names for the fields in the robot description
 typedef enum robot_descs {
+    // permanent fields
     RUN_MODE,
     DAWN,
     SHEPHERD,
     GAMEPAD,
     KEYBOARD,
-    START_POS
+    START_POS,
+    // temporary fields
+    HYPOTHERMIA,
+    POISON_IVY,
+    DEHYDRATION
 } robot_desc_field_t;
 
 // enumerated names for the different values the robot description fields can take on
@@ -80,7 +87,10 @@ typedef enum robot_desc_vals {
     DISCONNECTED,
     // values for robot.startpos
     LEFT,
-    RIGHT
+    RIGHT,
+    // values for robot.hypothermia, robot.poison_ivy, robot.dehydration
+    ACTIVE,
+    INACTIVE
 } robot_desc_val_t;
 
 // enumerated names for the data types device parameters can be
