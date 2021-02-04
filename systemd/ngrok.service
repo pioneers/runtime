@@ -4,7 +4,7 @@ After=network.target net_handler.service
 
 [Service]
 Type=simple
-ExecStart=/home/pi/runtime/ngrok/ngrok start --all --config /home/pi/runtime/ngrok/ngrok.yml
+ExecStart=/home/pi/ngrok/ngrok start --all --config /home/pi/runtime/systemd/ngrok.yml
 ExecReload=/bin/kill -SIGTERM $MAINPID
 KillMode=process
 IgnoreSIGPIPE=true
