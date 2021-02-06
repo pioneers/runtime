@@ -1,6 +1,6 @@
 [Unit]
 Description=Ngrok startup process for Runtime
-After=network.target net_handler.service
+After=net_handler.service
 
 [Service]
 Type=simple
