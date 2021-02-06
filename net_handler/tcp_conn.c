@@ -250,12 +250,12 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
             }
         }
         dev_data__free_unpacked(dev_data_msg, NULL);
-    } else if (msg_type == GAME_STATE_MSG){
+    } else if (msg_type == GAME_STATE_MSG) {
         GameState* game_state_msg = game_state__unpack(NULL, len_pb, buf);
         if (game_state_msg == NULL) {
             log_printf(ERROR, "recv_new_msg: Cannot unpack game_state msg");
             return -2;
-        } 
+        }
         switch (game_state_msg->state) {
             case (STATE__POISON_IVY):
                 log_printf(DEBUG, "entering POISON_IVY state");
