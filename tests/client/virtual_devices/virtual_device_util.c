@@ -28,7 +28,7 @@ int receive_message(int fd, message_t* msg) {
     while (1) {
         num_bytes_read = read(fd, &last_byte_read, 1);  // Waiting for first byte can block
         if (num_bytes_read == -1) {
-            printf("Couldn't read first byte -- %s\n", strerror(errno));
+            printf("receive_message: Couldn't read first byte -- %s\n", strerror(errno));
             return 1;
         } else if (last_byte_read == 0x00) {
             // Found start of a message
@@ -48,7 +48,7 @@ int receive_message(int fd, message_t* msg) {
     // Allocate buffer to read message into
     uint8_t* data = malloc(DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_len);
     if (data == NULL) {
-        printf("receive_message: Failed to malloc\n");
+        printf("receive_message: Failed to malloc in virtual device\n");
         exit(1);
     }
     data[0] = 0x00;
@@ -57,7 +57,7 @@ int receive_message(int fd, message_t* msg) {
     // Read the message
     num_bytes_read = read(fd, &data[2], cobs_len);
     if (num_bytes_read != cobs_len) {
-        printf("Couldn't read the full message. Read only %d out of %d bytes\n", num_bytes_read, cobs_len);
+        printf("receive_message: Couldn't read the full message. Read only %d out of %d bytes\n", num_bytes_read, cobs_len);
         free(data);
         return 1;
     }
@@ -66,7 +66,7 @@ int receive_message(int fd, message_t* msg) {
     int ret = parse_message(data, msg);
     free(data);
     if (ret != 0) {
-        printf("Incorrect checksum\n");
+        printf("receive_message: Incorrect checksum\n");
         return 2;
     }
     return 0;
@@ -82,7 +82,7 @@ void send_message(int fd, message_t* msg) {
     len = message_to_bytes(msg, data, len);
     int transferred = write(fd, data, len);
     if (transferred != len) {
-        printf("Sent only %d out of %d bytes\n", transferred, len);
+        printf("send_message: Sent only %d out of %d bytes\n", transferred, len);
     }
     free(data);
 }
@@ -208,7 +208,7 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
 
         // Make sure we're receiving PING messages still
         if ((now - last_received_ping_time) >= TIMEOUT) {
-            printf("DEV_HANDLER timed out!\n");
+            printf("lowcar_protocol: DEV_HANDLER timed out!\n");
             exit(1);
         }
         // Check if we should send another PING

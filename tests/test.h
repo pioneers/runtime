@@ -1,7 +1,7 @@
 /**
  * Functions to start, stop, and conduct tests.
  * Includes (but not limited to) string output matching, device parameter
- * checks, gamepad checks, and what devices are connected and aren't connected.
+ * checks, user input checks, and what devices are connected and aren't connected.
  *
  * All tests must begin with start_test() and finish with end_test()
  * The other functions defined in this header file can be used to verify the
@@ -70,17 +70,18 @@ void add_ordered_string_output(char* output);
  */
 void add_unordered_string_output(char* output);
 
-// ************************* GAMEPAD CHECK FUNCTIONS ************************ //
+// ************************* USER INPUT CHECK FUNCTIONS ************************ //
 
 /**
- * Verifies that the the state of the gamepad is as expected in shared memory.
+ * Verifies that the the state of the inputs is as expected in shared memory.
  * Arguments:
  *    expected_buttons: the expected bitmap of pressed buttons
  *    expected_joysticks: the expected joystick values
  *                        (Use gp_joystick_t enum in runtime util for indexing)
- * No return value. (Will exit with status code 1 if incorrect gamepad state)
+ *    source: which input source to check against, either GAMEPAD or KEYBOARD
+ * No return value. (Will exit with status code 1 if incorrect input state)
  */
-void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]);
+void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
 
 // ***************************** RUN MODE CHECK ***************************** //
 
@@ -91,6 +92,30 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]);
  * No return value. (Will exit with status code 1 if incorrect run mode)
  */
 void check_run_mode(robot_desc_val_t expected_run_mode);
+
+// ***************************** START POS CHECK ***************************** //
+
+/**
+ * Verifies that the current robot start position is as expected in shared memory.
+ * Arguments:
+ *    expected_start_pos: the expected start position.
+ * No return value. (Will exit with status code 1 if incorrect start pos)
+ */
+void check_start_pos(robot_desc_val_t expected_start_pos);
+
+// *************************** SUBSCRIPTION CHECK **************************** //
+
+/**
+ * Verifies that the current subscriptions are as expected in shared memory.
+ * Arguments:
+ *    dev_uid: the device uid to check subscriptions on
+ *    expected_sub_map: the expected bitmap of parameter subscriptions
+ *    process: the process that is expected to have made the aforementioned subscriptions
+ *             Choose from: NET_HANDLER, EXECUTOR, or TEST
+ *             Set as TEST if it doesn't matter who made the subscription.
+ * No return value. (Will exit with status code 1 if incorrect subscriptions)
+ */
+void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t process);
 
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
@@ -149,4 +174,12 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
  */
 void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high);
 
+/**
+* Checks the latency between an action and the TIMESTAMP parameter on a TimeTestDevice
+ * Arguments:
+ *    uid: unique identifier of TimeTestDevice
+ *    upper_bound_latency: The expected upperbound latency
+ *    start_time: The start of a timer provided by the test case(in ms), usually a call to the millis() function
+*/
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_time);
 #endif

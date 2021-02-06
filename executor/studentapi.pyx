@@ -71,11 +71,11 @@ cdef class Gamepad:
     Attributes:
         mode: The execution state of the robot.
     """
-    cdef bint available
+    cdef bint available  # Treat as Python bool
 
     def __cinit__(self):
         """Initializes the mode of the robot. """
-        self.available = robot_desc_read(RUN_MODE) == TELEOP
+        self.available = (robot_desc_read(RUN_MODE) == TELEOP)
 
 
     cpdef get_value(self, str param_name):
@@ -89,11 +89,11 @@ cdef class Gamepad:
             raise NotImplementedError(f'Can only use Gamepad during teleop mode')
         # Convert Python string to C string
         cdef bytes param = param_name.encode('utf-8')
-        cdef uint32_t buttons
+        cdef uint64_t buttons
         cdef float joysticks[4]
-        cdef int err = gamepad_read(&buttons, joysticks)
+        cdef int err = input_read(&buttons, joysticks, GAMEPAD)
         if err == -1:
-            raise DeviceError(f"Gamepad isn't connected to Dawn or the robot")
+            raise DeviceError(f"Gamepad isn't connected to Dawn")
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
@@ -105,6 +105,39 @@ cdef class Gamepad:
             if param == joystick_names[i]:
                 return joysticks[i]
         raise KeyError(f"Invalid gamepad parameter {param_name}")
+
+
+cdef class Keyboard:
+    """
+    The API for accessing the keyboard.
+    """
+    cdef bint available  # Treat as Python bool
+
+    def __cinit__(self):
+        """Initializes the mode of the robot. """
+        self.available = (robot_desc_read(RUN_MODE) == TELEOP)
+
+    cpdef get_value(self, str param_name):
+        """
+        Get a keyboard parameter if the robot is in teleop.
+
+        Args:
+            param: the name of the parameter to read. TODO: Add link to possible params
+        """
+        if not self.available:
+            raise NotImplementedError(f'Can only use Keyboard during teleop mode')
+        # Convert Python string to C string
+        cdef bytes param = param_name.encode('utf-8')
+        cdef uint64_t buttons
+        cdef float joysticks[4]
+        cdef int err = input_read(&buttons, joysticks, KEYBOARD)
+        if err == -1:
+            raise DeviceError(f"Keyboard isn't connected to Dawn")
+        cdef char** key_names = get_key_names()
+        for i in range(NUM_KEYBOARD_BUTTONS):
+            if param == key_names[i]:
+                return bool(buttons & (1 << i))
+        raise KeyError(f"Invalid keyboard parameter {param_name}")
 
 
 class ThreadWrapper(threading.Thread):
@@ -193,6 +226,8 @@ cdef class Robot:
             value: value of the parameter. Must be an int, float, or bool.
         
         """
+        if len(key) >= LOG_KEY_LENGTH:
+            raise ValueError(f"Cannot log parameter {key} since it is more than {LOG_KEY_LENGTH} characters long")
         cdef param_val_t param
         cdef param_type_t param_type
         cdef bytes key_bytes = key.encode('utf-8')
@@ -211,6 +246,8 @@ cdef class Robot:
         cdef int err = log_data_write(key_bytes, param_type, param)
         if err == -1:
             raise IndexError(f"Maximum number of 255 log data keys reached. can't add key {key}")
+        elif err == -2:
+            raise RuntimeError(f"Robot's Runtime code has a bug in log_data_write")
         
 
 
@@ -219,7 +256,7 @@ cdef class Robot:
         Get a device value. 
         
         Args:
-            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
+            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and device_uid is 64-bit UID assigned by LowCar.
             param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
         """
         # Convert Python string to C string
@@ -270,7 +307,7 @@ cdef class Robot:
         Set a device parameter.
         
         Args:
-            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and      device_uid is 64-bit UID assigned by LowCar.
+            device_id: string of the format '{device_type}_{device_uid}' where device_type is LowCar device ID and device_uid is 64-bit UID assigned by LowCar.
             param_name: Name of param to get. List of possible values are at https://pioneers.berkeley.edu/software/robot_api.html
             value: Value to set for the param. The type of the value can be seen at https://pioneers.berkeley.edu/software/robot_api.html
         """
@@ -345,46 +382,56 @@ cpdef void make_device_subs(str code_file) except *:
             log_printf(WARN, f"Code parser: device with type {type} and uid {uid} is not connected to the robot".encode('utf-8'))
 
 
-def get_all_params(code_file) -> Dict[str, List[str]]:
+def get_all_params(_code_file) -> Dict[str, List[str]]:
     """
     Reads the given code file and returns dict of any usage of device parameters.
 
     Args:
-        code_file: name of student code file, without the .py
+        _code_file: name of student code file, without the .py
 
     Returns:
         Dict mapping device id (type_uid) to list of all param names used in the code
 
     """
-    code = importlib.import_module(code_file)
+    # NOTE: Variable names shared in this function and _code_file can cause undefined behavior
+    # Thus, we prefix our variable names with an underscore which makes them unlikely to be used by students
+
+    _code = importlib.import_module(_code_file)
     # Finds all global variables in student code
-    var = [n for n in dir(code) if not n.startswith("_")]
-    mod = sys.modules[__name__]
+    _var = [n for n in dir(_code) if not n.startswith("_")]
+    _mod = sys.modules[__name__]
     # Sets them in current global namespace
-    for v in var:
-        setattr(mod, v, getattr(code, v))
-    param_dict = defaultdict(set)
+    for v in _var:
+        setattr(_mod, v, getattr(_code, v))
+    _param_dict = defaultdict(set)
 
     # Open the code file into f (try the executor directory and the test student code directory)
     try:
-        f = open(f"{code_file}.py", "r")
+        _f = open(f"{_code_file}.py", "r")
     except FileNotFoundError as e:
-        f = open(f"../tests/student_code/{code_file}.py", "r")	
+        _f = open(f"../tests/student_code/{_code_file}.py", "r")	
 	
-    for i, line in enumerate(f):
-        line = line.lstrip() # Remove whitespace
-        comment = line.find("#")
-        if comment != -1:
-            line = line[:comment] # Remove commented lines
+    # Iterate through each line; Note that the line number in a text editor is (i + 1) for iteration i
+    for _i, _line in enumerate(_f.readlines()):
+        # Remove whitespace
+        _line = _line.strip()
+        # Remove commented out text in the line (entire line may be a commentas well)
+        _comment = _line.find("#")
+        if _comment != -1:
+            _line = _line[:_comment] 
         # Find regex of exact functions and get their arguments
-        matches = [re.search(r"Robot.set_value\((.*)\)", line), re.search(r"Robot.get_value\((.*)\)", line)]
-        for res in matches:
-            if res:
+        # Regex will match 'Robot.get_value(<device>, <param>)' in every line
+        # Note: There may be multiple matches per line
+        # Each function call match will group the first and second argument
+        # Ex: matches = [('MOTOR', "'velocity'"), ('2_1234', "'left'"), ('MTR_A', 'param_name')]
+        _matches = re.findall(r"Robot\.get_value\(\s*(.+?)\s*,\s*(.+?)\s*\)", _line)
+        for _args in _matches: # args is a tuple containing first and second arguments
+            if _args:
                 try:
-                    # Find parameters by splitting by optional space and comma or parenthesis
-                    params = re.split(r"\s?[,\(\)]\s?", res[1])
-                    param_dict[eval(params[0])].add(eval(params[1]))
+                    # We need to eval() because arguments may be variables
+                    # Note that variables must be globally (not locally) defined
+                    _param_dict[eval(_args[0])].add(eval(_args[1]))
                 except Exception as e:
-                    log_printf(DEBUG, f"Error parsing student code on line {i}: {str(e)}".encode())
-    return param_dict
+                    log_printf(WARN, f"Error parsing student code on line {_i + 1}: {str(e)}".encode())
+    return _param_dict
 

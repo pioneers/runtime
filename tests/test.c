@@ -429,9 +429,9 @@ void add_unordered_string_output(char* output) {
 // ************************* GAMEPAD CHECK FUNCTIONS ************************ //
 
 // Helper function to print a 32-bitmap to stderr on a new line
-static void print_bitmap(uint32_t bitmap) {
+static void print_bitmap(uint64_t bitmap) {
     uint8_t bit;
-    for (int i = 0; i < 32; i++) {
+    for (int i = 0; i < 64; i++) {
         bit = ((bitmap & (1 << i)) == 0) ? 0 : 1;
         fprintf(stderr, "%d", bit);
     }
@@ -446,14 +446,14 @@ static void print_joysticks(float joystick_vals[4]) {
     fprintf(stderr, "JOYSTICK_RIGHT_Y: %f\n", joystick_vals[JOYSTICK_RIGHT_Y]);
 }
 
-void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
-    uint32_t pressed_buttons;
+void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source) {
+    uint64_t pressed_buttons;
     float joystick_vals[4];
     // Read in the current gamepad state
-    if (gamepad_read(&pressed_buttons, joystick_vals) != 0) {
+    if (input_read(&pressed_buttons, joystick_vals, source) != 0) {
         print_fail();
         fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "%s\n", "Gamepad is not connected");
+        fprintf(stderr, "%s is not connected\n", field_to_string(source));
         end_test();
         exit(1);
     }
@@ -470,18 +470,20 @@ void check_gamepad(uint32_t expected_buttons, float expected_joysticks[4]) {
         exit(1);
     }
     // Verify that the joysticks are correct
-    for (int i = 0; i < 4; i++) {
-        // Fail on the first incorrect joystick value encountered
-        if (joystick_vals[i] != expected_joysticks[i]) {
-            print_fail();
-            // Print all expected joysticks to stderr
-            fprintf_delimiter(stderr, "Expected Joysticks:");
-            print_joysticks(joystick_vals);
-            // Print all current joysticks to stderr
-            fprintf_delimiter(stderr, "Got:");
-            print_joysticks(joystick_vals);
-            end_test();
-            exit(1);
+    if (source == GAMEPAD) {
+        for (int i = 0; i < 4; i++) {
+            // Fail on the first incorrect joystick value encountered
+            if (joystick_vals[i] != expected_joysticks[i]) {
+                print_fail();
+                // Print all expected joysticks to stderr
+                fprintf_delimiter(stderr, "Expected Joysticks:");
+                print_joysticks(joystick_vals);
+                // Print all current joysticks to stderr
+                fprintf_delimiter(stderr, "Got:");
+                print_joysticks(joystick_vals);
+                end_test();
+                exit(1);
+            }
         }
     }
     print_pass();
@@ -519,6 +521,53 @@ void check_run_mode(robot_desc_val_t expected_run_mode) {
         print_run_mode(expected_run_mode);
         fprintf_delimiter(stderr, "Got:");
         print_run_mode(curr_run_mode);
+        end_test();
+        exit(1);
+    }
+    print_pass();
+}
+
+// ***************************** START POS CHECK ***************************** //
+
+void check_start_pos(robot_desc_val_t expected_start_pos) {
+    // Read current start pos
+    robot_desc_val_t curr_start_pos = robot_desc_read(START_POS);
+    if (curr_start_pos != expected_start_pos) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected Start Pos:");
+        fprintf(stderr, "%s\n", (expected_start_pos == LEFT) ? "LEFT" : "RIGHT");
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", (curr_start_pos == LEFT) ? "LEFT" : "RIGHT");
+        end_test();
+        exit(1);
+    }
+    print_pass();
+}
+
+// *************************** SUBSCRIPTION CHECK **************************** //
+
+void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t process) {
+    // Read current subscriptions by the specified process
+    uint32_t curr_sub_map[MAX_DEVICES + 1];
+    get_sub_requests(curr_sub_map, process);
+
+    // Get the shm idx of the specified device
+    int shm_idx = get_dev_ix_from_uid(dev_uid);
+    if (shm_idx == -1) {  // Specified device is not connected
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "Device (0x%016llX) is not connected!\n", dev_uid);
+        end_test();
+        exit(1);
+    }
+    if (curr_sub_map[shm_idx + 1] != expected_sub_map) {  // Sub map is not as expected
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, curr_sub_map[shm_idx + 1]);
         end_test();
         exit(1);
     }
@@ -601,11 +650,20 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
 // Returns if value is between the expected high and expected low
 void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high) {
     uint8_t dev_type = device_name_to_type(dev_name);
+    if (dev_type == -1) {
+        print_fail();
+        fprintf(stderr, "%s type not found\n", dev_name);
+        end_test();
+        exit(1);
+    }
     device_t* dev = get_device(dev_type);
 
     param_val_t vals_after[dev->num_params];
     uint32_t param_idx = (uint32_t) get_param_idx(dev_type, param_name);
-    device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    int success = device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    if (success < 0) {
+        fprintf(stderr, "Error reading device with UID: %llu", uid);
+    }
     param_val_t received = vals_after[param_idx];
 
     switch (param_type) {
@@ -644,6 +702,57 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
                 end_test();
                 exit(1);
             }
+    }
+    print_pass();
+}
+
+// Returns if the latency is neither too high nor negative
+void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_time) {
+    char* param_name = "TIMESTAMP";
+    uint8_t dev_type = device_name_to_type("TimeTestDevice");
+    if (dev_type == -1) {
+        print_fail();
+        fprintf(stderr, "TimeTestDevice type not found\n");
+        end_test();
+        exit(1);
+    }
+    device_t* dev = get_device(dev_type);
+    param_val_t vals_after[dev->num_params];
+    int8_t param_idx = get_param_idx(dev_type, param_name);
+    if (param_idx < 0) {
+        print_fail();
+        fprintf(stderr, "Could not find param_idx\n");
+        end_test();
+        exit(1);
+    }
+    int success = device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
+    if (success < 0) {
+        fprintf(stderr, "Error reading device with UID: %llu", uid);
+    }
+
+    // shorten to last 9 digits, like the TimeTestDevice's TIMESTAMP
+    uint32_t start_time_shortened = start_time % 1000000000;
+    param_val_t end_time = vals_after[param_idx];
+
+    int32_t elapsed_time = end_time.p_i - start_time_shortened;
+
+    if (elapsed_time >= upper_bound_latency) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected:");
+        fprintf(stderr, "0 <= %s < %d\n", param_name, upper_bound_latency);
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s == %d\n", param_name, elapsed_time);
+        end_test();
+        exit(1);
+    } else if (elapsed_time < 0) {
+        print_fail();
+        fprintf_delimiter(stderr, "Elapsed time is negative!");
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "Elapsed time == %d\n", param_name, elapsed_time);
+        fprintf(stderr, "Start time(shortened) == %d\n", param_name, start_time_shortened);
+        fprintf(stderr, "End time == %d\n", param_name, end_time.p_i);
+        end_test();
+        exit(1);
     }
     print_pass();
 }

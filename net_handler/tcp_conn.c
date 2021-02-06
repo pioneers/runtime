@@ -69,15 +69,22 @@ static void send_log_msg(int conn_fd, FILE* log_file) {
             strcpy(log_msg.payload[log_msg.n_payload], nextline);
             log_msg.n_payload++;
         } else if (feof(log_file) != 0) {  // All write ends of FIFO are closed, don't send any more logs
+            // It's expected that all write ends are closed only when processes with logger_init() are killed
             if (log_msg.n_payload != 0) {  //if a few last logs to send, break to send those logs
                 break;
-            } else {  //otherwise, return immediately
+            } else {  // log_msg.n_payload == 0;  (payload is empty) Return immediately
+                free(log_msg.payload);
                 return;
             }
         } else if (errno == EAGAIN || errno == EWOULDBLOCK) {  // No more to read on pipe (would block in a blocking read)
             break;
         } else {  // Error occurred
             log_printf(ERROR, "send_log_msg: Error reading from log fifo: %s", strerror(errno));
+            // Free loaded payload contents and the payload itself
+            for (int i = 0; i < log_msg.n_payload; i++) {
+                free(log_msg.payload[i]);
+            }
+            free(log_msg.payload);
             return;
         }
     }
@@ -296,7 +303,7 @@ static void* tcp_process(void* tcp_args) {
         //deny all cancellation requests until the next loop
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-        //send a new log message if one is available and we want to send logs
+        // If client wants logs, logs are availble to send, and FIFO doesn't have an EOF, send logs
         if (args->send_logs && FD_ISSET(log_fd, &read_set)) {
             send_log_msg(args->conn_fd, args->log_file);
         }
@@ -342,7 +349,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
     //initialize argument to new connection thread
     tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
     if (args == NULL) {
-        log_printf(FATAL, "start_tcp_conn: Failed to malloc");
+        log_printf(FATAL, "start_tcp_conn: Failed to malloc args");
         exit(1);
     }
     args->client = client;

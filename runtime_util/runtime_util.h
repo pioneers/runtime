@@ -24,9 +24,14 @@
 
 #define DEVICES_LENGTH 64  // The largest device type number + 1.
 
-#define NUM_DESC_FIELDS 5  // Number of fields in the robot description
+#define NUM_DESC_FIELDS 6  // Number of fields in the robot description
 
-#define NUM_GAMEPAD_BUTTONS 17  // Number of gamepad buttons
+#define LOG_KEY_LENGTH 64  // Max length of a key for custom Robot.log data
+
+#define NUM_GAMEPAD_BUTTONS 17
+#define NUM_KEYBOARD_BUTTONS 47
+
+#define NUM_GAMEPAD_JOYSTICKS 4
 
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 
@@ -45,27 +50,6 @@ typedef enum process {
     TEST
 } process_t;
 
-// enumerated names for the buttons on the gamepad
-typedef enum gp_buttons {
-    BUTTON_A,
-    BUTTON_B,
-    BUTTON_X,
-    BUTTON_Y,
-    L_BUMPER,
-    R_BUMPER,
-    L_TRIGGER,
-    R_TRIGGER,
-    BUTTON_BACK,
-    BUTTON_START,
-    L_STICK,
-    R_STICK,
-    DPAD_UP,
-    DPAD_DOWN,
-    DPAD_LEFT,
-    DPAD_RIGHT,
-    BUTTON_XBOX
-} gp_button_t;
-
 // enumerated names for the joystick params of the gamepad
 typedef enum gp_joysticks {
     JOYSTICK_LEFT_X,
@@ -73,6 +57,16 @@ typedef enum gp_joysticks {
     JOYSTICK_RIGHT_X,
     JOYSTICK_RIGHT_Y
 } gp_joystick_t;
+
+// enumerated names for the fields in the robot description
+typedef enum robot_descs {
+    RUN_MODE,
+    DAWN,
+    SHEPHERD,
+    GAMEPAD,
+    KEYBOARD,
+    START_POS
+} robot_desc_field_t;
 
 // enumerated names for the different values the robot description fields can take on
 typedef enum robot_desc_vals {
@@ -88,15 +82,6 @@ typedef enum robot_desc_vals {
     LEFT,
     RIGHT
 } robot_desc_val_t;
-
-// enumerated names for the fields in the robot description
-typedef enum robot_descs {
-    RUN_MODE,
-    DAWN,
-    SHEPHERD,
-    GAMEPAD,
-    START_POS
-} robot_desc_field_t;
 
 // enumerated names for the data types device parameters can be
 typedef enum param_type {
@@ -200,6 +185,46 @@ char** get_button_names();
  * Returns an array of joystick names.
  */
 char** get_joystick_names();
+
+/**
+ * Get the list of key names corresponding to the keyboard button bitmap.
+ */
+char** get_key_names();
+
+/**
+ * Get the bit corresponding to a gamepad button name.
+ * 
+ * Args:
+ *     button_name: string representation of a button, matching the name in BUTTON_NAMES
+ * Returns:
+ *     the bit shifted to the index corresponding to the button
+ *     -1 on error if given button_name doesn't exist
+ */
+uint64_t get_button_bit(char* button_name);
+
+/**
+ * Get the bit corresponding to a keyboard key name.
+ * 
+ * Args:
+ *     key_name: string representation of a key, matching the name in KEY_NAMES
+ * Returns:
+ *     the bit shifted to the index corresponding to the key 
+ *     -1 on error if given key_name doesn't exist
+ */
+uint64_t get_key_bit(char* key_name);
+
+
+/**
+ * Convert the robot_desc_field_t to its string representation.
+ * 
+ * Args:
+ *      field: the robot description field to convert
+ * Returns:
+ *      string corresponding to the enum or NULL if string representation doesn't exist yet
+ * 
+ */
+char* field_to_string(robot_desc_field_t field);
+
 
 // ********************************** TIME ********************************** //
 

@@ -8,24 +8,42 @@
 #     runtime run                        (to run run.sh)
 #     runtime test integration/tc_68_2   (to run the automated test tc_68_2)
 
-set -e  # Makes any errors exit the script
-
 RUNTIME_DIR=$(dirname "${BASH_SOURCE[0]}")
 
 cd $RUNTIME_DIR
 
 case $1 in
     build)
-        pushd shm_wrapper && make && popd
-        pushd net_handler && make && popd
-        pushd executor && make && popd
-        pushd dev_handler && make && popd
+        shift 1
+        pushd shm_wrapper && make $@
+        popd
+        pushd net_handler && make $@
+        popd
+        pushd executor    && make $@
+        popd
+        pushd dev_handler && make $@
+        popd
         ;;
 
+    clean)
+        pushd shm_wrapper && make clean && popd
+        pushd net_handler && make clean && popd
+        pushd executor    && make clean && popd
+        pushd dev_handler && make clean && popd
+        pushd tests       && make clean && popd
+        rm -f /tmp/log-fifo
+        rm -f /tmp/challenge.sock
+        rm -f /tmp/ttyACM*
+        ;;
+    
     run)
         scripts/run.sh
         ;;
 
+    stop)
+        scripts/stop.sh
+        ;;
+    
     test)
         shift 1
         scripts/test.sh $@
@@ -34,17 +52,6 @@ case $1 in
     format)
         shift 1
         scripts/run_clang_format.py $@
-        ;;
-
-    clean)
-        pushd shm_wrapper && make clean && popd
-        pushd net_handler && make clean && popd
-        pushd executor && make clean && popd
-        pushd dev_handler && make clean && popd
-        pushd tests && make clean && popd
-        rm -f /tmp/log-fifo
-        rm -f /tmp/challenge.sock
-        rm -f /tmp/ttyACM*
         ;;
 
     flash)
@@ -57,8 +64,31 @@ case $1 in
         ;;
 
     *)
-        commands="build run test format clean flash update"
-        printf "Runtime script needs another argument from:\n\n$commands\n\n"
+        printf "usage: runtime command [args]\n\n"
+        printf "commands:\n"
+
+        printf "\tbuild\t\tRuns 'make' on files needed to run Runtime.\n"
+        printf "\t\t\tOptional: pass in 'make' arguments. (Ex: runtime make shm_wrapper)\n"
+
+        printf "\tclean\t\tRuns 'make clean' for Runtime and removes Runtime files in '/tmp/'\n"
+
+        printf "\trun\t\tRuns Runtime in this terminal.\n"
+
+        printf "\tstop\t\tStops Runtime.\n"
+
+        printf "\ttest\t\tRuns all Runtime tests.\n"
+        printf "\t\t\tOptional: Pass in a specific test case. (Ex: runtime test integration/tc_71_14)\n"
+
+        printf "\tformat\t\tUses Clang to format the repo.\n"
+        printf "\t\t\tUse 'runtime format -ir .' to format the repo and save the changes.\n"
+        printf "\t\t\tRun without args to see full list of options.\n"
+
+        printf "\tflash\t\tFlashes a plugged in Arduino with Lowcar code.\n"
+        printf "\t\t\tEx: 'runtime flash DummyDevice'\n"
+        printf "\t\t\tRun without args to see full list of options.\n"
+
+        printf "\tupdate\t\tUnzips a copy of a Runtime repo at '/tmp/runtime.zip' and replaces the current one.\n"
+        printf "\t\t\tAlso reboots Runtime.\n"
         ;;
 esac
 
