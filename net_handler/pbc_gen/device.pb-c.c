@@ -106,7 +106,7 @@ void dev_data__free_unpacked(DevData* message,
     assert(message->base.descriptor == &dev_data__descriptor);
     protobuf_c_message_free_unpacked((ProtobufCMessage*) message, allocator);
 }
-static const ProtobufCFieldDescriptor param__field_descriptors[4] =
+static const ProtobufCFieldDescriptor param__field_descriptors[5] =
     {
         {
             "name",
@@ -156,17 +156,30 @@ static const ProtobufCFieldDescriptor param__field_descriptors[4] =
             0 | PROTOBUF_C_FIELD_FLAG_ONEOF, /* flags */
             0, NULL, NULL                    /* reserved1,reserved2, etc */
         },
+        {
+            "readonly",
+            5,
+            PROTOBUF_C_LABEL_NONE,
+            PROTOBUF_C_TYPE_BOOL,
+            0, /* quantifier_offset */
+            offsetof(Param, readonly),
+            NULL,
+            NULL,
+            0,            /* flags */
+            0, NULL, NULL /* reserved1,reserved2, etc */
+        },
 };
 static const unsigned param__field_indices_by_name[] = {
     3, /* field[3] = bval */
     1, /* field[1] = fval */
     2, /* field[2] = ival */
     0, /* field[0] = name */
+    4, /* field[4] = readonly */
 };
 static const ProtobufCIntRange param__number_ranges[1 + 1] =
     {
         {1, 0},
-        {0, 4}};
+        {0, 5}};
 const ProtobufCMessageDescriptor param__descriptor =
     {
         PROTOBUF_C__MESSAGE_DESCRIPTOR_MAGIC,
@@ -175,7 +188,7 @@ const ProtobufCMessageDescriptor param__descriptor =
         "Param",
         "",
         sizeof(Param),
-        4,
+        5,
         param__field_descriptors,
         param__field_indices_by_name,
         1, param__number_ranges,

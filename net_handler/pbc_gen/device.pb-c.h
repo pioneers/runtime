@@ -38,6 +38,7 @@ typedef enum {
 struct _Param {
     ProtobufCMessage base;
     char* name;
+    protobuf_c_boolean readonly;
     Param__ValCase val_case;
     union {
         float fval;
@@ -45,10 +46,10 @@ struct _Param {
         protobuf_c_boolean bval;
     };
 };
-#define PARAM__INIT                                                   \
-    {                                                                 \
-        PROTOBUF_C_MESSAGE_INIT(&param__descriptor)                   \
-        , (char*) protobuf_c_empty_string, PARAM__VAL__NOT_SET, { 0 } \
+#define PARAM__INIT                                                      \
+    {                                                                    \
+        PROTOBUF_C_MESSAGE_INIT(&param__descriptor)                      \
+        , (char*) protobuf_c_empty_string, 0, PARAM__VAL__NOT_SET, { 0 } \
     }
 
 
