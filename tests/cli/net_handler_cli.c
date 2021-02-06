@@ -59,6 +59,32 @@ void prompt_run_mode() {
     send_run_mode(client, mode);
 }
 
+void prompt_game_state() {
+    robot_desc_field_t state;
+    char nextcmd[MAX_CMD_LEN];
+    //get state to send
+    while (1) {
+        printf("Send state POISON_IVY, DEHYDRATION, HYPOTHERMIA: ");
+        fgets(nextcmd, MAX_CMD_LEN, stdin);
+        if (strcmp(nextcmd, "poison_ivy\n") == 0) {
+            state = POISON_IVY;
+            break;
+        } else if (strcmp(nextcmd, "dehydration\n") == 0) {
+            state = DEHYDRATION;
+            break;
+        } else if (strcmp(nextcmd, "hypothermia\n") == 0) {
+            state = HYPOTHERMIA;
+            break;
+        } else if (strcmp(nextcmd, "abort\n") == 0) {
+            return;
+        } else {
+            printf("Invalid response to prompt: %s", nextcmd);
+        }
+    }
+    printf("Sending Game State message!\n");
+    send_game_state(state);
+}
+
 void prompt_start_pos() {
     robot_desc_field_t client = SHEPHERD;
     robot_desc_val_t pos = LEFT;
@@ -295,6 +321,7 @@ void display_help() {
     printf("At any point while following the instructions, type \"abort\" to go back to this main menu.\n");
     printf("All commands should be typed in all lower case (including when being prompted to send messages)\n");
     printf("\trun mode           send a Run Mode message\n");
+    printf("\tgame state         send a Game State message\n");
     printf("\tstart pos          send a Start Pos message\n");
     printf("\tchallenge data     send a Challenge Data message\n");
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
@@ -349,6 +376,8 @@ int main() {
             prompt_run_mode();
         } else if (strcmp(nextcmd, "start pos\n") == 0) {
             prompt_start_pos();
+        } else if (strcmp(nextcmd, "game state\n") == 0) {
+            prompt_game_state();
         } else if (strcmp(nextcmd, "challenge data\n") == 0) {
             prompt_challenge_data();
         } else if (strcmp(nextcmd, "device data\n") == 0) {

@@ -62,7 +62,6 @@ typedef struct {
     input_t inputs[2];  // Index 0 is for GAMEPAD, index 1 is for KEYBOARD, like in the enum. can be modified in the future
 } input_shm_t;
 
-
 // shared memory for robot description
 typedef struct {
     uint8_t fields[NUM_DESC_FIELDS];  // array to hold the robot state (each is a enum stored as a uint8_t)

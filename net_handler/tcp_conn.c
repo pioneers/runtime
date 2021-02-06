@@ -250,6 +250,32 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
             }
         }
         dev_data__free_unpacked(dev_data_msg, NULL);
+    } else if (msg_type == GAME_STATE_MSG){
+        GameState* game_state_msg = game_state__unpack(NULL, len_pb, buf);
+        if (game_state_msg == NULL) {
+            log_printf(ERROR, "recv_new_msg: Cannot unpack game_state msg");
+            return -2;
+        } 
+        switch (game_state_msg->state) {
+            case (STATE__POISON_IVY):
+                log_printf(DEBUG, "entering POISON_IVY state");
+                robot_desc_write(POISON_IVY, ACTIVE);
+                break;
+            case (STATE__DEHYDRATION):
+                log_printf(DEBUG, "entering DEHYDRATION state");
+                robot_desc_write(DEHYDRATION, ACTIVE);
+                break;
+            case (STATE__HYPOTHERMIA_START):
+                log_printf(DEBUG, "entering HYPOTHERMIA state");
+                robot_desc_write(HYPOTHERMIA, ACTIVE);
+                break;
+            case (STATE__HYPOTHERMIA_END):
+                log_printf(DEBUG, "exiting HYPOTHERMIA state");
+                robot_desc_write(HYPOTHERMIA, INACTIVE);
+                break;
+            default:
+                log_printf(ERROR, "requested gamestate to enter invalid state %s", game_state_msg->state);
+        }
     } else {
         log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
         return -2;

@@ -22,6 +22,7 @@
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
+#include "pbc_gen/gamestate.pb-c.h"
 
 #define RASPI_ADDR "127.0.0.1"  // The IP address of Runtime (Raspberry Pi) that clients can request a connection to
 #define RASPI_TCP_PORT 8101     // Port for Runtime as a TCP socket server
@@ -40,7 +41,8 @@ typedef enum net_msg {
     START_POS_MSG,
     CHALLENGE_DATA_MSG,
     LOG_MSG,
-    DEVICE_DATA_MSG
+    DEVICE_DATA_MSG,
+    GAME_STATE_MSG
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //

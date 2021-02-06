@@ -36,12 +36,20 @@ void close_output();
 void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode);
 
 /**
+* Sends a Game State message from Shepherd with the specified state
+* Arguments:
+*   - state: one of POISON_IVY, DEHYDRATION, or HYPOTHERMIA 
+*/
+void send_game_state(robot_desc_field_t state);
+
+/**
  * Sends a Start Pos message from the specified client with the specified position
  * Arguments:
  *    - client: one of SHEPHERD or DAWN
  *    - pos: one of LEFT or RIGHT
  * No return value.
  */
+
 void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
 
 /**
