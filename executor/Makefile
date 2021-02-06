@@ -10,7 +10,7 @@ LIBS=-pthread -lrt -export-dynamic -fPIC -lprotobuf-c
 
 all: executor studentapi.c
 
-executor: executor.c filter.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/net_util.c ../net_handler/pbc_gen/text.pb-c.c
+executor: executor.c gamestate_filter.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/net_util.c ../net_handler/pbc_gen/text.pb-c.c
 	gcc $(CFLAGS) $^ -o $@ $(LIBS) $(PY_LIB)
 
 studentapi.c: studentapi.pyx runtime.pxd
