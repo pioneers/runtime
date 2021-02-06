@@ -1,0 +1,5 @@
+authtoken: ##Enter authtoken here
+tunnels:
+  ssh:
+    proto: tcp
+    addr: 8101
