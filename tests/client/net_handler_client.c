@@ -6,6 +6,7 @@ struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
 pthread_t dump_tid;                     // holds the thread id of the output dumper threads
 pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
 int print_next_udp;                     // 0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
+int hypothermia_enabled = 0;             // 0 if hypothermia enabled, 1 if disabled
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
@@ -375,6 +376,39 @@ void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode) {
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
+void send_game_state(robot_desc_field_t state) {
+    GameState game_state = GAME_STATE__INIT;
+    uint8_t* send_buf;
+    uint16_t len;
+
+    switch(state) {
+        case (POISON_IVY):
+            game_state.state = STATE__POISON_IVY;
+            break;
+        case (DEHYDRATION):
+            game_state.state = STATE__DEHYDRATION;
+            break;
+        case (HYPOTHERMIA):
+            if(hypothermia_enabled){
+                game_state.state = STATE__HYPOTHERMIA_END;
+                hypothermia_enabled = 0;
+                break;
+            } else {
+                game_state.state = STATE__HYPOTHERMIA_START;
+                hypothermia_enabled = 1;
+                break;
+            }
+    }
+    len = game_state__get_packed_size(&game_state);
+    send_buf = make_buf(GAME_STATE_MSG, len);
+    game_state__pack(&game_state, send_buf + BUFFER_OFFSET);
+    
+    // send the message
+    writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
+    free(send_buf);
+    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
+}
+
 void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
     StartPos start_pos = START_POS__INIT;
     uint8_t* send_buf;
@@ -543,6 +577,7 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     free(dev_data.devices);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
+
 
 void print_next_dev_data() {
     pthread_mutex_lock(&print_udp_mutex);

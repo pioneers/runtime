@@ -50,7 +50,7 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 // Some windows' dimensions are defined in terms of others so that their borders align
 
 // Enough to fit each value
-#define ROBOT_DESC_HEIGHT 8
+#define ROBOT_DESC_HEIGHT 11
 // ROBOT_DESC_WIDTH is enough to fit GAMEPAD_WIDTH (which needs to be wider than ROBOT_DESC)
 #define ROBOT_DESC_WIDTH 40
 #define ROBOT_DESC_START_Y 3
@@ -206,6 +206,9 @@ void display_robot_desc() {
     robot_desc_val_t shepherd_connection = robot_desc_read(SHEPHERD);
     robot_desc_val_t gamepad_connection = robot_desc_read(GAMEPAD);
     robot_desc_val_t start_pos = robot_desc_read(START_POS);
+    robot_desc_val_t poison_ivy = robot_desc_read(POISON_IVY);
+    robot_desc_val_t dehydration = robot_desc_read(DEHYDRATION);
+    robot_desc_val_t hypothermia = robot_desc_read(HYPOTHERMIA);
 
     // Print each field (clear previous value before printing current value)
     int line = 2;
@@ -220,7 +223,13 @@ void display_robot_desc() {
     mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "GAMEPAD\t= %s", (gamepad_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
     wclrtoeol(ROBOT_DESC_WIN);
     mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "START_POS\t= %s", (start_pos == LEFT) ? "LEFT" : "RIGHT");
-
+    wclrtoeol(ROBOT_DESC_WIN);
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "POISON_IVY\t= %s", (poison_ivy == ACTIVE) ? "ACTIVE" : "INACTIVE");
+    wclrtoeol(ROBOT_DESC_WIN);
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "DEHYDRATION\t= %s", (dehydration == ACTIVE) ? "ACTIVE" : "INACTIVE");
+    wclrtoeol(ROBOT_DESC_WIN);
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "HYPOTHERMIA\t= %s", (hypothermia == ACTIVE) ? "ACTIVE" : "INACTIVE");
+    wclrtoeol(ROBOT_DESC_WIN);
     // Box and refresh
     box(ROBOT_DESC_WIN, 0, 0);
     wrefresh(ROBOT_DESC_WIN);
