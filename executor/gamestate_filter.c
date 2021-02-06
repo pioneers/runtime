@@ -1,4 +1,4 @@
-#include "filter.h"
+#include "gamestate_filter.h"
 
 /* Gamestates:
  *   poison ivy: Motor velocities reversed for 10 seconds
