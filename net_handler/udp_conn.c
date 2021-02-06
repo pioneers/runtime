@@ -89,6 +89,7 @@ static void* send_device_data(void* args) {
                     }
                     param__init(param);
                     param->name = device_info->params[j].name;
+                    param->readonly = device_info->params[j].write == 0;
                     switch (device_info->params[j].type) {
                         case INT:
                             param->val_case = PARAM__VAL_IVAL;
