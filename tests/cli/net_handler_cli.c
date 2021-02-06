@@ -66,7 +66,7 @@ void prompt_game_state() {
     while (1) {
         printf("Send state POISON_IVY, DEHYDRATION, HYPOTHERMIA: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
-        if (strcmp(nextcmd, "poison_ivy\n") == 0) {
+        if (strcmp(nextcmd, "poison ivy\n") == 0) {
             state = POISON_IVY;
             break;
         } else if (strcmp(nextcmd, "dehydration\n") == 0) {

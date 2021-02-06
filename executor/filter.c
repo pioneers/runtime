@@ -30,10 +30,10 @@ typedef struct gamestate {
 // Sets POISON_IVY and DEHYDRATION to INACTIVE after 10 seconds of ACTIVE
 static void* gamestate_handler(void* args) {
     gamestate_t* gamestate = (gamestate_t*) args;
-    uint64_t hypothermia_start;  // The timestamp of when hypothermia started; 0 if inactive
-    uint64_t poison_ivy_start;   // The timestamp of when poison ivy started; 0 if inactive
-    uint64_t dehydration_start;  // The timestamp of when dehydration started; 0 if inactive
-    uint64_t curr_time;          // The current timestamp
+    uint64_t poison_ivy_start = 0;   // The timestamp of when poison ivy started; 0 if inactive
+    uint64_t dehydration_start = 0;  // The timestamp of when dehydration started; 0 if inactive
+    uint64_t curr_time = 0;          // The current timestamp
+
     // Poll the current gamestate
     while (1) {
         curr_time = millis();
@@ -51,7 +51,7 @@ static void* gamestate_handler(void* args) {
         if (!gamestate->dehydration && robot_desc_read(DEHYDRATION) == ACTIVE) {  // Dehydration started
             gamestate->dehydration = 1;
             dehydration_start = curr_time;
-        } else if (gamestate->dehydration && (curr_time - gamestate->dehydration_start > DEBUFF_DURATION)) {  // End dehydration
+        } else if (gamestate->dehydration && (curr_time - dehydration_start > DEBUFF_DURATION)) {  // End dehydration
             gamestate->dehydration = 0;
             dehydration_start = 0;
             robot_desc_write(DEHYDRATION, INACTIVE);
@@ -59,6 +59,7 @@ static void* gamestate_handler(void* args) {
         // Throttle the gamestate polling
         usleep(GAMESTATE_POLL_INTERVAL);
     }
+    return NULL;
 }
 
 // Scales the KoalaBear's velocities by SCALAR
@@ -95,8 +96,8 @@ int filter_device_write_uid(uint8_t dev_type, uint64_t dev_uid, process_t proces
     if (dev_type == KOALABEAR) {
         // Bound velocity to [-1.0, 1.0]
         bound_velocity(params);
+
         // Implement each gamestate, modifying params as necessary
-        uint64_t curr_time = millis();
         if (gamestate.hypothermia) {
             scale_velocity(params, SLOW_SCALAR);
         }

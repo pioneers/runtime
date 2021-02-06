@@ -18,11 +18,11 @@
 
 //include compiled protobuf headers
 #include "pbc_gen/device.pb-c.h"
+#include "pbc_gen/gamestate.pb-c.h"
 #include "pbc_gen/input.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
-#include "pbc_gen/gamestate.pb-c.h"
 
 #define RASPI_ADDR "127.0.0.1"  // The IP address of Runtime (Raspberry Pi) that clients can request a connection to
 #define RASPI_TCP_PORT 8101     // Port for Runtime as a TCP socket server
