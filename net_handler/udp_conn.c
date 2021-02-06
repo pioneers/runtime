@@ -1,6 +1,6 @@
 #include "udp_conn.h"
 
-pthread_t gp_thread, device_thread;               // thread IDs for receiving gamepad data and sending device data
+pthread_t input_thread, device_thread;            // thread IDs for receiving gamepad data and sending device data
 int socket_fd = -1;                               // the UDP socket's file descriptor
 struct sockaddr_in dawn_addr = {0};               // the address of our client, which should be Dawn
 socklen_t addr_len = sizeof(struct sockaddr_in);  // length of the address
@@ -24,7 +24,7 @@ static void* send_device_data(void* args) {
 
     param_val_t custom_params[UCHAR_MAX];
     param_type_t custom_types[UCHAR_MAX];
-    char custom_names[UCHAR_MAX][64];
+    char custom_names[UCHAR_MAX][LOG_KEY_LENGTH];
     uint8_t num_params;
 
     while (1) {
@@ -197,8 +197,8 @@ static void* send_device_data(void* args) {
 }
 
 
-static void* update_gamepad_state(void* args) {
-    static int size = sizeof(GpState);
+static void* update_inputs(void* args) {
+    static int size = 128;  // No specific reason, just needs to be large enough to receive all UserInputs data
     uint8_t buffer[size];
     int recvlen;
 
@@ -206,27 +206,31 @@ static void* update_gamepad_state(void* args) {
         recvlen = recvfrom(socket_fd, buffer, size, 0, (struct sockaddr*) &dawn_addr, &addr_len);
         // log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
         if (recvlen == size) {
-            log_printf(WARN, "update_gamepad_state: UDP Read length matches read buffer size %d", recvlen);
+            log_printf(WARN, "update_inputs: UDP Read length matches read buffer size %d", recvlen);
         }
         if (recvlen < 0) {
-            log_printf(ERROR, "update_gamepad_state: UDP recvfrom failed: %s", strerror(errno));
+            log_printf(ERROR, "update_inputs: UDP recvfrom failed: %s", strerror(errno));
             continue;
         }
-        GpState* gp_state = gp_state__unpack(NULL, recvlen, buffer);
-        if (gp_state == NULL) {
-            log_printf(ERROR, "update_gamepad_state: Failed to unpack GpState");
+        UserInputs* inputs = user_inputs__unpack(NULL, recvlen, buffer);
+        if (inputs == NULL) {
+            log_printf(ERROR, "update_inputs: Failed to unpack UserInputs");
             continue;
         }
-
-        robot_desc_write(GAMEPAD, gp_state->connected ? CONNECTED : DISCONNECTED);
-        if (gp_state->connected) {
-            if (gp_state->n_axes != 4) {
-                log_printf(ERROR, "update_gamepad_state: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", gp_state->n_axes);
-            } else {
-                gamepad_write(gp_state->buttons, gp_state->axes);
+        for (int i = 0; i < inputs->n_inputs; i++) {
+            Input* input = inputs->inputs[i];
+            // Convert Protobuf source enum to Runtime source enum
+            robot_desc_field_t source = (input->source == SOURCE__GAMEPAD) ? GAMEPAD : KEYBOARD;
+            robot_desc_write(source, input->connected ? CONNECTED : DISCONNECTED);
+            if (input->connected) {
+                if (source == GAMEPAD && input->n_axes != 4) {
+                    log_printf(ERROR, "update_inputs: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", input->n_axes);
+                } else {
+                    input_write(input->buttons, input->axes, source);
+                }
             }
         }
-        gp_state__free_unpacked(gp_state, NULL);
+        user_inputs__free_unpacked(inputs, NULL);
         memset(buffer, 0, size);
     }
     return NULL;
@@ -255,7 +259,7 @@ void start_udp_conn() {
     start_time = millis();
 
     //create threads
-    if (pthread_create(&gp_thread, NULL, update_gamepad_state, NULL) != 0) {
+    if (pthread_create(&input_thread, NULL, update_inputs, NULL) != 0) {
         log_printf(ERROR, "start_udp_conn: failed to create update_gamepad_state thread: %s", strerror(errno));
         return;
     }
@@ -266,14 +270,14 @@ void start_udp_conn() {
 }
 
 void stop_udp_conn() {
-    if (pthread_cancel(gp_thread) != 0) {
-        log_printf(ERROR, "stop_udp_conn: failed to cancel gp_thread: %s", strerror(errno));
+    if (pthread_cancel(input_thread) != 0) {
+        log_printf(ERROR, "stop_udp_conn: failed to cancel input_thread: %s", strerror(errno));
     }
     if (pthread_cancel(device_thread) != 0) {
         log_printf(ERROR, "stop_udp_conn: failed to cancel device_thread: %s", strerror(errno));
     }
-    if (pthread_join(gp_thread, NULL) != 0) {
-        log_printf(ERROR, "stop_udp_conn: failed to join gp_thread: %s", strerror(errno));
+    if (pthread_join(input_thread, NULL) != 0) {
+        log_printf(ERROR, "stop_udp_conn: failed to join input_thread: %s", strerror(errno));
     }
     if (pthread_join(device_thread, NULL) != 0) {
         log_printf(ERROR, "stop_udp_conn: failed to join device_thread: %s", strerror(errno));

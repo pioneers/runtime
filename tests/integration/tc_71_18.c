@@ -55,7 +55,7 @@ int main() {
     // send gamepad state so net_handler starts sending device data packets
     uint32_t buttons = 0;
     float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
-    send_gamepad_state(buttons, joystick_vals);
+    send_user_input(buttons, joystick_vals, GAMEPAD);
 
     // verify that we're receiving all parameters
     sleep(1);

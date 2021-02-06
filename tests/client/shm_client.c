@@ -50,11 +50,3 @@ void stop_shm() {
         }
     }
 }
-
-void print_shm() {
-    print_params(~0);  // prints all devices
-    print_cmd_map();
-    print_sub_map();
-    print_robot_desc();
-    print_gamepad_state();
-}
