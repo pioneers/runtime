@@ -23,6 +23,7 @@ case $1 in
         popd
         pushd dev_handler && make $@
         popd
+        scripts/run_clang_format.py -ir .        
         ;;
 
     clean)
