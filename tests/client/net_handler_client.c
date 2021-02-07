@@ -68,7 +68,7 @@ static int connect_tcp(robot_desc_field_t client) {
 
     // send the verification byte
     uint8_t verif_byte = (client == SHEPHERD) ? 0 : 1;
-    if(writen(sockfd, &verif_byte, 1) == -1){
+    if (writen(sockfd, &verif_byte, 1) == -1) {
         printf("writen: error sending verification byte\n");
         close(sockfd);
         stop_net_handler();
@@ -373,11 +373,11 @@ void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode) {
 
     // send the message
     if (client == SHEPHERD) {
-        if(writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
             printf("writen: issue sending run mode message\n");
         }
     } else {
-        if(writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
             printf("writen: issue sending run mode message\n");
         }
     }
@@ -415,7 +415,7 @@ void send_game_state(robot_desc_field_t state) {
     game_state__pack(&game_state, send_buf + BUFFER_OFFSET);
 
     // send the message
-    if(writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+    if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
         printf("writen: issue sending game state message\n");
     }
     free(send_buf);
@@ -446,12 +446,12 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
 
     // send the message
     if (client == SHEPHERD) {
-        if(writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
             printf("writen: issue sending start position message to shepherd\n");
         }
     } else {
         writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
-            printf("writen: issue sending start position message to dawn\n");
+        printf("writen: issue sending start position message to dawn\n");
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
@@ -514,11 +514,11 @@ void send_challenge_data(robot_desc_field_t client, char** data, int num_challen
 
     // send the message
     if (client == SHEPHERD) {
-        if(writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
             printf("writen: issue sending challenge data message to shepherd\n");
         }
     } else {
-        if(writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
             printf("writen: issue sending challenge data message to shepherd\n");
         }
     }
@@ -584,7 +584,7 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     dev_data__pack(&dev_data, send_buf + BUFFER_OFFSET);
 
     // send the message
-    if(writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1){
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
         printf("writen: issue sending device subs message to shepherd\n");
     }
 
