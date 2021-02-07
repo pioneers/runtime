@@ -17,12 +17,13 @@ The following is an overview of the structure of this folder:
 
 ## Running the CLI
 
-First, do `make cli` in this directory. This will create four executables: `net_handler_cli`, `executor_cli`, `dev_handler_cli`, and `shm_cli`. Open up four terminal windows and navigate to this directory in all four terminal windows. Then, do:
+First, do `make cli` in this directory. This will create four executables: `net_handler_cli`, `executor_cli`, `dev_handler_cli`, and `shm_ui`. Open up four terminal windows and navigate to this directory in all four terminal windows. Then, do:
 
-1. `./shm_cli` in one of the terminal windows. This will create the shared memory and get Runtime ready to run on top of it.
+1. `./shm_ui` in one of the terminal windows. This will create the shared memory and get Runtime ready to run on top of it.
+	- If Runtime is already running (for example, with `systemd`), and you want to simply view the state of existing shared memory blocks, run with `./shm_ui attach`
 2. `./net_handler_cli`, `./executor_cli`, and `./dev_handler_cli` in the other three terminals, which start up `net_handler`, `executor`, and `dev_handler` in "test mode", respectively (i.e. `net_handler` doesn't try to make data available on a publicly viewable port, and `dev_handler` doesn't try to look for actual Arduino devices; it instead looks for "fake devices" that are spawned by `dev_handler_client`).
 3. In the `executor_cli` window, specify which student code you want to run. You can specify `studentcode` to run the actual student code in `executor/studentcode.py`, or you can specify any of the files under the `student_code` folder in this folder.
-4. Type `help` into each of the four windows to get a list of available commands. You're now ready to experiment with Runtime! Send it inputs from the network via `net_handler_cli`; simulate connecting / disconnecting devices with `dev_handler_cli`, and view the state of shared memory with `shm_cli`.
+4. Type `help` into each of the four windows to get a list of available commands. You're now ready to experiment with Runtime! Send it inputs from the network via `net_handler_cli`; simulate connecting / disconnecting devices with `dev_handler_cli`, and view the state of shared memory in real time with `shm_ui`.
 
 ## Running Automated Tests
 
