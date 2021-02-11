@@ -21,6 +21,9 @@ typedef struct _UserInputs UserInputs;
 
 /* --- enums --- */
 
+/*
+ * Enum specifying which input source the data is from
+ */
 typedef enum _Source {
     SOURCE__GAMEPAD = 0,
     SOURCE__KEYBOARD = 1 PROTOBUF_C__FORCE_ENUM_TO_BE_INT_SIZE(SOURCE)
@@ -28,6 +31,9 @@ typedef enum _Source {
 
 /* --- messages --- */
 
+/*
+ * Message for the current state of an input
+ */
 struct _Input {
     ProtobufCMessage base;
     protobuf_c_boolean connected;
@@ -43,6 +49,9 @@ struct _Input {
     }
 
 
+/*
+ * An array of all inputs from all sources
+ */
 struct _UserInputs {
     ProtobufCMessage base;
     size_t n_inputs;

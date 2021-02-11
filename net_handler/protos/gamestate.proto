@@ -1,0 +1,18 @@
+/*
+* Define an action runtime must take based on game state
+*/
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+enum State {
+    POISON_IVY = 0;
+    DEHYDRATION = 1;
+    HYPOTHERMIA_START = 2;
+    HYPOTHERMIA_END = 3;
+}
+
+message GameState {
+    State state = 1;
+}
