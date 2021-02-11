@@ -344,7 +344,7 @@ cdef class Robot:
             param_value[param_idx].p_f = value
         elif param_type == BOOL:
             param_value[param_idx].p_b = int(value)
-        cdef int err = device_write_uid(device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
+        cdef int err = filter_device_write_uid(device_type, device_uid, EXECUTOR, COMMAND, 1 << param_idx, &param_value[0])
         PyMem_Free(param_value)
         if err == -1:
             raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")

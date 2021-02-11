@@ -52,3 +52,6 @@ cdef extern from "../shm_wrapper/shm_wrapper.h" nogil:
     robot_desc_val_t robot_desc_read (robot_desc_field_t field)
     int place_sub_request (uint64_t dev_uid, process_t process, uint32_t params_to_sub)
     int log_data_write(char* key, param_type_t type, param_val_t value)
+
+cdef extern from "gamestate_filter.h":
+    int filter_device_write_uid(uint8_t dev_type, uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params)

@@ -18,6 +18,7 @@
 
 //include compiled protobuf headers
 #include "pbc_gen/device.pb-c.h"
+#include "pbc_gen/gamestate.pb-c.h"
 #include "pbc_gen/input.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
@@ -40,7 +41,8 @@ typedef enum net_msg {
     START_POS_MSG,
     CHALLENGE_DATA_MSG,
     LOG_MSG,
-    DEVICE_DATA_MSG
+    DEVICE_DATA_MSG,
+    GAME_STATE_MSG
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //

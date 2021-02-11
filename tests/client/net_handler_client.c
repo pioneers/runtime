@@ -6,6 +6,7 @@ struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
 pthread_t dump_tid;                     // holds the thread id of the output dumper threads
 pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
 int print_next_udp;                     // 0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
+int hypothermia_enabled = 0;            // 0 if hypothermia enabled, 1 if disabled
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
@@ -67,7 +68,12 @@ static int connect_tcp(robot_desc_field_t client) {
 
     // send the verification byte
     uint8_t verif_byte = (client == SHEPHERD) ? 0 : 1;
-    writen(sockfd, &verif_byte, 1);
+    if (writen(sockfd, &verif_byte, 1) == -1) {
+        printf("writen: error sending verification byte\n");
+        close(sockfd);
+        stop_net_handler();
+        exit(1);
+    }
 
     return sockfd;
 }
@@ -367,9 +373,50 @@ void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode) {
 
     // send the message
     if (client == SHEPHERD) {
-        writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
+        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+            printf("writen: issue sending run mode message\n");
+        }
     } else {
-        writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
+        if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+            printf("writen: issue sending run mode message\n");
+        }
+    }
+    free(send_buf);
+    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
+}
+
+void send_game_state(robot_desc_field_t state) {
+    GameState game_state = GAME_STATE__INIT;
+    uint8_t* send_buf;
+    uint16_t len;
+
+    switch (state) {
+        case (POISON_IVY):
+            game_state.state = STATE__POISON_IVY;
+            break;
+        case (DEHYDRATION):
+            game_state.state = STATE__DEHYDRATION;
+            break;
+        case (HYPOTHERMIA):
+            if (hypothermia_enabled) {
+                game_state.state = STATE__HYPOTHERMIA_END;
+                hypothermia_enabled = 0;
+                break;
+            } else {
+                game_state.state = STATE__HYPOTHERMIA_START;
+                hypothermia_enabled = 1;
+                break;
+            }
+        default:
+            printf("ERROR: sending game state message\n");
+    }
+    len = game_state__get_packed_size(&game_state);
+    send_buf = make_buf(GAME_STATE_MSG, len);
+    game_state__pack(&game_state, send_buf + BUFFER_OFFSET);
+
+    // send the message
+    if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("writen: issue sending game state message\n");
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
@@ -399,9 +446,12 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
 
     // send the message
     if (client == SHEPHERD) {
-        writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
+        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+            printf("writen: issue sending start position message to shepherd\n");
+        }
     } else {
         writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
+        printf("writen: issue sending start position message to dawn\n");
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
@@ -464,9 +514,13 @@ void send_challenge_data(robot_desc_field_t client, char** data, int num_challen
 
     // send the message
     if (client == SHEPHERD) {
-        writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET);
+        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+            printf("writen: issue sending challenge data message to shepherd\n");
+        }
     } else {
-        writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
+        if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+            printf("writen: issue sending challenge data message to shepherd\n");
+        }
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
@@ -530,7 +584,9 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     dev_data__pack(&dev_data, send_buf + BUFFER_OFFSET);
 
     // send the message
-    writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("writen: issue sending device subs message to shepherd\n");
+    }
 
     // free everything
     for (int i = 0; i < num_devices; i++) {
@@ -543,6 +599,7 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     free(dev_data.devices);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
+
 
 void print_next_dev_data() {
     pthread_mutex_lock(&print_udp_mutex);
