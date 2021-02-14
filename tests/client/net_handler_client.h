@@ -82,11 +82,10 @@ void send_challenge_data(robot_desc_field_t client, char** data, int num_challen
 void send_device_subs(dev_subs_t* subs, int num_devices);
 
 /**
- * Calling this function will let the next device data packet coming into Dawn from Runtime
- * to be printed to standard output (since device data packets are constantly coming in, they
- * are normally suppressed; this function unsuppresses one single packet).
+ * Calling this function will return the most recent device data packet coming into Dawn from Runtime.
+ * NOTE: you must free the pointer returned by this function using dev_data__unpacked
  */
-void print_next_dev_data();
+DevData* get_next_dev_data();
 
 /**
  * Updates the file pointer receiving TCP messages coming into Dawn or Shepherd.
