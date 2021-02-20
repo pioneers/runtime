@@ -42,7 +42,8 @@ typedef enum net_msg {
     CHALLENGE_DATA_MSG,
     LOG_MSG,
     DEVICE_DATA_MSG,
-    GAME_STATE_MSG
+    GAME_STATE_MSG,
+    INPUTS_MSG  // used for converter testing; remove after 2021 Spring Comp...maybe
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //
