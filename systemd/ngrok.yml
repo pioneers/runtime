@@ -1,4 +1,4 @@
-authtoken: 1m5RoH5PZCjItFUYuTzgzG3lIuo_2AAYPXXfJgPomZAJyPd9J
+authtoken: # (: <add authtoken> :) #
 tunnels:
   ssh:
     proto: tcp

@@ -209,7 +209,10 @@ void forward(int udp_fd, int tcp_fd) {
 
         // If we have something to read on TCP port, forward it to UDP
         if (FD_ISSET(tcp_fd, &read_set)) {
-            tcp_to_udp(udp_fd, tcp_fd);
+            if ((ret = tcp_to_udp(udp_fd, tcp_fd)) == -1) {  // if Dawn disconnected
+                close(tcp_fd);                               // close this connection
+                return;
+            }
         }
     }
 }
@@ -270,11 +273,11 @@ int send_gamepad_disconnected(int udp_fd) {
 int main() {
     logger_init(NET_HANDLER);
 
+    int tcp_fd;
     int udp_fd = start_udp_relay();
 
-    // Start TCP server, then accept a TCP client
+    // Start TCP server
     int tcp_server_fd = start_tcp_exposed_port();
-    int tcp_fd = accept(tcp_server_fd, NULL, NULL);  // File descriptor to talk with client
 
     // Initiate UDP connection with Runtime
     net_handler.sin_family = AF_INET;
@@ -285,7 +288,10 @@ int main() {
     send_gamepad_disconnected(udp_fd);
 
     // Execute main process
-    forward(udp_fd, tcp_fd);  // loops forever
+    while (1) {
+        tcp_fd = accept(tcp_server_fd, NULL, NULL);  // Accept a new connection, returns file descriptor to talk with client
+        forward(udp_fd, tcp_fd);                     // loops until we lose connection
+    }
 
     return 0;
 }
