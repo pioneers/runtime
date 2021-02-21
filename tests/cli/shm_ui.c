@@ -108,6 +108,11 @@ const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                  // The 
  */
 int DEVICE_WIN_IS_BLANK = 0;
 
+// This is a global flag that is TRUE (1) when shm_ui is attaching to
+// existing shared memory, and FALSE (0) when shm_ui is creating/destroying
+// to shared memory and attaching to that newly created shared memory.
+uint8_t attach = 0;
+
 // The header of DEVICE_WIN; Useful for clearing and redrawing DEVICE_WIN
 #define DEVICE_WIN_HEADER "~~~~~~~~~~~~~~~~~~~~~~~~~~~~DEVICE INFORMATION~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
@@ -542,7 +547,10 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
 
 // Sending SIGINT to the process will stop shared memory
 void clean_up(int signum) {
-    stop_shm();
+    // only stop shared memory if we did not attach
+    if (!attach) {
+        stop_shm();
+    }
     endwin();
     exit(0);
 }
@@ -552,9 +560,18 @@ int main(int argc, char** argv) {
     signal(SIGINT, clean_up);
     logger_init(TEST);
 
-    // Start shm
-    start_shm();
-    sleep(1);  // Allow shm to initialize
+    // If the argument "attach" is specified, then set the global variable
+    if (argc == 2 && strcmp(argv[1], "attach") == 0) {
+        attach = 1;
+    }
+
+    // Start shm if we aren't attaching to existing shared memory
+    if (!attach) {
+        start_shm();
+        sleep(1);  // Allow shm to initialize
+    } else {
+        shm_init();  // If just attaching, init shm to have access to sems and shm blocks
+    }
 
     // Start UI
     initscr();
@@ -630,7 +647,9 @@ int main(int argc, char** argv) {
     }
 
     // Properly clean up
-    stop_shm();
+    if (!attach) {
+        stop_shm();
+    }
     endwin();
     return 0;
 }
