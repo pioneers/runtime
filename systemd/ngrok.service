@@ -1,9 +1,10 @@
 [Unit]
 Description=Ngrok startup process for Runtime
-After=net_handler.service
+After=converter.service
 
 [Service]
 Type=simple
+ExecPre=/bin/sleep 1
 ExecStart=/home/pi/ngrok/ngrok start --all --config /home/pi/runtime/systemd/ngrok.yml
 ExecReload=/bin/kill -SIGTERM $MAINPID
 KillMode=process

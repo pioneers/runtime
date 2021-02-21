@@ -103,6 +103,16 @@ device_t KoalaBear = {
 
 // *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
 
+// A CustomDevice is unusual because the parameters are dynamic
+// This is just here to avoid some errors when using get_device() on CustomDevice
+// Used in niche situations (ex: UDP_TCP_CONVERTER_TEST)for Spring 2021 comp.
+device_t CustomDevice = {
+    .type = MAX_DEVICES,  // Also used this way in udp_conn.c
+    .name = "CustomDevice",
+    .num_params = 1,
+    .params = {
+        {.name = "time_ms", .type = INT, .read = 1, .write = 0}}};
+
 device_t SoundDevice = {
     .type = 59,
     .name = "SoundDevice",
@@ -190,6 +200,7 @@ __attribute__((constructor)) void devices_arr_init() {
     DEVICES[ServoControl.type] = &ServoControl;
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
+    DEVICES[CustomDevice.type] = &CustomDevice;
     DEVICES[SoundDevice.type] = &SoundDevice;
     DEVICES[TimeTestDevice.type] = &TimeTestDevice;
     DEVICES[UnstableTestDevice.type] = &UnstableTestDevice;
