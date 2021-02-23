@@ -12,12 +12,14 @@
 #define LOG_FIFO "/tmp/log-fifo"     // location of the log FIFO pipe in filesystem
 
 // enumerate logger levels from least to most critical
-typedef enum log_level { DEBUG,
-                         INFO,
-                         WARN,
-                         PYTHON,
-                         ERROR,
-                         FATAL } log_level_t;
+typedef enum log_level {
+    DEBUG,
+    INFO,
+    WARN,
+    PYTHON,
+    ERROR,
+    FATAL
+} log_level_t;
 
 // ************************************ PUBLIC LOGGER FUNCTIONS ****************************************** //
 
