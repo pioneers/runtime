@@ -25,7 +25,7 @@ net_handler_cli: cli/net_handler_cli.* client/net_handler_client.* cli/keyboard_
 
 shm_ui: cli/shm_ui.c client/shm_client.c ../shm_wrapper/shm_wrapper.c \
 	../runtime_util/runtime_util.c ../logger/logger.c
-	$(CC) -lncurses $^ -o $@ $(LIBS)
+	$(CC) $^ -o $@ $(LIBS) -lncurses
 
 executor_cli: cli/executor_cli.* client/executor_client.*
 	$(CC) $^ -o $@ $(LIBS)
