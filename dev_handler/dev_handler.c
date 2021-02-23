@@ -246,7 +246,7 @@ void* relayer(void* relay_cast) {
     // At this point, the device is confirmed to be a lowcar device!
 
     // Connect the lowcar device to shared memory
-    device_connect(relay->dev_id, &relay->shm_dev_idx);
+    device_connect(&relay->dev_id, &relay->shm_dev_idx);
     if (relay->shm_dev_idx == -1) {
         relay_clean_up(relay);
         return NULL;

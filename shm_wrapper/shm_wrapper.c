@@ -299,7 +299,7 @@ void shm_init() {
     atexit(shm_close);
 }
 
-void device_connect(dev_id_t dev_id, int* dev_ix) {
+void device_connect(dev_id_t* dev_id, int* dev_ix) {
     // wait on catalog_sem
     my_sem_wait(catalog_sem, "catalog_sem");
 
@@ -322,9 +322,9 @@ void device_connect(dev_id_t dev_id, int* dev_ix) {
     my_sem_wait(sub_map_sem, "sub_map_sem");
 
     // fill in dev_id for that device with provided values
-    dev_shm_ptr->dev_ids[*dev_ix].type = dev_id.type;
-    dev_shm_ptr->dev_ids[*dev_ix].year = dev_id.year;
-    dev_shm_ptr->dev_ids[*dev_ix].uid = dev_id.uid;
+    dev_shm_ptr->dev_ids[*dev_ix].type = dev_id->type;
+    dev_shm_ptr->dev_ids[*dev_ix].year = dev_id->year;
+    dev_shm_ptr->dev_ids[*dev_ix].uid = dev_id->uid;
 
     // update the catalog
     dev_shm_ptr->catalog |= (1 << *dev_ix);
