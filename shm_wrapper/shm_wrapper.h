@@ -131,7 +131,7 @@ void shm_init();
  *    dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
-void device_connect(dev_id_t dev_id, int* dev_ix);
+void device_connect(dev_id_t* dev_id, int* dev_ix);
 
 /**
  * Should only be called from device handler
