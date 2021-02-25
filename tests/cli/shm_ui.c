@@ -356,7 +356,7 @@ void display_keyboard_state(char** key_names) {
         wclrtoeol(KEYBOARD_WIN);
         // Show button name; If pressed, make it bold. Else, dim
         if (keyboard_connected) {
-            if (pressed_buttons & (1L << i)) {
+            if (pressed_buttons & (1LL << i)) {
                 wattron(KEYBOARD_WIN, A_BOLD);
             } else {
                 wattron(KEYBOARD_WIN, A_DIM);
