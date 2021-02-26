@@ -106,13 +106,13 @@ int start_tcp_exposed_port() {
  *    -3 on write error
  */
 int udp_to_tcp(int udp_fd, int tcp_fd) {
-    static int BUF_SIZE = 1024;
+    const int BUF_SIZE = 1024;
     uint8_t recv_buffer[BUF_SIZE];
-    int recvlen;  // Since received UDP is just packed proto, this is also length of packed proto
+    ssize_t recvlen;  // Since received UDP is just packed proto, this is also length of packed proto
 
     // read from udp and get packed proto with metadata
-    recvlen = recvfrom(udp_fd, recv_buffer + BUFFER_OFFSET, BUF_SIZE, 0, NULL, NULL);
-    if (recvlen == BUF_SIZE) {  // Message is very large; would overflow our buffer
+    recvlen = recvfrom(udp_fd, recv_buffer + BUFFER_OFFSET, BUF_SIZE - BUFFER_OFFSET, 0, NULL, NULL);
+    if (recvlen == BUF_SIZE - BUFFER_OFFSET) {  // Message is very large; would overflow our buffer
         log_printf(WARN, "udp_to_tcp: UDP Read length matches read buffer size %d", recvlen);
         return -1;
     } else if (recvlen < 0) {  // Couldn't read message
@@ -121,13 +121,14 @@ int udp_to_tcp(int udp_fd, int tcp_fd) {
     }
 
     // Prepend the received buffer with [msg_type][proto_length/recvlen]
-    recv_buffer[0] = DEVICE_DATA_MSG;
-    memcpy(&recv_buffer[1], (uint8_t*) &recvlen, 2);  // Copy the recvlen (2 bytes) into recv_buffer[0:1]
+    recv_buffer[0] = (uint8_t) DEVICE_DATA_MSG;
+    uint16_t* ptr_16 = (uint16_t*) (recv_buffer + 1);
+    *ptr_16 = (uint16_t) recvlen;
 
     // send data over tcp port
-    size_t write_len = recvlen + BUFFER_OFFSET;
+    size_t write_len = (size_t) recvlen + BUFFER_OFFSET;
     if (writen(tcp_fd, recv_buffer, write_len) < 0) {
-        log_printf(ERROR, "udp_to_tcp: writen error'd out: %s", strerror(errno));
+        log_printf(ERROR, "udp_to_tcp: writen errored out: %s", strerror(errno));
         return -3;
     }
 
