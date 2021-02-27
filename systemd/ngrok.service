@@ -4,13 +4,11 @@ After=converter.service
 
 [Service]
 Type=simple
-ExecPre=/bin/sleep 1
-ExecStart=/home/pi/ngrok/ngrok start --all --config /home/pi/runtime/systemd/ngrok.yml
-ExecReload=/bin/kill -SIGTERM $MAINPID
-KillMode=process
-IgnoreSIGPIPE=true
-Restart=always
-RestartSec=3
+User=pi
+WorkingDirectory=/home/pi/runtime/systemd/
+ExecStartPre=/bin/sleep 1
+ExecStart=/home/pi/runtime/systemd/ngrok.sh
+ExecReload=/bin/kill -SIGINT $MAINPID
 
 [Install]
 WantedBy=multi-user.target
