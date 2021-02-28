@@ -7,6 +7,7 @@ import time
 from http import HTTPStatus
 
 recv_data = False
+tcpSubstring = "tcp://"
 
 while recv_data == False:
     print(recv_data)
@@ -15,17 +16,17 @@ while recv_data == False:
         reqTCP = requests.get(url=requestedTcpUrl)
         parsedTCPRequest = reqTCP.json()
         print(parsedTCPRequest)
-        publicTCPUrl = 'TCP Port: ' + parsedTCPRequest["public_url"] + '\n'
+        publicTCPUrl = 'IP Address: ' + parsedTCPRequest["public_url"].replace(tcpSubstring, '') + '\n'
 
         requestedUdpUrl = 'http://localhost:4040/api/tunnels/converted_udp' # url for the comms tunnel used for udp forwarding
         reqUDP = requests.get(url=requestedUdpUrl)
         parsedUDPRequest = reqUDP.json()
-        publicUDPUrl = 'UDP Port: ' +parsedUDPRequest["public_url"] + '\n'
+        publicUDPUrl = 'UDP Tunneling: ' +parsedUDPRequest["public_url"].replace(tcpSubstring, '') + '\n'
 
         requestedSshUrl = 'http://localhost:4040/api/tunnels/ssh' # url for the comms tunnel used for ssh
         reqSSH = requests.get(url=requestedSshUrl)
         parsedSSHRequest = reqSSH.json()
-        publicSSHUrl = 'SSH Port: ' + parsedSSHRequest["public_url"] + '\n'
+        publicSSHUrl = 'SSH Tunneling: ' + parsedSSHRequest["public_url"].replace(tcpSubstring, '') + '\n'
         recv_data = True
     except KeyError:
         time.sleep(1)
