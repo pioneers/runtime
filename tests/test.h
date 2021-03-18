@@ -83,6 +83,20 @@ void add_unordered_string_output(char* output);
  */
 void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
 
+/******************** UDP Device Data Checks ******************/
+
+/**
+ * Checks that the given device was returned by the UDP thread.
+ * 
+ * Args:
+ *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
+ *  index: index where device should be
+ *  type: what type the device should be
+ *  uid: what uid the device should be
+ * 
+ */
+void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_t uid);
+
 // ***************************** RUN MODE CHECK ***************************** //
 
 /**

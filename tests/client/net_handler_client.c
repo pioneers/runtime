@@ -16,7 +16,7 @@ DevData* device_data = NULL;
 pthread_mutex_t device_data_lock;
 
 // 2021 Game Specific
-int hypothermia_enabled = 0;            // 0 if hypothermia enabled, 1 if disabled
+int hypothermia_enabled = 0;  // 0 if hypothermia enabled, 1 if disabled
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -107,7 +107,7 @@ static int recv_udp_data(int udp_fd) {
     // unpack the new data
     device_data = dev_data__unpack(NULL, recv_size, msg);
     pthread_mutex_unlock(&device_data_lock);
-    
+
     if (device_data == NULL) {
         printf("recv_udp_data: Error unpacking DevData message\n");
         return -1;

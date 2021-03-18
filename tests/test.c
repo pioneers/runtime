@@ -426,7 +426,7 @@ void add_unordered_string_output(char* output) {
     current_unordered_pos += 1;
 }
 
-// ************************* GAMEPAD CHECK FUNCTIONS ************************ //
+// ************************* USER INPUT CHECK FUNCTIONS ************************ //
 
 // Helper function to print a 32-bitmap to stderr on a new line
 static void print_bitmap(uint64_t bitmap) {
@@ -488,6 +488,42 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
     }
     print_pass();
 }
+
+/******************** UDP Device Data Check ******************/
+
+void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_t uid) {
+    if (index >= dev_data->n_devices) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected device with type %u uid %llu at index %d but not enough indices", type, uid, index);
+        end_test();
+        exit(1);
+    }
+    Device* device = dev_data->devices[index];
+    if (device->uid != uid || device->type != type) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected device with type %u uid %llu at index %d but got type %u uid %llu instead",
+                          type, uid, index, device->type, device->uid);
+        end_test();
+        exit(1);
+    }
+    print_pass();
+}
+
+void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t param_val, uint8_t readonly) {
+    if (dev_idx >= dev_data->n_devices) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected device at index %d but not enough indices", index);
+        end_test();
+        exit(1);
+    }
+    Device* device = dev_data->devices[dev_idx];
+    int found = 0;
+    for (int i = 0; i < device->n_params; i++) {
+        if (strcmp(param_name, device->params[i]->name) == 0) {
+        }
+    }
+}
+
 
 // ***************************** RUN MODE CHECK ***************************** //
 

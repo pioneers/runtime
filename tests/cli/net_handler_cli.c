@@ -324,7 +324,7 @@ void print_next_dev_data() {
         printf("\tParams:\n");
         for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
             Param* param = dev_data->devices[i]->params[j];
-            printf("\t\tparam \"%s\" is read%s and has type ", param->name, param->readonly ? "" : "/write");
+            printf("\t\tparam \"%s\" is read%s and has type ", param->name, param->readonly ? " only" : "/write");
             switch (dev_data->devices[i]->params[j]->val_case) {
                 case (PARAM__VAL_FVAL):
                     printf("FLOAT with value %f\n", param->fval);
