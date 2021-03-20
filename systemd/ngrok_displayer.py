@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+
+"""
+This script is based on this https://gist.github.com/davidbgk/b10113c3779b8388e96e6d0c44e03a74
+The ngrok process that is started by Runtime when it boots up also starts a server on localhost
+which broadcasts useful information about the tunnels that was created locally.
+This script simply requests the names of the tunnels and their IP addresses and posts them as a
+bare-minimum web page on the local network so that somebody who is on the local network that this
+Raspberry Pi is connected to can view the names and IP addresses of the ngrok tunnels on the 
+Raspberry Pi without being ssh'ed into the machine. 
+The webpage will be at 192.168.0.1xx:8000 if connected to Motherbase in 101.
+"""
+
 import requests
 import json
 import http.server
