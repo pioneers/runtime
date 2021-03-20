@@ -623,8 +623,12 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
 
     int index = (source == GAMEPAD) ? 0 : 1;
     input_shm_ptr->inputs[index].buttons = pressed_buttons;
-    for (int i = 0; i < 4; i++) {
-        input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];
+
+    // if source == KEYBOARD, then joystick_vals = NULL, resulting in segfault
+    if (source == GAMEPAD) {
+        for (int i = 0; i < 4; i++) {
+            input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];
+        }
     }
 
     // release gp_sem
