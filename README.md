@@ -95,12 +95,14 @@ The Shared Memory UI allows the user to have a real-time view of data flowing in
 This is analogous to the "shm_cli" among dev_handler_cli, executor_cli, and net_handler_cli.
 Note that the UI is used in development only as a debugging tool and should not be used in production.<br />
 The command below will install ncurses on Raspbian / Debian machines:
-1. `sudo apt-get -y install libncurses5-dev libncursesw5-dev`
+```
+sudo apt-get -y install libncurses5-dev libncursesw5-dev
+```
 
 ### Installing Clang Format
-Clang Format is used to format code to comply with our  [code style](https://github.com/pioneers/runtime/wiki/Project-Conventions). Code that is not formatted with Clang cannot be merged into master. After installing, use the runtime script to format code.
+Clang Format is used to format code to comply with our  [code style](https://github.com/pioneers/runtime/wiki/Project-Conventions). Code that is not formatted with Clang cannot be merged into master. After installing, use the runtime script to format code. (See `runtime format`)
 ```
-apt-get -y install clang-format
+sudo apt-get -y install clang-format
 ```
 ## Runtime Script and Usage
 
