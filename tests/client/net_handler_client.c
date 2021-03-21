@@ -23,7 +23,7 @@ FILE* null_fp = NULL;         // file pointer to /dev/null
  * as the specified client.
  * Arguments:
  *    client: the client to connect as, one of DAWN or SHEPHERD
- * Returns: socket descriptor of new connection; exits on failure
+ * Returns: socket descriptor of new connection; kills net handler and exits on failure
  */
 static int connect_tcp(robot_desc_field_t client) {
     int sockfd;
@@ -268,6 +268,37 @@ static void* output_dump(void* args) {
 
 // ************************************* NET HANDLER CLIENT FUNCTIONS ************************** //
 
+void connect_clients(int dawn, int shepherd) {
+    // Connect Dawn and Shepherd to net handler over TCP
+    nh_tcp_dawn_fd = (dawn) ? connect_tcp(DAWN) : -1;
+    nh_tcp_shep_fd = (shepherd) ? connect_tcp(SHEPHERD) : -1;
+
+    // Open a single UDP socket to connect to net handler
+    if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        printf("socket: UDP socket creation failed...\n");
+        stop_net_handler();
+        exit(1);
+    }
+    udp_servaddr.sin_family = AF_INET;
+    udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
+    udp_servaddr.sin_port = htons(RASPI_UDP_PORT);
+
+    // open /dev/null
+    null_fp = fopen("/dev/null", "w");
+
+    // init the mutex that will control whether udp prints to screen
+    if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
+        printf("pthread_mutex_init: print udp mutex\n");
+    }
+    print_next_udp = 0;
+    udp_output_fp = null_fp;  // by default set to output to /dev/null
+
+    // start the thread that is dumping output from net_handler to stdout of this process
+    if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
+        printf("pthread_create: output dump\n");
+    }
+}
+
 void start_net_handler() {
     // fork net_handler process
     if ((nh_pid = fork()) < 0) {
@@ -283,36 +314,10 @@ void start_net_handler() {
             printf("execlp: %s\n", strerror(errno));
         }
 
-    } else {       // parent
-        sleep(1);  // allows net_handler to set itself up
-
-        // connect to the raspi networking ports to catch network output
-        nh_tcp_dawn_fd = connect_tcp(DAWN);
-        nh_tcp_shep_fd = connect_tcp(SHEPHERD);
-        if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-            printf("socket: UDP socket creation failed...\n");
-            stop_net_handler();
-            exit(1);
-        }
-        udp_servaddr.sin_family = AF_INET;
-        udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
-        udp_servaddr.sin_port = htons(RASPI_UDP_PORT);
-
-        // open /dev/null
-        null_fp = fopen("/dev/null", "w");
-
-        // init the mutex that will control whether udp prints to screen
-        if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
-            printf("pthread_mutex_init: print udp mutex\n");
-        }
-        print_next_udp = 0;
-        udp_output_fp = null_fp;  // by default set to output to /dev/null
-
-        // start the thread that is dumping output from net_handler to stdout of this process
-        if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
-            printf("pthread_create: output dump\n");
-        }
-        usleep(400000);  // allow time for thread to dump output before returning to client
+    } else {                    // parent
+        sleep(1);               // allows net_handler to set itself up
+        connect_clients(1, 1);  // Connect both fake Dawn and fake Shepherd
+        usleep(400000);         // allow time for thread to dump output before returning to client
     }
 }
 
