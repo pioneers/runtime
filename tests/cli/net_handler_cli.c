@@ -3,6 +3,21 @@
 
 #define MAX_CMD_LEN 64  // maximum length of user input
 
+/**
+ * If the CLI is ran without any flags, it will spawn a new instance of net handler.
+ * This may not be desired of an instance of net handler is already running.
+ * The CLI supports two flags. If either are specified, the CLI will "attach" to the existing
+ * instance of net handler.
+ * Flags:
+ *   -d: Connects a fake Dawn
+ *   -s: Connects a fake Shepherd
+ * 
+ * If no flags are specified, both (fake) Dawn and (fake) Shepherd will be connected to a new
+ * net handler instance.
+ */
+int spawned_net_handler = 1;  // Whether the CLI spawned a new net handler instance
+int dawn = 0;                 // Whether to connect a fake Dawn
+int shepherd = 0;             // Whether to connect a fake Shepherd
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
@@ -345,21 +360,51 @@ void connect_keyboard() {
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
     char nextcmd[MAX_CMD_LEN];  // to hold nextline
     int stop = 0;
 
     signal(SIGINT, sigint_handler);
 
+    // Parse command line flags
+    int c;
+    opterr = 0;
+    while ((c = getopt(argc, argv, "ds")) != -1) {
+        switch (c) {
+            case 'd':
+                spawned_net_handler = 0;
+                dawn = 1;
+                break;
+            case 's':
+                spawned_net_handler = 0;
+                shepherd = 1;
+                break;
+            case '?':
+                fprintf(stderr, "Unknown option `-%c'.\n", optopt);
+                return 1;
+            default:
+                return 1;
+        }
+    }
+
     printf("Starting Net Handler CLI...\n");
     fflush(stdout);
 
-    // start the net handler and connect all of its output locations to file descriptors in this process
-    start_net_handler();
-
-    // execute the keyboard_interface on a seperate thread
-    connect_keyboard();
-    sleep(1);
+    // Handle behavior based on flags
+    if (spawned_net_handler) {
+        // Since we spawn a new net handler, we should also connect a fake Dawn and fake Shepherd
+        dawn = 1;
+        shepherd = 1;
+        // start the net handler and connect all of its output locations to file descriptors in this process
+        start_net_handler();
+    } else {  // In "attach-only" mode
+        connect_clients(dawn, shepherd);
+        if (dawn) {
+            // execute the keyboard_interface on a seperate thread
+            connect_keyboard();
+            sleep(1);
+        }
+    }
 
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
@@ -395,7 +440,9 @@ int main() {
 
     printf("Exiting Net Handler CLI...\n");
 
-    stop_net_handler();
+    if (spawned_net_handler) {
+        stop_net_handler();
+    }
 
     printf("Done!\n");
 
