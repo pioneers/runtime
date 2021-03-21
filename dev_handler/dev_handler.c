@@ -10,6 +10,22 @@
 #include "../shm_wrapper/shm_wrapper.h"
 #include "message.h"
 
+/**
+ * Each device will have a unique port number.
+ * For example, if there is only one Arduino connected, it will (probably) appear as 
+ * a file with path "/dev/ttyACM0". A second device connected will appear as
+ * "/dev/ttyACM1".
+ * Virtual devices (not Arduinos) on the other hand are UNIX sockets that appear as
+ * "/tmp/ttyACM0"
+ * In the code, the number is referred to as "port_num"
+ * Depending on whether a device is an Arduino ("lowcar") or a virtual device,
+ * dev handler has to open a connection with it differently.
+ * 
+ * These file paths may also be referred to as "port_prefix" in the code.
+ */
+#define LOWCAR_FILE_PATH "/dev/ttyACM"
+#define VIRTUAL_FILE_PATH "/tmp/ttyACM"
+
 // ********************************* CONFIG ********************************* //
 
 // The interval (ms) at which we want DEVICE_DATA messages for subscribed params
@@ -28,7 +44,8 @@ typedef struct {
     pthread_t sender;                 // Thread to build and send outgoing messages
     pthread_t receiver;               // Thread to receive and process all incoming messages
     pthread_t relayer;                // Thread to get ACKNOWLEDGEMENT and monitor disconnect/timeout
-    uint8_t port_num;                 // Where device is connected to "<port_prefix><port_num>/"
+    bool is_virtual;                  // True iff the device is a virtual device. Otherwise, an actual Arduino.
+    uint8_t port_num;                 // The device is a file with path "<port_prefix><port_num>/"
     int file_descriptor;              // Obtained from opening port. Used to close port.
     int shm_dev_idx;                  // The unique index assigned to the device by shm_wrapper for shared memory operations on device_connect()
     dev_id_t dev_id;                  // set by relayer once ACKNOWLEDGEMENT is received
@@ -45,10 +62,10 @@ void stop();
 void poll_connected_devices();
 
 // Polling Utility
-int get_new_devices(uint32_t* bitmap);
+int get_new_devices(uint32_t* lowcar_bitmap, uint32_t* virtual_bitmap);
 
 // Threads for communicating with devices
-void communicate(uint8_t port_num);
+void communicate(bool is_virtual, uint8_t port_num);
 void* relayer(void* relay_cast);
 void relay_clean_up(relay_t* relay);
 void* sender(void* relay_cast);
@@ -57,7 +74,7 @@ void* receiver(void* relay_cast);
 // Device communication
 int send_message(relay_t* relay, message_t* msg);
 int receive_message(relay_t* relay, message_t* msg);
-int verify_lowcar(relay_t* relay);
+int verify_device(relay_t* relay);
 
 // Serial port or socket opening and closing
 int connect_socket(const char* socket_name);
@@ -68,12 +85,11 @@ int serialport_close(int fd);
 void cleanup_handler(void* args);
 
 // **************************** GLOBAL VARIABLES **************************** //
-// The file name prefix of where to find devices, preceeding the port number
-char* port_prefix = "/dev/ttyACM";
 
 // Bitmap indicating whether port "<port_prefix>*" is being monitored by dev handler, where * is the *-th bit
 // Bits are turned on in get_new_devices() and turned off on disconnect/timeout in relay_clean_up()
-uint32_t used_ports = 0;
+uint32_t used_lowcar_ports = 0;
+uint32_t used_virtual_ports = 0;
 pthread_mutex_t used_ports_lock;  // poll_connected_devices() and relay_clean_up() shouldn't access used_ports at the same time
 
 // ***************************** MAIN FUNCTIONS ***************************** //
@@ -94,7 +110,7 @@ void init() {
 // Disconnect devices from shared memory and destroy mutexes
 void stop() {
     log_printf(INFO, "Interrupt received, terminating dev_handler\n");
-    // For each tracked lowcar device, disconnect from shared memory
+    // For each tracked device, disconnect from shared memory
     uint32_t connected_devs = 0;
     get_catalog(&connected_devs);
     for (int i = 0; i < MAX_DEVICES; i++) {
@@ -114,18 +130,25 @@ void stop() {
  */
 void poll_connected_devices() {
     // Poll for newly connected devices and open threads for them
-    log_printf(DEBUG, "Polling now for %s*.\n", port_prefix);
-    uint32_t connected_devs = 0;
+    log_printf(DEBUG, "Polling now for devices.\n");
+    uint32_t new_lowcar_devs;
+    uint32_t new_virtual_devs;
     while (1) {
-        if (get_new_devices(&connected_devs) > 0) {
-            // If bit i of CONNECTED_DEVS is on, then it's a new device
-            for (int i = 0; (connected_devs >> i) > 0 && i < MAX_DEVICES; i++) {
-                if (connected_devs & (1 << i)) {
-                    communicate(i);
+        new_lowcar_devs = 0;
+        new_virtual_devs = 0;
+        if (get_new_devices(&new_lowcar_devs, &new_virtual_devs) > 0) {
+            // If bit i of either bitmap is on, then it's a new device
+            for (int i = 0; (new_lowcar_devs >> i) > 0 && i < MAX_DEVICES; i++) {
+                if (new_lowcar_devs & (1 << i)) {
+                    communicate(false, i);
+                }
+            }
+            for (int i = 0; (new_virtual_devs >> i) > 0 && i < MAX_DEVICES; i++) {
+                if (new_virtual_devs & (1 << i)) {
+                    communicate(true, i);
                 }
             }
         }
-        connected_devs = 0;
         // Save CPU usage by checking for new devices only every so often (defined in runtime_util.h)
         usleep(POLL_INTERVAL);
     }
@@ -134,32 +157,48 @@ void poll_connected_devices() {
 // **************************** POLLING UTILITY **************************** //
 
 /**
- * Finds which Arduinos are newly connected since the last call to this function
+ * Helper function to scan for new devices.
  * Arguments:
- *    bitmap: Bit i will be turned on if <port_prefix>[i] is a newly connected device
+ *    is_virtual: true iff this should scan for virtual devices (otherwise Arduinos)
+ *    found_devices: Bit i will be on if a new device is connected at port i
  * Returns:
- *    the number of devices that were found
+ *    the number of new devices found
  */
-int get_new_devices(uint32_t* bitmap) {
-    char port_name[14];
-    uint8_t num_devices_found = 0;
-    // Check every port
+static int get_new_devices_helper(bool is_virtual, uint32_t* found_devices) {
+    int num_devices_found = 0;
+    uint32_t* used_ports = (is_virtual) ? &used_virtual_ports : &used_lowcar_ports;
+    char device_path[15];
     for (int i = 0; i < MAX_DEVICES; i++) {
         pthread_mutex_lock(&used_ports_lock);
         // Check if i-th bit of USED_PORTS is zero (indicating device wasn't connected in previous function call)
-        if (!(used_ports & (1 << i))) {
-            sprintf(port_name, "%s%d", port_prefix, i);
+        if (!(*used_ports & (1 << i))) {
+            sprintf(device_path, "%s%d", is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, i);
             // If that port currently connected (file exists), it's a new device
-            if (access(port_name, F_OK) != -1) {
-                // Turn bit on in BITMAP
-                *bitmap |= (1 << i);
+            if (access(device_path, F_OK) != -1) {
+                // Turn bit on
+                *found_devices |= (1 << i);
                 // Mark that we've taken care of this device
-                used_ports |= (1 << i);
+                *used_ports |= (1 << i);
                 num_devices_found++;
             }
         }
         pthread_mutex_unlock(&used_ports_lock);
     }
+    return num_devices_found;
+}
+
+/**
+ * Finds which Arduinos and virtual devices are newly connected since the last call to this function
+ * Arguments:
+ *    lowcar_bitmap: Bit i will be turned on if <LOWCAR_FILE_PATH>[i] is a newly connected device
+ *    virtual_bitmap: Bit i will be turned on if <VIRTUAL_FILE_PATH>[i] is a newly connected device
+ * Returns:
+ *    the number of devices that were found
+ */
+int get_new_devices(uint32_t* lowcar_bitmap, uint32_t* virtual_bitmap) {
+    uint8_t num_devices_found = 0;
+    num_devices_found += get_new_devices_helper(false, lowcar_bitmap);
+    num_devices_found += get_new_devices_helper(true, virtual_bitmap);
     return num_devices_found;
 }
 
@@ -172,22 +211,24 @@ int get_new_devices(uint32_t* bitmap) {
  *  sender: Sends data to write to device and periodically sends PING
  *  receiver: Receives parameter data from the lowcar device and processes logs
  * Arguments:
+ *    is_virtual: Whether the device is virtual
  *    port_num: The port number of the new device to connect to
  */
-void communicate(uint8_t port_num) {
+void communicate(bool is_virtual, uint8_t port_num) {
     relay_t* relay = malloc(sizeof(relay_t));
     if (relay == NULL) {
         log_printf(FATAL, "communicate: Failed to malloc");
         exit(1);
     }
+    relay->is_virtual = is_virtual;
     relay->port_num = port_num;
 
     char port_name[15];  // Template size + 2 indices for port_number
-    sprintf(port_name, "%s%d", port_prefix, relay->port_num);
-    if (strcmp(port_prefix, "/tmp/ttyACM") == 0) {  // Bind to socket
+    sprintf(port_name, "%s%d", is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
+    if (relay->is_virtual) {  // Bind to socket
         relay->file_descriptor = connect_socket(port_name);
         if (relay->file_descriptor == -1) {
-            // log_printf(ERROR, "communicate: Couldn't connect to socket %s\n", port_name);
+            log_printf(ERROR, "communicate: Couldn't connect to socket %s\n", port_name);
             relay_clean_up(relay);
             return;
         }
@@ -235,7 +276,7 @@ void* relayer(void* relay_cast) {
     int ret;
 
     // Verify that the device is a lowcar device
-    ret = verify_lowcar(relay);
+    ret = verify_device(relay);
     if (ret != 0) {
         log_printf(DEBUG, "/dev/ttyACM%d couldn't be verified to be a lowcar device", relay->port_num);
         log_printf(ERROR, "A non-PiE device was recently plugged in. Please unplug immediately");
@@ -258,7 +299,7 @@ void* relayer(void* relay_cast) {
     // If the device disconnects or times out, clean up
     log_printf(DEBUG, "Monitoring %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
     char port_name[14];
-    sprintf(port_name, "%s%d", port_prefix, relay->port_num);
+    sprintf(port_name, "%s%d", relay->is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
     while (1) {
         // If Arduino port file doesn't exist, it disconnected
         if (access(port_name, F_OK) == -1) {
@@ -281,7 +322,7 @@ void* relayer(void* relay_cast) {
 
 /**
  * Called by relayer to clean up after the device.
- * Closes serialport, cancels threads,
+ * Closes serialport/socket, cancels threads,
  * disconnects from shared memory, and frees the RELAY struct
  * Arguments:
  *    relay: Struct containing device/thread info used to clean up
@@ -289,7 +330,8 @@ void* relayer(void* relay_cast) {
 void relay_clean_up(relay_t* relay) {
     // If couldn't connect to device in the first place, just mark as unused
     if (relay->file_descriptor == -1) {
-        used_ports &= ~(1 << relay->port_num);  // Set bit to 0 to indicate unused
+        uint32_t* used_ports = relay->is_virtual ? &used_virtual_ports : &used_lowcar_ports;
+        *used_ports &= ~(1 << relay->port_num);  // Set bit to 0 to indicate unused
         free(relay);
         sleep(TIMEOUT / 1000);
         return;
@@ -320,12 +362,13 @@ void relay_clean_up(relay_t* relay) {
     if ((ret = pthread_mutex_lock(&used_ports_lock))) {
         log_printf(ERROR, "relay_clean_up: used_ports_lock mutex lock failed with code %d", ret);
     }
-    used_ports &= ~(1 << relay->port_num);  // Set bit to 0 to indicate unused
+    uint32_t* used_ports = relay->is_virtual ? &used_virtual_ports : &used_lowcar_ports;
+    *used_ports &= ~(1 << relay->port_num);  // Set bit to 0 to indicate unused
     pthread_mutex_unlock(&used_ports_lock);
     pthread_mutex_destroy(&relay->relay_lock);
     pthread_cond_destroy(&relay->start_cond);
     if (relay->dev_id.uid == -1) {
-        log_printf(DEBUG, "Cleaned up bad device %s%d\n", port_prefix, relay->port_num);
+        log_printf(DEBUG, "Cleaned up bad device %s%d\n", relay->is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
     } else {
         log_printf(DEBUG, "Cleaned up %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
     }
@@ -523,14 +566,14 @@ int receive_message(relay_t* relay, message_t* msg) {
             log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
             return 3;
         } else if (num_bytes_read == 0) {  // read() returned due to timeout
-            log_printf(WARN, "Timed out when waiting for ACK from %s%d!", port_prefix, relay->port_num);
+            log_printf(WARN, "Timed out when waiting for ACK from %s%d!", relay->is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
             return 3;
         } else if (last_byte_read != 0x00) {
             // If the first thing received isn't a perfect ACK, we won't accept it
-            log_printf(WARN, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
+            log_printf(WARN, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, relay->is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
             return 1;
         }
-    } else {  // Receiving from a verified lowcar device
+    } else {  // Receiving from a verified device
         // Keep reading a byte until we get the delimiter byte
         while (1) {
             pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -549,7 +592,7 @@ int receive_message(relay_t* relay, message_t* msg) {
                 break;
             }
             // If we were able to read a byte but it wasn't the delimiter
-            log_printf(WARN, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, port_prefix, relay->port_num);
+            log_printf(WARN, "Attempting to read delimiter but got 0x%02X from %s%d\n", last_byte_read, relay->is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
         }
     }
 
@@ -589,7 +632,7 @@ int receive_message(relay_t* relay, message_t* msg) {
     int ret = parse_message(data, msg);
     free(data);
     if (ret != 0) {
-        log_printf(WARN, "Couldn't parse message from %s%d\n", port_prefix, relay->port_num);
+        log_printf(WARN, "Couldn't parse message from %s%d\n", relay->is_virtual ? VIRTUAL_FILE_PATH : LOWCAR_FILE_PATH, relay->port_num);
         return 2;
     }
     return 0;
@@ -606,7 +649,7 @@ int receive_message(relay_t* relay, message_t* msg) {
  *    1 if Ping message couldn't be sent
  *    2 if ACKNOWLEDGEMENT wasn't received
  */
-int verify_lowcar(relay_t* relay) {
+int verify_device(relay_t* relay) {
     // Send a Ping
     message_t* ping = make_ping();
     int ret = send_message(relay, ping);
@@ -633,7 +676,7 @@ int verify_lowcar(relay_t* relay) {
     /* Set serial port options to allow read() to block indefinitely
      * We expect the lowcar device to continuously send data
      * In serialport_open(), we set read() to timeout specifically for waiting for ACK */
-    if (strcmp(port_prefix, "/dev/ttyACM") == 0) {
+    if (!relay->is_virtual) {
         struct termios toptions;
         if (tcgetattr(relay->file_descriptor, &toptions) < 0) {  // Get current options
             log_printf(ERROR, "verify_lowcar: Couldn't get term attributes for %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
@@ -782,10 +825,6 @@ int main(int argc, char* argv[]) {
     // If SIGINT (Ctrl+C) is received, call stop() to clean up
     signal(SIGINT, stop);
     init();
-    // Passing argument "virtual" will search for fake devices in /tmp/ttyACM
-    if (argc == 2 && strcmp(argv[1], "virtual") == 0) {
-        port_prefix = "/tmp/ttyACM";
-    }
     log_printf(INFO, "DEV_HANDLER initialized.");
     poll_connected_devices();
     return 0;
