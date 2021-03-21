@@ -17,6 +17,12 @@
 #include <sys/un.h>      // for struct sockaddr_un
 #include <unistd.h>      // for F_OK, R_OK, SEEK_SET, SEEK_END, access, ftruncate, read, write, etc.
 
+// Define booleans for convenience
+typedef enum {
+    false,
+    true
+} bool;
+
 // ***************************** DEFINED CONSTANTS ************************** //
 
 #define MAX_DEVICES 32  // Maximum number of connected devices
