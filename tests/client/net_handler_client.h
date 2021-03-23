@@ -1,6 +1,7 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
+#include <stdbool.h>
 #include <sys/wait.h>
 #include "../../net_handler/net_util.h"
 
@@ -16,7 +17,7 @@ typedef struct {
  *    dawn: Whether to connect a fake Dawn
  *    shepherd: Whether to connect a fake Shepherd
  */
-void connect_clients(int dawn, int shepherd);
+void connect_clients(bool dawn, bool shepherd);
 
 /**
  * Starts a new instance of net handler and connects a fake Dawn and fake Shepherd.

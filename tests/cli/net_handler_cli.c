@@ -15,9 +15,9 @@
  * If no flags are specified, both (fake) Dawn and (fake) Shepherd will be connected to a new
  * net handler instance.
  */
-int spawned_net_handler = 1;  // Whether the CLI spawned a new net handler instance
-int dawn = 0;                 // Whether to connect a fake Dawn
-int shepherd = 0;             // Whether to connect a fake Shepherd
+bool spawned_net_handler = true;  // Whether the CLI spawned a new net handler instance
+bool dawn = false;                // Whether to connect a fake Dawn
+bool shepherd = false;            // Whether to connect a fake Shepherd
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
@@ -25,9 +25,9 @@ void prompt_run_mode() {
     robot_desc_field_t client = SHEPHERD;
     robot_desc_val_t mode = IDLE;
     char nextcmd[MAX_CMD_LEN];
-    int keyboard_enabled = 0;  // notify users when keyboard control is enabled/disabled
+    bool keyboard_enabled = false;  // notify users when keyboard control is enabled/disabled
     // get client to send as
-    while (1) {
+    while (true) {
         printf("Send as DAWN or SHEPHERD: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "dawn\n") == 0) {
@@ -44,20 +44,20 @@ void prompt_run_mode() {
     }
 
     // get mode to send
-    while (1) {
+    while (true) {
         printf("Send mode IDLE, AUTO, or TELEOP: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "idle\n") == 0) {
             mode = IDLE;
-            keyboard_enabled = 0;
+            keyboard_enabled = false;
             break;
         } else if (strcmp(nextcmd, "auto\n") == 0) {
             mode = AUTO;
-            keyboard_enabled = 0;
+            keyboard_enabled = false;
             break;
         } else if (strcmp(nextcmd, "teleop\n") == 0) {
             mode = TELEOP;
-            keyboard_enabled = 1;
+            keyboard_enabled = true;
             break;
         } else if (strcmp(nextcmd, "abort\n") == 0) {
             return;
@@ -78,7 +78,7 @@ void prompt_game_state() {
     robot_desc_field_t state;
     char nextcmd[MAX_CMD_LEN];
     //get state to send
-    while (1) {
+    while (true) {
         printf("Send state POISON_IVY, DEHYDRATION, HYPOTHERMIA: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "poison ivy\n") == 0) {
@@ -106,7 +106,7 @@ void prompt_start_pos() {
     char nextcmd[MAX_CMD_LEN];
 
     // get client to send as
-    while (1) {
+    while (true) {
         printf("Send as DAWN or SHEPHERD: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "dawn\n") == 0) {
@@ -123,7 +123,7 @@ void prompt_start_pos() {
     }
 
     // get pos to send
-    while (1) {
+    while (true) {
         printf("Send pos LEFT or RIGHT: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "left\n") == 0) {
@@ -155,7 +155,7 @@ void prompt_challenge_data() {
     }
 
     // get client to send as
-    while (1) {
+    while (true) {
         printf("Send as DAWN or SHEPHERD: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);
         if (strcmp(nextcmd, "dawn\n") == 0) {
@@ -224,9 +224,9 @@ void prompt_device_data() {
     }
 
     // enter prompt loop
-    while (1) {
+    while (true) {
         // ask for UID
-        while (1) {
+        while (true) {
             printf("Enter the UID of the device, in base 10: ");
             fgets(nextcmd, MAX_CMD_LEN, stdin);
 
@@ -251,7 +251,7 @@ void prompt_device_data() {
                 printf("\t%4d %s\n", i, dev_names[i]);
             }
         }
-        while (1) {
+        while (true) {
             printf("Enter the device type: ");
             fgets(nextcmd, MAX_CMD_LEN, stdin);
             if (strcmp(nextcmd, "abort\n") == 0) {
@@ -362,7 +362,7 @@ void connect_keyboard() {
 
 int main(int argc, char** argv) {
     char nextcmd[MAX_CMD_LEN];  // to hold nextline
-    int stop = 0;
+    bool stop = false;
 
     signal(SIGINT, sigint_handler);
 
@@ -372,12 +372,12 @@ int main(int argc, char** argv) {
     while ((c = getopt(argc, argv, "ds")) != -1) {
         switch (c) {
             case 'd':
-                spawned_net_handler = 0;
-                dawn = 1;
+                spawned_net_handler = false;
+                dawn = true;
                 break;
             case 's':
-                spawned_net_handler = 0;
-                shepherd = 1;
+                spawned_net_handler = false;
+                shepherd = true;
                 break;
             case '?':
                 fprintf(stderr, "Unknown option `-%c'.\n", optopt);
@@ -393,8 +393,8 @@ int main(int argc, char** argv) {
     // Handle behavior based on flags
     if (spawned_net_handler) {
         // Since we spawn a new net handler, we should also connect a fake Dawn and fake Shepherd
-        dawn = 1;
-        shepherd = 1;
+        dawn = true;
+        shepherd = true;
         // start the net handler and connect all of its output locations to file descriptors in this process
         start_net_handler();
     } else {  // In "attach-only" mode
@@ -414,7 +414,7 @@ int main(int argc, char** argv) {
 
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
-            stop = 1;
+            stop = true;
         } else if (strcmp(nextcmd, "reroute output\n") == 0) {
             prompt_reroute_output();
         } else if (strcmp(nextcmd, "run mode\n") == 0) {
