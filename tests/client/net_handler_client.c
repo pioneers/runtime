@@ -5,8 +5,8 @@ pid_t nh_pid;                           // holds the pid of the net_handler proc
 struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
 pthread_t dump_tid;                     // holds the thread id of the output dumper threads
 pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
-int print_next_udp;                     // 0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
-int hypothermia_enabled = 0;            // 0 if hypothermia enabled, 1 if disabled
+bool print_next_udp;                    // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
+bool hypothermia_enabled = false;
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
@@ -132,7 +132,7 @@ static void recv_udp_data(int udp_fd) {
     // if we were asked to print the last UDP message, set output back to /dev/null
     pthread_mutex_lock(&print_udp_mutex);
     if (print_next_udp) {
-        print_next_udp = 0;
+        print_next_udp = false;
         udp_output_fp = null_fp;
     }
     pthread_mutex_unlock(&print_udp_mutex);
@@ -208,7 +208,7 @@ static void* output_dump(void* args) {
     maxfd++;
 
     // wait for net handler to create some output, then print that output to stdout of this process
-    while (1) {
+    while (true) {
         // set up the read_set argument to selct()
         FD_ZERO(&read_set);
         FD_SET(nh_tcp_shep_fd, &read_set);
@@ -268,7 +268,7 @@ static void* output_dump(void* args) {
 
 // ************************************* NET HANDLER CLIENT FUNCTIONS ************************** //
 
-void connect_clients(int dawn, int shepherd) {
+void connect_clients(bool dawn, bool shepherd) {
     // Connect Dawn and Shepherd to net handler over TCP
     nh_tcp_dawn_fd = (dawn) ? connect_tcp(DAWN) : -1;
     nh_tcp_shep_fd = (shepherd) ? connect_tcp(SHEPHERD) : -1;
@@ -290,7 +290,7 @@ void connect_clients(int dawn, int shepherd) {
     if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
         printf("pthread_mutex_init: print udp mutex\n");
     }
-    print_next_udp = 0;
+    print_next_udp = false;
     udp_output_fp = null_fp;  // by default set to output to /dev/null
 
     // start the thread that is dumping output from net_handler to stdout of this process
@@ -405,11 +405,11 @@ void send_game_state(robot_desc_field_t state) {
         case (HYPOTHERMIA):
             if (hypothermia_enabled) {
                 game_state.state = STATE__HYPOTHERMIA_END;
-                hypothermia_enabled = 0;
+                hypothermia_enabled = false;
                 break;
             } else {
                 game_state.state = STATE__HYPOTHERMIA_START;
-                hypothermia_enabled = 1;
+                hypothermia_enabled = true;
                 break;
             }
         default:
@@ -608,7 +608,7 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
 
 void print_next_dev_data() {
     pthread_mutex_lock(&print_udp_mutex);
-    print_next_udp = 1;
+    print_next_udp = true;
     udp_output_fp = stdout;
     pthread_mutex_unlock(&print_udp_mutex);
     usleep(400000);  // allow time for output_dump to react and generate output before returning to client

@@ -26,7 +26,7 @@ void display_help() {
 }
 
 // True iff this CLI should attach to an already existing instance of dev handler rather than spawning a new one.
-int attach = 0;
+bool attach = 0;
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
@@ -46,7 +46,7 @@ void remove_newline(char* nextcmd) {
 }
 
 void prompt_device_connect() {
-    while (1) {
+    while (true) {
         // prints out list of available test devices
         printf("This is the list of devices by name. Type in number on left to use device\n");
         for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
@@ -90,7 +90,7 @@ void prompt_device_connect() {
 }
 
 void prompt_device_disconnect() {
-    while (1) {
+    while (true) {
         // list the connected virtual devices
         list_devices();
 
@@ -128,11 +128,11 @@ void prompt_device_disconnect() {
 int main(int argc, char** argv) {
     // setup
     signal(SIGINT, clean_up);
-    int stop = 1;
+    bool stop = 1;
 
     // If the argument "attach" is specified, then set the global variable
     if (argc == 2 && strcmp(argv[1], "attach") == 0) {
-        attach = 1;
+        attach = true;
     }
 
     // Start dev handler if we aren't attaching to existing dev handler
