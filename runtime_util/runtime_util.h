@@ -7,6 +7,7 @@
 #include <fcntl.h>       // for file opening constants (O_CREAT, O_RDONLY, O_RDWR, etc.)
 #include <pthread.h>     // for thread-functions: pthread_create, pthread_cancel, pthread_join, etc.
 #include <signal.h>      // for setting signal function (setting signal handler)
+#include <stdbool.h>     // for standard boolean types
 #include <stdint.h>      // for uint32_t, int16_t, uint8_t, etc.
 #include <stdio.h>       // for printf, perror, fprintf, fopen, etc.
 #include <stdlib.h>      // for malloc, free

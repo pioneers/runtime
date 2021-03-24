@@ -1,6 +1,7 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
+#include <stdbool.h>
 #include <sys/wait.h>
 #include "../../net_handler/net_util.h"
 
@@ -11,7 +12,15 @@ typedef struct {
 } dev_subs_t;
 
 /**
- * Starts the real net handler process and connects to all of its outputs
+ * Connects clients to an already existing instance of runtime.
+ * Arguments:
+ *    dawn: Whether to connect a fake Dawn
+ *    shepherd: Whether to connect a fake Shepherd
+ */
+void connect_clients(bool dawn, bool shepherd);
+
+/**
+ * Starts a new instance of net handler and connects a fake Dawn and fake Shepherd.
  * Sets everything up for querying from the CLI or from a test.
  */
 void start_net_handler();
