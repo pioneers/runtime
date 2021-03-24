@@ -1,0 +1,12 @@
+[Unit]
+Description=Serves a webpage that displays the ngrok tunnel IP addresses.
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/runtime/systemd/
+ExecStart=python3 ngrok_displayer.py
+ExecReload=/bin/kill -SIGINT $MAINPID
+
+[Install]
+WantedBy=multi-user.target
