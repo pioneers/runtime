@@ -31,7 +31,7 @@ void Device::loop() {
 
     if (sts == Status::SUCCESS) {  // we have a message!
         switch (this->curr_msg.message_id) {
-            case MessageID::PING:
+            case MessageID::DEVICE_PING:
                 this->last_received_ping_time = this->curr_time;
                 // If this is the first PING received, send an ACKNOWLEDGEMENT
                 if (!this->enabled) {
