@@ -48,7 +48,7 @@ enum class MessageID : uint8_t {
 };
 
 // identification for device types
-enum class DeviceType : uint16_t {
+enum class DeviceType : uint8_t {
     DUMMY_DEVICE = 0x00,
     LIMIT_SWITCH = 0x01,
     LINE_FOLLOWER = 0x02,
