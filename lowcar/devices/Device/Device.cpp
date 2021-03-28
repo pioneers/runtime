@@ -12,12 +12,10 @@ Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
     this->params = 0;         // Initialize to no subscribed parameters (empty DEVICE_DATA)
     this->sub_interval = 0;   // 0 acts as flag indicating no subscription
     this->timeout = timeout;  // timeout in ms how long we tolerate not receiving a PING from dev handler
-    this->enabled = FALSE;
+    this->enabled = FALSE;    // Whether or not the device currently has a connection with Runtime
 
     this->msngr = new Messenger();
     this->led = new StatusLED();
-
-    device_enable();  // call device's enable function
 
     this->last_sent_data_time = this->last_received_ping_time = this->curr_time = millis();
 }
@@ -37,9 +35,10 @@ void Device::loop() {
                 this->last_received_ping_time = this->curr_time;
                 // If this is the first PING received, send an ACKNOWLEDGEMENT
                 if (!this->enabled) {
-                    this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sending ACK", (uint8_t) this->dev_id.type, this->dev_id.uid);
                     this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), &(this->dev_id));
+                    this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sent ACK", (uint8_t) this->dev_id.type, this->dev_id.uid);
                     this->enabled = TRUE;
+                    device_enable();
                 }
                 break;
 
