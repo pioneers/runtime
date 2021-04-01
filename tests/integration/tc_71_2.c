@@ -40,7 +40,7 @@ int main() {
     check_run_mode(IDLE);
 
     // this section checks the teleop code (should generate division by zero error)
-    send_run_mode(DAWN, TELEOP);
+    send_run_mode(SHEPHERD, TELEOP);
     add_ordered_string_output("Traceback (most recent call last):\n");
     add_ordered_string_output(check_output_6);
     add_ordered_string_output("Python function teleop_main call failed\n");
