@@ -35,7 +35,8 @@ static void tcp_conn_cleanup(void* args) {
     }
     robot_desc_write(tcp_args->client, DISCONNECTED);
     if (tcp_args->client == DAWN) {
-        robot_desc_write(GAMEPAD, DISCONNECTED);  // Disconnect gamepad if Dawn is no longer connected
+        robot_desc_write(GAMEPAD, DISCONNECTED);   // Disconnect gamepad if Dawn is no longer connected
+        robot_desc_write(KEYBOARD, DISCONNECTED);  // Disconnect keyboard if Dawn is no longer connected
     }
     free(args);
     log_printf(DEBUG, "Finished cleaning up TCP connection with %d\n", tcp_args->client);
@@ -181,6 +182,12 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
         if (run_mode_msg == NULL) {
             log_printf(ERROR, "recv_new_msg: Cannot unpack run_mode msg");
             return -2;
+        }
+
+        // if shepherd is connected and dawn tries to send RUN_MODE == AUTO or TELEOP, block it
+        if (pthread_self() == dawn_tid && robot_desc_read(SHEPHERD) == CONNECTED && (run_mode_msg->mode == MODE__AUTO || (run_mode_msg->mode == MODE__TELEOP))) {
+            log_printf(INFO, "You cannot send Robot to Auto or Teleop from Dawn with Shepherd connected!");
+            return 0;
         }
 
         //write the specified run mode to the RUN_MODE field of the robot description
