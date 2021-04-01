@@ -15,7 +15,7 @@ int main() {
     sleep(1);
     check_inputs(buttons, garbage, KEYBOARD);
 
-    send_run_mode(DAWN, TELEOP);
+    send_run_mode(SHEPHERD, TELEOP);
     sleep(.1);
 
     buttons = get_key_bit("y");

@@ -17,7 +17,7 @@ int main() {
     sleep(1);
 
     // Set run mode AUTO
-    send_run_mode(DAWN, AUTO);
+    send_run_mode(SHEPHERD, AUTO);
     sleep(1);
 
     // Verify subscriptions
