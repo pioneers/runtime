@@ -38,6 +38,7 @@ function run_tests {
 		if [[ $? != 0 ]]; then
 			failing_tests="$failing_tests $test"  # add this test to list of failing tests
 			failed=1
+            continue
 		fi
 
 		# run test

@@ -195,7 +195,7 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
     } else {
-        fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n",client_str);
+        fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
     }
 
     // free allocated memory
