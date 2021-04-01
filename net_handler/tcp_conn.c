@@ -113,15 +113,13 @@ static void send_log_msg(int conn_fd, FILE* log_file) {
 * packet and processed it. 
 * Arguments:
     - int conn_fd: socket connection's file descriptor on which to write to the TCP port
-    - uint64_t dawn_timestamp: Dawn's timestamp received from the timestamp message
+    - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_protot from Dawn
 */
-static void send_timestamp_msg(int conn_fd, uint64_t dawn_timestamp) {
-    TimeStamps timestamp_msg = TIME_STAMPS__INIT;
-    timestamp_msg.dawn_timestamp = dawn_timestamp;
-    timestamp_msg.runtime_timestamp = millis();
-    uint16_t len_pb = time_stamps__get_packed_size(&timestamp_msg);
+static void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg) {
+    dawn_timestamp_msg->runtime_timestamp = millis();
+    uint16_t len_pb = time_stamps__get_packed_size(dawn_timestamp_msg);
     uint8_t* send_buf = make_buf(TIME_STAMP_MSG, len_pb);
-    time_stamps__pack(&timestamp_msg, send_buf + BUFFER_OFFSET);
+    time_stamps__pack(dawn_timestamp_msg, send_buf + BUFFER_OFFSET);
     if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_timestamp_msg: sending log message over socket failed: %s", strerror(errno));
     }
@@ -307,7 +305,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
         if (time_stamp_msg == NULL) {
             log_printf(ERROR, "recv_new_msg: Cannot unpack time_stamp msg");
         }
-        send_timestamp_msg(conn_fd, time_stamp_msg->dawn_timestamp);
+        send_timestamp_msg(conn_fd, time_stamp_msg);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
     } else {
         log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);

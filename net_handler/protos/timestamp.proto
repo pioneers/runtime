@@ -7,6 +7,6 @@ syntax = "proto3";
 option optimize_for = LITE_RUNTIME;
 
 message TimeStamps {
-    uint64 dawn_timestamp = 1;
-    uint64 runtime_timestamp = 2;
+    fixed64 dawn_timestamp = 1;
+    fixed64 runtime_timestamp = 2;
 }
