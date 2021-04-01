@@ -184,8 +184,9 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
             return -2;
         }
 
-        // if shepherd is connected and dawn tries to send RUN_MODE == AUTO or TELEOP, block it
-        if (pthread_self() == dawn_tid && robot_desc_read(SHEPHERD) == CONNECTED && (run_mode_msg->mode == MODE__AUTO || (run_mode_msg->mode == MODE__TELEOP))) {
+        //if shepherd is connected and dawn tries to set RUN_MODE == AUTO or TELEOP, block it
+        if (pthread_self() == dawn_tid && robot_desc_read(SHEPHERD) == CONNECTED &&
+            (run_mode_msg->mode == MODE__AUTO || (run_mode_msg->mode == MODE__TELEOP))) {
             log_printf(INFO, "You cannot send Robot to Auto or Teleop from Dawn with Shepherd connected!");
             return 0;
         }
