@@ -166,31 +166,35 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
     if (msg_type == TIME_STAMP_MSG) {
         TimeStamps* time_stamp_msg = time_stamps__unpack(NULL, len, buf);
         if (time_stamp_msg == NULL) {
-            log_printf(ERROR, "recv_new_msg: Cannot unpack time_stamp msg");
+            fprintf(tcp_output_fp, "Cannot unpack time_stamp msg");
         }
         uint64_t final_timestamp = millis();
-        printf("First Dawn Timestamp: %lu\n", time_stamp_msg->dawn_timestamp);
-        printf("Runtime Timestamp: %lu\n", time_stamp_msg->runtime_timestamp);
-        printf("Final Dawn Timestamp: %lu\n", final_timestamp);
-        printf("Round Dawn trip: %lu\n", final_timestamp - time_stamp_msg->dawn_timestamp);
+        printf("First Dawn Timestamp: %llu ms\n", time_stamp_msg->dawn_timestamp);
+        printf("Runtime Timestamp: %llu ms\n", time_stamp_msg->runtime_timestamp);
+        printf("Final Dawn Timestamp: %llu ms\n", final_timestamp);
+        printf("Round Dawn trip: %llu ms\n", final_timestamp - time_stamp_msg->dawn_timestamp);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
-    } else {
+    } else if (msg_type == LOG_MSG) {
         if ((msg = text__unpack(NULL, len, buf)) == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }
-        // print the incoming message
-        if (msg_type == LOG_MSG) {
-            // unpack the message
-            for (int i = 0; i < msg->n_payload; i++) {
-                fprintf(tcp_output_fp, "%s", msg->payload[i]);
-            }
-        } else if (msg_type == CHALLENGE_DATA_MSG) {
-            for (int i = 0; i < msg->n_payload; i++) {
-                fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
-            }
+        // unpack the message
+        for (int i = 0; i < msg->n_payload; i++) {
+            fprintf(tcp_output_fp, "%s", msg->payload[i]);
         }
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
+    } else if (msg_type == CHALLENGE_DATA_MSG) {
+        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
+        for (int i = 0; i < msg->n_payload; i++) {
+            fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
+        }
+        fflush(tcp_output_fp);
+        text__free_unpacked(msg, NULL);
+    } else {
+        fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n",client_str);
     }
 
     // free allocated memory
