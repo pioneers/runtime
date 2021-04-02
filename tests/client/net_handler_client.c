@@ -185,6 +185,7 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
     } else if (msg_type == CHALLENGE_DATA_MSG) {
+        // unpack the message
         if ((msg = text__unpack(NULL, len, buf)) == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }

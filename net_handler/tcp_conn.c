@@ -113,7 +113,7 @@ static void send_log_msg(int conn_fd, FILE* log_file) {
 * packet and processed it. 
 * Arguments:
     - int conn_fd: socket connection's file descriptor on which to write to the TCP port
-    - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_protot from Dawn
+    - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_proto from Dawn
 */
 static void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg) {
     dawn_timestamp_msg->runtime_timestamp = millis();
