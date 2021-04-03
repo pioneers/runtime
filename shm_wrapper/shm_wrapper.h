@@ -3,7 +3,8 @@
 
 #include <limits.h>     // for UCHAR_MAX
 #include <semaphore.h>  // for semaphores
-#include <sys/mman.h>   // for posix shared memory
+#include <stdbool.h>
+#include <sys/mman.h>  // for posix shared memory
 
 #include "../logger/logger.h"              // for logger
 #include "../runtime_util/runtime_util.h"  // for runtime constants
@@ -96,6 +97,9 @@ extern log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for l
 extern sem_t* log_data_sem;               // semaphore used as a mutex on the log data
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
+
+// Returns true iff shared memory exists.
+bool shm_exists();
 
 /**
  * Function that generates a semaphore name for the data and command streams
