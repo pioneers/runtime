@@ -91,6 +91,14 @@ void send_challenge_data(robot_desc_field_t client, char** data, int num_challen
 void send_device_subs(dev_subs_t* subs, int num_devices);
 
 /**
+ * Sends a Timestamp message with a "Dawn" timestamp attached to it. It is then received by the tcp_conn, where it 
+ * sends a new Timestamp message with the "Runtime" timestamp attached to it. Finally it comes back around to "net_handler_client"
+ * where it parses the message and calculates how much time it took to go to tcp_conn and back
+ * No return value
+ */
+void send_timestamp();
+
+/**
  * Calling this function will let the next device data packet coming into Dawn from Runtime
  * to be printed to standard output (since device data packets are constantly coming in, they
  * are normally suppressed; this function unsuppresses one single packet).

@@ -340,6 +340,7 @@ void display_help() {
     printf("\tstart pos          send a Start Pos message\n");
     printf("\tchallenge data     send a Challenge Data message\n");
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
+    printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
     printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
     printf("\treroute output     reroute output to a file\n");
     printf("\thelp               display this help text\n");
@@ -429,6 +430,8 @@ int main(int argc, char** argv) {
             prompt_device_data();
         } else if (strcmp(nextcmd, "view device data\n") == 0) {
             print_next_dev_data();
+        } else if (strcmp(nextcmd, "send timestamp\n") == 0) {
+            send_timestamp();
         } else if (strcmp(nextcmd, "help\n") == 0) {
             display_help();
         } else {
