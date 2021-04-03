@@ -202,6 +202,11 @@ static void shm_close() {
 
 // ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
 
+bool shm_exists() {
+    // Assumes all shared memory blocks are created together and destroyed together
+    return (access("/dev/shm/dev-shm", F_OK) == 0);
+}
+
 void generate_sem_name(stream_t stream, int dev_ix, char* name) {
     if (stream == DATA) {
         sprintf(name, "/data_sem_%d", dev_ix);
@@ -223,6 +228,12 @@ int get_dev_ix_from_uid(uint64_t dev_uid) {
 }
 
 void shm_init() {
+    // Verify that shared memory exists
+    if (!shm_exists()) {
+        log_printf(ERROR, "shm_init: SHM does not exist!");
+        exit(1);
+    }
+
     int fd_shm;              // file descriptor of the memory-mapped shared memory
     char sname[SNAME_SIZE];  // for holding semaphore names
 

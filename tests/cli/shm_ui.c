@@ -145,11 +145,11 @@ void display_controls() {
 
     // Right
     addch(ACS_RARROW | A_REVERSE);
-    printw(" Next\n");
+    printw(" Next");
 
     attroff(A_BOLD);
 
-    printw("\tUnfocus this terminal to ignore inputs");
+    printw("\tUnfocus this terminal to ignore inputs!");
     refresh();
 }
 
@@ -598,6 +598,14 @@ int main(int argc, char** argv) {
 
     // Update the UI continually (based on refresh rate)
     while (1) {
+        // Verify that shared memory still exists.
+        // This can be helpful to know when shared memory gets unexpectedly destroyed.
+        if (!shm_exists()) {
+            endwin();  // Stop the UI
+            log_printf(ERROR, "SHM was destroyed unexpectedly!");
+            exit(1);
+        }
+
         // Get newest shm data
         get_catalog(&catalog);
         get_device_identifiers(dev_ids);
