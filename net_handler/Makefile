@@ -8,11 +8,12 @@ GEN_FILES:=$(GEN_FOLDER)/*.c
 all: $(GEN_FOLDER)/* net_handler converter
 
 # makes the generated protobuf-c files in the pbc_gen folder
-$(GEN_FOLDER)/%: $(wildcard protos/%.proto)
+$(GEN_FOLDER)/%: $(wildcard protos/%.proto) 
+	mkdir -p $(GEN_FOLDER)
 	cd protos && protoc-c --c_out ../$(GEN_FOLDER) $*.proto
 
 clean:
-	rm -f $(GEN_FOLDER)/*
+	rm -rf $(GEN_FOLDER)
 	rm -f net_handler
 
 # makes the actual net_handler executable

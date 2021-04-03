@@ -163,26 +163,43 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         return -1;
     }
 
-    // unpack the message
-    if ((msg = text__unpack(NULL, len, buf)) == NULL) {
-        fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
-    }
-
-    // print the incoming message
-    if (msg_type == LOG_MSG) {
+    if (msg_type == TIME_STAMP_MSG) {
+        TimeStamps* time_stamp_msg = time_stamps__unpack(NULL, len, buf);
+        if (time_stamp_msg == NULL) {
+            fprintf(tcp_output_fp, "Cannot unpack time_stamp msg");
+        }
+        uint64_t final_timestamp = millis();
+        printf("First Dawn Timestamp: %llu ms\n", time_stamp_msg->dawn_timestamp);
+        printf("Runtime Timestamp: %llu ms\n", time_stamp_msg->runtime_timestamp);
+        printf("Final Dawn Timestamp: %llu ms\n", final_timestamp);
+        printf("Round Dawn trip: %llu ms\n", final_timestamp - time_stamp_msg->dawn_timestamp);
+        time_stamps__free_unpacked(time_stamp_msg, NULL);
+    } else if (msg_type == LOG_MSG) {
+        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
+        // unpack the message
         for (int i = 0; i < msg->n_payload; i++) {
             fprintf(tcp_output_fp, "%s", msg->payload[i]);
         }
+        fflush(tcp_output_fp);
+        text__free_unpacked(msg, NULL);
     } else if (msg_type == CHALLENGE_DATA_MSG) {
+        // unpack the message
+        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
         for (int i = 0; i < msg->n_payload; i++) {
             fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
         }
+        fflush(tcp_output_fp);
+        text__free_unpacked(msg, NULL);
+    } else {
+        fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
     }
-    fflush(tcp_output_fp);
 
     // free allocated memory
     free(buf);
-    text__free_unpacked(msg, NULL);
 
     return 0;
 }
@@ -605,6 +622,19 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
+void send_timestamp() {
+    TimeStamps timestamp_msg = TIME_STAMPS__INIT;
+    uint8_t* send_buf;
+    uint16_t len;
+    timestamp_msg.dawn_timestamp = millis();
+    len = time_stamps__get_packed_size(&timestamp_msg);
+    send_buf = make_buf(TIME_STAMP_MSG, len);
+    time_stamps__pack(&timestamp_msg, send_buf + BUFFER_OFFSET);
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("writen: issue sending timestamp to Dawn\n");
+    }
+    free(send_buf);
+}
 
 void print_next_dev_data() {
     pthread_mutex_lock(&print_udp_mutex);

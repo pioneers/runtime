@@ -18,6 +18,9 @@
 # ignore the entire lowcar/Device folder
 lowcar/Device
 
+# ignore the entire net_handler/pbc_gen folder
+net_handler/pbc_gen
+
 # Log files
 *.log
 
