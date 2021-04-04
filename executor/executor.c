@@ -16,6 +16,8 @@
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 
+#define DEBUG_SIGNAL 15  // Signal to log as DEBUG instead of ERROR
+
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
 char* module_name;
@@ -482,12 +484,9 @@ static void kill_subprocess() {
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
     }
-    if (!WIFEXITED(status)) {
-        log_printf(ERROR, "Error when shutting down execution of mode %d", mode);
-    }
-    if (WIFSIGNALED(status)) {
-        log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
-    }
+    int sig_number = WTERMSIG(status);
+    log_printf((sig_number == DEBUG_SIGNAL) ? DEBUG : ERROR, "Error when shutting down execution of mode %d", mode);
+    log_printf((sig_number == DEBUG_SIGNAL) ? DEBUG : ERROR, "killed by signal %d\n", sig_number);
     // Reset parameters if robot was in AUTO or TELEOP. Needed for safety
     if (mode != CHALLENGE) {
         reset_params();
