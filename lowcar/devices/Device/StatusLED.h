@@ -23,7 +23,7 @@ class StatusLED {
 
   private:
     const static int LED_PIN = LED_BUILTIN;  // pin to control the LED
-    bool led_enabled;               // keeps track of whether LED is on or off
+    bool led_enabled;                        // keeps track of whether LED is on or off
 
     // Blinks NUM times, waiting MS ms between the toggles, and SPACE ms between each blink
     void blink(int num, int ms, int space);
