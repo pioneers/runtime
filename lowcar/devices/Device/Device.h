@@ -95,7 +95,7 @@ class Device {
   protected:
     Messenger* msngr;  // Encodes/decodes and send/receive messages over serial
     uint8_t enabled;
-    StatusLED* led;                    // The LED on the Arduino
+    StatusLED* led;  // The LED on the Arduino
 
   private:
     const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms

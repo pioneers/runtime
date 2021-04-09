@@ -39,7 +39,7 @@ enum class Digital : uint8_t {
 /* The types of messages */
 enum class MessageID : uint8_t {
     NOP = 0x00,                   // Dummy message
-    DEVICE_PING = 0x01,                  // To lowcar
+    DEVICE_PING = 0x01,           // To lowcar
     ACKNOWLEDGEMENT = 0x02,       // To dev handler
     SUBSCRIPTION_REQUEST = 0x03,  // To lowcar
     DEVICE_WRITE = 0x04,          // To lowcar
