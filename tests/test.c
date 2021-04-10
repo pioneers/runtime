@@ -509,7 +509,7 @@ void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_
     print_pass();
 }
 
-void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t param_val, uint8_t readonly) {
+void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly) {
     if (dev_idx >= dev_data->n_devices) {
         print_fail();
         fprintf_delimiter(stderr, "Expected device at index %d but not enough indices", index);
@@ -517,11 +517,75 @@ void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, pa
         exit(1);
     }
     Device* device = dev_data->devices[dev_idx];
-    int found = 0;
+    bool found = false;
     for (int i = 0; i < device->n_params; i++) {
         if (strcmp(param_name, device->params[i]->name) == 0) {
+            Param* param = device->params[i];
+            // Only care about readonly if it is valid
+            if (readonly < 2 && param->readonly != readonly) {
+                print_fail();
+                fprintf_delimiter(stderr, "Param %s for device %d has readonly %d instead of %d", param_name, dev_idx, param->readonly, readonly);
+                end_test();
+                exit(1);
+            }
+            switch (param_type) {
+                case INT:
+                    if (param->val_case != PARAM__VAL_IVAL) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "Param %s for device %d has Proto ValCase type %d instead of %d", param_name, dev_idx, param->val_case, PARAM__VAL_IVAL);
+                        end_test();
+                        exit(1);
+                    }
+                    if (param->ival != param_val->p_i) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "INT param %s for device %d has value %d instead of %d", param_name, dev_idx, param->ival, param_val->p_i);
+                        end_test();
+                        exit(1);
+                    }
+                    break;
+                case FLOAT:
+                    if (param->val_case != PARAM__VAL_FVAL) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "Param %s for device %d has Proto ValCase type %d instead of %d", param_name, dev_idx, param->val_case, PARAM__VAL_FVAL);
+                        end_test();
+                        exit(1);
+                    }
+                    if (param->fval != param_val->p_f) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "FLOAT param %s for device %d has value %f instead of %f", param_name, dev_idx, param->fval, param_val->p_f);
+                        end_test();
+                        exit(1);
+                    }
+                    break;
+                case BOOL:
+                    if (param->val_case != PARAM__VAL_BVAL) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "Param %s for device %d has Proto ValCase type %d instead of %d", param_name, dev_idx, param->val_case, PARAM__VAL_BVAL);
+                        end_test();
+                        exit(1);
+                    }
+                    if (param->bval != param_val->p_b) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "BOOL param %s for device %d has value %u instead of %u", param_name, dev_idx, param->bval, param_val->p_b);
+                        end_test();
+                        exit(1);
+                    }
+                    break;
+                default:
+                    // If param type is greater than 2, then we don't care about parameter value/type, just existence
+                    break;
+            }
+            found = true;
+            break;
         }
     }
+    if (!found) {
+        print_fail();
+        fprintf_delimiter(stderr, "Didn't find parameter with name %s for device %d", param_name, param_type, dev_idx);
+        end_test();
+        exit(1);
+    }
+    print_pass();
 }
 
 

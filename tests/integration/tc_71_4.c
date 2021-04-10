@@ -15,8 +15,11 @@ int main() {
     send_user_input(buttons, joystick_vals, GAMEPAD);
     sleep(1);
     send_user_input(buttons, joystick_vals, GAMEPAD);
+
     DevData* dev_data = get_next_dev_data();
     check_udp_device_exists(dev_data, 0, 32, 2020);  // CustomData device
+    check_udp_device_param(dev_data, 0, "time_ms", 10, NULL, 1);
+    dev_data__free_unpacked(dev_data, NULL);
     // add_ordered_string_output("Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n");
 
     end_test();

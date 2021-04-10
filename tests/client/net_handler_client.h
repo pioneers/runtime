@@ -83,7 +83,7 @@ void send_device_subs(dev_subs_t* subs, int num_devices);
 
 /**
  * Calling this function will return the most recent device data packet coming into Dawn from Runtime.
- * NOTE: you must free the pointer returned by this function using dev_data__unpacked
+ * NOTE: you must free the pointer returned by this function using dev_data__free_unpacked
  */
 DevData* get_next_dev_data();
 

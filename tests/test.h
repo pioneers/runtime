@@ -11,6 +11,7 @@
 #define TEST_H
 
 #include <regex.h>
+#include <stdbool.h>
 
 #include "client/dev_handler_client.h"
 #include "client/executor_client.h"
@@ -96,6 +97,21 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
  * 
  */
 void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_t uid);
+
+/**
+ * Checks that the device at the given index has a parameter with the given attributes.
+ * 
+ * Args:
+ *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
+ *  index: index where device should be
+ *  param_name: name of parameter to check
+ *  param_type: type of parameter.
+ *      If it is not one of INT, FLOAT, BOOL, then we assume that we don't care about checking parameter value.
+ *  param_val: desired value of parameter, only used if param_type is valid
+ *  readonly: whether the parameter should be readonly
+ * 
+ */
+void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly);
 
 // ***************************** RUN MODE CHECK ***************************** //
 

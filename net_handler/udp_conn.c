@@ -163,6 +163,7 @@ static void* send_device_data(void* args) {
         time->name = "time_ms";
         time->val_case = PARAM__VAL_IVAL;
         time->ival = millis() - start_time;  // Can only give difference in millisecond since robot start since it is int32, not int64
+        time->readonly = 1;
 
         dev_data.n_devices = dev_idx + 1;  // + 1 is for custom data
 
