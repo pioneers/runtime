@@ -7,7 +7,7 @@
  */
 
 // Microseconds between each time we poll shared memory for the current game state
-#define GAMESTATE_POLL_INTERVAL (0.5 * 1000000)
+#define GAMESTATE_POLL_INTERVAL (0.5 * 1e6)
 // Duration of POISON_IVY and DEHYDRATION in milliseconds
 #define DEBUFF_DURATION 10000
 // How much to slow motor velocities when HYPOTHERMIA is ACTIVE
@@ -20,41 +20,46 @@
 #define IDX_VELOCITY_A 0
 #define IDX_VELOCITY_B 8
 
-typedef struct gamestate {
-    uint8_t hypothermia;
-    uint8_t poison_ivy;
-    uint8_t dehydration;
-} gamestate_t;
 
-// A thread function that polls shared memory for gamestate updates
-// Sets POISON_IVY and DEHYDRATION to INACTIVE after 10 seconds of ACTIVE
+/**
+ * A thread function that acts as a timer on gamestates and blocks forever.
+ * Sets POISON_IVY and DEHYDRATION to INACTIVE after DEBUFF_DURATION milliseconds of ACTIVE.
+ * Arguments:
+ *    Unused
+ * Returns:
+ *    NULL
+ */
 static void* gamestate_handler(void* args) {
-    gamestate_t* gamestate = (gamestate_t*) args;
     uint64_t poison_ivy_start = 0;   // The timestamp of when poison ivy started; 0 if inactive
     uint64_t dehydration_start = 0;  // The timestamp of when dehydration started; 0 if inactive
     uint64_t curr_time = 0;          // The current timestamp
 
     // Poll the current gamestate
     while (1) {
-        curr_time = millis();
-        gamestate->hypothermia = (robot_desc_read(HYPOTHERMIA) == ACTIVE) ? 1 : 0;
-
-        if (!gamestate->poison_ivy && robot_desc_read(POISON_IVY) == ACTIVE) {  // Poison ivy started
-            gamestate->poison_ivy = 1;
-            poison_ivy_start = curr_time;
-        } else if (gamestate->poison_ivy && (curr_time - poison_ivy_start > DEBUFF_DURATION)) {  // End poison ivy
-            gamestate->poison_ivy = 0;
-            poison_ivy_start = 0;
+        if (robot_desc_read(RUN_MODE) == IDLE) {  // In IDLE, gamestates shouldn't be in play
+            robot_desc_write(HYPOTHERMIA, INACTIVE);
             robot_desc_write(POISON_IVY, INACTIVE);
-        }
-
-        if (!gamestate->dehydration && robot_desc_read(DEHYDRATION) == ACTIVE) {  // Dehydration started
-            gamestate->dehydration = 1;
-            dehydration_start = curr_time;
-        } else if (gamestate->dehydration && (curr_time - dehydration_start > DEBUFF_DURATION)) {  // End dehydration
-            gamestate->dehydration = 0;
-            dehydration_start = 0;
             robot_desc_write(DEHYDRATION, INACTIVE);
+            poison_ivy_start = 0;
+            dehydration_start = 0;
+        } else {
+            curr_time = millis();
+
+            // Update poison ivy
+            if (!poison_ivy_start && robot_desc_read(POISON_IVY) == ACTIVE) {  // Poison ivy had just started since the last poll
+                poison_ivy_start = curr_time;
+            } else if (poison_ivy_start && (curr_time - poison_ivy_start > DEBUFF_DURATION)) {  // Poison ivy had just ended since the last poll
+                poison_ivy_start = 0;
+                robot_desc_write(POISON_IVY, INACTIVE);
+            }
+
+            // Update dehydration
+            if (!dehydration_start && robot_desc_read(DEHYDRATION) == ACTIVE) {  // Dehydration had just started since the last poll
+                dehydration_start = curr_time;
+            } else if (dehydration_start && (curr_time - dehydration_start > DEBUFF_DURATION)) {  // Dehydration had just started since the last poll
+                dehydration_start = 0;
+                robot_desc_write(DEHYDRATION, INACTIVE);
+            }
         }
         // Throttle the gamestate polling
         usleep(GAMESTATE_POLL_INTERVAL);
@@ -88,26 +93,26 @@ static void bound_velocity(param_val_t* params) {
 
 int filter_device_write_uid(uint8_t dev_type, uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params) {
     static pthread_t gamestate_handler_tid = 0;
-    static gamestate_t gamestate = {0};
     // Spawn thread if it doesn't already exist
     if (gamestate_handler_tid == 0) {
-        pthread_create(&gamestate_handler_tid, NULL, gamestate_handler, (void*) &gamestate);
+        pthread_create(&gamestate_handler_tid, NULL, gamestate_handler, NULL);
     }
+    // Spring 2021: Only KoalaBear is affected by game states
     if (dev_type == KOALABEAR) {
         // Bound velocity to [-1.0, 1.0]
         bound_velocity(params);
 
         // Implement each gamestate, modifying params as necessary
-        if (gamestate.hypothermia) {
+        if (robot_desc_read(HYPOTHERMIA) == ACTIVE) {
             scale_velocity(params, SLOW_SCALAR);
         }
-        if (gamestate.poison_ivy) {
+        if (robot_desc_read(POISON_IVY) == ACTIVE) {
             scale_velocity(params, -1.0);
         }
-        if (gamestate.dehydration) {
+        if (robot_desc_read(DEHYDRATION) == ACTIVE) {
             scale_velocity(params, 0);
         }
     }
-    // Call shared memory wrapper function
+    // Call the actual shared memory wrapper function with the (possibly modified) values
     return device_write_uid(dev_uid, process, stream, params_to_write, params);
 }

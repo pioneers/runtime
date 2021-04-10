@@ -21,6 +21,7 @@
  *           will flip the sign of VALUE before being written to shared memory.
  */
 
+#include <stdbool.h>
 #include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
