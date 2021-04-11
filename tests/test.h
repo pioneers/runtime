@@ -87,7 +87,7 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
 /******************** UDP Device Data Checks ******************/
 
 /**
- * Checks that the given device was returned by the UDP thread.
+ * Checks that the given device was sent by the UDP thread.
  * 
  * Args:
  *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
@@ -105,10 +105,10 @@ void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_
  *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
  *  index: index where device should be
  *  param_name: name of parameter to check
- *  param_type: type of parameter.
+ *  param_type: desired type of parameter
  *      If it is not one of INT, FLOAT, BOOL, then we assume that we don't care about checking parameter value.
- *  param_val: desired value of parameter, only used if param_type is valid
- *  readonly: whether the parameter should be readonly
+ *  param_val: desired value of parameter, only used if param_type is valid. Otherwise, use NULL
+ *  readonly: whether the parameter should be readonly. If it is not 0 or 1, then readonly isn't checked.
  * 
  */
 void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly);

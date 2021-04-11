@@ -12,8 +12,8 @@ FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP m
 FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
 FILE* null_fp = NULL;         // file pointer to /dev/null
 
-DevData* device_data = NULL;
-pthread_mutex_t device_data_lock;
+DevData* device_data = NULL;       // Holds the most recent device_data received from Runtime
+pthread_mutex_t device_data_lock;  // Mutual exclusion lock on the device_data for multithreaded access
 
 // 2021 Game Specific
 bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
@@ -283,7 +283,7 @@ void connect_clients(bool dawn, bool shepherd) {
     // open /dev/null
     null_fp = fopen("/dev/null", "w");
 
-    // init the mutex that will control whether udp prints to screen
+    // init the mutex that will control access to the global device data variable
     if (pthread_mutex_init(&device_data_lock, NULL) != 0) {
         printf("pthread_mutex_init: print udp mutex\n");
     }
