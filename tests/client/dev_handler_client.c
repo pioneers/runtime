@@ -122,7 +122,7 @@ void start_dev_handler() {
             printf("chdir: %s\n", strerror(errno));
         }
         // execute the device handler process
-        if (execlp("./dev_handler", "dev_handler", "virtual", (char*) 0) < 0) {
+        if (execlp("./dev_handler", "dev_handler", (char*) 0) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
     }

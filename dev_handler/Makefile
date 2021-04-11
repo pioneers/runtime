@@ -5,3 +5,4 @@ dev_handler: dev_handler.c message.c ../logger/logger.c ../runtime_util/runtime_
 
 clean:
 	rm -f ./dev_handler
+    

@@ -28,6 +28,11 @@ static void* send_device_data(void* args) {
     uint8_t num_params;
 
     while (1) {
+        // if Dawn is not connected, don't send data
+        if (robot_desc_read(DAWN) == DISCONNECTED) {
+            usleep(100000);
+            continue;
+        }
         DevData dev_data = DEV_DATA__INIT;
 
         //get information
@@ -193,7 +198,7 @@ static void* send_device_data(void* args) {
         }
         free(dev_data.devices);
         free(buffer);   // Free buffer with device data protobuf
-        usleep(10000);  // Send data at 100 Hz
+        usleep(50000);  // Send data at 20 Hz
     }
     return NULL;
 }
@@ -206,7 +211,6 @@ static void* update_inputs(void* args) {
 
     while (1) {
         recvlen = recvfrom(socket_fd, buffer, size, 0, (struct sockaddr*) &dawn_addr, &addr_len);
-        // log_printf(DEBUG, "Dawn IP is %s:%d", inet_ntoa(dawn_addr.sin_addr), ntohs(dawn_addr.sin_port));
         if (recvlen == size) {
             log_printf(WARN, "update_inputs: UDP Read length matches read buffer size %d", recvlen);
         }

@@ -3,7 +3,8 @@
 
 #include <limits.h>     // for UCHAR_MAX
 #include <semaphore.h>  // for semaphores
-#include <sys/mman.h>   // for posix shared memory
+#include <stdbool.h>
+#include <sys/mman.h>  // for posix shared memory
 
 #include "../logger/logger.h"              // for logger
 #include "../runtime_util/runtime_util.h"  // for runtime constants
@@ -97,6 +98,9 @@ extern sem_t* log_data_sem;               // semaphore used as a mutex on the lo
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
 
+// Returns true iff shared memory exists.
+bool shm_exists();
+
 /**
  * Function that generates a semaphore name for the data and command streams
  * Should only be externally called by shm_start and shm_stop programs
@@ -131,7 +135,7 @@ void shm_init();
  *    dev_ix: the index that the device was assigned will be put here
  * Returns device index of connected device in dev_ix on success; sets *dev_ix = -1 on failure
  */
-void device_connect(dev_id_t dev_id, int* dev_ix);
+void device_connect(dev_id_t* dev_id, int* dev_ix);
 
 /**
  * Should only be called from device handler

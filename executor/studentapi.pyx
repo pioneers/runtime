@@ -264,6 +264,8 @@ cdef class Robot:
 
         # Getting device identification info
         splits = device_id.split('_')
+        if len(splits) != 2:
+            raise ValueError(f"First argument device_id must be of the form <device_type>_<device_uid>")
         cdef int device_type = int(splits[0])
         cdef uint64_t device_uid = int(splits[1])
         
@@ -316,6 +318,8 @@ cdef class Robot:
 
         # Get device identification info
         splits = device_id.split('_')
+        if len(splits) != 2:
+            raise ValueError(f"First argument device_id must be of the form <device_type>_<device_uid>")
         cdef int device_type = int(splits[0])
         cdef uint64_t device_uid = int(splits[1])
 

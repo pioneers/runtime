@@ -25,13 +25,17 @@ void display_help() {
     printf("\tlist          list all currently connected devices and their ports\n");
 }
 
+// True iff this CLI should attach to an already existing instance of dev handler rather than spawning a new one.
+bool attach = 0;
 
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
 void clean_up() {
     printf("Exiting Dev Handler CLI...\n");
     disconnect_all_devices();
-    stop_dev_handler();
+    if (!attach) {
+        stop_dev_handler();
+    }
     printf("Done!\n");
     exit(0);
 }
@@ -42,7 +46,7 @@ void remove_newline(char* nextcmd) {
 }
 
 void prompt_device_connect() {
-    while (1) {
+    while (true) {
         // prints out list of available test devices
         printf("This is the list of devices by name. Type in number on left to use device\n");
         for (int i = 0; i < NUMBER_OF_TEST_DEVICES; i++) {
@@ -86,7 +90,7 @@ void prompt_device_connect() {
 }
 
 void prompt_device_disconnect() {
-    while (1) {
+    while (true) {
         // list the connected virtual devices
         list_devices();
 
@@ -121,10 +125,21 @@ void prompt_device_disconnect() {
 
 // ********************************** MAIN PROCESS ****************************************** //
 
-int main() {
+int main(int argc, char** argv) {
     // setup
     signal(SIGINT, clean_up);
-    int stop = 1;
+    bool stop = 1;
+
+    // If the argument "attach" is specified, then set the global variable
+    if (argc == 2 && strcmp(argv[1], "attach") == 0) {
+        attach = true;
+    }
+
+    // Start dev handler if we aren't attaching to existing dev handler
+    if (!attach) {
+        start_dev_handler();
+        sleep(1);  // Allow dev handler to initialize
+    }
 
     // start dev handler
     printf("Starting Dev Handler CLI in the cloudddd...\n");
@@ -132,7 +147,6 @@ int main() {
     display_help();
     printf("Please enter device handler command:\n");
     fflush(stdout);
-    start_dev_handler();
 
     // main loop
     while (stop) {

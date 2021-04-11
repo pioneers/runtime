@@ -3,6 +3,7 @@
 
 #include <errno.h>       // for errno
 #include <signal.h>      // for SIGINT (Ctrl+C)
+#include <stdbool.h>     // for boolean types
 #include <stdint.h>      // for int with specific widths
 #include <stdio.h>       // for printf()
 #include <stdlib.h>      // for exit()

@@ -1,0 +1,12 @@
+/*
+ * Defines a message for communicating time stamps
+ */
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+message TimeStamps {
+    fixed64 dawn_timestamp = 1;
+    fixed64 runtime_timestamp = 2;
+}

@@ -16,7 +16,7 @@ DevData* device_data = NULL;
 pthread_mutex_t device_data_lock;
 
 // 2021 Game Specific
-int hypothermia_enabled = 0;  // 0 if hypothermia enabled, 1 if disabled
+bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -25,7 +25,7 @@ int hypothermia_enabled = 0;  // 0 if hypothermia enabled, 1 if disabled
  * as the specified client.
  * Arguments:
  *    client: the client to connect as, one of DAWN or SHEPHERD
- * Returns: socket descriptor of new connection; exits on failure
+ * Returns: socket descriptor of new connection; kills net handler and exits on failure
  */
 static int connect_tcp(robot_desc_field_t client) {
     int sockfd;
@@ -141,27 +141,43 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         return -1;
     }
 
-    // unpack the message
-    if ((msg = text__unpack(NULL, len, buf)) == NULL) {
-        fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
-        return -1;
-    }
-
-    // print the incoming message
-    if (msg_type == LOG_MSG) {
+    if (msg_type == TIME_STAMP_MSG) {
+        TimeStamps* time_stamp_msg = time_stamps__unpack(NULL, len, buf);
+        if (time_stamp_msg == NULL) {
+            fprintf(tcp_output_fp, "Cannot unpack time_stamp msg");
+        }
+        uint64_t final_timestamp = millis();
+        printf("First Dawn Timestamp: %llu ms\n", time_stamp_msg->dawn_timestamp);
+        printf("Runtime Timestamp: %llu ms\n", time_stamp_msg->runtime_timestamp);
+        printf("Final Dawn Timestamp: %llu ms\n", final_timestamp);
+        printf("Round Dawn trip: %llu ms\n", final_timestamp - time_stamp_msg->dawn_timestamp);
+        time_stamps__free_unpacked(time_stamp_msg, NULL);
+    } else if (msg_type == LOG_MSG) {
+        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
+        // unpack the message
         for (int i = 0; i < msg->n_payload; i++) {
             fprintf(tcp_output_fp, "%s", msg->payload[i]);
         }
+        fflush(tcp_output_fp);
+        text__free_unpacked(msg, NULL);
     } else if (msg_type == CHALLENGE_DATA_MSG) {
+        // unpack the message
+        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
         for (int i = 0; i < msg->n_payload; i++) {
             fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
         }
+        fflush(tcp_output_fp);
+        text__free_unpacked(msg, NULL);
+    } else {
+        fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
     }
-    fflush(tcp_output_fp);
 
     // free allocated memory
     free(buf);
-    text__free_unpacked(msg, NULL);
 
     return 0;
 }
@@ -187,7 +203,7 @@ static void* output_dump(void* args) {
     maxfd++;
 
     // wait for net handler to create some output, then print that output to stdout of this process
-    while (1) {
+    while (true) {
         // set up the read_set argument to selct()
         FD_ZERO(&read_set);
         FD_SET(nh_tcp_shep_fd, &read_set);
@@ -249,6 +265,35 @@ static void* output_dump(void* args) {
 
 // ************************************* NET HANDLER CLIENT FUNCTIONS ************************** //
 
+void connect_clients(bool dawn, bool shepherd) {
+    // Connect Dawn and Shepherd to net handler over TCP
+    nh_tcp_dawn_fd = (dawn) ? connect_tcp(DAWN) : -1;
+    nh_tcp_shep_fd = (shepherd) ? connect_tcp(SHEPHERD) : -1;
+
+    // Open a single UDP socket to connect to net handler
+    if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        printf("socket: UDP socket creation failed...\n");
+        stop_net_handler();
+        exit(1);
+    }
+    udp_servaddr.sin_family = AF_INET;
+    udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
+    udp_servaddr.sin_port = htons(RASPI_UDP_PORT);
+
+    // open /dev/null
+    null_fp = fopen("/dev/null", "w");
+
+    // init the mutex that will control whether udp prints to screen
+    if (pthread_mutex_init(&device_data_lock, NULL) != 0) {
+        printf("pthread_mutex_init: print udp mutex\n");
+    }
+
+    // start the thread that is dumping output from net_handler to stdout of this process
+    if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
+        printf("pthread_create: output dump\n");
+    }
+}
+
 void start_net_handler() {
     // fork net_handler process
     if ((nh_pid = fork()) < 0) {
@@ -264,34 +309,10 @@ void start_net_handler() {
             printf("execlp: %s\n", strerror(errno));
         }
 
-    } else {       // parent
-        sleep(1);  // allows net_handler to set itself up
-
-        // connect to the raspi networking ports to catch network output
-        nh_tcp_dawn_fd = connect_tcp(DAWN);
-        nh_tcp_shep_fd = connect_tcp(SHEPHERD);
-        if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-            printf("socket: UDP socket creation failed...\n");
-            stop_net_handler();
-            exit(1);
-        }
-        udp_servaddr.sin_family = AF_INET;
-        udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
-        udp_servaddr.sin_port = htons(RASPI_UDP_PORT);
-
-        // open /dev/null
-        null_fp = fopen("/dev/null", "w");
-
-        // init the mutex that will control whether udp prints to screen
-        if (pthread_mutex_init(&device_data_lock, NULL) != 0) {
-            printf("start_net_handler: couldn't initialize device data lock: %s\n", strerror(errno));
-        }
-
-        // start the thread that is dumping output from net_handler to stdout of this process
-        if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
-            printf("pthread_create: output dump\n");
-        }
-        usleep(400000);  // allow time for thread to dump output before returning to client
+    } else {                    // parent
+        sleep(1);               // allows net_handler to set itself up
+        connect_clients(1, 1);  // Connect both fake Dawn and fake Shepherd
+        usleep(400000);         // allow time for thread to dump output before returning to client
     }
 }
 
@@ -379,11 +400,11 @@ void send_game_state(robot_desc_field_t state) {
         case (HYPOTHERMIA):
             if (hypothermia_enabled) {
                 game_state.state = STATE__HYPOTHERMIA_END;
-                hypothermia_enabled = 0;
+                hypothermia_enabled = false;
                 break;
             } else {
                 game_state.state = STATE__HYPOTHERMIA_START;
-                hypothermia_enabled = 1;
+                hypothermia_enabled = true;
                 break;
             }
         default:
@@ -588,6 +609,20 @@ DevData* get_next_dev_data() {
     pthread_mutex_unlock(&device_data_lock);
     free(buffer);
     return device_copy;
+}
+
+void send_timestamp() {
+    TimeStamps timestamp_msg = TIME_STAMPS__INIT;
+    uint8_t* send_buf;
+    uint16_t len;
+    timestamp_msg.dawn_timestamp = millis();
+    len = time_stamps__get_packed_size(&timestamp_msg);
+    send_buf = make_buf(TIME_STAMP_MSG, len);
+    time_stamps__pack(&timestamp_msg, send_buf + BUFFER_OFFSET);
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("writen: issue sending timestamp to Dawn\n");
+    }
+    free(send_buf);
 }
 
 void update_tcp_output_fp(char* output_address) {

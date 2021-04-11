@@ -108,6 +108,11 @@ const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                  // The 
  */
 int DEVICE_WIN_IS_BLANK = 0;
 
+// This is a global flag that is TRUE (1) when shm_ui is attaching to
+// existing shared memory, and FALSE (0) when shm_ui is creating/destroying
+// to shared memory and attaching to that newly created shared memory.
+uint8_t attach = 0;
+
 // The header of DEVICE_WIN; Useful for clearing and redrawing DEVICE_WIN
 #define DEVICE_WIN_HEADER "~~~~~~~~~~~~~~~~~~~~~~~~~~~~DEVICE INFORMATION~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
@@ -140,11 +145,11 @@ void display_controls() {
 
     // Right
     addch(ACS_RARROW | A_REVERSE);
-    printw(" Next\n");
+    printw(" Next");
 
     attroff(A_BOLD);
 
-    printw("\tUnfocus this terminal to ignore inputs");
+    printw("\tUnfocus this terminal to ignore inputs!");
     refresh();
 }
 
@@ -351,7 +356,7 @@ void display_keyboard_state(char** key_names) {
         wclrtoeol(KEYBOARD_WIN);
         // Show button name; If pressed, make it bold. Else, dim
         if (keyboard_connected) {
-            if (pressed_buttons & (1L << i)) {
+            if (pressed_buttons & (((uint64_t) 1) << i)) {
                 wattron(KEYBOARD_WIN, A_BOLD);
             } else {
                 wattron(KEYBOARD_WIN, A_DIM);
@@ -542,7 +547,10 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
 
 // Sending SIGINT to the process will stop shared memory
 void clean_up(int signum) {
-    stop_shm();
+    // only stop shared memory if we did not attach
+    if (!attach) {
+        stop_shm();
+    }
     endwin();
     exit(0);
 }
@@ -552,9 +560,18 @@ int main(int argc, char** argv) {
     signal(SIGINT, clean_up);
     logger_init(TEST);
 
-    // Start shm
-    start_shm();
-    sleep(1);  // Allow shm to initialize
+    // If the argument "attach" is specified, then set the global variable
+    if (argc == 2 && strcmp(argv[1], "attach") == 0) {
+        attach = 1;
+    }
+
+    // Start shm if we aren't attaching to existing shared memory
+    if (!attach) {
+        start_shm();
+        sleep(1);  // Allow shm to initialize
+    } else {
+        shm_init();  // If just attaching, init shm to have access to sems and shm blocks
+    }
 
     // Start UI
     initscr();
@@ -581,6 +598,14 @@ int main(int argc, char** argv) {
 
     // Update the UI continually (based on refresh rate)
     while (1) {
+        // Verify that shared memory still exists.
+        // This can be helpful to know when shared memory gets unexpectedly destroyed.
+        if (!shm_exists()) {
+            endwin();  // Stop the UI
+            log_printf(ERROR, "SHM was destroyed unexpectedly!");
+            exit(1);
+        }
+
         // Get newest shm data
         get_catalog(&catalog);
         get_device_identifiers(dev_ids);
@@ -630,7 +655,9 @@ int main(int argc, char** argv) {
     }
 
     // Properly clean up
-    stop_shm();
+    if (!attach) {
+        stop_shm();
+    }
     endwin();
     return 0;
 }

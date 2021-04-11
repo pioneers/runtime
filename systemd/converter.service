@@ -1,0 +1,17 @@
+[Unit]
+Description=Converts outgoing UDP msgs to TCP and Incoming TCP msgs to UDP
+BindsTo=net_handler.service
+After=net_handler.service
+Conflicts=shm_stop.service
+OnFailure=shm_stop.service
+
+[Service]
+Type=simple
+User=pi
+ExecPre=/bin/sleep 3
+ExecStart=/home/pi/runtime/net_handler/udp_tcp_converter
+WorkingDirectory=/home/pi/runtime/net_handler
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

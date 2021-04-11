@@ -202,6 +202,11 @@ static void shm_close() {
 
 // ************************************ PUBLIC WRAPPER FUNCTIONS ****************************************** //
 
+bool shm_exists() {
+    // Assumes all shared memory blocks are created together and destroyed together
+    return (access("/dev/shm/dev-shm", F_OK) == 0);
+}
+
 void generate_sem_name(stream_t stream, int dev_ix, char* name) {
     if (stream == DATA) {
         sprintf(name, "/data_sem_%d", dev_ix);
@@ -223,6 +228,12 @@ int get_dev_ix_from_uid(uint64_t dev_uid) {
 }
 
 void shm_init() {
+    // Verify that shared memory exists
+    if (!shm_exists()) {
+        log_printf(ERROR, "shm_init: SHM does not exist!");
+        exit(1);
+    }
+
     int fd_shm;              // file descriptor of the memory-mapped shared memory
     char sname[SNAME_SIZE];  // for holding semaphore names
 
@@ -299,7 +310,7 @@ void shm_init() {
     atexit(shm_close);
 }
 
-void device_connect(dev_id_t dev_id, int* dev_ix) {
+void device_connect(dev_id_t* dev_id, int* dev_ix) {
     // wait on catalog_sem
     my_sem_wait(catalog_sem, "catalog_sem");
 
@@ -322,9 +333,9 @@ void device_connect(dev_id_t dev_id, int* dev_ix) {
     my_sem_wait(sub_map_sem, "sub_map_sem");
 
     // fill in dev_id for that device with provided values
-    dev_shm_ptr->dev_ids[*dev_ix].type = dev_id.type;
-    dev_shm_ptr->dev_ids[*dev_ix].year = dev_id.year;
-    dev_shm_ptr->dev_ids[*dev_ix].uid = dev_id.uid;
+    dev_shm_ptr->dev_ids[*dev_ix].type = dev_id->type;
+    dev_shm_ptr->dev_ids[*dev_ix].year = dev_id->year;
+    dev_shm_ptr->dev_ids[*dev_ix].uid = dev_id->uid;
 
     // update the catalog
     dev_shm_ptr->catalog |= (1 << *dev_ix);
@@ -623,8 +634,12 @@ int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_fie
 
     int index = (source == GAMEPAD) ? 0 : 1;
     input_shm_ptr->inputs[index].buttons = pressed_buttons;
-    for (int i = 0; i < 4; i++) {
-        input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];
+
+    // if source == KEYBOARD, then joystick_vals = NULL, resulting in segfault
+    if (source == GAMEPAD) {
+        for (int i = 0; i < 4; i++) {
+            input_shm_ptr->inputs[index].joysticks[i] = joystick_vals[i];
+        }
     }
 
     // release gp_sem

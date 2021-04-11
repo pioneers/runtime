@@ -1,5 +1,11 @@
-authtoken: ##Enter authtoken here
+authtoken: # (: <add authtoken> :) #
 tunnels:
-  ssh:
+  tcp:
     proto: tcp
     addr: 8101
+  converted_udp:
+    proto: tcp
+    addr: 1234
+  ssh:
+    proto: tcp
+    addr: 22

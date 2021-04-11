@@ -1,6 +1,7 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
+#include <stdbool.h>
 #include <sys/wait.h>
 #include "../../net_handler/net_util.h"
 
@@ -11,7 +12,15 @@ typedef struct {
 } dev_subs_t;
 
 /**
- * Starts the real net handler process and connects to all of its outputs
+ * Connects clients to an already existing instance of runtime.
+ * Arguments:
+ *    dawn: Whether to connect a fake Dawn
+ *    shepherd: Whether to connect a fake Shepherd
+ */
+void connect_clients(bool dawn, bool shepherd);
+
+/**
+ * Starts a new instance of net handler and connects a fake Dawn and fake Shepherd.
  * Sets everything up for querying from the CLI or from a test.
  */
 void start_net_handler();
@@ -80,6 +89,14 @@ void send_challenge_data(robot_desc_field_t client, char** data, int num_challen
  * No return value.
  */
 void send_device_subs(dev_subs_t* subs, int num_devices);
+
+/**
+ * Sends a Timestamp message with a "Dawn" timestamp attached to it. It is then received by the tcp_conn, where it 
+ * sends a new Timestamp message with the "Runtime" timestamp attached to it. Finally it comes back around to "net_handler_client"
+ * where it parses the message and calculates how much time it took to go to tcp_conn and back
+ * No return value
+ */
+void send_timestamp();
 
 /**
  * Calling this function will return the most recent device data packet coming into Dawn from Runtime.
