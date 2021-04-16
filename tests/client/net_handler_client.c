@@ -602,13 +602,15 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
 
 DevData* get_next_dev_data() {
     pthread_mutex_lock(&device_data_lock);
+    // We need to copy the data in the device_data Protobuf to return to the caller
+    // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
     int pb_size = dev_data__get_packed_size(device_data);
     uint8_t* buffer = malloc(pb_size);
     dev_data__pack(device_data, buffer);
     DevData* device_copy = dev_data__unpack(NULL, pb_size, buffer);
     pthread_mutex_unlock(&device_data_lock);
     free(buffer);
-    return device_copy;
+    return device_copy;  // must be freed by caller with dev_data__free_unpacked
 }
 
 void send_timestamp() {
