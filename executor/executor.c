@@ -85,6 +85,11 @@ static void reset_params() {
             // TODO: if more params for more devices need to be reset, follow construction above ^
         }
     }
+
+    // 2021 Game Specific Resets
+    robot_desc_write(HYPOTHERMIA, INACTIVE);
+    robot_desc_write(POISON_IVY, INACTIVE);
+    robot_desc_write(DEHYDRATION, INACTIVE);
 }
 
 
