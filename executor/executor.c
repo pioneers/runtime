@@ -450,26 +450,27 @@ static void run_challenges() {
  */
 static void python_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
-    log_printf(DEBUG, "cancelling Python function");
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    if (mode != CHALLENGE) {
-        PyObject* event = PyObject_GetAttrString(pRobot, "sleep_event");
-        if (event == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Could not get sleep_event from Robot instance");
-            exit(2);
-        }
-        PyObject* ret = PyObject_CallMethod(event, "set", NULL);
-        Py_DECREF(event);
-        if (ret == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Could not set sleep_event to True");
-            exit(2);
-        }
-        Py_DECREF(ret);
-    }
-    PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    PyGILState_Release(gstate);
+    exit(0);
+    // log_printf(DEBUG, "cancelling Python function");
+    // PyGILState_STATE gstate = PyGILState_Ensure();
+    // if (mode != CHALLENGE) {
+    //     PyObject* event = PyObject_GetAttrString(pRobot, "sleep_event");
+    //     if (event == NULL) {
+    //         PyErr_Print();
+    //         log_printf(ERROR, "Could not get sleep_event from Robot instance");
+    //         exit(2);
+    //     }
+    //     PyObject* ret = PyObject_CallMethod(event, "set", NULL);
+    //     Py_DECREF(event);
+    //     if (ret == NULL) {
+    //         PyErr_Print();
+    //         log_printf(ERROR, "Could not set sleep_event to True");
+    //         exit(2);
+    //     }
+    //     Py_DECREF(ret);
+    // }
+    // PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
+    // PyGILState_Release(gstate);
 }
 
 
@@ -484,9 +485,6 @@ static void kill_subprocess() {
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
     }
-    int sig_number = WTERMSIG(status);
-    log_printf((sig_number == DEBUG_SIGNAL) ? DEBUG : ERROR, "Error when shutting down execution of mode %d", mode);
-    log_printf((sig_number == DEBUG_SIGNAL) ? DEBUG : ERROR, "killed by signal %d\n", sig_number);
     // Reset parameters if robot was in AUTO or TELEOP. Needed for safety
     if (mode != CHALLENGE) {
         reset_params();
@@ -515,7 +513,7 @@ static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
             robot_desc_write(RUN_MODE, IDLE);  // Will tell parent to call kill_subprocess
         } else {
             executor_init(student_code);
-            // signal(SIGTERM, python_exit_handler); // kill subprocess regardless
+            signal(SIGTERM, python_exit_handler); // kill subprocess regardless
             run_mode(mode);
         }
         exit(0);

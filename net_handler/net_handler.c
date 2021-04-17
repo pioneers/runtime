@@ -89,8 +89,13 @@ static uint8_t determine_client(int connfd) {
         log_printf(ERROR, "determine_client: Timeout on waiting for client ID"); /* a timeout occured */
         return 254;
     } else { /* there was data to read */
+        int num_bytes_read = 0;
         uint8_t client_id = 255;
-        read(connfd, &client_id, 1);
+        num_bytes_read = read(connfd, &client_id, 1);
+        if(num_bytes_read == -1) {
+            log_printf(ERROR, "determine_client(): Error when reading from connfd, %s", strerror(errno));
+            return 253;
+        }
         return client_id;
     }
 }
