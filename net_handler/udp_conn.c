@@ -232,6 +232,8 @@ static void* update_inputs(void* args) {
                 } else {
                     input_write(input->buttons, input->axes, source);
                 }
+            } else if (input->source == SOURCE__KEYBOARD) {
+                log_printf(INFO, "Received keyboard disconnected on UDP from Dawn!!");
             }
         }
         user_inputs__free_unpacked(inputs, NULL);
