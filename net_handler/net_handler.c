@@ -92,7 +92,7 @@ static uint8_t determine_client(int connfd) {
         int num_bytes_read = 0;
         uint8_t client_id = 255;
         num_bytes_read = read(connfd, &client_id, 1);
-        if(num_bytes_read == -1) {
+        if (num_bytes_read == -1) {
             log_printf(ERROR, "determine_client(): Error when reading from connfd, %s", strerror(errno));
             return 253;
         }

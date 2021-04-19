@@ -513,7 +513,7 @@ static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
             robot_desc_write(RUN_MODE, IDLE);  // Will tell parent to call kill_subprocess
         } else {
             executor_init(student_code);
-            signal(SIGTERM, python_exit_handler); // kill subprocess regardless
+            signal(SIGTERM, python_exit_handler);  // kill subprocess regardless
             run_mode(mode);
         }
         exit(0);
