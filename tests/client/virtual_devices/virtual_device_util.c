@@ -168,7 +168,7 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
         if (receive_message(fd, incoming_msg) == 0) {
             // Got a message
             switch (incoming_msg->message_id) {
-                case PING:
+                case DEVICE_PING:
                     last_received_ping_time = now;
                     if (!sent_ack) {
                         // Send an ack
@@ -206,14 +206,13 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
             continue;
         }
 
-        // Make sure we're receiving PING messages still
+        // Make sure we're receiving DEVICE_PING messages still
         if ((now - last_received_ping_time) >= TIMEOUT) {
             printf("lowcar_protocol: DEV_HANDLER timed out!\n");
             exit(1);
         }
-        // Check if we should send another PING
+        // Check if we should send another DEVICE_PING
         if ((now - last_sent_ping_time) >= PING_FREQ) {
-            // printf("Sending PING\n");
             outgoing_msg = make_ping();
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
@@ -226,7 +225,6 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
         }
         // Check if we should send another DEVICE_DATA
         if (subscribed_params && ((now - last_sent_data_time) >= subscription_interval)) {
-            // printf("Sending DEVICE_DATA with bitmap 0x%08X\n", subscribed_params);
             outgoing_msg = make_device_data(type, subscribed_params, params);
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
