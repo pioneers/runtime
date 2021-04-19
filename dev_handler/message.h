@@ -13,11 +13,11 @@
 #include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
 
-/* The maximum number of milliseconds to wait between each PING from a device
+/* The maximum number of milliseconds to wait between each DEVICE_PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
 #define TIMEOUT 1000
 
-// The number of milliseconds between each PING sent to the device
+// The number of milliseconds between each DEVICE_PING sent to the device
 #define PING_FREQ 250
 
 // The size in bytes of the message delimiter
@@ -42,7 +42,7 @@
 // The types of messages
 typedef enum {
     NOP = 0x00,                   // Dummy message
-    PING = 0x01,                  // To lowcar
+    DEVICE_PING = 0x01,           // To lowcar
     ACKNOWLEDGEMENT = 0x02,       // To dev handler
     SUBSCRIPTION_REQUEST = 0x03,  // To lowcar
     DEVICE_WRITE = 0x04,          // To lowcar
@@ -82,9 +82,9 @@ void print_bytes(uint8_t* data, size_t len);
 message_t* make_empty(ssize_t payload_size);
 
 /**
- * Builds a PING message
+ * Builds a DEVICE_PING message
  * Returns:
- *    A message of type PING
+ *    A message of type DEVICE_PING
  *      payload_length 0
  *      max_payload_length 0
  */

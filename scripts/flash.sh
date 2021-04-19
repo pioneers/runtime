@@ -52,8 +52,6 @@ function usage {
         printf "\t$type\n"
     done
     printf "\n"
-    
-    printf "Remember that you need to install arduino-cli first before you can use this flash script!\n\n"
     exit 1
 }
 
@@ -312,18 +310,17 @@ arduino-cli config init
 # update the core index (see arduino-cli documentation)
 arduino-cli core update-index
 
+# symlink libraries
+symlink_libs
+
+# insert uid and requested device into Device_template, copy into Device/Device.ino
+make_device_ino
+
 # get the device port, board, fqbn, and core
 get_board_info
 
 # install this device's core
 arduino-cli core install $DEVICE_CORE
-
-# symlink libraries
-get_lib_install_dir
-symlink_libs
-
-# insert uid and requested device into Device_template, copy into Device/Device.ino
-make_device_ino
 
 # compile the code
 printf "\nCompiling code...\n\n"

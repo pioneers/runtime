@@ -208,7 +208,7 @@ int get_new_devices(uint32_t* lowcar_bitmap, uint32_t* virtual_bitmap) {
  * Opens threads for communication with a device
  * Three threads will be opened:
  *  relayer: Verifies device is lowcar and cancels threads when device disconnects/timesout
- *  sender: Sends data to write to device and periodically sends PING
+ *  sender: Sends data to write to device and periodically sends DEVICE_PING
  *  receiver: Receives parameter data from the lowcar device and processes logs
  * Arguments:
  *    is_virtual: Whether the device is virtual
@@ -263,7 +263,7 @@ void communicate(bool is_virtual, uint8_t port_num) {
 }
 
 /**
- * Sends a PING to the device and waits for an ACKNOWLEDGEMENT
+ * Sends a DEVICE_PING to the device and waits for an ACKNOWLEDGEMENT
  * If the ACKNOWLEDGEMENT takes too long, close the device and exit all threads
  * Connects the device to shared memory and signals the sender and receiver to start
  * Continuously checks if the device disconnected or timed out
@@ -376,7 +376,7 @@ void relay_clean_up(relay_t* relay) {
 }
 
 /**
- * Continuously sends PING and reads from shared memory to send DEVICE_WRITE/SUBSCRIPTION_REQUEST
+ * Continuously sends DEVICE_PING and reads from shared memory to send DEVICE_WRITE/SUBSCRIPTION_REQUEST
  * Arguments:
  *    relay_cast: Uncasted relay_t struct containing device info
  */
@@ -418,14 +418,14 @@ void* sender(void* relay_cast) {
             destroy_message(msg);
         }
 
-        // Send another PING every PING_FREQ milliseconds
+        // Send another DEVICE_PING every PING_FREQ milliseconds
         if ((millis() - last_sent_ping_time) >= PING_FREQ) {
             msg = make_ping();
             ret = send_message(relay, msg);
             if (ret != 0) {
-                log_printf(WARN, "Couldn't send PING to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
+                log_printf(WARN, "Couldn't send DEVICE_PING to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
             }
-            // Update the timestamp at which we sent a PING
+            // Update the timestamp at which we sent a DEVICE_PING
             last_sent_ping_time = millis();
             destroy_message(msg);
         }
@@ -482,7 +482,7 @@ void* receiver(void* relay_cast) {
             // Message was broken... try to read the next message
             continue;
         }
-        if (msg->message_id == DEVICE_DATA || msg->message_id == LOG || msg->message_id == PING) {
+        if (msg->message_id == DEVICE_DATA || msg->message_id == LOG || msg->message_id == DEVICE_PING) {
             // Update last received message time
             pthread_mutex_lock(&relay->relay_lock);
             relay->last_received_msg_time = millis();
@@ -606,7 +606,7 @@ int receive_message(relay_t* relay, message_t* msg) {
         log_printf(WARN, "Received a cobs length that is too large");
         return 1;
     } else if (cobs_len < (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + CHECKSUM_SIZE + 1)) {  // + 1 for cobs encoding overhead
-        // Got some weird message that is unusually short (shorter than a PING with no payload)
+        // Got some weird message that is unusually short (shorter than a DEVICE_PING with no payload)
         log_printf(WARN, "Received a cobs length that is too small");
         return 1;
     }
@@ -639,7 +639,7 @@ int receive_message(relay_t* relay, message_t* msg) {
 }
 
 /**
- * Sends a PING to the device and waits for an ACKNOWLEDGEMENT
+ * Sends a DEVICE_PING to the device and waits for an ACKNOWLEDGEMENT
  * The first message received must be a perfectly constructed ACKNOWLEDGEMENT
  * Arguments:
  *    relay: Struct containing all relevant port information.
@@ -650,7 +650,7 @@ int receive_message(relay_t* relay, message_t* msg) {
  *    2 if ACKNOWLEDGEMENT wasn't received
  */
 int verify_device(relay_t* relay) {
-    // Send a Ping
+    // Send a DEVICE_PING
     message_t* ping = make_ping();
     int ret = send_message(relay, ping);
     destroy_message(ping);
@@ -658,7 +658,7 @@ int verify_device(relay_t* relay) {
         return 1;
     }
 
-    // Try to read an ACKNOWLEDGEMENT, which we expect from a lowcar device that receives a PING
+    // Try to read an ACKNOWLEDGEMENT, which we expect from a lowcar device that receives a DEVICE_PING
     message_t* ack = make_empty(MAX_PAYLOAD_SIZE);
     ret = receive_message(relay, ack);
     if (ret != 0) {
