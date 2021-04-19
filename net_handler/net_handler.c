@@ -66,6 +66,40 @@ static void sigint_handler(int sig_num) {
     exit(0);
 }
 
+/**
+ * Returns the client ID 
+ * (0 for shepherd, 1 for Dawn, 254 on timeout, 255 on error)
+ */
+static uint8_t determine_client(int connfd) {
+    fd_set set;
+    FD_ZERO(&set);        /* clear the set */
+    FD_SET(connfd, &set); /* add our file descriptor to the set */
+
+    // Set the timeout duration
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+
+    // Wait for client ID to be received, with timeout enabled
+    int ret = select(connfd + 1, &set, NULL, NULL, &timeout);
+    if (ret == -1) {
+        log_printf(ERROR, "determine_client: Error on select"); /* an error accured */
+        return 255;
+    } else if (ret == 0) {
+        log_printf(ERROR, "determine_client: Timeout on waiting for client ID"); /* a timeout occured */
+        return 254;
+    } else { /* there was data to read */
+        int num_bytes_read = 0;
+        uint8_t client_id = 255;
+        num_bytes_read = read(connfd, &client_id, 1);
+        if (num_bytes_read == -1) {
+            log_printf(ERROR, "determine_client(): Error when reading from connfd, %s", strerror(errno));
+            return 253;
+        }
+        return client_id;
+    }
+}
+
 // ******************************************* MAIN ROUTINE ******************************* //
 
 int main() {
@@ -101,17 +135,24 @@ int main() {
         log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
 
         //get the client ID (first byte on the socket from client)
-        if (read(connfd, &client_id, 1) == -1) {
-            log_printf(ERROR, "Couldn't get client type: %s", strerror(errno));
-            continue;
-        }
+        client_id = determine_client(connfd);
 
         //if the incoming request is shepherd or dawn, start the appropriate threads
-        if (client_id == 0 && cli_addr.sin_family == AF_INET && robot_desc_read(SHEPHERD) == DISCONNECTED) {
-            log_printf(DEBUG, "Starting Shepherd connection");
+        if (client_id == 0 && cli_addr.sin_family == AF_INET) {
+            if (robot_desc_read(SHEPHERD) == DISCONNECTED) {
+                log_printf(DEBUG, "Starting Shepherd connection");
+            } else {  // Shepherd is already connected, but it's probably dead. This new connection is likely Shepherd trying to reconnect.
+                log_printf(DEBUG, "Restarting Shepherd connection");
+                stop_tcp_conn(SHEPHERD);
+            }
             start_tcp_conn(SHEPHERD, connfd, 0);
-        } else if (client_id == 1 && cli_addr.sin_family == AF_INET && robot_desc_read(DAWN) == DISCONNECTED) {
-            log_printf(DEBUG, "Starting Dawn connection");
+        } else if (client_id == 1 && cli_addr.sin_family == AF_INET) {
+            if (robot_desc_read(DAWN) == DISCONNECTED) {
+                log_printf(DEBUG, "Starting Dawn connection");
+            } else {  // Dawn is already connected, but it's probably dead. This new connection is likely Dawn trying to reconnect.
+                log_printf(DEBUG, "Restarting Dawn connection");
+                stop_tcp_conn(DAWN);
+            }
             start_tcp_conn(DAWN, connfd, 1);
         } else {
             log_printf(ERROR, "Client is neither Dawn nor Shepherd");
