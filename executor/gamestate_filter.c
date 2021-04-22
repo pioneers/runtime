@@ -20,6 +20,14 @@
 #define IDX_VELOCITY_A 0
 #define IDX_VELOCITY_B 8
 
+/**
+ * Function which sets all gamestates INACTIVE when exiting run mode
+ */
+static void set_to_idle() {
+    robot_desc_write(HYPOTHERMIA, INACTIVE);
+    robot_desc_write(POISON_IVY, INACTIVE);
+    robot_desc_write(DEHYDRATION, INACTIVE);
+}
 
 /**
  * A thread function that acts as a timer on gamestates and blocks forever.
@@ -36,31 +44,24 @@ static void* gamestate_handler(void* args) {
 
     // Poll the current gamestate
     while (1) {
-        if (robot_desc_read(RUN_MODE) == IDLE) {  // In IDLE, gamestates shouldn't be in play
-            robot_desc_write(HYPOTHERMIA, INACTIVE);
-            robot_desc_write(POISON_IVY, INACTIVE);
-            robot_desc_write(DEHYDRATION, INACTIVE);
+        curr_time = millis();
+
+        // Update poison ivy
+        if (!poison_ivy_start && robot_desc_read(POISON_IVY) == ACTIVE) {  // Poison ivy had just started since the last poll
+            poison_ivy_start = curr_time;
+        } else if (poison_ivy_start && (curr_time - poison_ivy_start > DEBUFF_DURATION)) {  // Poison ivy had just ended since the last poll
             poison_ivy_start = 0;
-            dehydration_start = 0;
-        } else {
-            curr_time = millis();
-
-            // Update poison ivy
-            if (!poison_ivy_start && robot_desc_read(POISON_IVY) == ACTIVE) {  // Poison ivy had just started since the last poll
-                poison_ivy_start = curr_time;
-            } else if (poison_ivy_start && (curr_time - poison_ivy_start > DEBUFF_DURATION)) {  // Poison ivy had just ended since the last poll
-                poison_ivy_start = 0;
-                robot_desc_write(POISON_IVY, INACTIVE);
-            }
-
-            // Update dehydration
-            if (!dehydration_start && robot_desc_read(DEHYDRATION) == ACTIVE) {  // Dehydration had just started since the last poll
-                dehydration_start = curr_time;
-            } else if (dehydration_start && (curr_time - dehydration_start > DEBUFF_DURATION)) {  // Dehydration had just started since the last poll
-                dehydration_start = 0;
-                robot_desc_write(DEHYDRATION, INACTIVE);
-            }
+            robot_desc_write(POISON_IVY, INACTIVE);
         }
+
+        // Update dehydration
+        if (!dehydration_start && robot_desc_read(DEHYDRATION) == ACTIVE) {  // Dehydration had just started since the last poll
+            dehydration_start = curr_time;
+        } else if (dehydration_start && (curr_time - dehydration_start > DEBUFF_DURATION)) {  // Dehydration had just started since the last poll
+            dehydration_start = 0;
+            robot_desc_write(DEHYDRATION, INACTIVE);
+        }
+
         // Throttle the gamestate polling
         usleep(GAMESTATE_POLL_INTERVAL);
     }
@@ -96,6 +97,7 @@ int filter_device_write_uid(uint8_t dev_type, uint64_t dev_uid, process_t proces
     // Spawn thread if it doesn't already exist
     if (gamestate_handler_tid == 0) {
         pthread_create(&gamestate_handler_tid, NULL, gamestate_handler, NULL);
+        atexit(set_to_idle);
     }
     // Spring 2021: Only KoalaBear is affected by game states
     if (dev_type == KOALABEAR) {
