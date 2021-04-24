@@ -16,7 +16,6 @@
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 
-#define DEBUG_SIGNAL 15  // Signal to log as DEBUG instead of ERROR
 
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
@@ -101,6 +100,14 @@ static void executor_init(char* student_code) {
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
 
+    //imports the Cython student API
+    pAPI = PyImport_ImportModule(api_module);
+    if (pAPI == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not import API module");
+        exit(1);
+    }
+
     // imports the student code
     module_name = student_code;
     pModule = PyImport_ImportModule(module_name);
@@ -113,14 +120,6 @@ static void executor_init(char* student_code) {
     // CHALLENGE mode doesn't need the robot API
     if (mode == CHALLENGE) {
         return;
-    }
-
-    //imports the Cython student API
-    pAPI = PyImport_ImportModule(api_module);
-    if (pAPI == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not import API module");
-        exit(1);
     }
 
     //checks to make sure there is a Robot class, then instantiates it
@@ -449,8 +448,8 @@ static void run_challenges() {
  *  Handler for killing the child mode subprocess
  */
 static void python_exit_handler(int signum) {
-    // Cancel the Python thread by sending a TimeoutError
     exit(0);
+    // Cancel the Python thread by sending a TimeoutError
     // log_printf(DEBUG, "cancelling Python function");
     // PyGILState_STATE gstate = PyGILState_Ensure();
     // if (mode != CHALLENGE) {
@@ -485,6 +484,12 @@ static void kill_subprocess() {
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
     }
+    if (!WIFEXITED(status)) {
+        log_printf(ERROR, "Error when shutting down execution of mode %d", mode);
+    }
+    if (WIFSIGNALED(status)) {
+        log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
+    }
     // Reset parameters if robot was in AUTO or TELEOP. Needed for safety
     if (mode != CHALLENGE) {
         reset_params();
@@ -513,7 +518,7 @@ static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
             robot_desc_write(RUN_MODE, IDLE);  // Will tell parent to call kill_subprocess
         } else {
             executor_init(student_code);
-            signal(SIGTERM, python_exit_handler);  // kill subprocess regardless
+            signal(SIGTERM, python_exit_handler);  // Set handler for killing subprocess
             run_mode(mode);
         }
         exit(0);
