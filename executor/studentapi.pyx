@@ -3,6 +3,7 @@
 # from libc.stdint cimport *
 from runtime cimport *
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from libc.string cimport strcmp
 
 import threading
 import sys
@@ -93,7 +94,8 @@ cdef class Gamepad:
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, GAMEPAD)
         if err == -1:
-            raise DeviceError(f"Gamepad isn't connected to Dawn")
+            _print(f"Called Gamepad.get_value() with no Gamepad connected.", level=WARN)
+            return False
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
@@ -132,7 +134,8 @@ cdef class Keyboard:
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, KEYBOARD)
         if err == -1:
-            raise DeviceError(f"Keyboard isn't connected to Dawn")
+            _print(f"Called Keyboard.get_value() with no Keyboard connected.", level=WARN)
+            return False
         cdef char** key_names = get_key_names()
         for i in range(NUM_KEYBOARD_BUTTONS):
             if param == key_names[i]:
@@ -337,6 +340,13 @@ cdef class Robot:
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
+        # EDGE CASE: If it's TELEOP but no UserInput is connected, motor controller velocities should remain 0
+        if (strcmp(device.name, "KoalaBear") == 0 and (param_name == "velocity_a" or param_name == "velocity_b") \
+            and robot_desc_read(RUN_MODE) == TELEOP \
+            and input_read(NULL, NULL, GAMEPAD) == -1 and input_read(NULL, NULL, KEYBOARD) == -1):
+            _print("Without UserInput connected during TELEOP, velocity will remain zero!", level=WARN)
+            value = 0
+        
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
         if not param_value:
@@ -438,4 +448,3 @@ def get_all_params(_code_file) -> Dict[str, List[str]]:
                 except Exception as e:
                     log_printf(WARN, f"Error parsing student code on line {_i + 1}: {str(e)}".encode())
     return _param_dict
-

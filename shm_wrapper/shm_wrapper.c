@@ -16,6 +16,40 @@ sem_t* rd_sem;                 // semaphore used as a mutex on the robot descrip
 log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for log data specified by executor
 sem_t* log_data_sem;               // semaphore used as a mutex on the log data
 
+// ****************************************** EMERGENCY CONTROL ***************************************** //
+
+/**
+ * Send a command to stop all moving parts on the robot. State of the game is unaffected.
+ * 
+ * Depending on the state of Runtime, it may be wise to emergency stop the robot.
+ * Note that this does not block further commands to move the robot; that should be implemented
+ * in the student API.
+ * 
+ * The implementation of this function may change annually based on the relevant
+ * devices and parameters.
+ * Devices affected:
+ * - KoalaBear: velocity_a, velocity_b
+ */
+static void stop_robot() {
+    uint8_t koalabear = device_name_to_type("KoalaBear");
+    // Get currently connected devices
+    uint32_t catalog = 0;
+    get_catalog(&catalog);
+    dev_id_t dev_ids[MAX_DEVICES] = {0};
+    get_device_identifiers(dev_ids);
+    uint32_t params_to_write = 0;
+    param_val_t params_zero[MAX_PARAMS] = {0};
+    // Zero out parameters that move the robot
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if (catalog & (1 << i)) {  // Device i is connected
+            if (dev_ids[i].type == koalabear) {
+                params_to_write = get_param_idx(koalabear, "velocity_a") | get_param_idx(koalabear, "velocity_b");
+                device_write(i, SHM, COMMAND, params_to_write, params_zero);
+            }
+        }
+    }
+}
+
 // ****************************************** SEMAPHORE UTILITIES ***************************************** //
 
 /**
@@ -568,6 +602,13 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val) {
 
     // write the val into the field, and set appropriate pending element to 1
     rd_shm_ptr->fields[field] = val;
+
+    // Edge case: If no inputs are connected during TELEOP, stop the robot
+    // This is a safety precaution; a UserInput is expected to be connected during TELEOP,
+    // so it's safe to assume something is wrong if there isn't one connected.
+    if (rd_shm_ptr->fields[RUN_MODE] == TELEOP && rd_shm_ptr->fields[KEYBOARD] == DISCONNECTED && rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
+        stop_robot();
+    }
 
     // release rd_sem
     my_sem_post(rd_sem, "robot_desc_mutex");
