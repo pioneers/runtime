@@ -16,6 +16,7 @@
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 
+
 // Global variables to all functions and threads
 const char* api_module = "studentapi";
 char* module_name;
@@ -99,6 +100,14 @@ static void executor_init(char* student_code) {
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
 
+    //imports the Cython student API
+    pAPI = PyImport_ImportModule(api_module);
+    if (pAPI == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not import API module");
+        exit(1);
+    }
+
     // imports the student code
     module_name = student_code;
     pModule = PyImport_ImportModule(module_name);
@@ -111,14 +120,6 @@ static void executor_init(char* student_code) {
     // CHALLENGE mode doesn't need the robot API
     if (mode == CHALLENGE) {
         return;
-    }
-
-    //imports the Cython student API
-    pAPI = PyImport_ImportModule(api_module);
-    if (pAPI == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not import API module");
-        exit(1);
     }
 
     //checks to make sure there is a Robot class, then instantiates it
@@ -447,27 +448,28 @@ static void run_challenges() {
  *  Handler for killing the child mode subprocess
  */
 static void python_exit_handler(int signum) {
+    exit(0);
     // Cancel the Python thread by sending a TimeoutError
-    log_printf(DEBUG, "cancelling Python function");
-    PyGILState_STATE gstate = PyGILState_Ensure();
-    if (mode != CHALLENGE) {
-        PyObject* event = PyObject_GetAttrString(pRobot, "sleep_event");
-        if (event == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Could not get sleep_event from Robot instance");
-            exit(2);
-        }
-        PyObject* ret = PyObject_CallMethod(event, "set", NULL);
-        Py_DECREF(event);
-        if (ret == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Could not set sleep_event to True");
-            exit(2);
-        }
-        Py_DECREF(ret);
-    }
-    PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
-    PyGILState_Release(gstate);
+    // log_printf(DEBUG, "cancelling Python function");
+    // PyGILState_STATE gstate = PyGILState_Ensure();
+    // if (mode != CHALLENGE) {
+    //     PyObject* event = PyObject_GetAttrString(pRobot, "sleep_event");
+    //     if (event == NULL) {
+    //         PyErr_Print();
+    //         log_printf(ERROR, "Could not get sleep_event from Robot instance");
+    //         exit(2);
+    //     }
+    //     PyObject* ret = PyObject_CallMethod(event, "set", NULL);
+    //     Py_DECREF(event);
+    //     if (ret == NULL) {
+    //         PyErr_Print();
+    //         log_printf(ERROR, "Could not set sleep_event to True");
+    //         exit(2);
+    //     }
+    //     Py_DECREF(ret);
+    // }
+    // PyThreadState_SetAsyncExc((unsigned long) pthread_self(), PyExc_TimeoutError);
+    // PyGILState_Release(gstate);
 }
 
 
@@ -516,7 +518,7 @@ static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
             robot_desc_write(RUN_MODE, IDLE);  // Will tell parent to call kill_subprocess
         } else {
             executor_init(student_code);
-            signal(SIGTERM, python_exit_handler);
+            signal(SIGTERM, python_exit_handler);  // Set handler for killing subprocess
             run_mode(mode);
         }
         exit(0);

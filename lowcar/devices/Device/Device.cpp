@@ -11,13 +11,11 @@ Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
 
     this->params = 0;         // Initialize to no subscribed parameters (empty DEVICE_DATA)
     this->sub_interval = 0;   // 0 acts as flag indicating no subscription
-    this->timeout = timeout;  // timeout in ms how long we tolerate not receiving a PING from dev handler
-    this->enabled = FALSE;
+    this->timeout = timeout;  // timeout in ms how long we tolerate not receiving a DEVICE_PING from dev handler
+    this->enabled = FALSE;    // Whether or not the device currently has a connection with Runtime
 
     this->msngr = new Messenger();
     this->led = new StatusLED();
-
-    device_enable();  // call device's enable function
 
     this->last_sent_data_time = this->last_received_ping_time = this->curr_time = millis();
 }
@@ -33,13 +31,14 @@ void Device::loop() {
 
     if (sts == Status::SUCCESS) {  // we have a message!
         switch (this->curr_msg.message_id) {
-            case MessageID::PING:
+            case MessageID::DEVICE_PING:
                 this->last_received_ping_time = this->curr_time;
-                // If this is the first PING received, send an ACKNOWLEDGEMENT
+                // If this is the first DEVICE_PING received, send an ACKNOWLEDGEMENT
                 if (!this->enabled) {
-                    this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sending ACK", this->dev_id.type, this->dev_id.uid);
                     this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), &(this->dev_id));
+                    this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sent ACK", (uint8_t) this->dev_id.type, this->dev_id.uid);
                     this->enabled = TRUE;
+                    device_enable();
                 }
                 break;
 
@@ -64,13 +63,13 @@ void Device::loop() {
         this->msngr->lowcar_printf("Error when reading message by lowcar device");
     }
 
-    // If it's been too long since we received a PING, disable the device
+    // If it's been too long since we received a DEVICE_PING, disable the device
     if ((this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
         this->enabled = FALSE;
     }
 
-    // If we still haven't gotten our first PING yet (or dev handler timed out), keep waiting for a PING
+    // If we still haven't gotten our first DEVICE_PING yet (or dev handler timed out), keep waiting for a DEVICE_PING
     if (!(this->enabled)) {
         return;
     }

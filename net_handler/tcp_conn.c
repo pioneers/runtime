@@ -448,6 +448,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
         log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread for %d: %s", client, strerror(errno));
         return;
     }
+    log_printf(DEBUG, "Successfully initialized TCP connection with client %d\n", client);
     robot_desc_write(client, CONNECTED);
 }
 

@@ -195,7 +195,7 @@ message_t* make_ping() {
         log_printf(FATAL, "make_ping: Failed to malloc");
         exit(1);
     }
-    ping->message_id = PING;
+    ping->message_id = DEVICE_PING;
     ping->payload = NULL;
     ping->payload_length = 0;
     ping->max_payload_length = 0;
