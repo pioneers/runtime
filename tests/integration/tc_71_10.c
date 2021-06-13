@@ -14,7 +14,7 @@
 
 int main() {
     // Setup
-    start_test("Latency Test", "runtime_latency", "", NO_REGEX);
+    start_test("Latency Test", "runtime_latency", NO_REGEX);
 
     // Connect TimeTestDevice
     connect_virtual_device("TimeTestDevice", TIME_DEV_UID);

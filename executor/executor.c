@@ -23,7 +23,6 @@ char* module_name;
 PyObject *pModule, *pAPI, *pRobot, *pGamepad, *pKeyboard;
 robot_desc_val_t mode = IDLE;  // current robot mode
 pid_t pid;                     // pid for mode process
-int challenge_fd;              // challenge socket
 
 // Timings for all modes
 struct timespec setup_time = {2, 0};  // Max time allowed for setup functions
@@ -31,7 +30,6 @@ struct timespec setup_time = {2, 0};  // Max time allowed for setup functions
 struct timespec main_interval = {0, (long) ((1.0 / MIN_FREQ) * 1e9)};
 #define MAX_FREQ 10000.0                     // Maximum number of times per second the Python function should run
 uint64_t min_time = (1.0 / MAX_FREQ) * 1e9;  // Minimum time in nanoseconds that the Python function should take
-#define CHALLENGE_TIME 5                     // Max allowed time for running all challenges in seconds
 
 
 /**
@@ -117,9 +115,12 @@ static void executor_init(char* student_code) {
         exit(1);
     }
 
-    // CHALLENGE mode doesn't need the robot API
-    if (mode == CHALLENGE) {
-        return;
+    //imports the Cython student API
+    pAPI = PyImport_ImportModule(api_module);
+    if (pAPI == NULL) {
+        PyErr_Print();
+        log_printf(ERROR, "Could not import API module");
+        exit(1);
     }
 
     //checks to make sure there is a Robot class, then instantiates it
@@ -255,7 +256,7 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
                     ret = 3;  // Timed out by parent process
                 }
                 break;
-            } else if (mode != CHALLENGE) {
+            } else if (mode == AUTO || mode == TELEOP) {
                 // Need to check if error occurred in action thread
                 PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
                 if (event == NULL) {
@@ -319,132 +320,6 @@ static void run_mode(robot_desc_val_t mode) {
 
 
 /**
- *  Receives inputs from net handler, runs the coding challenges, and sends output back to net handler.
- */
-static void run_challenges() {
-    PyObject* challenge_list = PyObject_GetAttrString(pModule, "CHALLENGES");
-    if (challenge_list == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "run_challenges: cannot find the CHALLENGES list in challenges file %s", module_name);
-        return;
-    }
-    uint8_t num_challenges = PyList_Size(challenge_list);
-    if (PyErr_Occurred()) {
-        PyErr_Print();
-        log_printf(ERROR, "run_challenges: cannot get length of CHALLENGES object, not a Python list. %d", num_challenges);
-        return;
-    }
-
-    // Receive challenge inputs from net_handler
-    struct sockaddr_un address;
-    socklen_t addrlen = sizeof(address);
-    int buf_size = 256;
-    uint8_t read_buf[buf_size];
-
-    int recv_len = recvfrom(challenge_fd, read_buf, buf_size, 0, (struct sockaddr*) &address, &addrlen);
-    if (recv_len == buf_size) {
-        log_printf(WARN, "run_challenges: Read length matches read buffer size %d", recv_len);
-    }
-    if (recv_len <= 0) {
-        log_printf(ERROR, "run_challenges: socket read from challenge_fd failed: recvfrom %s", strerror(errno));
-        return;
-    }
-    Text* inputs = text__unpack(NULL, recv_len, read_buf);
-    if (inputs == NULL) {
-        log_printf(ERROR, "run_challenges: failed to unpack challenge input protobuf");
-        return;
-    }
-    if (num_challenges != inputs->n_payload) {
-        log_printf(ERROR, "run_challenges: number of challenge names %d is not equal to number of inputs %d", num_challenges, inputs->n_payload);
-        return;
-    }
-
-    Text outputs = TEXT__INIT;
-    outputs.n_payload = num_challenges;
-    outputs.payload = malloc(sizeof(char*) * outputs.n_payload);
-    if (outputs.payload == NULL) {
-        log_printf(FATAL, "run_challenges: Failed to malloc");
-        exit(1);
-    }
-
-    for (int i = 0; i < num_challenges; i++) {
-        // Get name of the challenge
-        PyObject* pyName = PyList_GetItem(challenge_list, i);
-        if (pyName == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "run_challenges: cannot get name %d from CHALLENGES list", i);
-            outputs.payload[i] = "Fatal error";
-            continue;
-        }
-        const char* func_name = PyUnicode_AsUTF8(pyName);
-        if (func_name == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "run_challenges: element %d of CHALLENGES is not a Python string", i);
-            outputs.payload[i] = "Fatal error";
-            continue;
-        }
-        // Convert input C string to C long then Python tuple args
-        long input = strtol(inputs->payload[i], NULL, 10);
-        log_printf(DEBUG, "received inputs for %d: %ld", i, input);
-        PyObject* arg = Py_BuildValue("(l)", input);
-        if (arg == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Couldn't decode input string into Python long for challenge %s", func_name);
-            outputs.payload[i] = "Fatal error";
-            continue;
-        }
-        // Run the challenge
-        PyObject* ret = NULL;
-        if (run_py_function(func_name, NULL, 0, arg, &ret) == 3) {  // Check if challenge got timed out
-            for (int j = i; j < num_challenges; j++) {
-                // Set rest of challenge outputs to notify the TCP client
-                outputs.payload[i] = "Timed out";
-            }
-            break;
-        }
-        Py_DECREF(arg);
-        // Convert challenge output to Python string then C string
-        PyObject* ret_string = PyObject_Str(ret);
-        Py_XDECREF(ret);
-        if (ret_string == NULL) {
-            PyErr_Print();
-            log_printf(ERROR, "Couldn't convert return value to Python string for challenge %s", func_name);
-            outputs.payload[i] = "Fatal error";
-            continue;
-        }
-        int ret_len;
-        const char* c_ret = PyUnicode_AsUTF8AndSize(ret_string, &ret_len);
-        Py_DECREF(ret_string);
-        outputs.payload[i] = malloc(ret_len + 1);
-        if (outputs.payload[i] == NULL) {
-            log_printf(FATAL, "run_challenges: Failed to malloc");
-            exit(1);
-        }
-        strcpy(outputs.payload[i], c_ret);  // Need to copy since pointer data is reset each iteration
-    }
-    text__free_unpacked(inputs, NULL);
-
-    // Send all results back to net handler
-    uint16_t len_pb = text__get_packed_size(&outputs);
-    uint8_t* send_buf = make_buf(CHALLENGE_DATA_MSG, len_pb);
-    uint16_t len_buf = len_pb + BUFFER_OFFSET;
-    text__pack(&outputs, send_buf + BUFFER_OFFSET);
-
-    int send_len = sendto(challenge_fd, send_buf, len_buf, 0, (struct sockaddr*) &address, addrlen);
-    if (send_len <= 0) {
-        log_printf(ERROR, "run_challenges: socket send to challenge_fd failed: %s", strerror(errno));
-    } else if (send_len != len_buf) {
-        log_printf(WARN, "run_challenges: only %d of %d bytes sent to challenge_fd", send_len, len_buf);
-    }
-
-    free(outputs.payload);
-    free(send_buf);
-
-    alarm(0);
-}
-
-
-/**
  *  Handler for killing the child mode subprocess
  */
 static void python_exit_handler(int signum) {
@@ -452,13 +327,6 @@ static void python_exit_handler(int signum) {
     // Cancel the Python thread by sending a TimeoutError
     // log_printf(DEBUG, "cancelling Python function");
     // PyGILState_STATE gstate = PyGILState_Ensure();
-    // if (mode != CHALLENGE) {
-    //     PyObject* event = PyObject_GetAttrString(pRobot, "sleep_event");
-    //     if (event == NULL) {
-    //         PyErr_Print();
-    //         log_printf(ERROR, "Could not get sleep_event from Robot instance");
-    //         exit(2);
-    //     }
     //     PyObject* ret = PyObject_CallMethod(event, "set", NULL);
     //     Py_DECREF(event);
     //     if (ret == NULL) {
@@ -484,24 +352,15 @@ static void kill_subprocess() {
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
     }
-    if (!WIFEXITED(status)) {
-        log_printf(ERROR, "Error when shutting down execution of mode %d", mode);
-    }
-    if (WIFSIGNALED(status)) {
-        log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
-    }
-    // Reset parameters if robot was in AUTO or TELEOP. Needed for safety
-    if (mode != CHALLENGE) {
-        reset_params();
-    }
+    reset_params();
     mode = IDLE;
 }
 
 
 /**
- *  Creates a new subprocess with fork that will run the given mode using `run_mode` or `run_challenges`.
+ *  Creates a new subprocess with fork that will run the given mode using `run_mode`
  */
-static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
+static pid_t start_mode_subprocess(char* student_code) {
     pid_t pid = fork();
     if (pid < 0) {
         log_printf(ERROR, "Failed to create child subprocess for mode %d: %s", mode, strerror(errno));
@@ -509,18 +368,9 @@ static pid_t start_mode_subprocess(char* student_code, char* challenge_code) {
     } else if (pid == 0) {
         // Now in child process
         signal(SIGINT, SIG_IGN);  // Disable Ctrl+C for child process
-        if (mode == CHALLENGE) {
-            executor_init(challenge_code);
-            signal(SIGTERM, exit);
-            signal(SIGALRM, python_exit_handler);  // Sets interrupt for any long-running challenge
-            alarm(CHALLENGE_TIME);                 // Set timeout for challenges
-            run_challenges();
-            robot_desc_write(RUN_MODE, IDLE);  // Will tell parent to call kill_subprocess
-        } else {
-            executor_init(student_code);
-            signal(SIGTERM, python_exit_handler);  // Set handler for killing subprocess
-            run_mode(mode);
-        }
+        executor_init(student_code);
+        signal(SIGTERM, python_exit_handler);  // kill subprocess regardless
+        run_mode(mode);
         exit(0);
         return pid;  // Never reach this statement due to exit, needed to fix compiler warning
     } else {
@@ -550,7 +400,6 @@ static void exit_handler(int signum) {
  *
  *  CLI Args:
  *      1: name of the Python file that contains the student auton and teleop functions, without the '.py', Default is "studentcode"
- *      2: name of the Python file that contains the student challenges functions, without the '.py', Default is "challenges"
  *
  */
 int main(int argc, char* argv[]) {
@@ -562,24 +411,6 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         student_code = argv[1];
     }
-    char* challenge_code = student_code;  // = "challenges"; change default to "challenges" once Dawn separates challenges into a new Python file
-    if (argc > 2) {
-        challenge_code = argv[2];
-    }
-
-    remove(CHALLENGE_SOCKET);                                  // Always remove any old challenge socket
-    struct sockaddr_un my_addr = {AF_UNIX, CHALLENGE_SOCKET};  //for holding IP addresses (IPv4)
-    //create the socket
-    if ((challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        log_printf(FATAL, "could not create challenge socket: %s", strerror(errno));
-        return 1;
-    }
-    if (bind(challenge_fd, (struct sockaddr*) &my_addr, sizeof(struct sockaddr_un)) < 0) {
-        log_printf(FATAL, "challenge socket bind failed: %s", strerror(errno));
-        return 1;
-    }
-    log_printf(INFO, "Executor initialized");
-
     robot_desc_val_t new_mode = IDLE;
     // Main loop that checks for new run mode in shared memory from the network handler
     while (1) {
@@ -591,7 +422,7 @@ int main(int argc, char* argv[]) {
             }
             if (new_mode != IDLE) {
                 mode = new_mode;
-                pid = start_mode_subprocess(student_code, challenge_code);
+                pid = start_mode_subprocess(student_code);
                 if (pid == -1) {
                     mode = IDLE;
                 }

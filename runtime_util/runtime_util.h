@@ -38,9 +38,6 @@
 
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 
-#define CHALLENGE_LEN 128  // The maximum input/output string length for a challenge
-#define CHALLENGE_SOCKET "/tmp/challenge.sock"
-
 // The interval (microseconds) at which we wait between detecting connects/disconnects
 #define POLL_INTERVAL 200000
 
@@ -82,7 +79,6 @@ typedef enum robot_desc_vals {
     IDLE,
     AUTO,
     TELEOP,
-    CHALLENGE,
     // values for robot.dawn, robot.shepherd, robot.gamepad
     CONNECTED,
     DISCONNECTED,

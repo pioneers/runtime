@@ -18,7 +18,7 @@ int main() {
     int port1, port2, port3;
 
     // setup
-    start_test("receive device data, general", "", "", NO_REGEX);
+    start_test("receive device data, general", "", NO_REGEX);
 
     // poke the system
     // send gamepad state so net_handler starts sending device data packets

@@ -36,15 +36,12 @@
  * Arguments:
  *    test_name: a short description of what the test is testing
  *    student_code: python file name of student code, excluding ".py"
- *    challenge_code: python file name of challenge code, excluding ".py"
- *    ** Set both STUDENT_CODE and CHALLENGE_CODE to empty string if executor
- *      is not necessary in the test.
  *    string_checks: number of strings needing to be checked for this test
  *    comparison_method: Whether to use regex for all string matching
  *      in this test (NO_REGEX or REGEX)
  * No return value.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method);
+void start_test(char* test_description, char* student_code, int comparison_method);
 
 // ******************* STRING OUTPUT COMPRISON FUNCTIONS ******************** //
 

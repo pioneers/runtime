@@ -3,7 +3,6 @@
 //used for creating and cleaning up TCP connection
 typedef struct {
     int conn_fd;
-    int challenge_fd;
     int send_logs;
     FILE* log_file;
     robot_desc_field_t client;
@@ -22,9 +21,6 @@ static void tcp_conn_cleanup(void* args) {
 
     if (close(tcp_args->conn_fd) != 0) {
         log_printf(ERROR, "Failed to close conn_fd: %s", strerror(errno));
-    }
-    if (close(tcp_args->challenge_fd) != 0) {
-        log_printf(ERROR, "Failed to close challenge_fd: %s", strerror(errno));
     }
     if (tcp_args->log_file != NULL) {
         if (fclose(tcp_args->log_file) != 0) {
@@ -125,44 +121,17 @@ static void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg) {
     free(send_buf);
 }
 
-/*
- * Send a challenge data message on the TCP connection to the client. Reads packets from the UNIX socket from
- * executor until all messages are read, packages the message, and sends it.
- * Arguments:
- *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
- *    - int challenge_fd: Unix socket connection's file descriptor from which to read challenge results from executor
- */
-static void send_challenge_results(int conn_fd, int challenge_fd) {
-    // Get results from executor
-    int buf_size = 256;
-    char read_buf[buf_size];
-
-    int read_len = recvfrom(challenge_fd, read_buf, buf_size, 0, NULL, NULL);
-    if (read_len == buf_size) {
-        log_printf(WARN, "send_challenge_results: read length matches size of read buffer %d", read_len);
-    }
-    if (read_len < 0) {
-        log_printf(ERROR, "send_challenge_results: socket recv from challenge_fd failed: %s", strerror(errno));
-        return;
-    }
-
-    // Send results to client
-    if (writen(conn_fd, read_buf, read_len) == -1) {
-        log_printf(ERROR, "send_challenge_results: sending challenge data message failed: %s", strerror(errno));
-    }
-}
 
 /*
  * Receives new message from client on TCP connection and processes the message.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor from which to read the message
- *    - int results_fd: file descriptor of FIFO pipe to executor to which to write challenge input data if received
  * Returns: pointer to integer in which return status will be stored
  *      0 if message received and processed
  *     -1 if message could not be parsed because client disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
-static int recv_new_msg(int conn_fd, int challenge_fd) {
+static int recv_new_msg(int conn_fd) {
     net_msg_t msg_type;  //message type
     uint16_t len_pb;     //length of incoming serialized protobuf message
     uint8_t* buf;        //buffer to read raw data into
@@ -174,24 +143,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
         return -2;
     }
     //unpack according to message
-    if (msg_type == CHALLENGE_DATA_MSG) {
-        //socket address structure for the UNIX socket to executor for challenge data
-        struct sockaddr_un exec_addr = {0};
-        exec_addr.sun_family = AF_UNIX;
-        strcpy(exec_addr.sun_path, CHALLENGE_SOCKET);
-
-        int send_len = sendto(challenge_fd, buf, len_pb, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
-        if (send_len < 0) {
-            log_printf(ERROR, "recv_new_msg: socket send to challenge_fd failed: %s", strerror(errno));
-            return -2;
-        }
-        if (send_len != len_pb) {
-            log_printf(WARN, "recv_new_msg: socket send len %d is not equal to intended protobuf length %d", send_len, len_pb);
-        }
-
-        log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
-        robot_desc_write(RUN_MODE, CHALLENGE);
-    } else if (msg_type == RUN_MODE_MSG) {
+    if (msg_type == RUN_MODE_MSG) {
         RunMode* run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
         if (run_mode_msg == NULL) {
             log_printf(ERROR, "recv_new_msg: Cannot unpack run_mode msg");
@@ -307,7 +259,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
         send_timestamp_msg(conn_fd, time_stamp_msg);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
     } else {
-        log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
+        log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
         return -2;
     }
     free(buf);
@@ -331,7 +283,7 @@ static void* tcp_process(void* tcp_args) {
     //variables used for waiting for something to do using select()
     fd_set read_set;
     int log_fd;
-    int maxfd = args->challenge_fd > args->conn_fd ? args->challenge_fd : args->conn_fd;
+    int maxfd = args->conn_fd;
     if (args->send_logs) {
         log_fd = fileno(args->log_file);
         maxfd = log_fd > maxfd ? log_fd : maxfd;
@@ -343,7 +295,6 @@ static void* tcp_process(void* tcp_args) {
         //set up the read_set argument to selct()
         FD_ZERO(&read_set);
         FD_SET(args->conn_fd, &read_set);
-        FD_SET(args->challenge_fd, &read_set);
         if (args->send_logs) {
             FD_SET(log_fd, &read_set);
         }
@@ -364,14 +315,9 @@ static void* tcp_process(void* tcp_args) {
             send_log_msg(args->conn_fd, args->log_file);
         }
 
-        //send challenge results if executor sent them
-        if (FD_ISSET(args->challenge_fd, &read_set)) {
-            send_challenge_results(args->conn_fd, args->challenge_fd);
-        }
-
         //receive new message on socket if it is ready
         if (FD_ISSET(args->conn_fd, &read_set)) {
-            if ((ret = recv_new_msg(args->conn_fd, args->challenge_fd)) != 0) {
+            if ((ret = recv_new_msg(args->conn_fd)) != 0) {
                 if (ret == -1) {
                     log_printf(DEBUG, "client %d has disconnected", args->client);
                     break;
@@ -412,32 +358,16 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
     args->conn_fd = conn_fd;
     args->send_logs = send_logs;
     args->log_file = NULL;
-    args->challenge_fd = -1;
-
-    // open challenge socket to read and write
-    if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
-        log_printf(ERROR, "start_tcp_conn: failed to create challenge socket: %s", strerror(errno));
-        return;
-    }
-    struct sockaddr_un my_addr = {0};
-    my_addr.sun_family = AF_UNIX;
-    if (bind(args->challenge_fd, (struct sockaddr*) &my_addr, sizeof(sa_family_t)) < 0) {
-        log_printf(FATAL, "start_tcp_conn: challenge socket bind failed: %s", strerror(errno));
-        close(args->challenge_fd);
-        return;
-    }
 
     //Open FIFO pipe for logs
     if (send_logs) {
         int log_fd;
         if ((log_fd = open(LOG_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
             log_printf(ERROR, "start_tcp_conn: could not open log FIFO on %d: %s", args->client, strerror(errno));
-            close(args->challenge_fd);
             return;
         }
         if ((args->log_file = fdopen(log_fd, "r")) == NULL) {
             log_printf(ERROR, "start_tcp_conn: could not open log file from fd: %s", strerror(errno));
-            close(args->challenge_fd);
             close(log_fd);
             return;
         }
