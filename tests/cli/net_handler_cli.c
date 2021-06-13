@@ -144,67 +144,6 @@ void prompt_start_pos() {
     send_start_pos(client, pos);
 }
 
-void prompt_challenge_data() {
-    int client = SHEPHERD;
-    char nextcmd[MAX_CMD_LEN];
-    int MAX_CHALLENGES = 32;
-    char** inputs = malloc(sizeof(char*) * MAX_CHALLENGES);
-    if (inputs == NULL) {
-        log_printf(FATAL, "prompt_challenge_data: Failed to malloc");
-        exit(1);
-    }
-
-    // get client to send as
-    while (true) {
-        printf("Send as DAWN or SHEPHERD: ");
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-        if (strcmp(nextcmd, "dawn\n") == 0) {
-            client = DAWN;
-            break;
-        } else if (strcmp(nextcmd, "shepherd\n") == 0) {
-            client = SHEPHERD;
-            break;
-        } else if (strcmp(nextcmd, "abort\n") == 0) {
-            return;
-        } else {
-            printf("Invalid response to prompt: %s", nextcmd);
-        }
-    }
-
-    // get challenge inputs to send
-    int num_challenges;
-    for (num_challenges = 0; num_challenges < MAX_CHALLENGES; num_challenges++) {
-        // TODO: if we ever put the current names of challenges in runtime_util, make this print better
-        printf("Provide input for challenge %d (or done or abort): ", num_challenges);
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-
-        if (strcmp(nextcmd, "done\n") == 0) {
-            break;
-        } else if (strcmp(nextcmd, "abort\n") == 0) {
-            return;
-        }
-
-        // we need to do this because nextcmd has a newline at the end
-        nextcmd[strlen(nextcmd) - 1] = '\0';
-        inputs[num_challenges] = malloc(strlen(nextcmd) + 1);
-        if (inputs[num_challenges] == NULL) {
-            log_printf(FATAL, "prompt_challenge_data: Failed to malloc");
-            exit(1);
-        }
-        strcpy(inputs[num_challenges], nextcmd);
-    }
-
-    // send
-    printf("Sending Challenge Data message!\n\n");
-    send_challenge_data(client, inputs, num_challenges);
-
-    // free pointers
-    for (int i = 0; i < num_challenges; i++) {
-        free(inputs[i]);
-    }
-    free(inputs);
-}
-
 void prompt_device_data() {
     char nextcmd[MAX_CMD_LEN];
     char dev_names[DEVICES_LENGTH][32];  // for holding the names of the valid devices
@@ -367,7 +306,7 @@ void display_help() {
     printf("\trun mode           send a Run Mode message\n");
     printf("\tgame state         send a Game State message\n");
     printf("\tstart pos          send a Start Pos message\n");
-    printf("\tchallenge data     send a Challenge Data message\n");
+
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
     printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
@@ -453,8 +392,6 @@ int main(int argc, char** argv) {
             prompt_start_pos();
         } else if (strcmp(nextcmd, "game state\n") == 0) {
             prompt_game_state();
-        } else if (strcmp(nextcmd, "challenge data\n") == 0) {
-            prompt_challenge_data();
         } else if (strcmp(nextcmd, "device data\n") == 0) {
             prompt_device_data();
         } else if (strcmp(nextcmd, "view device data\n") == 0) {

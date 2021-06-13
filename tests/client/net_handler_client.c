@@ -163,16 +163,6 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         }
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
-    } else if (msg_type == CHALLENGE_DATA_MSG) {
-        // unpack the message
-        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
-            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
-        }
-        for (int i = 0; i < msg->n_payload; i++) {
-            fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
-        }
-        fflush(tcp_output_fp);
-        text__free_unpacked(msg, NULL);
     } else {
         fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
     }
@@ -499,32 +489,6 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     free(input.axes);
     free(inputs.inputs);
     free(send_buf);
-}
-
-void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges) {
-    Text challenge_data = TEXT__INIT;
-    uint8_t* send_buf;
-    uint16_t len;
-
-    // build the message
-    challenge_data.payload = data;
-    challenge_data.n_payload = num_challenges;
-    len = text__get_packed_size(&challenge_data);
-    send_buf = make_buf(CHALLENGE_DATA_MSG, len);
-    text__pack(&challenge_data, send_buf + BUFFER_OFFSET);
-
-    // send the message
-    if (client == SHEPHERD) {
-        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending challenge data message to shepherd\n");
-        }
-    } else {
-        if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending challenge data message to shepherd\n");
-        }
-    }
-    free(send_buf);
-    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
 void send_device_subs(dev_subs_t* subs, int num_devices) {

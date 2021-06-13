@@ -2,14 +2,12 @@
 
 #define MAX_CMD_LEN 64  // maximum length of an inputted command
 
-char student_code[MAX_CMD_LEN] = {0};    // string that holds student code file name to use
-char challenge_code[MAX_CMD_LEN] = {0};  // string that holds challenge code file name to use
+char student_code[MAX_CMD_LEN] = {0};  // string that holds student code file name to use
 
 void display_help() {
     printf("This is the main menu.\n");
     printf("All commands should be typed in all lower case.\n");
     printf("\tstudent code      change the student code file\n");
-    printf("\tchallenge code    change the challenge code file\n");
     printf("\thelp              display this help text\n");
     printf("\texit              exit the Executor CLI\n");
 }
@@ -20,14 +18,7 @@ void change_student_code() {
     printf("Please enter the name of the file to use as student code (do not enter the \".py\"): ");
     fgets(student_code, MAX_CMD_LEN, stdin);
     stop_executor();
-    start_executor(student_code, challenge_code);
-}
-
-void change_challenge_code() {
-    printf("Please enter the name of the file to use as challenge code (do not enter the \".py\"): ");
-    fgets(challenge_code, MAX_CMD_LEN, stdin);
-    stop_executor();
-    start_executor(student_code, challenge_code);
+    start_executor(student_code);
 }
 
 int main() {
@@ -36,9 +27,8 @@ int main() {
 
     printf("Starting Executor CLI...\n");
     strcpy(student_code, "studentcode");
-    strcpy(challenge_code, student_code);  // Change to "challenges" once Dawn separates challenges into another Python file
     //start executor process
-    start_executor(student_code, challenge_code);
+    start_executor(student_code);
 
     // command-line loop which prompts user for commands to send to net_handler
     while (!stop) {
@@ -53,8 +43,6 @@ int main() {
             display_help();
         } else if (strcmp(nextcmd, "student code\n") == 0) {
             change_student_code();
-        } else if (strcmp(nextcmd, "challenge code\n") == 0) {
-            change_challenge_code();
         } else {
             printf("Invalid command %s", nextcmd);
             display_help();

@@ -9,7 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug Multiple UnstableTestDevices", "", "", NO_REGEX);
+    start_test("Hotplug Multiple UnstableTestDevices", "", NO_REGEX);
 
     // Connect multiple UnstableTestDevices
     for (int i = 0; i < NUM_TO_CONNECT; i++) {

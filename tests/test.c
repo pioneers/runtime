@@ -110,13 +110,13 @@ static void fprintf_delimiter(FILE* stream, char* format, ...) {
 /**
  * Helper function to start up runtime
  */
-static void start_runtime(char* student_code, char* challenge_code) {
+static void start_runtime(char* student_code) {
     start_shm();
     start_net_handler();
     start_dev_handler();
-    // If student_code is nonempty or challenge_code is nonempty, start executor
-    if (strcmp(student_code, "") != 0 || strcmp(challenge_code, "") != 0) {
-        start_executor(student_code, challenge_code);
+    // If student_code is nonempty is nonempty, start executor
+    if (strcmp(student_code, "") != 0) {
+        start_executor(student_code);
         started_executor = 1;
     }
     // Make sure runtime starts up
@@ -609,9 +609,6 @@ static void print_run_mode(robot_desc_val_t run_mode) {
             break;
         case TELEOP:
             fprintf(stderr, "TELEOP\n");
-            break;
-        case CHALLENGE:
-            fprintf(stderr, "CHALLENGE\n");
             break;
         default:
             fprintf(stderr, "INVALID RUN MODE\n");

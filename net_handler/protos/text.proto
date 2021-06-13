@@ -7,6 +7,5 @@ syntax = "proto3";
 option optimize_for = LITE_RUNTIME;
 
 message Text {
-    repeated string payload = 1;  //CHALLENGE_DATA: initial values or results of challenges
-                                  //LOG: list of log lines
+    repeated string payload = 1;  //LOG: list of log lines
 }

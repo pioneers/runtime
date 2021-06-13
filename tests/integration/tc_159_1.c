@@ -9,7 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Executor Subscriptions", "subscriptions", "", NO_REGEX);
+    start_test("Executor Subscriptions", "subscriptions", NO_REGEX);
 
     // Connect SimpleTestDevice and GeneralTestDevice
     connect_virtual_device("SimpleTestDevice", SIMPLE_UID);

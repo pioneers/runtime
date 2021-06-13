@@ -72,16 +72,6 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
 void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_t source);
 
 /**
- * Sends a Challenge Data message from the specified client with the specified data
- * Arguments:
- *    - client: one of SHEPHERD or DAWN
- *    - data: array of strings, each containing the input to the corresponding challenge
- *	  - num_challenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
- * No return value.
- */
-void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges);
-
-/**
  * Sends device subscriptions from Dawn over TCP with the specified device subscriptions
  * Arguments:
  *    - subs: contains the subscriptions for the devices' parameters
