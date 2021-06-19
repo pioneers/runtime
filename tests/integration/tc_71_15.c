@@ -54,8 +54,5 @@ int main() {
     same_param_value(dev_name, UID, "ORANGE_FLOAT", FLOAT, orange_float_post_write_2);
     same_param_value(dev_name, UID, "YELLOW_BOOL", BOOL, yellow_bool_post_write_2);
 
-    // Clean up
-    end_test();
-
     return 0;
 }

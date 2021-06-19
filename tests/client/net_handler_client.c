@@ -81,7 +81,8 @@ static int connect_tcp(robot_desc_field_t client) {
 }
 
 /**
- * Function to receive data from net_handler on the UDP port
+ * Receives device data from the net_handler on the UDP fd and updates the corresponding global variable
+ *
  * Args:
  *    udp_fd: file descriptor connected to UDP socket receiving data from net_handler
  * Returns:

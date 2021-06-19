@@ -40,8 +40,8 @@ int main() {
     sleep(1);
     DevData* dev_data = get_next_dev_data();
     // check in device data that those are the two devices we see
-    check_udp_device_exists(dev_data, 0, 62, 4660);
-    check_udp_device_exists(dev_data, 1, 62, 9025);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 9025);
     dev_data__free_unpacked(dev_data, NULL);
 
     // disconnect first device (Port1=Empty, Port2=UID2)
@@ -53,7 +53,7 @@ int main() {
     sleep(1);
     dev_data = get_next_dev_data();
     // check in device data that second device only is reported
-    check_udp_device_exists(dev_data, 0, 62, 9025);
+    check_device_sent(dev_data, 0, 62, 9025);
     dev_data__free_unpacked(dev_data, NULL);
 
     // connect two more devices (Port1=UID3, Port2=UID2, Port3=UID4)
@@ -68,9 +68,9 @@ int main() {
     sleep(1);
     dev_data = get_next_dev_data();
     // check that we see three devices in output
-    check_udp_device_exists(dev_data, 0, 62, 13330);
-    check_udp_device_exists(dev_data, 1, 62, 9025);
-    check_udp_device_exists(dev_data, 2, 62, 16675);
+    check_device_sent(dev_data, 0, 62, 13330);
+    check_device_sent(dev_data, 1, 62, 9025);
+    check_device_sent(dev_data, 2, 62, 16675);
     dev_data__free_unpacked(dev_data, NULL);
     sleep(1);
 
@@ -91,10 +91,8 @@ int main() {
     sleep(1);
     dev_data = get_next_dev_data();
     // check that last device data has only the custom data device
-    check_udp_device_exists(dev_data, 0, 32, 2020);
+    check_device_sent(dev_data, 0, 32, 2020);
     dev_data__free_unpacked(dev_data, NULL);
 
-    // stop the system and check the output strings
-    end_test();
     return 0;
 }

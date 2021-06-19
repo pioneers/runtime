@@ -3,7 +3,7 @@
  * Includes (but not limited to) string output matching, device parameter
  * checks, user input checks, and what devices are connected and aren't connected.
  *
- * All tests must begin with start_test() and finish with end_test()
+ * All tests must begin with start_test()
  * The other functions defined in this header file can be used to verify the
  * state of runtime.
  */
@@ -45,13 +45,6 @@
  * No return value.
  */
 void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method);
-
-/**
- * Stops runtime, takes care of resetting the plumbing of the outputs at the
- * end of the test, and prepares internal variables for calling the output
- * comparison functions below.
- */
-void end_test();
 
 // ******************* STRING OUTPUT COMPRISON FUNCTIONS ******************** //
 
@@ -96,7 +89,7 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
  *  uid: what uid the device should be
  * 
  */
-void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_t uid);
+void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid);
 
 /**
  * Checks that the device at the given index has a parameter with the given attributes.
@@ -111,7 +104,7 @@ void check_udp_device_exists(DevData* dev_data, int index, uint8_t type, uint64_
  *  readonly: whether the parameter should be readonly. If it is not 0 or 1, then readonly isn't checked.
  * 
  */
-void check_udp_device_param(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly);
+void check_device_param_sent(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly);
 
 // ***************************** RUN MODE CHECK ***************************** //
 

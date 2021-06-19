@@ -33,7 +33,5 @@ int main() {
     vals_before[doubling_idx].p_f *= 2;
     same_param_value(dev_name, UID, "DOUBLING", FLOAT, vals_before[doubling_idx]);
 
-    // Stop all processes
-    end_test();
     return 0;
 }

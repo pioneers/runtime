@@ -39,6 +39,9 @@ char* parameters[NUM_PARAMS] = {
 /**
  * Helper function to send dev1_params subscriptions
  * to device 1 and dev2_params subscriptions to device 2
+ *
+ * Returns DevData* that should reflect the new subscription,
+ * struct should be checked through assertion functions
  */
 DevData* send_subs(uint32_t dev1_params, uint32_t dev2_params) {
     // send the subscriptions
@@ -69,57 +72,54 @@ int main() {
     // verify that we're receiving all parameters
     sleep(1);
     DevData* dev_data = get_next_dev_data();
-    check_udp_device_exists(dev_data, 0, 62, 4660);
-    check_udp_device_exists(dev_data, 1, 62, 17185);
-    check_udp_device_exists(dev_data, 2, 32, 2020);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
     for (int i = 0; i < NUM_PARAMS; i++) {
-        check_udp_device_param(dev_data, 0, parameters[i], 5, NULL, 5);
-        check_udp_device_param(dev_data, 1, parameters[i], 5, NULL, 5);
+        check_device_param_sent(dev_data, 0, parameters[i], 5, NULL, 5);
+        check_device_param_sent(dev_data, 1, parameters[i], 5, NULL, 5);
     }
 
     // send subs that requests only a few parameters
     dev_data = send_subs(0b11, 0b101);
-    check_udp_device_exists(dev_data, 0, 62, 4660);
-    check_udp_device_exists(dev_data, 1, 62, 17185);
-    check_udp_device_exists(dev_data, 2, 32, 2020);
-    check_udp_device_param(dev_data, 0, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 0, doubling, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, flipflop, 6, NULL, 6);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 0, doubling, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, flipflop, 6, NULL, 6);
     dev_data__free_unpacked(dev_data, NULL);
 
     // send subs that requests fewer parameters
     dev_data = send_subs(0b1, 0b100);
-    check_udp_device_exists(dev_data, 0, 62, 4660);
-    check_udp_device_exists(dev_data, 1, 62, 17185);
-    check_udp_device_exists(dev_data, 2, 32, 2020);
-    check_udp_device_param(dev_data, 0, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, flipflop, 6, NULL, 6);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, flipflop, 6, NULL, 6);
     dev_data__free_unpacked(dev_data, NULL);
 
     dev_data = send_subs(0b11, 0b11);
-    check_udp_device_exists(dev_data, 0, 62, 4660);
-    check_udp_device_exists(dev_data, 1, 62, 17185);
-    check_udp_device_exists(dev_data, 2, 32, 2020);
-    check_udp_device_param(dev_data, 0, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 0, doubling, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, doubling, 6, NULL, 6);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 0, doubling, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, doubling, 6, NULL, 6);
     dev_data__free_unpacked(dev_data, NULL);
 
     // send subs that requests the same parameters as last time
     dev_data = send_subs(0b11, 0b11);
-    check_udp_device_exists(dev_data, 0, 62, 4660);
-    check_udp_device_exists(dev_data, 1, 62, 17185);
-    check_udp_device_exists(dev_data, 2, 32, 2020);
-    check_udp_device_param(dev_data, 0, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 0, doubling, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, increasing, 6, NULL, 6);
-    check_udp_device_param(dev_data, 1, doubling, 6, NULL, 6);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 0, doubling, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, doubling, 6, NULL, 6);
     dev_data__free_unpacked(dev_data, NULL);
-
-    // stop the system
-    end_test();
 
     return 0;
 }
