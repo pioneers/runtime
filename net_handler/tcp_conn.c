@@ -9,7 +9,10 @@ typedef struct {
     robot_desc_field_t client;
 } tcp_conn_args_t;
 
-pthread_t dawn_tid, shepherd_tid;
+pthread_t dawn_events_tid, dawn_poll_tid, shepherd_events_tid, shepherd_poll_tid;
+
+// Number of ms between sending each DeviceData to Dawn
+#define DEVICE_DATA_INTERVAL 10
 
 /*
  * Clean up memory and file descriptors before exiting from tcp_process
@@ -307,6 +310,28 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
         }
         send_timestamp_msg(conn_fd, time_stamp_msg);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
+    } else if (msg_type == INPUT_MSG) {
+        UserInputs* inputs = user_inputs__unpack(NULL, len_pb, buf);
+        if (inputs == NULL) {
+            log_printf(ERROR, "recv_new_msg: Failed to unpack UserInputs");
+            return -2;
+        }
+        for (int i = 0; i < inputs->n_inputs; i++) {
+            Input* input = inputs->inputs[i];
+            // Convert Protobuf source enum to Runtime source enum
+            robot_desc_field_t source = (input->source == SOURCE__GAMEPAD) ? GAMEPAD : KEYBOARD;
+            robot_desc_write(source, input->connected ? CONNECTED : DISCONNECTED);
+            if (input->connected) {
+                if (source == KEYBOARD || (source == GAMEPAD && input->n_axes == 4)) {
+                    input_write(input->buttons, input->axes, source);
+                } else {
+                    log_printf(ERROR, "recv_new_msg: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", input->n_axes);
+                }
+            } else if (input->source == SOURCE__KEYBOARD) {
+                log_printf(INFO, "recv_new_msg: Received keyboard disconnected on UDP from Dawn!!");
+            }
+        }
+        user_inputs__free_unpacked(inputs, NULL);
     } else {
         log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
         return -2;
@@ -315,16 +340,198 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
     return 0;
 }
 
+/**
+ * Sends a Device Data message to Dawn.
+ * Arguments:
+ * - dawn_socket_fd: socket fd for Dawn connection
+ * Returns:
+ * - NULL
+ */
+static void send_device_data(int dawn_socket_fd) {
+    int len_pb;
+    uint8_t* buffer;
+    int err;
+
+    uint32_t sub_map[MAX_DEVICES + 1];
+    dev_id_t dev_ids[MAX_DEVICES];
+    int valid_dev_idxs[MAX_DEVICES];
+    uint32_t catalog;
+
+    param_val_t custom_params[UCHAR_MAX];
+    param_type_t custom_types[UCHAR_MAX];
+    char custom_names[UCHAR_MAX][LOG_KEY_LENGTH];
+    uint8_t num_params;
+
+    DevData dev_data = DEV_DATA__INIT;
+
+    //get information
+    get_catalog(&catalog);
+    get_sub_requests(sub_map, NET_HANDLER);
+    get_device_identifiers(dev_ids);
+
+    //calculate num_devices, get valid device indices
+    int num_devices = 0;
+    for (int i = 0; i < MAX_DEVICES; i++) {
+        if (catalog & (1 << i)) {
+            valid_dev_idxs[num_devices] = i;
+            num_devices++;
+        }
+    }
+    dev_data.devices = malloc((num_devices + 1) * sizeof(Device*));  // + 1 is for custom data
+    if (dev_data.devices == NULL) {
+        log_printf(FATAL, "send_device_data: Failed to malloc");
+        exit(1);
+    }
+
+    //populate dev_data.device[i]
+    int dev_idx = 0;
+    for (int i = 0; i < num_devices; i++) {
+        int idx = valid_dev_idxs[i];
+        device_t* device_info = get_device(dev_ids[idx].type);
+        if (device_info == NULL) {
+            log_printf(ERROR, "send_device_data: Device %d in SHM with type %d is invalid", idx, dev_ids[idx].type);
+            continue;
+        }
+
+        Device* device = malloc(sizeof(Device));
+        if (device == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
+        device__init(device);
+        dev_data.devices[dev_idx] = device;
+        device->type = dev_ids[idx].type;
+        device->uid = dev_ids[idx].uid;
+        device->name = device_info->name;
+
+        device->n_params = 0;
+        param_val_t param_data[MAX_PARAMS];
+        device_read_uid(device->uid, NET_HANDLER, DATA, sub_map[idx + 1], param_data);
+
+        device->params = malloc(device_info->num_params * sizeof(Param*));
+        if (device->params == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
+        //populate device parameters
+        for (int j = 0; j < device_info->num_params; j++) {
+            if (sub_map[idx + 1] & (1 << j)) {
+                Param* param = malloc(sizeof(Param));
+                if (param == NULL) {
+                    log_printf(FATAL, "send_device_data: Failed to malloc");
+                    exit(1);
+                }
+                param__init(param);
+                param->name = device_info->params[j].name;
+                switch (device_info->params[j].type) {
+                    case INT:
+                        param->val_case = PARAM__VAL_IVAL;
+                        param->ival = param_data[j].p_i;
+                        break;
+                    case FLOAT:
+                        param->val_case = PARAM__VAL_FVAL;
+                        param->fval = param_data[j].p_f;
+                        break;
+                    case BOOL:
+                        param->val_case = PARAM__VAL_BVAL;
+                        param->bval = param_data[j].p_b;
+                        break;
+                }
+                device->params[device->n_params] = param;
+                device->n_params++;
+            }
+        }
+        dev_idx++;
+    }
+
+    // Add custom log data to protobuf
+    Device* custom = malloc(sizeof(Device));
+    if (custom == NULL) {
+        log_printf(FATAL, "send_device_data: Failed to malloc");
+        exit(1);
+    }
+    device__init(custom);
+    dev_data.devices[dev_idx] = custom;
+    log_data_read(&num_params, custom_names, custom_types, custom_params);
+    custom->n_params = num_params + 1;  // + 1 is for the current time
+    custom->params = malloc(sizeof(Param*) * custom->n_params);
+    if (custom->params == NULL) {
+        log_printf(FATAL, "send_device_data: Failed to malloc");
+        exit(1);
+    }
+    custom->name = "CustomData";
+    custom->type = MAX_DEVICES;
+    custom->uid = 2020;
+    for (int i = 0; i < custom->n_params; i++) {
+        Param* param = malloc(sizeof(Param));
+        if (param == NULL) {
+            log_printf(FATAL, "send_device_data: Failed to malloc");
+            exit(1);
+        }
+        param__init(param);
+        custom->params[i] = param;
+        param->name = custom_names[i];
+        switch (custom_types[i]) {
+            case INT:
+                param->val_case = PARAM__VAL_IVAL;
+                param->ival = custom_params[i].p_i;
+                break;
+            case FLOAT:
+                param->val_case = PARAM__VAL_FVAL;
+                param->fval = custom_params[i].p_f;
+                break;
+            case BOOL:
+                param->val_case = PARAM__VAL_BVAL;
+                param->bval = custom_params[i].p_b;
+                break;
+        }
+    }
+    Param* time = malloc(sizeof(Param));
+    if (time == NULL) {
+        log_printf(FATAL, "send_device_data: Failed to malloc");
+        exit(1);
+    }
+    param__init(time);
+    custom->params[num_params] = time;
+    time->name = "time_ms";
+    time->val_case = PARAM__VAL_IVAL;
+    time->ival = millis() - start_time;  // Can only give difference in millisecond since robot start since it is int32, not int64
+
+    dev_data.n_devices = dev_idx + 1;  // + 1 is for custom data
+
+    len_pb = dev_data__get_packed_size(&dev_data);
+    buffer = make_buf(DEVICE_DATA_MSG, len_pb);
+    dev_data__pack(&dev_data, buffer + BUFFER_OFFSET);
+
+    //send message on socket
+    if (writen(dawn_socket_fd, buffer, len_pb + BUFFER_OFFSET) == -1) {
+        log_printf(ERROR, "send_device_data: sending log message over socket failed: %s", strerror(errno));
+    }
+
+    //free everything
+    for (int i = 0; i < dev_data.n_devices; i++) {
+        for (int j = 0; j < dev_data.devices[i]->n_params; j++) {
+            free(dev_data.devices[i]->params[j]);
+        }
+        free(dev_data.devices[i]->params);
+        free(dev_data.devices[i]);
+    }
+    free(dev_data.devices);
+    free(buffer);   // Free buffer with device data protobuf
+    return NULL;
+}
 
 /*
- * Main control loop for a TCP connection. Sets up connection by opening up pipe to read log messages from
+ * A thread function to handle messages with a specific client. 
+ * This thread waits until a message can be read, reads it, then responds accordingly.
+ * It is one of two main control loops for a TCP connection. Sets up connection by opening up pipe to read log messages from
  * and sets up read_set for select(). Then it runs main control loop, using select() to make actions event-driven.
  * Arguments:
- *    - void *args: arguments containing file descriptors and file pointers that need to be closed on exit (and other settings)
+ *    - void *tcp_args: arguments containing file descriptors and file pointers that need to be closed on exit (and other settings)
  * Return:
  *    - NULL
  */
-static void* tcp_process(void* tcp_args) {
+static void* tcp_events_thread(void* tcp_args) {
     tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
     pthread_cleanup_push(tcp_conn_cleanup, args);
     int ret;
@@ -388,17 +595,43 @@ static void* tcp_process(void* tcp_args) {
     return NULL;
 }
 
+/*
+ * A thread function to handle messages with a specific client.
+ * This thread creates a new message on an interval, and sends it to the client.
+ * it is one of the two main control loops for a TCP connection.
+ * Arguments:
+ * - tcp_args: arguments containing file descriptors and file pointers that need to be closed on exit (and other settings)
+ * Return:
+ * - NULL
+ */
+static void* tcp_poll_thread(void* tcp_args) {
+    tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
+    // pthread_cleanup_push(tcp_conn_cleanup, args); TODO: IS this needed
+    int ret;
+    uint64_t time = millis();
+    uint64_t last_sent_device_data = 0;
+    while (1) {
+        // Update time
+        time = millis();
+        // If enough time has passed, send a new DeviceData to Dawn
+        if (args->client == DAWN) {
+            if (time - last_sent_device_data > DEVICE_DATA_INTERVAL) {
+                // Send a DEVICE_DATA to client
+                send_device_data(args->conn_fd);
+                last_sent_device_data = time;
+            }
+        }
+        // If enough time has passed, send a Runtime status message
+        // TODO: @Ben/Daniel
+    }
+    return NULL;
+}
 
 /************************ PUBLIC FUNCTIONS *************************/
 
 
 void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
-    pthread_t* tid;
-    if (client == DAWN) {
-        tid = &dawn_tid;
-    } else if (client == SHEPHERD) {
-        tid = &shepherd_tid;
-    } else {
+    if (client != DAWN && client != SHEPHERD) {
         log_printf(ERROR, "start_tcp_conn: Invalid TCP client %d, not DAWN(%d) or SHEPHERD(%d)", client, DAWN, SHEPHERD);
         return;
     }
@@ -444,11 +677,16 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
         }
     }
 
-    //create the main control thread for this client
-    if (pthread_create(tid, NULL, tcp_process, args) != 0) {
-        log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread for %d: %s", client, strerror(errno));
+    //create the main control threads for this client
+    if (pthread_create((client == DAWN) ? &dawn_events_tid : &shepherd_events_tid, NULL, tcp_events_thread, 0) != 0) {
+        log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread tcp_events for %d: %s", client, strerror(errno));
         return;
     }
+    if (pthread_create((client == DAWN) ? &dawn_poll_tid : &shepherd_poll_tid, NULL, tcp_poll_thread, 0) != 0) {
+        log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread tcp_poll for %d: %s", client, strerror(errno));
+        return;
+    }
+    
     log_printf(DEBUG, "Successfully initialized TCP connection with client %d\n", client);
     robot_desc_write(client, CONNECTED);
 }
@@ -460,12 +698,18 @@ void stop_tcp_conn(robot_desc_field_t client) {
         return;
     }
 
-    pthread_t tid = (client == DAWN) ? dawn_tid : shepherd_tid;
-
-    if (pthread_cancel(tid) != 0) {
-        log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client thread for %d: %s", client, strerror(errno));
+    // Cancel and join the events thread
+    if (pthread_cancel((client == DAWN) ? &dawn_events_tid : &shepherd_events_tid) != 0) {
+        log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client events thread for %d: %s", client, strerror(errno));
     }
-    if (pthread_join(tid, NULL) != 0) {
-        log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client thread for %d: %s", client, strerror(errno));
+    if (pthread_join((client == DAWN) ? &dawn_events_tid : &shepherd_events_tid, NULL) != 0) {
+        log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client events thread for %d: %s", client, strerror(errno));
+    }
+    // Cancel and join the poll thread
+    if (pthread_cancel((client == DAWN) ? &dawn_poll_tid : &shepherd_poll_tid) != 0) {
+        log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client poll thread for %d: %s", client, strerror(errno));
+    }
+    if (pthread_join((client == DAWN) ? &dawn_poll_tid : &shepherd_poll_tid, NULL) != 0) {
+        log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client poll thread for %d: %s", client, strerror(errno));
     }
 }
