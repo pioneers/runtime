@@ -20,7 +20,5 @@ int main() {
     sleep(5);  // UnstableTestDevice will time out
     check_device_not_connected(UID);
 
-    // Clean up
-    end_test();
     return 0;
 }

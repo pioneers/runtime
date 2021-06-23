@@ -26,7 +26,6 @@ int main() {
     float joystick_vals[] = {0.0, 0.0, 0.0, 0.0};
     send_user_input(buttons, joystick_vals, GAMEPAD);
     sleep(1);
-    print_next_dev_data();
 
     // connect two devices
     port1 = connect_virtual_device("SimpleTestDevice", UID1);
@@ -39,10 +38,11 @@ int main() {
 
     // print device data
     sleep(1);
-    print_next_dev_data();
+    DevData* dev_data = get_next_dev_data();
     // check in device data that those are the two devices we see
-    add_ordered_string_output("Device No. 0:\ttype = SimpleTestDevice, uid = 4660, itype = 62\n");
-    add_ordered_string_output("Device No. 1:\ttype = SimpleTestDevice, uid = 9025, itype = 62\n");
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 9025);
+    dev_data__free_unpacked(dev_data, NULL);
 
     // disconnect first device (Port1=Empty, Port2=UID2)
     disconnect_virtual_device(port1);
@@ -51,9 +51,10 @@ int main() {
 
     // print device data
     sleep(1);
-    print_next_dev_data();
+    dev_data = get_next_dev_data();
     // check in device data that second device only is reported
-    add_ordered_string_output("Device No. 0:\ttype = SimpleTestDevice, uid = 9025, itype = 62\n");
+    check_device_sent(dev_data, 0, 62, 9025);
+    dev_data__free_unpacked(dev_data, NULL);
 
     // connect two more devices (Port1=UID3, Port2=UID2, Port3=UID4)
     port1 = connect_virtual_device("SimpleTestDevice", UID3);
@@ -65,11 +66,12 @@ int main() {
 
     // print device data
     sleep(1);
-    print_next_dev_data();
+    dev_data = get_next_dev_data();
     // check that we see three devices in output
-    add_ordered_string_output("Device No. 0:\ttype = SimpleTestDevice, uid = 13330, itype = 62\n");
-    add_ordered_string_output("Device No. 1:\ttype = SimpleTestDevice, uid = 9025, itype = 62\n");
-    add_ordered_string_output("Device No. 2:\ttype = SimpleTestDevice, uid = 16675, itype = 62\n");
+    check_device_sent(dev_data, 0, 62, 13330);
+    check_device_sent(dev_data, 1, 62, 9025);
+    check_device_sent(dev_data, 2, 62, 16675);
+    dev_data__free_unpacked(dev_data, NULL);
     sleep(1);
 
     // disconnect all devices
@@ -87,15 +89,10 @@ int main() {
 
     // print device data
     sleep(1);
-    print_next_dev_data();
+    dev_data = get_next_dev_data();
     // check that last device data has only the custom data device
-    char check_15_output[] =
-        "Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n"
-        "\tParams:\n"
-        "\t\tparam \"time_ms\" has type INT with value";
-    add_ordered_string_output(check_15_output);
+    check_device_sent(dev_data, 0, 32, 2020);
+    dev_data__free_unpacked(dev_data, NULL);
 
-    // stop the system and check the output strings
-    end_test();
     return 0;
 }
