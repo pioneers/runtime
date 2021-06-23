@@ -55,7 +55,6 @@ static int socket_setup(int* sockfd) {
 */
 static void sigint_handler(int sig_num) {
     log_printf(INFO, "Stopping net_handler...");
-    stop_udp_conn();
     if (robot_desc_read(SHEPHERD) == CONNECTED) {
         stop_tcp_conn(SHEPHERD);
     }
@@ -120,9 +119,6 @@ int main() {
     shm_init();
 
     log_printf(INFO, "Net handler initialized");
-
-    //start UDP connection with Dawn
-    start_udp_conn();
 
     //run net_handler main control loop
     while (1) {
