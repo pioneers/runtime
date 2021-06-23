@@ -22,16 +22,28 @@ char dev2_header[] = "Device No. 1:\ttype = SimpleTestDevice, uid = 17185, itype
 char custom_dev_header[] = "Device No. 2:\ttype = CustomData, uid = 2020, itype = 32\n";
 
 // parameters names we look for
-char increasing[] = "\"INCREASING\"";
-char doubling[] = "\"DOUBLING\"";
-char flipflop[] = "\"FLIP_FLOP\"";
-char myint[] = "\"MY_INT\"";
+char increasing[] = "INCREASING";
+char doubling[] = "DOUBLING";
+char flipflop[] = "FLIP_FLOP";
+char myint[] = "MY_INT";
+
+#define NUM_PARAMS 4
+
+char* parameters[NUM_PARAMS] = {
+    increasing,
+    doubling,
+    flipflop,
+    myint,
+};
 
 /**
  * Helper function to send dev1_params subscriptions
  * to device 1 and dev2_params subscriptions to device 2
+ *
+ * Returns DevData* that should reflect the new subscription,
+ * struct should be checked through assertion functions
  */
-void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
+DevData* send_subs(uint32_t dev1_params, uint32_t dev2_params) {
     // send the subscriptions
     dev_subs[0].params = dev1_params;
     dev_subs[1].params = dev2_params;
@@ -39,7 +51,7 @@ void send_subs(uint32_t dev1_params, uint32_t dev2_params) {
 
     // verify that we're receiving only those parameters
     sleep(1);
-    print_next_dev_data();
+    return get_next_dev_data();
 }
 
 int main() {
@@ -59,56 +71,55 @@ int main() {
 
     // verify that we're receiving all parameters
     sleep(1);
-    print_next_dev_data();
-    add_ordered_string_output(dev1_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(flipflop);
-    add_ordered_string_output(myint);
-    add_ordered_string_output(dev2_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(flipflop);
-    add_ordered_string_output(myint);
-    add_ordered_string_output(custom_dev_header);
+    DevData* dev_data = get_next_dev_data();
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    for (int i = 0; i < NUM_PARAMS; i++) {
+        check_device_param_sent(dev_data, 0, parameters[i], 5, NULL, 5);
+        check_device_param_sent(dev_data, 1, parameters[i], 5, NULL, 5);
+    }
+
     // send subs that requests only a few parameters
-    send_subs(0b11, 0b101);
-    add_ordered_string_output(dev1_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(dev2_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(flipflop);
-    add_ordered_string_output(custom_dev_header);
+    dev_data = send_subs(0b11, 0b101);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 0, doubling, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, flipflop, 6, NULL, 6);
+    dev_data__free_unpacked(dev_data, NULL);
 
     // send subs that requests fewer parameters
-    send_subs(0b1, 0b100);
-    add_ordered_string_output(dev1_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(dev2_header);
-    add_ordered_string_output(flipflop);
-    add_ordered_string_output(custom_dev_header);
+    dev_data = send_subs(0b1, 0b100);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, flipflop, 6, NULL, 6);
+    dev_data__free_unpacked(dev_data, NULL);
 
-    send_subs(0b11, 0b11);
-    add_ordered_string_output(dev1_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(dev2_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(custom_dev_header);
+    dev_data = send_subs(0b11, 0b11);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 0, doubling, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, doubling, 6, NULL, 6);
+    dev_data__free_unpacked(dev_data, NULL);
 
     // send subs that requests the same parameters as last time
-    send_subs(0b11, 0b11);
-    add_ordered_string_output(dev1_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(dev2_header);
-    add_ordered_string_output(increasing);
-    add_ordered_string_output(doubling);
-    add_ordered_string_output(custom_dev_header);
-    // stop the system
-    end_test();
+    dev_data = send_subs(0b11, 0b11);
+    check_device_sent(dev_data, 0, 62, 4660);
+    check_device_sent(dev_data, 1, 62, 17185);
+    check_device_sent(dev_data, 2, 32, 2020);
+    check_device_param_sent(dev_data, 0, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 0, doubling, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, increasing, 6, NULL, 6);
+    check_device_param_sent(dev_data, 1, doubling, 6, NULL, 6);
+    dev_data__free_unpacked(dev_data, NULL);
 
     return 0;
 }

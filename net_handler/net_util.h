@@ -5,6 +5,7 @@
 #include <netinet/in.h>  //for structures relating to IPv4 addresses
 #include <pthread.h>     //for threading
 #include <signal.h>      //for signal
+#include <stdbool.h>     // for booleans
 #include <stdio.h>
 #include <stdlib.h>  //for malloc, free, exit
 #include <string.h>  //for strcpy, memset

@@ -138,7 +138,7 @@ static void stop_runtime() {
     stop_shm();
 }
 
-// *************************** PASS/FAIL CONTROL **************************** //
+// *************************** PASS/FAIL MESSAGES **************************** //
 
 // Prints to stderr that a check passed.
 static void print_pass() {
@@ -295,7 +295,39 @@ static void check_strings() {
 
 // ******************** PUBLIC TEST FRAMEWORK FUNCTIONS ********************* //
 
-// creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread
+/**
+ * Stops runtime, takes care of resetting the plumbing of the outputs at the
+ * end of the test, and prepares internal variables for calling the output
+ * comparison functions.
+ */
+static void end_test() {
+    // Stop runtime
+    stop_runtime();
+
+    // cancel the output handler thread
+    if (pthread_cancel(output_handler_tid) != 0) {
+        fprintf(stderr, "pthread_cancel: output handler thread\n");
+    }
+
+    // pull the standard output back to the file descriptor that we saved earlier
+    if (dup2(save_std_out, fileno(stdout)) == -1) {
+        fprintf(stderr, "dup2 stdout back to terminal: %s\n", strerror(errno));
+    }
+    // now we are back to normal output
+
+    // set the rest_of_test_output to beginning of test_output to be ready for output comparison
+    rest_of_test_output = test_output;
+    // we can use printf now and this will go the terminal
+    fprintf_delimiter(stderr, "Running Remaining Checks...");
+
+    // check out array of strings
+    check_strings();
+}
+
+/**
+ * Creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread.
+ * Adds an exit handler which calls end_test to clean up pipes and Runtime processes.
+ */
 void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
@@ -352,30 +384,19 @@ void start_test(char* test_description, char* student_code, char* challenge_code
 
     // Start up runtime
     start_runtime(student_code, challenge_code);
+
+    // Add exit handler for automatic cleanup
+    atexit(end_test);
 }
 
-void end_test() {
-    // Stop runtime
-    stop_runtime();
 
-    // cancel the output handler thread
-    if (pthread_cancel(output_handler_tid) != 0) {
-        fprintf(stderr, "pthread_cancel: output handler thread\n");
-    }
-
-    // pull the standard output back to the file descriptor that we saved earlier
-    if (dup2(save_std_out, fileno(stdout)) == -1) {
-        fprintf(stderr, "dup2 stdout back to terminal: %s\n", strerror(errno));
-    }
-    // now we are back to normal output
-
-    // set the rest_of_test_output to beginning of test_output to be ready for output comparison
-    rest_of_test_output = test_output;
-    // we can use printf now and this will go the terminal
-    fprintf_delimiter(stderr, "Running Remaining Checks...");
-
-    // check out array of strings
-    check_strings();
+/**
+ * Helper function for ending a test on assertion failure.
+ * Will not return as it calls exit
+ */
+static void fail_test() {
+    end_test();
+    exit(1);
 }
 
 // ******************* STRING OUTPUT COMPARISON FUNCTIONS ******************* //
@@ -426,7 +447,7 @@ void add_unordered_string_output(char* output) {
     current_unordered_pos += 1;
 }
 
-// ************************* GAMEPAD CHECK FUNCTIONS ************************ //
+// ************************* USER INPUT CHECK FUNCTIONS ************************ //
 
 // Helper function to print a 32-bitmap to stderr on a new line
 static void print_bitmap(uint64_t bitmap) {
@@ -454,8 +475,7 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
         print_fail();
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s is not connected\n", field_to_string(source));
-        end_test();
-        exit(1);
+        fail_test();
     }
     // Verify that the buttons are correct
     if (pressed_buttons != expected_buttons) {
@@ -466,8 +486,7 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
         // Print current button bitmap to stderr
         fprintf_delimiter(stderr, "Got:");
         print_bitmap(pressed_buttons);
-        end_test();
-        exit(1);
+        fail_test();
     }
     // Verify that the joysticks are correct
     if (source == GAMEPAD) {
@@ -481,13 +500,101 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
                 // Print all current joysticks to stderr
                 fprintf_delimiter(stderr, "Got:");
                 print_joysticks(joystick_vals);
-                end_test();
-                exit(1);
+                fail_test();
             }
         }
     }
     print_pass();
 }
+
+/******************** UDP Device Data Check ******************/
+
+void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid) {
+    if (index >= dev_data->n_devices) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected device with type %u uid %llu at index %d but not enough indices", type, uid, index);
+        fail_test();
+    }
+    Device* device = dev_data->devices[index];
+    if (device->uid != uid || device->type != type) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected device with type %u uid %llu at index %d but got type %u uid %llu instead",
+                          type, uid, index, device->type, device->uid);
+        fail_test();
+    }
+    print_pass();
+}
+
+void check_device_param_sent(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly) {
+    if (dev_idx >= dev_data->n_devices) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected device at index %d but not enough indices", index);
+        fail_test();
+    }
+    Device* device = dev_data->devices[dev_idx];
+    bool found = false;
+    for (int i = 0; i < device->n_params; i++) {
+        if (strcmp(param_name, device->params[i]->name) == 0) {
+            Param* param = device->params[i];
+            // Only care about readonly if it is valid
+            if (readonly < 2 && param->readonly != readonly) {
+                print_fail();
+                fprintf_delimiter(stderr, "Param %s for device %d has readonly %d instead of %d", param_name, dev_idx, param->readonly, readonly);
+                fail_test();
+            }
+            switch (param_type) {
+                case INT:
+                    if (param->val_case != PARAM__VAL_IVAL) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "Param %s for device %d has Proto ValCase type %d instead of %d", param_name, dev_idx, param->val_case, PARAM__VAL_IVAL);
+                        fail_test();
+                    }
+                    if (param->ival != param_val->p_i) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "INT param %s for device %d has value %d instead of %d", param_name, dev_idx, param->ival, param_val->p_i);
+                        fail_test();
+                    }
+                    break;
+                case FLOAT:
+                    if (param->val_case != PARAM__VAL_FVAL) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "Param %s for device %d has Proto ValCase type %d instead of %d", param_name, dev_idx, param->val_case, PARAM__VAL_FVAL);
+                        fail_test();
+                    }
+                    if (param->fval != param_val->p_f) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "FLOAT param %s for device %d has value %f instead of %f", param_name, dev_idx, param->fval, param_val->p_f);
+                        fail_test();
+                    }
+                    break;
+                case BOOL:
+                    if (param->val_case != PARAM__VAL_BVAL) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "Param %s for device %d has Proto ValCase type %d instead of %d", param_name, dev_idx, param->val_case, PARAM__VAL_BVAL);
+                        fail_test();
+                    }
+                    if (param->bval != param_val->p_b) {
+                        print_fail();
+                        fprintf_delimiter(stderr, "BOOL param %s for device %d has value %u instead of %u", param_name, dev_idx, param->bval, param_val->p_b);
+                        fail_test();
+                    }
+                    break;
+                default:
+                    // If param type is greater than 2, then we don't care about parameter value/type, just existence
+                    break;
+            }
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        print_fail();
+        fprintf_delimiter(stderr, "Didn't find parameter with name %s for device %d", param_name, param_type, dev_idx);
+        fail_test();
+    }
+    print_pass();
+}
+
 
 // ***************************** RUN MODE CHECK ***************************** //
 
@@ -521,8 +628,7 @@ void check_run_mode(robot_desc_val_t expected_run_mode) {
         print_run_mode(expected_run_mode);
         fprintf_delimiter(stderr, "Got:");
         print_run_mode(curr_run_mode);
-        end_test();
-        exit(1);
+        fail_test();
     }
     print_pass();
 }
@@ -538,8 +644,7 @@ void check_start_pos(robot_desc_val_t expected_start_pos) {
         fprintf(stderr, "%s\n", (expected_start_pos == LEFT) ? "LEFT" : "RIGHT");
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", (curr_start_pos == LEFT) ? "LEFT" : "RIGHT");
-        end_test();
-        exit(1);
+        fail_test();
     }
     print_pass();
 }
@@ -559,8 +664,7 @@ void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t p
         fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "Device (0x%016llX) is not connected!\n", dev_uid);
-        end_test();
-        exit(1);
+        fail_test();
     }
     if (curr_sub_map[shm_idx + 1] != expected_sub_map) {  // Sub map is not as expected
         print_fail();
@@ -568,8 +672,7 @@ void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t p
         fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, curr_sub_map[shm_idx + 1]);
-        end_test();
-        exit(1);
+        fail_test();
     }
     print_pass();
 }
@@ -615,8 +718,7 @@ void check_device_connected(uint64_t dev_uid) {
         fprintf(stderr, "Connected device (0x%016llX)\n", dev_uid);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "NOT connected device (0x%016llX)\n", dev_uid);
-        end_test();
-        exit(1);
+        fail_test();
     }
 }
 
@@ -629,8 +731,7 @@ void check_device_not_connected(uint64_t dev_uid) {
         fprintf(stderr, "NOT connected device (0x%016llX)\n", dev_uid);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "Connected device (0x%016llX)\n", dev_uid);
-        end_test();
-        exit(1);
+        fail_test();
     }
 }
 
@@ -653,8 +754,7 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
     if (dev_type == -1) {
         print_fail();
         fprintf(stderr, "%s type not found\n", dev_name);
-        end_test();
-        exit(1);
+        fail_test();
     }
     device_t* dev = get_device(dev_type);
 
@@ -675,8 +775,7 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
                 fprintf(stderr, "%s <= %d\n", param_name, expected_high.p_i);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %d\n", param_name, received.p_i);
-                end_test();
-                exit(1);
+                fail_test();
             }
             break;
         case FLOAT:
@@ -687,8 +786,7 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
                 fprintf(stderr, "%s <= %f\n", param_name, expected_high.p_f);
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "%s == %f\n", param_name, received.p_f);
-                end_test();
-                exit(1);
+                fail_test();
             }
             break;
         case BOOL:
@@ -699,8 +797,7 @@ void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_typ
                 fprintf(stderr, "Param range check of type INT or FLOAT\n");
                 fprintf_delimiter(stderr, "Got:");
                 fprintf(stderr, "Param range check of type BOOL\n");
-                end_test();
-                exit(1);
+                fail_test();
             }
     }
     print_pass();
@@ -713,8 +810,7 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_tim
     if (dev_type == -1) {
         print_fail();
         fprintf(stderr, "TimeTestDevice type not found\n");
-        end_test();
-        exit(1);
+        fail_test();
     }
     device_t* dev = get_device(dev_type);
     param_val_t vals_after[dev->num_params];
@@ -722,8 +818,7 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_tim
     if (param_idx < 0) {
         print_fail();
         fprintf(stderr, "Could not find param_idx\n");
-        end_test();
-        exit(1);
+        fail_test();
     }
     int success = device_read_uid(uid, EXECUTOR, DATA, (1 << param_idx), vals_after);
     if (success < 0) {
@@ -742,8 +837,7 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_tim
         fprintf(stderr, "0 <= %s < %d\n", param_name, upper_bound_latency);
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s == %d\n", param_name, elapsed_time);
-        end_test();
-        exit(1);
+        fail_test();
     } else if (elapsed_time < 0) {
         print_fail();
         fprintf_delimiter(stderr, "Elapsed time is negative!");
@@ -751,8 +845,7 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_tim
         fprintf(stderr, "Elapsed time == %d\n", param_name, elapsed_time);
         fprintf(stderr, "Start time(shortened) == %d\n", param_name, start_time_shortened);
         fprintf(stderr, "End time == %d\n", param_name, end_time.p_i);
-        end_test();
-        exit(1);
+        fail_test();
     }
     print_pass();
 }

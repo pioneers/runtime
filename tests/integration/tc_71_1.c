@@ -17,6 +17,5 @@ int main() {
     send_start_pos(SHEPHERD, RIGHT);
     check_start_pos(RIGHT);
 
-    end_test();
     return 0;
 }

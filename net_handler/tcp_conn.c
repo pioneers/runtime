@@ -20,7 +20,6 @@ static void tcp_conn_cleanup(void* args) {
     tcp_conn_args_t* tcp_args = (tcp_conn_args_t*) args;
     robot_desc_write(RUN_MODE, IDLE);
 
-    log_printf(DEBUG, "About to close conn_fd for %d\n", tcp_args->client);
     if (close(tcp_args->conn_fd) != 0) {
         log_printf(ERROR, "Failed to close conn_fd: %s", strerror(errno));
     }
@@ -35,11 +34,11 @@ static void tcp_conn_cleanup(void* args) {
     }
     robot_desc_write(tcp_args->client, DISCONNECTED);
     if (tcp_args->client == DAWN) {
-        robot_desc_write(GAMEPAD, DISCONNECTED);   // Disconnect gamepad if Dawn is no longer connected
-        robot_desc_write(KEYBOARD, DISCONNECTED);  // Disconnect keyboard if Dawn is no longer connected
+        // Disconnect inputs if Dawn is no longer connected
+        robot_desc_write(GAMEPAD, DISCONNECTED);
+        robot_desc_write(KEYBOARD, DISCONNECTED);
     }
     free(args);
-    log_printf(DEBUG, "Finished cleaning up TCP connection with %d\n", tcp_args->client);
 }
 
 
