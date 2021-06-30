@@ -115,14 +115,6 @@ static void executor_init(char* student_code) {
         exit(1);
     }
 
-    //imports the Cython student API
-    pAPI = PyImport_ImportModule(api_module);
-    if (pAPI == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not import API module");
-        exit(1);
-    }
-
     //checks to make sure there is a Robot class, then instantiates it
     PyObject* robot_class = PyObject_GetAttrString(pAPI, "Robot");
     if (robot_class == NULL) {
@@ -352,6 +344,12 @@ static void kill_subprocess() {
     if (waitpid(pid, &status, 0) == -1) {
         log_printf(ERROR, "Wait failed for pid %d: %s", pid, strerror(errno));
     }
+    if (!WIFEXITED(status)) {
+        log_printf(ERROR, "Error when shutting down execution of mode %d", mode);
+    }
+    if (WIFSIGNALED(status)) {
+        log_printf(ERROR, "killed by signal %d\n", WTERMSIG(status));
+    }
     reset_params();
     mode = IDLE;
 }
@@ -369,7 +367,7 @@ static pid_t start_mode_subprocess(char* student_code) {
         // Now in child process
         signal(SIGINT, SIG_IGN);  // Disable Ctrl+C for child process
         executor_init(student_code);
-        signal(SIGTERM, python_exit_handler);  // kill subprocess regardless
+        signal(SIGTERM, python_exit_handler);  // Set handler for killing subprocess
         run_mode(mode);
         exit(0);
         return pid;  // Never reach this statement due to exit, needed to fix compiler warning

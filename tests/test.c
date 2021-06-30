@@ -328,7 +328,7 @@ static void end_test() {
  * Creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread.
  * Adds an exit handler which calls end_test to clean up pipes and Runtime processes.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method) {
+void start_test(char* test_description, char* student_code, int comparison_method) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
@@ -383,7 +383,7 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     }
 
     // Start up runtime
-    start_runtime(student_code, challenge_code);
+    start_runtime(student_code);
 
     // Add exit handler for automatic cleanup
     atexit(end_test);
