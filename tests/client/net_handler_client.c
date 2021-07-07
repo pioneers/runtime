@@ -4,13 +4,12 @@
 pid_t nh_pid;                           // holds the pid of the net_handler process
 struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
 pthread_t dump_tid;                     // holds the thread id of the output dumper threads
-pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
+pthread_mutex_t print_next_dev_data;        // lock over whether to print the next received udp
 bool print_next_udp;                    // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
 bool hypothermia_enabled = false;
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
-int nh_udp_fd = -1;           // holds file descriptor for UDP Dawn socket
 FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP messages (stdout if NULL)
 FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
 FILE* udp_output_fp = NULL;   // holds current output location of incoming UDP messages
@@ -79,63 +78,34 @@ static int connect_tcp(robot_desc_field_t client) {
 }
 
 /**
- * Function to receive data from net_handler on the UDP port
+ * Helper function print out contents of a DevData message
  * Arguments:
- *    udp_fd: file descriptor connected to UDP socket receiving data from net_handler
+ *    dev_data: the unpacked device data message to print
  */
-static void recv_udp_data(int udp_fd) {
-    int max_size = 4096;
-    uint8_t msg[max_size];
-    struct sockaddr_in recvaddr;
-    socklen_t addrlen = sizeof(recvaddr);
-    int recv_size;
-
-    // receive message from udp socket
-    if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
-        fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
-    }
-
-    // unpack the data
-    DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
-    if (dev_data == NULL) {
-        printf("Error unpacking incoming message\n");
-    }
-
+static void print_dev_data(DevData* dev_data) {
     // display the message's fields.
     for (int i = 0; i < dev_data->n_devices; i++) {
-        fprintf(udp_output_fp, "Device No. %d:", i);
-        fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
-        fprintf(udp_output_fp, "\tParams:\n");
+        fprintf(tcp_output_fp, "Device No. %d:", i);
+        fprintf(tcp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+        fprintf(tcp_output_fp, "\tParams:\n");
         for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
-            fprintf(udp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
+            fprintf(tcp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
             switch (dev_data->devices[i]->params[j]->val_case) {
                 case (PARAM__VAL_FVAL):
-                    fprintf(udp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
+                    fprintf(tcp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
                     break;
                 case (PARAM__VAL_IVAL):
-                    fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
+                    fprintf(tcp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
                     break;
                 case (PARAM__VAL_BVAL):
-                    fprintf(udp_output_fp, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
+                    fprintf(tcp_output_fp, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
                     break;
                 default:
-                    fprintf(udp_output_fp, "ERROR: no param value");
+                    fprintf(tcp_output_fp, "ERROR: no param value");
                     break;
             }
         }
     }
-
-    // free the unpacked message
-    dev_data__free_unpacked(dev_data, NULL);
-    fflush(udp_output_fp);
-
-    // if we were asked to print the last UDP message, set output back to /dev/null
-    pthread_mutex_lock(&print_udp_mutex);
-    if (print_next_udp) {
-        print_next_udp = false;
-        udp_output_fp = null_fp;
-    }
-    pthread_mutex_unlock(&print_udp_mutex);
 }
 
 /**
@@ -194,6 +164,20 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         }
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
+    } else if (msg_type == DEVICE_DATA_MSG) {
+        if ((msg = dev_data__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
+        // Print out the contents of DeviceData message
+        fflush(tcp_output_fp);
+        dev_data__free_unpacked(msg, NULL);
+
+        // if we were asked to print the last UDP message, set output back to /dev/null
+        pthread_mutex_lock(&print_next_dev_data);
+        if (print_next_udp) {
+            print_next_udp = false;
+        }
+        pthread_mutex_unlock(&print_next_dev_data);
     } else {
         fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
     }
@@ -221,7 +205,6 @@ static void* output_dump(void* args) {
     // set up the read_set argument for select()
     fd_set read_set;
     int maxfd = (nh_tcp_dawn_fd > nh_tcp_shep_fd) ? nh_tcp_dawn_fd : nh_tcp_shep_fd;
-    maxfd = (nh_udp_fd > maxfd) ? nh_udp_fd : maxfd;
     maxfd++;
 
     // wait for net handler to create some output, then print that output to stdout of this process
@@ -230,7 +213,6 @@ static void* output_dump(void* args) {
         FD_ZERO(&read_set);
         FD_SET(nh_tcp_shep_fd, &read_set);
         FD_SET(nh_tcp_dawn_fd, &read_set);
-        FD_SET(nh_udp_fd, &read_set);
 
         // prepare to accept cancellation requests over the select
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -276,9 +258,6 @@ static void* output_dump(void* args) {
                 return NULL;
             }
         }
-        if (FD_ISSET(nh_udp_fd, &read_set)) {
-            recv_udp_data(nh_udp_fd);
-        }
     }
     return NULL;
 }
@@ -290,21 +269,11 @@ void connect_clients(bool dawn, bool shepherd) {
     nh_tcp_dawn_fd = (dawn) ? connect_tcp(DAWN) : -1;
     nh_tcp_shep_fd = (shepherd) ? connect_tcp(SHEPHERD) : -1;
 
-    // Open a single UDP socket to connect to net handler
-    if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-        printf("socket: UDP socket creation failed...\n");
-        stop_net_handler();
-        exit(1);
-    }
-    udp_servaddr.sin_family = AF_INET;
-    udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
-    udp_servaddr.sin_port = htons(RASPI_UDP_PORT);
-
     // open /dev/null
     null_fp = fopen("/dev/null", "w");
 
     // init the mutex that will control whether udp prints to screen
-    if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
+    if (pthread_mutex_init(&print_next_dev_data, NULL) != 0) {
         printf("pthread_mutex_init: print udp mutex\n");
     }
     print_next_udp = false;
@@ -362,9 +331,6 @@ void close_output() {
     }
     if (nh_tcp_dawn_fd != -1) {
         close(nh_tcp_dawn_fd);
-    }
-    if (nh_udp_fd != -1) {
-        close(nh_udp_fd);
     }
 }
 
@@ -506,15 +472,18 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     }
 
     uint16_t len = user_inputs__get_packed_size(&inputs);
-    uint8_t* send_buf = malloc(len);
+    uint8_t* send_buf = make_buf(INPUTS_MSG, len);
     if (send_buf == NULL) {
         printf("send_user_input: Failed to malloc buffer\n");
         exit(1);
     }
-    user_inputs__pack(&inputs, send_buf);
+    user_inputs__pack(&inputs, send_buf + BUFFER_OFFSET);
 
     // send the message
-    sendto(nh_udp_fd, send_buf, len, 0, (struct sockaddr*) &udp_servaddr, sizeof(struct sockaddr_in));
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("send_user_input: Error when sending UserInput message");
+        exit(1);
+    }
 
     // free everything
     free(input.axes);
@@ -637,10 +606,10 @@ void send_timestamp() {
 }
 
 void print_next_dev_data() {
-    pthread_mutex_lock(&print_udp_mutex);
+    pthread_mutex_lock(&print_next_dev_data);
     print_next_udp = true;
     udp_output_fp = stdout;
-    pthread_mutex_unlock(&print_udp_mutex);
+    pthread_mutex_unlock(&print_next_dev_data);
     usleep(400000);  // allow time for output_dump to react and generate output before returning to client
 }
 
