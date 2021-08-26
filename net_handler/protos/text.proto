@@ -1,0 +1,11 @@
+/*
+ * Defines a message for communicating text data
+ */
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+message Text {
+    repeated string payload = 1;  //LOG: list of log lines
+}

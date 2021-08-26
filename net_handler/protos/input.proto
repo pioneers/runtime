@@ -1,0 +1,26 @@
+/*
+ * Defines a message for communicating user inputs
+ */
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+// Enum specifying which input source the data is from
+enum Source {
+    GAMEPAD = 0;
+    KEYBOARD = 1;
+}
+
+// Message for the current state of an input
+message Input {
+    bool connected = 1;
+    fixed64 buttons = 2;
+    repeated float axes = 3;
+    Source source = 4;
+}
+
+// An array of all inputs from all sources
+message UserInputs {
+    repeated Input inputs = 1;
+}

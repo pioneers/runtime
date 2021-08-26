@@ -1,0 +1,30 @@
+/*
+ * Defines a message for communicating Device Data
+ */
+
+syntax = "proto3";
+
+option optimize_for = LITE_RUNTIME;
+
+//message for describing a single device parameter
+message Param {
+    string name = 1;
+    oneof val {
+        float fval = 2;
+        int32 ival = 3;
+        bool bval = 4;
+    }
+    bool readonly = 5;
+}
+
+//message for describing a single device
+message Device {
+    string name = 1;
+    uint64 uid = 2;
+    uint32 type = 3;
+    repeated Param params = 4;  //each device has some number of params
+}
+
+message DevData {
+    repeated Device devices = 1;  //this single field has information about all requested params of devices
+}
