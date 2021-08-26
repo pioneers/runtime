@@ -1,18 +1,17 @@
 #include "net_handler_client.h"
 
 // throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid;                           // holds the pid of the net_handler process
-struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
-pthread_t dump_tid;                     // holds the thread id of the output dumper threads
-pthread_mutex_t print_next_dev_data;        // lock over whether to print the next received udp
-bool print_next_udp;                    // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
+pid_t nh_pid;                               // holds the pid of the net_handler process
+struct sockaddr_in udp_servaddr = {0};      // holds the udp server address
+pthread_t dump_tid;                         // holds the thread id of the output dumper threads
+pthread_mutex_t print_next_dev_data_mutex;  // lock over whether to print the next received udp
+bool should_print_next_dev_data;            // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
 bool hypothermia_enabled = false;
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
 FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP messages (stdout if NULL)
 FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
-FILE* udp_output_fp = NULL;   // holds current output location of incoming UDP messages
 FILE* null_fp = NULL;         // file pointer to /dev/null
 
 // ************************************* HELPER FUNCTIONS ************************************** //
@@ -73,7 +72,7 @@ static int connect_tcp(robot_desc_field_t client) {
         stop_net_handler();
         exit(1);
     }
-
+    printf("connect_tcp: Client %s with sockfd %d\n", client == DAWN ? "Dawn" : "Shepherd", sockfd);
     return sockfd;
 }
 
@@ -109,7 +108,8 @@ static void print_dev_data(DevData* dev_data) {
 }
 
 /**
- * Function to receive data as either Dawn or Shepherd on the connection
+ * Function to receive data as either Dawn or Shepherd on the connection.
+ * Receives the next message on the TCP socket and prints out the contents.
  * Arguments:
  *    client: client that we are receiving data as; one of SHEPHERD or DAWN
  *    tcp_fd: file descriptor connected to net_handler from which to read data
@@ -165,19 +165,21 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
     } else if (msg_type == DEVICE_DATA_MSG) {
-        if ((msg = dev_data__unpack(NULL, len, buf)) == NULL) {
+        DevData* data_msg = dev_data__unpack(NULL, len, buf);
+        if (data_msg == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }
-        // Print out the contents of DeviceData message
-        fflush(tcp_output_fp);
-        dev_data__free_unpacked(msg, NULL);
-
-        // if we were asked to print the last UDP message, set output back to /dev/null
-        pthread_mutex_lock(&print_next_dev_data);
-        if (print_next_udp) {
-            print_next_udp = false;
+        // Print out the contents of DeviceData message if flag is set
+        // if we were asked to print the last DeviceData message, set output back to /dev/null
+        pthread_mutex_lock(&print_next_dev_data_mutex);
+        if (should_print_next_dev_data) {
+            print_dev_data(data_msg);
+            fflush(tcp_output_fp);
+            // Reset the flag
+            should_print_next_dev_data = false;
         }
-        pthread_mutex_unlock(&print_next_dev_data);
+        pthread_mutex_unlock(&print_next_dev_data_mutex);
+        dev_data__free_unpacked(data_msg, NULL);
     } else {
         fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
     }
@@ -273,11 +275,10 @@ void connect_clients(bool dawn, bool shepherd) {
     null_fp = fopen("/dev/null", "w");
 
     // init the mutex that will control whether udp prints to screen
-    if (pthread_mutex_init(&print_next_dev_data, NULL) != 0) {
+    if (pthread_mutex_init(&print_next_dev_data_mutex, NULL) != 0) {
         printf("pthread_mutex_init: print udp mutex\n");
     }
-    print_next_udp = false;
-    udp_output_fp = null_fp;  // by default set to output to /dev/null
+    should_print_next_dev_data = false;
 
     // start the thread that is dumping output from net_handler to stdout of this process
     if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
@@ -287,6 +288,8 @@ void connect_clients(bool dawn, bool shepherd) {
 
 void start_net_handler() {
     // fork net_handler process
+    printf("start_net_handler: Starting net handler\n");
+    fflush(stdout);
     if ((nh_pid = fork()) < 0) {
         printf("fork: %s\n", strerror(errno));
     } else if (nh_pid == 0) {  // child
@@ -294,12 +297,12 @@ void start_net_handler() {
         if (chdir("../net_handler") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
-
+        printf("start_net_handler: execlp net handler\n");
+        fflush(stdout);
         // exec the actual net_handler process
         if (execlp("./net_handler", "net_handler", NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
-
     } else {                    // parent
         sleep(1);               // allows net_handler to set itself up
         connect_clients(1, 1);  // Connect both fake Dawn and fake Shepherd
@@ -606,10 +609,9 @@ void send_timestamp() {
 }
 
 void print_next_dev_data() {
-    pthread_mutex_lock(&print_next_dev_data);
-    print_next_udp = true;
-    udp_output_fp = stdout;
-    pthread_mutex_unlock(&print_next_dev_data);
+    pthread_mutex_lock(&print_next_dev_data_mutex);
+    should_print_next_dev_data = true;
+    pthread_mutex_unlock(&print_next_dev_data_mutex);
     usleep(400000);  // allow time for output_dump to react and generate output before returning to client
 }
 
