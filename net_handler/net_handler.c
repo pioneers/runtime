@@ -1,6 +1,5 @@
 #include "net_util.h"
 #include "tcp_conn.h"
-#include "udp_conn.h"
 
 /*
 * Sets up TCP listening socket on raspberry pi.
@@ -109,6 +108,9 @@ int main() {
 
     //setup
     logger_init(NET_HANDLER);
+    log_printf(INFO, "Executed net handler");
+    printf("printf In main function of net handler");
+    fflush(stdout);
     signal(SIGINT, sigint_handler);
     if (socket_setup(&sockfd) != 0) {
         if (sockfd != -1) {
@@ -127,11 +129,13 @@ int main() {
             log_printf(ERROR, "main: listen socket failed to accept a connection: %s", strerror(errno));
             continue;
         }
+
         cli_addr_len = sizeof(struct sockaddr_in);
         log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
 
         //get the client ID (first byte on the socket from client)
         client_id = determine_client(connfd);
+        log_printf(DEBUG, "Got a client connection request from client id=%d", client_id);
 
         //if the incoming request is shepherd or dawn, start the appropriate threads
         if (client_id == 0 && cli_addr.sin_family == AF_INET) {
