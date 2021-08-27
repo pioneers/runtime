@@ -14,6 +14,12 @@ FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP m
 FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
 FILE* null_fp = NULL;         // file pointer to /dev/null
 
+DevData* device_data = NULL;       // Holds the most recent device_data received from Runtime
+pthread_mutex_t device_data_lock;  // Mutual exclusion lock on the device_data for multithreaded access
+
+// 2021 Game Specific
+bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
+
 // ************************************* HELPER FUNCTIONS ************************************** //
 
 /**
@@ -592,6 +598,19 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     }
     free(dev_data.devices);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
+}
+
+DevData* get_next_dev_data() {
+    pthread_mutex_lock(&device_data_lock);
+    // We need to copy the data in the device_data Protobuf to return to the caller
+    // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
+    int pb_size = dev_data__get_packed_size(device_data);
+    uint8_t* buffer = malloc(pb_size);
+    dev_data__pack(device_data, buffer);
+    DevData* device_copy = dev_data__unpack(NULL, pb_size, buffer);
+    pthread_mutex_unlock(&device_data_lock);
+    free(buffer);
+    return device_copy;  // must be freed by caller with dev_data__free_unpacked
 }
 
 void send_timestamp() {

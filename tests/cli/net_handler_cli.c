@@ -330,6 +330,35 @@ void prompt_reroute_output() {
     update_tcp_output_fp(dest);
 }
 
+void print_next_dev_data() {
+    DevData* dev_data = get_next_dev_data();
+    // display the message's fields.
+    for (int i = 0; i < dev_data->n_devices; i++) {
+        printf("Device No. %d:", i);
+        printf("\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+        printf("\tParams:\n");
+        for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
+            Param* param = dev_data->devices[i]->params[j];
+            printf("\t\tparam \"%s\" is read%s and has type ", param->name, param->readonly ? " only" : "/write");
+            switch (dev_data->devices[i]->params[j]->val_case) {
+                case (PARAM__VAL_FVAL):
+                    printf("FLOAT with value %f\n", param->fval);
+                    break;
+                case (PARAM__VAL_IVAL):
+                    printf("INT with value %d\n", param->ival);
+                    break;
+                case (PARAM__VAL_BVAL):
+                    printf("BOOL with value %s\n", param->bval ? "True" : "False");
+                    break;
+                default:
+                    printf("ERROR: no param value");
+                    break;
+            }
+        }
+    }
+    dev_data__free_unpacked(dev_data, NULL);
+}
+
 void display_help() {
     printf("This is the main menu. Type one of the following commands to send a message to net_handler.\n");
     printf("Once you type one of the commands and hit \"enter\", follow on-screen instructions.\n");
@@ -357,7 +386,7 @@ void sigint_handler(int signum) {
 void connect_keyboard() {
     pthread_t keyboard_id;  // id of thread running the keyboard_interface
     if (pthread_create(&keyboard_id, NULL, (void*) setup_keyboard, NULL) != 0) {
-        printf("pthread create: setup keyboard");
+        printf("pthread create: failed to create keyboard thread: %s", strerror(errno));
     }
 }
 
@@ -446,8 +475,5 @@ int main(int argc, char** argv) {
     if (spawned_net_handler) {
         stop_net_handler();
     }
-
-    printf("Done!\n");
-
     return 0;
 }
