@@ -37,6 +37,5 @@ int main() {
     param_val_t expected = {.p_i = 123454321};
     same_param_value("SimpleTestDevice", 20, "MY_INT", INT, expected);
 
-    end_test();
     return 0;
 }

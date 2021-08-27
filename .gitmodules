@@ -1,0 +1,3 @@
+[submodule "net_handler/protos"]
+	path = net_handler/protos
+	url = https://github.com/pioneers/protos.git

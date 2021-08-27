@@ -59,6 +59,5 @@ int main() {
     sleep(1);
     check_run_mode(IDLE);
 
-    end_test();
     return 0;
 }

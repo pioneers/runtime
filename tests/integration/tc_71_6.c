@@ -40,7 +40,5 @@ int main() {
     // Verify all the first MAX_DEVICES devices are not disturbed
     check_max_devices_connected();
 
-    // Stop all processes
-    end_test();
     return 0;
 }
