@@ -536,7 +536,6 @@ static void send_device_data(int dawn_socket_fd) {
  *    - NULL
  */
 static void* tcp_events_thread(void* tcp_args) {
-    log_printf(DEBUG, "Spawned thread for tcp_events");
     tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
     pthread_cleanup_push(tcp_conn_cleanup, args);
     int ret;
@@ -565,12 +564,9 @@ static void* tcp_events_thread(void* tcp_args) {
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
         //wait for something to happen
-        log_printf(DEBUG, "tcp_events_thread: Waiting on read set");
         if (select(maxfd, &read_set, NULL, NULL, NULL) < 0) {
             log_printf(ERROR, "tcp_process: Failed to wait for select in control loop for client %d: %s", args->client, strerror(errno));
         }
-
-        log_printf(DEBUG, "tcp_events_thread: Received something");
 
         //deny all cancellation requests until the next loop
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
@@ -613,9 +609,7 @@ static void* tcp_events_thread(void* tcp_args) {
  * - NULL
  */
 static void* tcp_poll_thread(void* tcp_args) {
-    log_printf(DEBUG, "Spawned thread for tcp_poll");
     tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
-    // pthread_cleanup_push(tcp_conn_cleanup, args); TODO: IS this needed
     uint64_t time = millis();
     uint64_t last_sent_device_data = 0;
     while (1) {
@@ -631,6 +625,8 @@ static void* tcp_poll_thread(void* tcp_args) {
         }
         // If enough time has passed, send a Runtime status message
         // TODO: @Ben/Daniel
+        pthread_testcancel();  // Make sure we allow cancelling this thread at some point
+        usleep(40000);         // Loop throttling
     }
     return NULL;
 }
@@ -639,7 +635,6 @@ static void* tcp_poll_thread(void* tcp_args) {
 
 
 void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
-    log_printf(DEBUG, "start_tcp_conn: Called for %s", client == DAWN ? "Dawn" : "Sheep");
     if (client != DAWN && client != SHEPHERD) {
         log_printf(ERROR, "start_tcp_conn: Invalid TCP client %d, not DAWN(%d) or SHEPHERD(%d)", client, DAWN, SHEPHERD);
         return;
@@ -669,7 +664,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
         close(args->challenge_fd);
         return;
     }
-    log_printf(DEBUG, "start_Tcp_conn: Called bind");
+
     //Open FIFO pipe for logs
     if (send_logs) {
         int log_fd;
@@ -685,25 +680,21 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
             return;
         }
     }
-    log_printf(DEBUG, "start_tcp_conn: Opened FIFO pipe for logs");
 
     // Update the start time of the TCP connection with Dawn
-    // if (client == DAWN) {
-    //     dawn_start_time = millis();
-    // }
+    if (client == DAWN) {
+        dawn_start_time = millis();
+    }
 
     //create the main control threads for this client
-    if (pthread_create((client == DAWN) ? &dawn_events_tid : &shepherd_events_tid, NULL, tcp_events_thread, 0) != 0) {
+    if (pthread_create((client == DAWN) ? &dawn_events_tid : &shepherd_events_tid, NULL, tcp_events_thread, args) != 0) {
         log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread tcp_events for %d: %s", client, strerror(errno));
         return;
     }
-    // log_printf(DEBUG, "Created events thread, Going to create poll thread");
-    // if (pthread_create((client == DAWN) ? &dawn_poll_tid : &shepherd_poll_tid, NULL, tcp_poll_thread, 0) != 0) {
-    //     log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread tcp_poll for %d: %s", client, strerror(errno));
-    //     return;
-    // }
-
-    log_printf(DEBUG, "start_tcp_conn: Created threads for client %s", client == DAWN ? "Dawn" : "Sheeps");
+    if (pthread_create((client == DAWN) ? &dawn_poll_tid : &shepherd_poll_tid, NULL, tcp_poll_thread, args) != 0) {
+        log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread tcp_poll for %d: %s", client, strerror(errno));
+        return;
+    }
 
     log_printf(DEBUG, "Successfully initialized TCP connection with client %d\n", client);
     robot_desc_write(client, CONNECTED);
@@ -716,18 +707,20 @@ void stop_tcp_conn(robot_desc_field_t client) {
         return;
     }
 
+    // Cancel and join the poll thread
+    // Note: Since both the poll and events thread use the same connection socket,
+    // The first thread we cancel should *not* clean up the connection, but the second thread we cancel should
+    if (pthread_cancel((client == DAWN) ? dawn_poll_tid : shepherd_poll_tid) != 0) {
+        log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client poll thread for %d: %s", client, strerror(errno));
+    }
+    if (pthread_join((client == DAWN) ? dawn_poll_tid : shepherd_poll_tid, NULL) != 0) {
+        log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client poll thread for %d: %s", client, strerror(errno));
+    }
     // Cancel and join the events thread
     if (pthread_cancel((client == DAWN) ? dawn_events_tid : shepherd_events_tid) != 0) {
         log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client events thread for %d: %s", client, strerror(errno));
     }
     if (pthread_join((client == DAWN) ? dawn_events_tid : shepherd_events_tid, NULL) != 0) {
         log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client events thread for %d: %s", client, strerror(errno));
-    }
-    // Cancel and join the poll thread
-    if (pthread_cancel((client == DAWN) ? dawn_poll_tid : shepherd_poll_tid) != 0) {
-        log_printf(ERROR, "stop_tcp_conn: Failed to cancel TCP client poll thread for %d: %s", client, strerror(errno));
-    }
-    if (pthread_join((client == DAWN) ? dawn_poll_tid : shepherd_poll_tid, NULL) != 0) {
-        log_printf(ERROR, "stop_tcp_conn: Failed to join on TCP client poll thread for %d: %s", client, strerror(errno));
     }
 }
