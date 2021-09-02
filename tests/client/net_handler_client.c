@@ -6,7 +6,6 @@ struct sockaddr_in udp_servaddr = {0};      // holds the udp server address
 pthread_t dump_tid;                         // holds the thread id of the output dumper threads
 pthread_mutex_t print_next_dev_data_mutex;  // lock over whether to print the next received udp
 bool should_print_next_dev_data;            // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
-bool hypothermia_enabled = false;
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
@@ -42,20 +41,6 @@ static int connect_tcp(robot_desc_field_t client) {
         printf("setsockopt: failed to set listening socket for reuse of port: %s\n", strerror(errno));
     }
 
-    // set the elements of cli_addr
-    struct sockaddr_in cli_addr = {0};                                                   // initialize everything to 0
-    cli_addr.sin_family = AF_INET;                                                       // use IPv4
-    cli_addr.sin_port = (client == SHEPHERD) ? htons(SHEPHERD_PORT) : htons(DAWN_PORT);  // use specifid port to connect
-    cli_addr.sin_addr.s_addr = htonl(INADDR_ANY);                                        // use any address set on this machine to connect
-
-    // bind the client side too, so that net_handler can verify it's the proper client
-    if ((bind(sockfd, (struct sockaddr*) &cli_addr, sizeof(struct sockaddr_in))) != 0) {
-        printf("bind: failed to bind listening socket to client port: %s\n", strerror(errno));
-        close(sockfd);
-        stop_net_handler();
-        exit(1);
-    }
-
     // set the elements of serv_addr
     struct sockaddr_in serv_addr = {0};          // initialize everything to 0
     serv_addr.sin_family = AF_INET;              // use IPv4
@@ -78,7 +63,6 @@ static int connect_tcp(robot_desc_field_t client) {
         stop_net_handler();
         exit(1);
     }
-    printf("connect_tcp: Client %s with sockfd %d\n", client == DAWN ? "Dawn" : "Shepherd", sockfd);
     return sockfd;
 }
 
@@ -294,8 +278,6 @@ void connect_clients(bool dawn, bool shepherd) {
 
 void start_net_handler() {
     // fork net_handler process
-    printf("start_net_handler: Starting net handler\n");
-    fflush(stdout);
     if ((nh_pid = fork()) < 0) {
         printf("fork: %s\n", strerror(errno));
     } else if (nh_pid == 0) {  // child
@@ -303,8 +285,6 @@ void start_net_handler() {
         if (chdir("../net_handler") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
-        printf("start_net_handler: execlp net handler\n");
-        fflush(stdout);
         // exec the actual net_handler process
         if (execlp("./net_handler", "net_handler", NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));

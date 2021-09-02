@@ -28,8 +28,6 @@
 
 #define RASPI_ADDR "127.0.0.1"  // The IP address of Runtime (Raspberry Pi) that clients can request a connection to
 #define RASPI_TCP_PORT 8101     // Port for Runtime as a TCP socket server
-#define SHEPHERD_PORT 6101      // Port for Shepherd as a TCP socket client
-#define DAWN_PORT 7101          // Port for Dawn as a TCP socket client
 
 #define MAX_NUM_LOGS 16  // Maximum number of logs that can be sent in one msg
 
