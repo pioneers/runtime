@@ -108,9 +108,6 @@ int main() {
 
     //setup
     logger_init(NET_HANDLER);
-    log_printf(INFO, "Executed net handler");
-    printf("printf In main function of net handler");
-    fflush(stdout);
     signal(SIGINT, sigint_handler);
     if (socket_setup(&sockfd) != 0) {
         if (sockfd != -1) {
@@ -135,7 +132,6 @@ int main() {
 
         //get the client ID (first byte on the socket from client)
         client_id = determine_client(connfd);
-        log_printf(DEBUG, "Got a client connection request from client id=%d", client_id);
 
         //if the incoming request is shepherd or dawn, start the appropriate threads
         if (client_id == 0 && cli_addr.sin_family == AF_INET) {
