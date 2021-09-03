@@ -107,7 +107,7 @@ device_t KoalaBear = {
 // This is just here to avoid some errors when using get_device() on CustomDevice
 // Used in niche situations (ex: UDP_TCP_CONVERTER_TEST)for Spring 2021 comp.
 device_t CustomDevice = {
-    .type = MAX_DEVICES,  // Also used this way in udp_conn.c
+    .type = MAX_DEVICES,  // Also used this way in tcp_conn.c
     .name = "CustomDevice",
     .num_params = 1,
     .params = {
