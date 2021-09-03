@@ -1,20 +1,28 @@
 #include "net_handler_client.h"
 
 // throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid;                               // holds the pid of the net_handler process
-struct sockaddr_in udp_servaddr = {0};      // holds the udp server address
-pthread_t dump_tid;                         // holds the thread id of the output dumper threads
-pthread_mutex_t print_next_dev_data_mutex;  // lock over whether to print the next received udp
+pid_t nh_pid;        // holds the pid of the net_handler process
+pthread_t dump_tid;  // holds the thread id of the output dumper threads
+
+// File pointers
+int nh_tcp_shep_fd = -1;     // holds file descriptor for TCP Shepherd socket
+int nh_tcp_dawn_fd = -1;     // holds file descriptor for TCP Dawn socket
+FILE* tcp_output_fp = NULL;  // holds current output location of incoming TCP messages
+FILE* null_fp = NULL;        // file pointer to /dev/null
+
+/**
+ * Printing received Device Data messages
+ * A variable holds the most recent device data received from Runtime
+ * - This is updated constantly, and done while holding the lock
+ * This variable is accessed when we want to
+ * - Print out the most recent device data message, or
+ * - look at its contents manually (ex: as part of a test case)
+ * A boolean flag is default false, and set to true when the most recent device data message should be printed
+ * - After the device data message is printed, the flag is immediately set back to false
+ */
+pthread_mutex_t print_next_dev_data_mutex;  // lock over the following two variables
+DevData* device_data = NULL;                // Holds the most recent device_data received from Runtime
 bool should_print_next_dev_data;            // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
-
-int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
-int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
-FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP messages (stdout if NULL)
-FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
-FILE* null_fp = NULL;         // file pointer to /dev/null
-
-DevData* device_data = NULL;       // Holds the most recent device_data received from Runtime
-pthread_mutex_t device_data_lock;  // Mutual exclusion lock on the device_data for multithreaded access
 
 // 2021 Game Specific
 bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
@@ -103,7 +111,9 @@ static void print_dev_data(DevData* dev_data) {
  * Arguments:
  *    client: client that we are receiving data as; one of SHEPHERD or DAWN
  *    tcp_fd: file descriptor connected to net_handler from which to read data
- * Returns: 0 on success, -1 on failure
+ * Returns: 
+ *    the type of message successfully received and printed out, or
+ *    -1 on failure
  */
 static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
     // variables to read messages into
@@ -155,29 +165,31 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
     } else if (msg_type == DEVICE_DATA_MSG) {
-        DevData* data_msg = dev_data__unpack(NULL, len, buf);
-        if (data_msg == NULL) {
+        // Print out the contents of DeviceData message if flag is set
+        pthread_mutex_lock(&print_next_dev_data_mutex);
+        // Replace the most recent device data; Remember to free the unpacked data
+        if (device_data != NULL) {
+            dev_data__free_unpacked(device_data, NULL);
+        }
+        device_data = dev_data__unpack(NULL, len, buf);
+        if (device_data == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }
-        // Print out the contents of DeviceData message if flag is set
-        // if we were asked to print the last DeviceData message, set output back to /dev/null
-        pthread_mutex_lock(&print_next_dev_data_mutex);
-        if (should_print_next_dev_data) {
-            print_dev_data(data_msg);
+        if (should_print_next_dev_data) { // If flag is true, print out a device data message then reset the flag
+            print_dev_data(device_data);
             fflush(tcp_output_fp);
             // Reset the flag
             should_print_next_dev_data = false;
         }
         pthread_mutex_unlock(&print_next_dev_data_mutex);
-        dev_data__free_unpacked(data_msg, NULL);
     } else {
         fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
+        msg_type = -1;  // Set the return value as -1 to indicate failure
     }
 
     // free allocated memory
     free(buf);
-
-    return 0;
+    return msg_type;
 }
 
 /**
@@ -199,9 +211,14 @@ static void* output_dump(void* args) {
     int maxfd = (nh_tcp_dawn_fd > nh_tcp_shep_fd) ? nh_tcp_dawn_fd : nh_tcp_shep_fd;
     maxfd++;
 
+    // Initialize the output file to stdout
+    if (tcp_output_fp == NULL) {
+        tcp_output_fp = stdout;
+    }
+
     // wait for net handler to create some output, then print that output to stdout of this process
     while (true) {
-        // set up the read_set argument to selct()
+        // set up the read_set argument to select()
         FD_ZERO(&read_set);
         FD_SET(nh_tcp_shep_fd, &read_set);
         FD_SET(nh_tcp_dawn_fd, &read_set);
@@ -217,37 +234,37 @@ static void* output_dump(void* args) {
         // deny all cancellation requests until the next loop
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-        // enable tcp output if more than enable_thresh has passed between last time and previous time
-        if (FD_ISSET(nh_tcp_shep_fd, &read_set) || FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
-            curr_time = millis();
-            if (curr_time - last_received_time >= enable_threshold) {
-                less_than_disable_thresh = 0;
-                if (default_tcp_fp == NULL) {
-                    tcp_output_fp = stdout;
-                } else {
-                    tcp_output_fp = default_tcp_fp;
-                }
-            }
-            if (curr_time - last_received_time <= disable_threshold) {
-                less_than_disable_thresh++;
-                if (less_than_disable_thresh == sample_size) {
-                    printf("Suppressing output: too many messages...\n\n");
-                    fflush(tcp_output_fp);
-                    tcp_output_fp = null_fp;
-                }
-            }
-            last_received_time = curr_time;
-        }
-
         // print stuff from whichever file descriptors are ready for reading...
+        int msg_type = -1;
         if (FD_ISSET(nh_tcp_shep_fd, &read_set)) {
-            if (recv_tcp_data(SHEPHERD, nh_tcp_shep_fd) == -1) {
+            if ((msg_type = recv_tcp_data(SHEPHERD, nh_tcp_shep_fd)) == -1) {
                 return NULL;
             }
         }
         if (FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
-            if (recv_tcp_data(DAWN, nh_tcp_dawn_fd) == -1) {
+            if ((msg_type = recv_tcp_data(DAWN, nh_tcp_dawn_fd)) == -1) {
                 return NULL;
+            }
+        }
+
+        // enable tcp output if more than enable_thresh has passed between last time and previous time
+        // It's expected to be spammed with Device Data messages, so we do this logic for only other message types
+        if (msg_type != DEVICE_DATA_MSG) {
+            if (FD_ISSET(nh_tcp_shep_fd, &read_set) || FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
+                curr_time = millis();
+                if (curr_time - last_received_time >= enable_threshold) {  // Start printing output again
+                    less_than_disable_thresh = 0;
+                    tcp_output_fp = stdout;
+                }
+                if (curr_time - last_received_time <= disable_threshold) {  // Too many messages; Set output to /dev/null
+                    less_than_disable_thresh++;
+                    if (less_than_disable_thresh == sample_size) {
+                        printf("Suppressing output: too many messages...\n\n");
+                        fflush(tcp_output_fp);
+                        tcp_output_fp = null_fp;
+                    }
+                }
+                last_received_time = curr_time;
             }
         }
     }
@@ -261,12 +278,12 @@ void connect_clients(bool dawn, bool shepherd) {
     nh_tcp_dawn_fd = (dawn) ? connect_tcp(DAWN) : -1;
     nh_tcp_shep_fd = (shepherd) ? connect_tcp(SHEPHERD) : -1;
 
-    // open /dev/null
+    // open /dev/null, which will be used to disable log output if there are too many logs
     null_fp = fopen("/dev/null", "w");
 
-    // init the mutex that will control whether udp prints to screen
+    // init the mutex that will control whether device data messages should be printed to screen
     if (pthread_mutex_init(&print_next_dev_data_mutex, NULL) != 0) {
-        printf("pthread_mutex_init: print udp mutex\n");
+        printf("pthread_mutex_init: print device data mutex\n");
     }
     should_print_next_dev_data = false;
 
@@ -581,14 +598,14 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
 }
 
 DevData* get_next_dev_data() {
-    pthread_mutex_lock(&device_data_lock);
+    pthread_mutex_lock(&print_next_dev_data_mutex);
     // We need to copy the data in the device_data Protobuf to return to the caller
     // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
     int pb_size = dev_data__get_packed_size(device_data);
     uint8_t* buffer = malloc(pb_size);
     dev_data__pack(device_data, buffer);
     DevData* device_copy = dev_data__unpack(NULL, pb_size, buffer);
-    pthread_mutex_unlock(&device_data_lock);
+    pthread_mutex_unlock(&print_next_dev_data_mutex);
     free(buffer);
     return device_copy;  // must be freed by caller with dev_data__free_unpacked
 }
@@ -612,8 +629,4 @@ void print_next_dev_data() {
     should_print_next_dev_data = true;
     pthread_mutex_unlock(&print_next_dev_data_mutex);
     usleep(400000);  // allow time for output_dump to react and generate output before returning to client
-}
-
-void update_tcp_output_fp(char* output_address) {
-    default_tcp_fp = fopen(output_address, "w");
 }
