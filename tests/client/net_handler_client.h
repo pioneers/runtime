@@ -62,7 +62,7 @@ void send_game_state(robot_desc_field_t state);
 void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
 
 /**
- * Sends a Gamepad State message from Dawn over UDP with the specified buttons pushed and joystick values
+ * Sends a Gamepad State message from (fake) Dawn with the specified buttons pushed and joystick values
  * Arguments:
  *    - buttons: bitmap of which buttons are pressed. mappings are in runtime_util.h
  *    - joystick_vals[4]: values for the four joystick values. mappings are in runtime_util.h

@@ -334,7 +334,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
                     log_printf(ERROR, "recv_new_msg: Number of joystick axes given is %d which is not 4. Cannot update gamepad state", input->n_axes);
                 }
             } else if (input->source == SOURCE__KEYBOARD) {
-                log_printf(INFO, "recv_new_msg: Received keyboard disconnected on UDP from Dawn!!");
+                log_printf(INFO, "recv_new_msg: Received keyboard disconnected from Dawn!!");
             }
         }
         user_inputs__free_unpacked(inputs, NULL);

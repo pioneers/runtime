@@ -355,7 +355,7 @@ void display_help() {
     printf("\tchallenge data     send a Challenge Data message\n");
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
-    printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
+    printf("\tview device data   view the next Device Data message sent to Dawn containing most recent device data\n");
     printf("\treroute output     reroute output to a file\n");
     printf("\thelp               display this help text\n");
     printf("\texit               exit the Net Handler CLI\n");

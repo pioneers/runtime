@@ -175,7 +175,7 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         if (device_data == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }
-        if (should_print_next_dev_data) { // If flag is true, print out a device data message then reset the flag
+        if (should_print_next_dev_data) {  // If flag is true, print out a device data message then reset the flag
             print_dev_data(device_data);
             fflush(tcp_output_fp);
             // Reset the flag
