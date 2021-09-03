@@ -104,11 +104,4 @@ void send_timestamp();
  */
 DevData* get_next_dev_data();
 
-/**
- * Updates the file pointer receiving TCP messages coming into Dawn or Shepherd.
- * Arguments:
- *    - output_address: address of the file stream for new output destination
- */
-void update_tcp_output_fp(char* output_address);
-
 #endif
