@@ -442,6 +442,7 @@ static void send_device_data(int dawn_socket_fd) {
                         param->bval = param_data[j].p_b;
                         break;
                 }
+                param->readonly = device_info->params[j].read && !device_info->params[j].write;
                 device->params[device->n_params] = param;
                 device->n_params++;
             }
@@ -490,6 +491,7 @@ static void send_device_data(int dawn_socket_fd) {
                 param->bval = custom_params[i].p_b;
                 break;
         }
+        param->readonly = true;  // CustomData is used to display changing values; Not an actual parameter
     }
     Param* time = malloc(sizeof(Param));
     if (time == NULL) {
@@ -501,6 +503,7 @@ static void send_device_data(int dawn_socket_fd) {
     time->name = "time_ms";
     time->val_case = PARAM__VAL_IVAL;
     time->ival = millis() - dawn_start_time;  // Can only give difference in millisecond since robot start since it is int32, not int64
+    time->readonly = true;                    // Just displays the time; Writing to this parameter doesn't make sense
 
     dev_data.n_devices = dev_idx + 1;  // + 1 is for custom data
 
