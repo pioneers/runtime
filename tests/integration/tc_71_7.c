@@ -17,7 +17,5 @@ int main() {
     sleep(2);
     check_device_not_connected(UID);
 
-    // Clean up
-    end_test();
     return 0;
 }

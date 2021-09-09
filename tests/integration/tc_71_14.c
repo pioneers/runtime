@@ -74,7 +74,5 @@ int main() {
         check_device_not_connected(i);
     }
 
-    // Clean up
-    end_test();
     return 0;
 }

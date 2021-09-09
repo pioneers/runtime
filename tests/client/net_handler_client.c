@@ -4,17 +4,19 @@
 pid_t nh_pid;                           // holds the pid of the net_handler process
 struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
 pthread_t dump_tid;                     // holds the thread id of the output dumper threads
-pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
-bool print_next_udp;                    // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
-bool hypothermia_enabled = false;
 
 int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
 int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
 int nh_udp_fd = -1;           // holds file descriptor for UDP Dawn socket
 FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP messages (stdout if NULL)
 FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
-FILE* udp_output_fp = NULL;   // holds current output location of incoming UDP messages
 FILE* null_fp = NULL;         // file pointer to /dev/null
+
+DevData* device_data = NULL;       // Holds the most recent device_data received from Runtime
+pthread_mutex_t device_data_lock;  // Mutual exclusion lock on the device_data for multithreaded access
+
+// 2021 Game Specific
+bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -79,63 +81,40 @@ static int connect_tcp(robot_desc_field_t client) {
 }
 
 /**
- * Function to receive data from net_handler on the UDP port
- * Arguments:
+ * Receives device data from the net_handler on the UDP fd and updates the corresponding global variable
+ *
+ * Args:
  *    udp_fd: file descriptor connected to UDP socket receiving data from net_handler
+ * Returns:
+ *    0 on success and -1 on error
  */
-static void recv_udp_data(int udp_fd) {
-    int max_size = 4096;
+static int recv_udp_data(int udp_fd) {
+    static int max_size = 4096;
     uint8_t msg[max_size];
-    struct sockaddr_in recvaddr;
-    socklen_t addrlen = sizeof(recvaddr);
     int recv_size;
 
     // receive message from udp socket
-    if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
-        fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
+    if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, NULL, NULL)) < 0) {
+        printf("recv_udp_data: Failed to receive from UDP: %s\n", strerror(errno));
+        return -1;
     }
 
-    // unpack the data
-    DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
-    if (dev_data == NULL) {
-        printf("Error unpacking incoming message\n");
+    pthread_mutex_lock(&device_data_lock);
+    // Must free old device data
+    if (device_data != NULL) {
+        dev_data__free_unpacked(device_data, NULL);
     }
 
-    // display the message's fields.
-    for (int i = 0; i < dev_data->n_devices; i++) {
-        fprintf(udp_output_fp, "Device No. %d:", i);
-        fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
-        fprintf(udp_output_fp, "\tParams:\n");
-        for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
-            fprintf(udp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
-            switch (dev_data->devices[i]->params[j]->val_case) {
-                case (PARAM__VAL_FVAL):
-                    fprintf(udp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
-                    break;
-                case (PARAM__VAL_IVAL):
-                    fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
-                    break;
-                case (PARAM__VAL_BVAL):
-                    fprintf(udp_output_fp, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
-                    break;
-                default:
-                    fprintf(udp_output_fp, "ERROR: no param value");
-                    break;
-            }
-        }
+    // unpack the new data
+    device_data = dev_data__unpack(NULL, recv_size, msg);
+    pthread_mutex_unlock(&device_data_lock);
+
+    if (device_data == NULL) {
+        printf("recv_udp_data: Error unpacking DevData message\n");
+        return -1;
     }
 
-    // free the unpacked message
-    dev_data__free_unpacked(dev_data, NULL);
-    fflush(udp_output_fp);
-
-    // if we were asked to print the last UDP message, set output back to /dev/null
-    pthread_mutex_lock(&print_udp_mutex);
-    if (print_next_udp) {
-        print_next_udp = false;
-        udp_output_fp = null_fp;
-    }
-    pthread_mutex_unlock(&print_udp_mutex);
+    return 0;
 }
 
 /**
@@ -277,7 +256,9 @@ static void* output_dump(void* args) {
             }
         }
         if (FD_ISSET(nh_udp_fd, &read_set)) {
-            recv_udp_data(nh_udp_fd);
+            if (recv_udp_data(nh_udp_fd) == -1) {
+                return NULL;
+            }
         }
     }
     return NULL;
@@ -303,12 +284,10 @@ void connect_clients(bool dawn, bool shepherd) {
     // open /dev/null
     null_fp = fopen("/dev/null", "w");
 
-    // init the mutex that will control whether udp prints to screen
-    if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
+    // init the mutex that will control access to the global device data variable
+    if (pthread_mutex_init(&device_data_lock, NULL) != 0) {
         printf("pthread_mutex_init: print udp mutex\n");
     }
-    print_next_udp = false;
-    udp_output_fp = null_fp;  // by default set to output to /dev/null
 
     // start the thread that is dumping output from net_handler to stdout of this process
     if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
@@ -622,6 +601,19 @@ void send_device_subs(dev_subs_t* subs, int num_devices) {
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
 }
 
+DevData* get_next_dev_data() {
+    pthread_mutex_lock(&device_data_lock);
+    // We need to copy the data in the device_data Protobuf to return to the caller
+    // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
+    int pb_size = dev_data__get_packed_size(device_data);
+    uint8_t* buffer = malloc(pb_size);
+    dev_data__pack(device_data, buffer);
+    DevData* device_copy = dev_data__unpack(NULL, pb_size, buffer);
+    pthread_mutex_unlock(&device_data_lock);
+    free(buffer);
+    return device_copy;  // must be freed by caller with dev_data__free_unpacked
+}
+
 void send_timestamp() {
     TimeStamps timestamp_msg = TIME_STAMPS__INIT;
     uint8_t* send_buf;
@@ -634,14 +626,6 @@ void send_timestamp() {
         printf("writen: issue sending timestamp to Dawn\n");
     }
     free(send_buf);
-}
-
-void print_next_dev_data() {
-    pthread_mutex_lock(&print_udp_mutex);
-    print_next_udp = true;
-    udp_output_fp = stdout;
-    pthread_mutex_unlock(&print_udp_mutex);
-    usleep(400000);  // allow time for output_dump to react and generate output before returning to client
 }
 
 void update_tcp_output_fp(char* output_address) {

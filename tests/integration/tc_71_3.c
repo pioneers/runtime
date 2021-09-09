@@ -18,6 +18,5 @@ int main() {
     send_device_subs(data_total, 2);
     add_ordered_string_output("recv_new_msg: Invalid device subscription, device uid 100 is invalid\n");
 
-    end_test();
     return 0;
 }

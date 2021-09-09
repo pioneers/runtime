@@ -53,6 +53,5 @@ int main() {
     send_challenge_data(DAWN, inputs, 2);
     add_ordered_string_output(check_output_9);
 
-    end_test();
     return 0;
 }

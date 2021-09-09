@@ -429,7 +429,7 @@ def get_all_params(_code_file) -> Dict[str, List[str]]:
     for _i, _line in enumerate(_f.readlines()):
         # Remove whitespace
         _line = _line.strip()
-        # Remove commented out text in the line (entire line may be a commentas well)
+        # Remove commented out text in the line (entire line may be a comment as well)
         _comment = _line.find("#")
         if _comment != -1:
             _line = _line[:_comment] 
