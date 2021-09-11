@@ -98,20 +98,17 @@ class Device {
     StatusLED* led;  // The LED on the Arduino
 
   private:
-    const static float MAX_SUB_INTERVAL_MS;  // Maximum tolerable subscription delay, in ms
-    const static float MIN_SUB_INTERVAL_MS;  // Minimum tolerable subscription delay, in ms
-
+    const static int DATA_INTERVAL_MS; // Number of milliseconds between sending data to runtime.
+    const static int MAX_PARAMS;       // Maximum number of parameters for a device.
     dev_id_t dev_id;                   // dev_id of this device determined when flashing
-    uint32_t params;                   // Bitmap of parameters subscribed to by dev handler
-    uint16_t sub_interval;             // Time between sending new DEVICE_DATA messages
     uint32_t timeout;                  // Maximum time (ms) we'll wait between PING messages from dev handler
-    uint64_t last_sent_data_time;      // Timestamp of last time we sent DEVICE_DATA due to Subscription
+    uint64_t last_sent_data_time;      // Timestamp of last time we sent DEVICE_DATA
     uint64_t last_received_ping_time;  // Timestamp of last time we received a PING
     uint64_t curr_time;                // The current time
     message_t curr_msg;                // current message being processed
 
     /**
-     * Builds a DEVICE_DATA message by reading all subscribed parameters.
+     * Builds a DEVICE_DATA message by reading all parameters.
      * Arguments:
      *    msg: An empty message to be populated with parameter values ready for sending.
      */

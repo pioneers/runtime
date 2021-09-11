@@ -251,28 +251,6 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
                 break;
         }
         start_pos__free_unpacked(start_pos_msg, NULL);
-    } else if (msg_type == DEVICE_DATA_MSG) {
-        DevData* dev_data_msg = dev_data__unpack(NULL, len_pb, buf);
-        if (dev_data_msg == NULL) {
-            log_printf(ERROR, "recv_new_msg: Cannot unpack dev_data msg");
-            return -2;
-        }
-        // For each device, place sub requests for the requested parameters
-        for (int i = 0; i < dev_data_msg->n_devices; i++) {
-            Device* req_device = dev_data_msg->devices[i];
-            uint32_t requests = 0;
-            for (int j = 0; j < req_device->n_params; j++) {
-                // Place a sub request for each parameter that has its boolean value set to 1
-                if (req_device->params[j]->val_case == PARAM__VAL_BVAL) {
-                    requests |= (req_device->params[j]->bval << j);
-                }
-            }
-            int err = place_sub_request(req_device->uid, NET_HANDLER, requests);
-            if (err == -1) {
-                log_printf(ERROR, "recv_new_msg: Invalid device subscription, device uid %llu is invalid", req_device->uid);
-            }
-        }
-        dev_data__free_unpacked(dev_data_msg, NULL);
     } else if (msg_type == GAME_STATE_MSG) {
         GameState* game_state_msg = game_state__unpack(NULL, len_pb, buf);
         if (game_state_msg == NULL) {
@@ -308,7 +286,7 @@ static int recv_new_msg(int conn_fd, int challenge_fd) {
         send_timestamp_msg(conn_fd, time_stamp_msg);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
     } else {
-        log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), START_POS (1), or DEVICE_DATA (4)", msg_type);
+        log_printf(ERROR, "recv_new_msg: unknown message type %d, tcp should only receive CHALLENGE_DATA (2), RUN_MODE (0), or START_POS (1)", msg_type);
         return -2;
     }
     free(buf);
