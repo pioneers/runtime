@@ -35,7 +35,6 @@ int main() {
     // create all semaphores with initial value 1
     catalog_sem = my_sem_open_create(CATALOG_MUTEX_NAME, "catalog mutex");
     cmd_map_sem = my_sem_open_create(CMDMAP_MUTEX_NAME, "cmd map mutex");
-    sub_map_sem = my_sem_open_create(SUBMAP_MUTEX_NAME, "sub map mutex");
     input_sem = my_sem_open_create(INPUTS_MUTEX_NAME, "inputs mutex");
     rd_sem = my_sem_open_create(RD_MUTEX_NAME, "robot desc mutex");
     log_data_sem = my_sem_open_create(LOG_DATA_MUTEX, "log data mutex");
@@ -124,8 +123,6 @@ int main() {
     dev_shm_ptr->catalog = 0;
     for (int i = 0; i < MAX_DEVICES + 1; i++) {
         dev_shm_ptr->cmd_map[i] = 0;
-        dev_shm_ptr->net_sub_map[i] = -1;  // By default, net handler will subscribe to all parameters on all devices
-        dev_shm_ptr->exec_sub_map[i] = 0;
     }
     for (int j = 0; j < 2; j++) {
         input_shm_ptr->inputs[j].buttons = 0;

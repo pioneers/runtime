@@ -376,7 +376,7 @@ void relay_clean_up(relay_t* relay) {
 }
 
 /**
- * Continuously sends DEVICE_PING and reads from shared memory to send DEVICE_WRITE/SUBSCRIPTION_REQUEST
+ * Continuously sends DEVICE_PING and reads from shared memory to send DEVICE_WRITE
  * Arguments:
  *    relay_cast: Uncasted relay_t struct containing device info
  */
@@ -399,7 +399,6 @@ void* sender(void* relay_cast) {
         log_printf(FATAL, "sender: Failed to malloc");
         exit(1);
     }
-    uint32_t sub_map[MAX_DEVICES + 1];
     message_t* msg;  // Message to build
     int ret;         // Hold the value from send_message()
     uint64_t last_sent_ping_time = millis();
@@ -427,17 +426,6 @@ void* sender(void* relay_cast) {
             }
             // Update the timestamp at which we sent a DEVICE_PING
             last_sent_ping_time = millis();
-            destroy_message(msg);
-        }
-
-        // Send another SUBSCRIPTION_REQUEST if requested
-        get_sub_requests(sub_map, DEV_HANDLER);
-        if (sub_map[0] & (1 << relay->shm_dev_idx)) {  // If bit i in sub_map[0] != 0, there is a new SUBSCRIPTION_REQUEST to be sent to device i
-            msg = make_subscription_request(relay->dev_id.type, sub_map[1 + relay->shm_dev_idx], SUB_INTERVAL);
-            ret = send_message(relay, msg);
-            if (ret != 0) {
-                log_printf(WARN, "Couldn't send SUBSCRIPTION_REQUEST to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
-            }
             destroy_message(msg);
         }
 
