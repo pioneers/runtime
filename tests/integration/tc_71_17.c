@@ -1,9 +1,9 @@
 #include "../test.h"
 
 /**
- * This test ensures that received device data on UDP from the
+ * This test ensures that received device data from the
  * perspective of Dawn is as expected when devices are connected
- * and disocnnected by the student.
+ * and disconnected by the student.
  */
 
 #define UID1 0x1234

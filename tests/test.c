@@ -507,7 +507,7 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
     print_pass();
 }
 
-/******************** UDP Device Data Check ******************/
+/******************** Device Data Check ******************/
 
 void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid) {
     if (index >= dev_data->n_devices) {

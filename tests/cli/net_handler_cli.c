@@ -254,21 +254,6 @@ void prompt_device_data() {
     }
 }
 
-void prompt_reroute_output() {
-    char* dest = "net_handler_output.log";
-    char nextcmd[MAX_CMD_LEN];
-
-    printf("Enter new output destination (blank for net_handler_output.log): ");
-    fgets(nextcmd, MAX_CMD_LEN, stdin);
-    if (strcmp(nextcmd, "\n") != 0) {
-        // truncate new line character
-        nextcmd[strcspn(nextcmd, "\n")] = 0;
-        dest = nextcmd;
-    }
-
-    update_tcp_output_fp(dest);
-}
-
 void print_next_dev_data() {
     DevData* dev_data = get_next_dev_data();
     // display the message's fields.
@@ -309,7 +294,7 @@ void display_help() {
 
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
-    printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
+    printf("\tview device data   view the next Device Data message sent to Dawn containing most recent device data\n");
     printf("\treroute output     reroute output to a file\n");
     printf("\thelp               display this help text\n");
     printf("\texit               exit the Net Handler CLI\n");
@@ -384,8 +369,6 @@ int main(int argc, char** argv) {
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
             stop = true;
-        } else if (strcmp(nextcmd, "reroute output\n") == 0) {
-            prompt_reroute_output();
         } else if (strcmp(nextcmd, "run mode\n") == 0) {
             prompt_run_mode();
         } else if (strcmp(nextcmd, "start pos\n") == 0) {

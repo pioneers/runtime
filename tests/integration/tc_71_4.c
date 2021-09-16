@@ -7,7 +7,7 @@
  */
 
 int main() {
-    start_test("Check UDP with no devices connected", "", NO_REGEX);
+    start_test("Check CustomData with no devices connected", "", "", NO_REGEX);
 
     // Send gamepad and check that the custom data is received
     uint64_t buttons = get_button_bit("button_a") | get_button_bit("l_trigger") | get_button_bit("dpad_down");

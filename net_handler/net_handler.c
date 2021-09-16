@@ -1,6 +1,5 @@
+#include "connection.h"
 #include "net_util.h"
-#include "tcp_conn.h"
-#include "udp_conn.h"
 
 /*
 * Sets up TCP listening socket on raspberry pi.
@@ -55,7 +54,6 @@ static int socket_setup(int* sockfd) {
 */
 static void sigint_handler(int sig_num) {
     log_printf(INFO, "Stopping net_handler...");
-    stop_udp_conn();
     if (robot_desc_read(SHEPHERD) == CONNECTED) {
         stop_tcp_conn(SHEPHERD);
     }
@@ -121,9 +119,6 @@ int main() {
 
     log_printf(INFO, "Net handler initialized");
 
-    //start UDP connection with Dawn
-    start_udp_conn();
-
     //run net_handler main control loop
     while (1) {
         //wait for a client to make a request to the robot, and accept it
@@ -131,6 +126,7 @@ int main() {
             log_printf(ERROR, "main: listen socket failed to accept a connection: %s", strerror(errno));
             continue;
         }
+
         cli_addr_len = sizeof(struct sockaddr_in);
         log_printf(DEBUG, "Received connection request from %s:%d", inet_ntoa(cli_addr.sin_addr), ntohs(cli_addr.sin_port));
 
