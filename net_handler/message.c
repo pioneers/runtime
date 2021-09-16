@@ -305,7 +305,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
  *      0 on success
  *     -1 on error
  */
-static int process_challenge_msg(uint8_t *buf, uint16_t len_pb, int challenge_fd) {
+static int process_challenge_msg(uint8_t* buf, uint16_t len_pb, int challenge_fd) {
     //socket address structure for the UNIX socket to executor for challenge data
     struct sockaddr_un exec_addr = {0};
     exec_addr.sun_family = AF_UNIX;
@@ -322,8 +322,8 @@ static int process_challenge_msg(uint8_t *buf, uint16_t len_pb, int challenge_fd
 
     log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
     robot_desc_write(RUN_MODE, CHALLENGE);
-	
-	return 0;
+
+    return 0;
 }
 
 /*
@@ -336,7 +336,7 @@ static int process_challenge_msg(uint8_t *buf, uint16_t len_pb, int challenge_fd
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_run_mode_msg(uint8_t *buf, uint16_t len_pb, robot_desc_field_t client) {
+static int process_run_mode_msg(uint8_t* buf, uint16_t len_pb, robot_desc_field_t client) {
     RunMode* run_mode_msg = run_mode__unpack(NULL, len_pb, buf);
     if (run_mode_msg == NULL) {
         log_printf(ERROR, "recv_new_msg: Cannot unpack run_mode msg");
@@ -373,8 +373,8 @@ static int process_run_mode_msg(uint8_t *buf, uint16_t len_pb, robot_desc_field_
             break;
     }
     run_mode__free_unpacked(run_mode_msg, NULL);
-	
-	return 0;
+
+    return 0;
 }
 
 /*
@@ -386,7 +386,7 @@ static int process_run_mode_msg(uint8_t *buf, uint16_t len_pb, robot_desc_field_
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_start_pos_msg(uint8_t *buf, uint16_t len_pb) {
+static int process_start_pos_msg(uint8_t* buf, uint16_t len_pb) {
     StartPos* start_pos_msg = start_pos__unpack(NULL, len_pb, buf);
     if (start_pos_msg == NULL) {
         log_printf(ERROR, "recv_new_msg: Cannot unpack start_pos msg");
@@ -408,8 +408,8 @@ static int process_start_pos_msg(uint8_t *buf, uint16_t len_pb) {
             break;
     }
     start_pos__free_unpacked(start_pos_msg, NULL);
-	
-	return 0;
+
+    return 0;
 }
 
 /*
@@ -421,7 +421,7 @@ static int process_start_pos_msg(uint8_t *buf, uint16_t len_pb) {
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_device_data_msg(uint8_t *buf, uint16_t len_pb) {
+static int process_device_data_msg(uint8_t* buf, uint16_t len_pb) {
     DevData* dev_data_msg = dev_data__unpack(NULL, len_pb, buf);
     if (dev_data_msg == NULL) {
         log_printf(ERROR, "recv_new_msg: Cannot unpack dev_data msg");
@@ -443,8 +443,8 @@ static int process_device_data_msg(uint8_t *buf, uint16_t len_pb) {
         }
     }
     dev_data__free_unpacked(dev_data_msg, NULL);
-	
-	return 0;
+
+    return 0;
 }
 
 /*
@@ -456,7 +456,7 @@ static int process_device_data_msg(uint8_t *buf, uint16_t len_pb) {
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_game_state_msg(uint8_t *buf, uint16_t len_pb) {
+static int process_game_state_msg(uint8_t* buf, uint16_t len_pb) {
     GameState* game_state_msg = game_state__unpack(NULL, len_pb, buf);
     if (game_state_msg == NULL) {
         log_printf(ERROR, "recv_new_msg: Cannot unpack game_state msg");
@@ -482,9 +482,9 @@ static int process_game_state_msg(uint8_t *buf, uint16_t len_pb) {
         default:
             log_printf(ERROR, "requested gamestate to enter invalid state %s", game_state_msg->state);
     }
-	game_state__free_unpacked(game_state_msg, NULL);
-	
-	return 0;
+    game_state__free_unpacked(game_state_msg, NULL);
+
+    return 0;
 }
 
 /*
@@ -497,16 +497,16 @@ static int process_game_state_msg(uint8_t *buf, uint16_t len_pb) {
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_time_stamp_msg(int conn_fd, uint8_t *buf, uint16_t len_pb) {
+static int process_time_stamp_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
     TimeStamps* time_stamp_msg = time_stamps__unpack(NULL, len_pb, buf);
     if (time_stamp_msg == NULL) {
         log_printf(ERROR, "recv_new_msg: Cannot unpack time_stamp msg");
-		return -1;
+        return -1;
     }
     send_timestamp_msg(conn_fd, time_stamp_msg);
     time_stamps__free_unpacked(time_stamp_msg, NULL);
-	
-	return 0;
+
+    return 0;
 }
 
 /*
@@ -518,7 +518,7 @@ static int process_time_stamp_msg(int conn_fd, uint8_t *buf, uint16_t len_pb) {
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_inputs_msg(uint8_t *buf, uint16_t len_pb) {
+static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
     UserInputs* inputs = user_inputs__unpack(NULL, len_pb, buf);
     if (inputs == NULL) {
         log_printf(ERROR, "recv_new_msg: Failed to unpack UserInputs");
@@ -540,8 +540,8 @@ static int process_inputs_msg(uint8_t *buf, uint16_t len_pb) {
         }
     }
     user_inputs__free_unpacked(inputs, NULL);
-	
-	return 0;
+
+    return 0;
 }
 
 /*
@@ -559,7 +559,7 @@ int recv_new_msg(int conn_fd, int challenge_fd, robot_desc_field_t client) {
     net_msg_t msg_type;  //message type
     uint16_t len_pb;     //length of incoming serialized protobuf message
     uint8_t* buf;        //buffer to read raw data into
-	int ret = 0;		 //return status OK by default
+    int ret = 0;         //return status OK by default
 
     int err = parse_msg(conn_fd, &msg_type, &len_pb, &buf);
     if (err == 0) {  // Means there is EOF while reading which means client disconnected
@@ -567,55 +567,55 @@ int recv_new_msg(int conn_fd, int challenge_fd, robot_desc_field_t client) {
     } else if (err == -1) {  // Means there is some other error while reading
         return -2;
     }
-	
+
     //unpack according to message
-	switch (msg_type) {
-		case CHALLENGE_DATA_MSG:
-	        if (process_challenge_msg(buf, len_pb, challenge_fd) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing challenge data");
-				ret = -2;
-	        }
-			break;
-		case RUN_MODE_MSG:
-	        if (process_run_mode_msg(buf, len_pb, client) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing run mode");
-				ret = -2;
-	        }
-			break;
-		case START_POS_MSG:
-	        if (process_start_pos_msg(buf, len_pb) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing start position");
-				ret = -2;
-	        }
-			break;
-		case DEVICE_DATA_MSG:
-	        if (process_device_data_msg(buf, len_pb) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing device data");
-				ret = -2;
-	        }
-			break;
-		case GAME_STATE_MSG:
-	        if (process_game_state_msg(buf, len_pb) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing game state");
-				ret = -2;
-	        }
-			break;
-		case TIME_STAMP_MSG:
-	        if (process_time_stamp_msg(conn_fd, buf, len_pb) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing time stamp");
-				ret = -2;
-	        }
-			break;
-		case INPUTS_MSG:
-	        if (process_inputs_msg(buf, len_pb) != 0) {
-	        	log_printf(ERROR, "recv_new_msg: error processing inputs");
-				ret = -2;
-	        }
-			break;
-		default:
-	        log_printf(ERROR, "recv_new_msg: unknown message type %d", msg_type);
-	        return -2;
-	}
+    switch (msg_type) {
+        case CHALLENGE_DATA_MSG:
+            if (process_challenge_msg(buf, len_pb, challenge_fd) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing challenge data");
+                ret = -2;
+            }
+            break;
+        case RUN_MODE_MSG:
+            if (process_run_mode_msg(buf, len_pb, client) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing run mode");
+                ret = -2;
+            }
+            break;
+        case START_POS_MSG:
+            if (process_start_pos_msg(buf, len_pb) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing start position");
+                ret = -2;
+            }
+            break;
+        case DEVICE_DATA_MSG:
+            if (process_device_data_msg(buf, len_pb) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing device data");
+                ret = -2;
+            }
+            break;
+        case GAME_STATE_MSG:
+            if (process_game_state_msg(buf, len_pb) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing game state");
+                ret = -2;
+            }
+            break;
+        case TIME_STAMP_MSG:
+            if (process_time_stamp_msg(conn_fd, buf, len_pb) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing time stamp");
+                ret = -2;
+            }
+            break;
+        case INPUTS_MSG:
+            if (process_inputs_msg(buf, len_pb) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing inputs");
+                ret = -2;
+            }
+            break;
+        default:
+            log_printf(ERROR, "recv_new_msg: unknown message type %d", msg_type);
+            return -2;
+    }
     free(buf);
     return ret;
 }

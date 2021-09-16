@@ -1,5 +1,5 @@
-#include "net_util.h"
 #include "connection.h"
+#include "net_util.h"
 
 /*
 * Sets up TCP listening socket on raspberry pi.
