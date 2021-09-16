@@ -78,11 +78,17 @@ cd tests
 
 make devices
 
-ALL_TESTS=$(ls integration/*.c | awk -F'.' '{ print $1 }')
+INT_TESTS=$(ls integration/*.c | awk -F'.' '{ print $1 }')
+PERF_TESTS=$(ls performance/*.c | awk -F'.' '{ print $1 }')
+ALL_TESTS="$INT_TESTS $PERF_TESTS"
 
 # if no first argument specified, run all the tests
-if [[ $1 == "" ]]; then
+if [[ $1 == "" || $1 == "all" ]]; then
 	input=$ALL_TESTS
+elif [[ $1 == "int" ]]; then
+    input=$INT_TESTS
+elif [[ $2 == "perf" ]]; then
+    input=$PERF_TESTS;
 else
 	input=$1
 fi
