@@ -12,7 +12,6 @@
 #include <time.h>                          // for getting time
 #include <unistd.h>                        //for sleep
 #include "../logger/logger.h"              // for runtime logger
-#include "../net_handler/net_util.h"       // For Text protobuf message and buffer utilities
 #include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
 #include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
 
