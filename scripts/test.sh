@@ -87,7 +87,7 @@ if [[ $1 == "" || $1 == "all" ]]; then
 	input=$ALL_TESTS
 elif [[ $1 == "int" ]]; then
     input=$INT_TESTS
-elif [[ $2 == "perf" ]]; then
+elif [[ $1 == "perf" ]]; then
     input=$PERF_TESTS;
 else
 	input=$1
