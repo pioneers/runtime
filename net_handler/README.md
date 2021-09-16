@@ -3,12 +3,12 @@
 The network handler's job is to communicate with Dawn and Shepherd through sockets and turn the network messages into shared memory updates. Learn more about how the network handler works in our [wiki](https://github.com/pioneers/c-runtime/wiki/Network-Handler). For tutorials and resources regarding Google protobufs, check out the [Protobuf wiki page](https://github.com/pioneers/runtime/wiki/Protobufs).
 
 ### Structure
-* `protos/` - contains the Protobuf definitions of all our network messages
+* `protos/` - contains the Protobuf definitions of all our network messages. This is a [submodule](https://github.com/pioneers/protos).
 * `pbc_gen/` - the corresponding C code that is generated from the Protobufs using protobuf-c
-* `net_handler.c` - main entry file that starts UDP and accepts TCP connections
+* `net_handler.c` - main entry file that accepts TCP connections from Dawn/Shepherd
 * `net_util.c` - helper functions to communicate with the TCP sockets
-* `tcp_conn.c` - handles the TCP connection
-* `udp_conn.c` - handles the UDP connection
+* `connection.c` - handles the connection over TCP with a specific client
+* `message.c` - handles the processing of incoming messages and constructing messages to send to/from a client
 
 ## Building
 

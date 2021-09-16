@@ -77,13 +77,13 @@ void add_unordered_string_output(char* output);
  */
 void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
 
-/******************** UDP Device Data Checks ******************/
+/******************** Device Data Checks ******************/
 
 /**
- * Checks that the given device was sent by the UDP thread.
+ * Checks that the given device was received by the client.
  * 
  * Args:
- *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
+ *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
  *  index: index where device should be
  *  type: what type the device should be
  *  uid: what uid the device should be
@@ -95,7 +95,7 @@ void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid)
  * Checks that the device at the given index has a parameter with the given attributes.
  * 
  * Args:
- *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
+ *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
  *  index: index where device should be
  *  param_name: name of parameter to check
  *  param_type: desired type of parameter
