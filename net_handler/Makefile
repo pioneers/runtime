@@ -17,5 +17,5 @@ clean:
 	rm -f net_handler
 
 # makes the actual net_handler executable
-net_handler: net_util.c net_handler.c tcp_conn.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c 
+net_handler: net_util.c net_handler.c message.c connection.c ../logger/logger.c ../shm_wrapper/shm_wrapper.c ../runtime_util/runtime_util.c 
 	gcc $^ $(GEN_FILES) -o $@ $(LIBS) $(LDFLAGS)

@@ -2,6 +2,7 @@
 #define TCP_CONN_H
 
 #include "net_util.h"
+#include "message.h"
 
 /**
  * Start the main TCP connection control thread. Does not block.
