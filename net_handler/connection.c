@@ -3,7 +3,6 @@
 //used for creating and cleaning up TCP connection
 typedef struct {
     int conn_fd;
-    int challenge_fd;
     int send_logs;
     FILE* log_file;
     robot_desc_field_t client;
@@ -31,9 +30,6 @@ static void tcp_conn_cleanup(void* args) {
 
     if (close(tcp_args->conn_fd) != 0) {
         log_printf(ERROR, "Failed to close conn_fd: %s", strerror(errno));
-    }
-    if (close(tcp_args->challenge_fd) != 0) {
-        log_printf(ERROR, "Failed to close challenge_fd: %s", strerror(errno));
     }
     if (tcp_args->log_file != NULL) {
         if (fclose(tcp_args->log_file) != 0) {
@@ -68,7 +64,7 @@ static void* tcp_events_thread(void* tcp_args) {
     //variables used for waiting for something to do using select()
     fd_set read_set;
     int log_fd;
-    int maxfd = args->challenge_fd > args->conn_fd ? args->challenge_fd : args->conn_fd;
+    int maxfd = args->conn_fd;
     if (args->send_logs) {
         log_fd = fileno(args->log_file);
         maxfd = log_fd > maxfd ? log_fd : maxfd;
@@ -80,7 +76,6 @@ static void* tcp_events_thread(void* tcp_args) {
         //set up the read_set argument to select()
         FD_ZERO(&read_set);
         FD_SET(args->conn_fd, &read_set);
-        FD_SET(args->challenge_fd, &read_set);
         if (args->send_logs) {
             FD_SET(log_fd, &read_set);
         }
@@ -101,14 +96,9 @@ static void* tcp_events_thread(void* tcp_args) {
             send_log_msg(args->conn_fd, args->log_file);
         }
 
-        //send challenge results if executor sent them
-        if (FD_ISSET(args->challenge_fd, &read_set)) {
-            send_challenge_results(args->conn_fd, args->challenge_fd);
-        }
-
         //receive new message on socket if it is ready
         if (FD_ISSET(args->conn_fd, &read_set)) {
-            if ((ret = recv_new_msg(args->conn_fd, args->challenge_fd, args->client)) != 0) {
+            if ((ret = recv_new_msg(args->conn_fd, args->client)) != 0) {
                 if (ret == -1) {
                     log_printf(DEBUG, "client %d has disconnected", args->client);
                     break;
@@ -175,32 +165,16 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
     args->conn_fd = conn_fd;
     args->send_logs = send_logs;
     args->log_file = NULL;
-    args->challenge_fd = -1;
-
-    // open challenge socket to read and write
-    if ((args->challenge_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
-        log_printf(ERROR, "start_tcp_conn: failed to create challenge socket: %s", strerror(errno));
-        return;
-    }
-    struct sockaddr_un my_addr = {0};
-    my_addr.sun_family = AF_UNIX;
-    if (bind(args->challenge_fd, (struct sockaddr*) &my_addr, sizeof(sa_family_t)) < 0) {
-        log_printf(FATAL, "start_tcp_conn: challenge socket bind failed: %s", strerror(errno));
-        close(args->challenge_fd);
-        return;
-    }
 
     //Open FIFO pipe for logs
     if (send_logs) {
         int log_fd;
         if ((log_fd = open(LOG_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
             log_printf(ERROR, "start_tcp_conn: could not open log FIFO on %d: %s", args->client, strerror(errno));
-            close(args->challenge_fd);
             return;
         }
         if ((args->log_file = fdopen(log_fd, "r")) == NULL) {
             log_printf(ERROR, "start_tcp_conn: could not open log file from fd: %s", strerror(errno));
-            close(args->challenge_fd);
             close(log_fd);
             return;
         }
