@@ -1,8 +1,8 @@
 #ifndef TCP_CONN_H
 #define TCP_CONN_H
 
-#include "net_util.h"
 #include "message.h"
+#include "net_util.h"
 
 /**
  * Start the main TCP connection control thread. Does not block.
