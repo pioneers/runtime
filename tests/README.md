@@ -10,6 +10,7 @@ The following is an overview of the structure of this folder:
 * `client/*`: this folder contains the headers and the implementations of all of the clients that we have for accessing the different parts of Runtime. There is a client for `net_handler`, another for `executor`, another for `dev_handler`, and a fourth for `shm`. These clients are used by both the Command Line Interfaces (CLIs) and the automated tests to issue commands to Runtime.
 * `cli/*`: this folder contains all of the command line interfaces that we can use to interactively issue commands to Runtime from the command line. There is a CLI for each client mentioned above.
 * `integration/*`: this folder contains all of our integration tests. Each test is compiled and run automatically by our continuous integration (CI) tool, Travis, to verify whenever someone submits a pull request that the code works and doesn't break previous behavior. The naming scheme for the tests is explained briefly in the Description section of this README, but is explained in more detail on the wiki.
+* `performance/*`: this folder contains all of our performance tests. These tests are not ran automatically on Travis.
 * `student_code/*`: this folder contains all of the test student code that the integration tests use to test a certain condition. For example, suppose you were writing a test that aims to show that `executor` raises an error when student code times out. You would need to write student code that times out, put it in this folder, then write an integration test in `integration/` which runs `executor` on the student code you just wrote, and verify that that behavior is indeed seen. This folder is also searched when running the CLI, so we can run the CLI with any code in this folder too, without needing to touch `executor/studentcode.py`.
 * `Makefile`: this file is used to make the CLI executables, as well as the executables for all the integration tests
 * `logger.config`: this file defines the logger configuration that we use to run tests (since the options that we have for testing are different from the options that we have for production).
@@ -30,5 +31,8 @@ First, do `make cli` in this directory. This will create four executables: `net_
 Automated tests should never be run from this directory; just use the shell script in the top-level directory. The test script has some built-in cleanup functions if you press `Ctrl-C` in the middle of running a test, and helpful error messages and status messages that will be helpful in understanding what's going on. It also builds Runtime for you before running the test, so that you can make sure you're running the test with the latest code changes you may have made locally on your machine.
 
 To run all tests, simply run `runtime test` from any directory. This will take a while to run, so you usually don't need to run this unless you're about to push some major updates to the code to Github and want to verify that the tests pass before you push.
+
+To run all integration tests, run `runtime test int`.
+To run all performance tests, run `runtime test perf`.
 
 To run one or more tests, run `runtime test integration/tc_<num> <... list all tests you want to run ... >` from the top-level directory.
