@@ -5,7 +5,7 @@ CC := gcc
 SRC_FILES := $(wildcard client/*.c test.c ../net_handler/pbc_gen/*.c ../net_handler/net_util.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c)
 PBC_FILES := $(wildcard ../net_handler/pbc_gen/*.c)
 
-TEST_FILES := $(shell ls integration/*.c | awk -F'.' '{ print $$1 }')
+TEST_FILES := $(shell ls integration/*.c performance/*.c | awk -F'.' '{ print $$1 }')
 
 .PHONY: all clean cli
 
@@ -66,4 +66,7 @@ client/virtual_devices/SoundDevice: client/virtual_devices/SoundDevice.c $(VIRTU
 ##################################### TESTS ####################################
 
 integration/%: $(SRC_FILES) integration/%.c
+	$(CC) $^ -o $@ $(LIBS)
+
+performance/%: $(SRC_FILES) performance/%.c
 	$(CC) $^ -o $@ $(LIBS)
