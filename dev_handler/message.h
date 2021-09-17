@@ -39,12 +39,12 @@
 
 // The types of messages
 typedef enum {
-    NOP = 0x00,                   // Dummy message
-    DEVICE_PING = 0x01,           // To lowcar
-    ACKNOWLEDGEMENT = 0x02,       // To dev handler
-    DEVICE_WRITE = 0x03,          // To lowcar
-    DEVICE_DATA = 0x04,           // To dev handler
-    LOG = 0x05                    // To dev handler
+    NOP = 0x00,              // Dummy message
+    DEVICE_PING = 0x01,      // To lowcar
+    ACKNOWLEDGEMENT = 0x02,  // To dev handler
+    DEVICE_WRITE = 0x03,     // To lowcar
+    DEVICE_DATA = 0x04,      // To dev handler
+    LOG = 0x05               // To dev handler
 } message_id_t;
 
 // A struct defining a message to be sent over serial

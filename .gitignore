@@ -1,3 +1,18 @@
+# ignore everything
+*
+
+# unignore all with extension
+!*.*
+
+# unignore all directories
+!*/
+
+# unignore all Makefile
+!*/Makefile
+
+# unignore all Dockerfile
+!*/Dockerfile
+
 # ignore the entire lowcar/Device folder
 lowcar/Device
 
