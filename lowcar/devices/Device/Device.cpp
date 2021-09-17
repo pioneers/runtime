@@ -118,10 +118,10 @@ void Device::device_read_params(message_t* msg) {
     for (uint8_t param_num = 0; param_num < MAX_PARAMS; param_num++) {
         size_t param_size = device_read(param_num, msg->payload + msg->payload_length);
         msg->payload_length += param_size;
-       
+
         // If the parameter is readable
         if (param_size > 0) {
-            param_bitmap |= 1 << param_num; 
+            param_bitmap |= 1 << param_num;
         }
     }
 
