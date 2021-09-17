@@ -7,7 +7,7 @@
  */
 
 int main() {
-    start_test("sanity", "", "", NO_REGEX);
+    start_test("sanity", "", NO_REGEX);
 
     // Verify run mode
     send_run_mode(SHEPHERD, AUTO);

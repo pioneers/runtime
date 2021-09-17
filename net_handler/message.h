@@ -17,15 +17,6 @@ void send_log_msg(int conn_fd, FILE* log_file);
 */
 void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg);
 
-/*
- * Send a challenge data message on the TCP connection to the client. Reads packets from the UNIX socket from
- * executor until all messages are read, packages the message, and sends it.
- * Arguments:
- *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
- *    - int challenge_fd: Unix socket connection's file descriptor from which to read challenge results from executor
- */
-void send_challenge_results(int conn_fd, int challenge_fd);
-
 /**
  * Sends a Device Data message to Dawn.
  * Arguments:
@@ -38,11 +29,10 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time);
  * Receives new message from client on TCP connection and processes the message.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor from which to read the message
- *    - int results_fd: file descriptor of FIFO pipe to executor to which to write challenge input data if received
  *    - robot_desc_field_t client: DAWN or SHEPHERD, depending on which connection is being handled
  * Returns: pointer to integer in which return status will be stored
  *      0 if message received and processed
  *     -1 if message could not be parsed because client disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
-int recv_new_msg(int conn_fd, int challenge_fd, robot_desc_field_t client);
+int recv_new_msg(int conn_fd, robot_desc_field_t client);

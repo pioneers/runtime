@@ -110,13 +110,13 @@ static void fprintf_delimiter(FILE* stream, char* format, ...) {
 /**
  * Helper function to start up runtime
  */
-static void start_runtime(char* student_code, char* challenge_code) {
+static void start_runtime(char* student_code) {
     start_shm();
     start_net_handler();
     start_dev_handler();
-    // If student_code is nonempty or challenge_code is nonempty, start executor
-    if (strcmp(student_code, "") != 0 || strcmp(challenge_code, "") != 0) {
-        start_executor(student_code, challenge_code);
+    // If student_code is nonempty is nonempty, start executor
+    if (strcmp(student_code, "") != 0) {
+        start_executor(student_code);
         started_executor = 1;
     }
     // Make sure runtime starts up
@@ -328,7 +328,7 @@ static void end_test() {
  * Creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread.
  * Adds an exit handler which calls end_test to clean up pipes and Runtime processes.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method) {
+void start_test(char* test_description, char* student_code, int comparison_method) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
@@ -383,7 +383,7 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     }
 
     // Start up runtime
-    start_runtime(student_code, challenge_code);
+    start_runtime(student_code);
 
     // Add exit handler for automatic cleanup
     atexit(end_test);
@@ -609,9 +609,6 @@ static void print_run_mode(robot_desc_val_t run_mode) {
             break;
         case TELEOP:
             fprintf(stderr, "TELEOP\n");
-            break;
-        case CHALLENGE:
-            fprintf(stderr, "CHALLENGE\n");
             break;
         default:
             fprintf(stderr, "INVALID RUN MODE\n");

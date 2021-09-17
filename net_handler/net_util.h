@@ -37,7 +37,6 @@
 typedef enum net_msg {
     RUN_MODE_MSG,
     START_POS_MSG,
-    CHALLENGE_DATA_MSG,
     LOG_MSG,
     DEVICE_DATA_MSG,
     GAME_STATE_MSG,

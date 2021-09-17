@@ -85,33 +85,6 @@ void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg) {
     free(send_buf);
 }
 
-/*
- * Send a challenge data message on the TCP connection to the client. Reads packets from the UNIX socket from
- * executor until all messages are read, packages the message, and sends it.
- * Arguments:
- *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
- *    - int challenge_fd: Unix socket connection's file descriptor from which to read challenge results from executor
- */
-void send_challenge_results(int conn_fd, int challenge_fd) {
-    // Get results from executor
-    int buf_size = 256;
-    char read_buf[buf_size];
-
-    int read_len = recvfrom(challenge_fd, read_buf, buf_size, 0, NULL, NULL);
-    if (read_len == buf_size) {
-        log_printf(WARN, "send_challenge_results: read length matches size of read buffer %d", read_len);
-    }
-    if (read_len < 0) {
-        log_printf(ERROR, "send_challenge_results: socket recv from challenge_fd failed: %s", strerror(errno));
-        return;
-    }
-
-    // Send results to client
-    if (writen(conn_fd, read_buf, read_len) == -1) {
-        log_printf(ERROR, "send_challenge_results: sending challenge data message failed: %s", strerror(errno));
-    }
-}
-
 /**
  * Sends a Device Data message to Dawn.
  * Arguments:
@@ -294,37 +267,6 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
 }
 
 // **************************************** RECEIVE MESSAGES ***************************************** //
-
-/*
- * Processes new challenge message from client and reacts appropriately
- * Arguments:
- *    - uint8_t *buf: buffer containing packed protobuf with challenge data
- *    - uint16_t len_pb: length of buf
- *    - int challenge_fd: file descriptor of Unix socket pipe to which to write challenge data
- * Returns:
- *      0 on success
- *     -1 on error
- */
-static int process_challenge_msg(uint8_t* buf, uint16_t len_pb, int challenge_fd) {
-    //socket address structure for the UNIX socket to executor for challenge data
-    struct sockaddr_un exec_addr = {0};
-    exec_addr.sun_family = AF_UNIX;
-    strcpy(exec_addr.sun_path, CHALLENGE_SOCKET);
-
-    int send_len = sendto(challenge_fd, buf, len_pb, 0, (struct sockaddr*) &exec_addr, sizeof(struct sockaddr_un));
-    if (send_len < 0) {
-        log_printf(ERROR, "recv_new_msg: socket send to challenge_fd failed: %s", strerror(errno));
-        return -1;
-    }
-    if (send_len != len_pb) {
-        log_printf(WARN, "recv_new_msg: socket send len %d is not equal to intended protobuf length %d", send_len, len_pb);
-    }
-
-    log_printf(DEBUG, "entering CHALLENGE mode. running coding challenges!");
-    robot_desc_write(RUN_MODE, CHALLENGE);
-
-    return 0;
-}
 
 /*
  * Processes new run mode message from client and reacts appropriately
@@ -548,14 +490,13 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
  * Receives new message from client on TCP connection and processes the message.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor from which to read the message
- *    - int results_fd: file descriptor of FIFO pipe to executor to which to write challenge input data if received
  *    - robot_desc_field_t client: DAWN or SHEPHERD, depending on which connection is being handled
  * Returns: pointer to integer in which return status will be stored
  *      0 if message received and processed
  *     -1 if message could not be parsed because client disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
-int recv_new_msg(int conn_fd, int challenge_fd, robot_desc_field_t client) {
+int recv_new_msg(int conn_fd, robot_desc_field_t client) {
     net_msg_t msg_type;  //message type
     uint16_t len_pb;     //length of incoming serialized protobuf message
     uint8_t* buf;        //buffer to read raw data into
@@ -570,12 +511,6 @@ int recv_new_msg(int conn_fd, int challenge_fd, robot_desc_field_t client) {
 
     //unpack according to message
     switch (msg_type) {
-        case CHALLENGE_DATA_MSG:
-            if (process_challenge_msg(buf, len_pb, challenge_fd) != 0) {
-                log_printf(ERROR, "recv_new_msg: error processing challenge data");
-                ret = -2;
-            }
-            break;
         case RUN_MODE_MSG:
             if (process_run_mode_msg(buf, len_pb, client) != 0) {
                 log_printf(ERROR, "recv_new_msg: error processing run mode");
