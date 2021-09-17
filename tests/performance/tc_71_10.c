@@ -14,7 +14,7 @@
 
 int main() {
     // Setup
-    start_test("Latency Test", "runtime_latency", "", NO_REGEX);
+    start_test("Latency Test", "runtime_latency", NO_REGEX);
 
     // Connect TimeTestDevice
     connect_virtual_device("TimeTestDevice", TIME_DEV_UID);
@@ -43,7 +43,5 @@ int main() {
     // Check the latency between the button pressed and its change to TIMESTAMP
     check_latency(TIME_DEV_UID, UPPER_BOUND_LATENCY, start);
 
-    // Stop all processes
-    end_test();
     return 0;
 }

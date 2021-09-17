@@ -15,13 +15,9 @@ char check_output_6[] =
     "    oops = 1 / 0\n"
     "ZeroDivisionError: division by zero\n";
 
-char check_output_9[] =
-    "Challenge 0 result: 9302\n"
-    "Challenge 1 result: [2, 661, 35963]";
-
 int main() {
     // set everything up
-    start_test("executor sanity test", "executor_sanity", "executor_sanity", NO_REGEX);
+    start_test("executor sanity test", "executor_sanity", NO_REGEX);
 
     // poke the system
     // this section checks the autonomous code (should generate some print statements)
@@ -48,11 +44,5 @@ int main() {
 
     send_run_mode(DAWN, IDLE);
 
-    // this section runs the coding challenges (should not error or time out)
-    char* inputs[] = {"2039", "190172344"};
-    send_challenge_data(DAWN, inputs, 2);
-    add_ordered_string_output(check_output_9);
-
-    end_test();
     return 0;
 }

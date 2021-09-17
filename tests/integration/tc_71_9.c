@@ -10,7 +10,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug UnstableTestDevice", "", "", NO_REGEX);
+    start_test("Hotplug UnstableTestDevice", "", NO_REGEX);
 
     // Connect UnstableTestDevice
     check_device_not_connected(UID);
@@ -20,7 +20,5 @@ int main() {
     sleep(5);  // UnstableTestDevice will time out
     check_device_not_connected(UID);
 
-    // Clean up
-    end_test();
     return 0;
 }

@@ -7,7 +7,7 @@
  */
 
 int main() {
-    start_test("UDP; no devices connected", "", "", NO_REGEX);
+    start_test("Check CustomData with no devices connected", "", NO_REGEX);
 
     // Send gamepad and check that the custom data is received
     uint64_t buttons = get_button_bit("button_a") | get_button_bit("l_trigger") | get_button_bit("dpad_down");
@@ -15,9 +15,11 @@ int main() {
     send_user_input(buttons, joystick_vals, GAMEPAD);
     sleep(1);
     send_user_input(buttons, joystick_vals, GAMEPAD);
-    print_next_dev_data();
-    add_ordered_string_output("Device No. 0:\ttype = CustomData, uid = 2020, itype = 32\n");
 
-    end_test();
+    DevData* dev_data = get_next_dev_data();
+    check_device_sent(dev_data, 0, 32, 2020);                      // CustomData device
+    check_device_param_sent(dev_data, 0, "time_ms", 10, NULL, 1);  // Don't care about param value
+    dev_data__free_unpacked(dev_data, NULL);
+
     return 0;
 }

@@ -12,7 +12,7 @@ char check_output_1[] =
 
 int main() {
     // set everything up
-    start_test("block_dawn_teleop_auto", "studentcode", "studentcode", NO_REGEX);
+    start_test("block_dawn_teleop_auto", "studentcode", NO_REGEX);
 
     // poke the system
     // Set auto mode from Shepherd and verify change
@@ -59,6 +59,5 @@ int main() {
     sleep(1);
     check_run_mode(IDLE);
 
-    end_test();
     return 0;
 }

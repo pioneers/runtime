@@ -16,7 +16,7 @@ void check_max_devices_connected() {
 
 int main() {
     // Setup
-    start_test("Hotplug MAX_DEVICES + 1", "", "", NO_REGEX);
+    start_test("Hotplug MAX_DEVICES + 1", "", NO_REGEX);
 
     // Connect MAX_DEVICES
     for (int i = 0; i < NUM_TO_CONNECT; i++) {
@@ -40,7 +40,5 @@ int main() {
     // Verify all the first MAX_DEVICES devices are not disturbed
     check_max_devices_connected();
 
-    // Stop all processes
-    end_test();
     return 0;
 }

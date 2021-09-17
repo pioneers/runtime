@@ -23,7 +23,7 @@ int main() {
         printf("Invalid Number Of Devices Connected");
         exit(1);
     }
-    start_test("Hotplug Variety", "", "", NO_REGEX);
+    start_test("Hotplug Variety", "", NO_REGEX);
 
     uint64_t uid = 0;
 
@@ -74,7 +74,5 @@ int main() {
         check_device_not_connected(i);
     }
 
-    // Clean up
-    end_test();
     return 0;
 }
