@@ -9,7 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug UnresponsiveTestDevice", "", "", NO_REGEX);
+    start_test("Hotplug UnresponsiveTestDevice", "", NO_REGEX);
 
     // Connect an UnresponsiveTestDevice
     check_device_not_connected(UID);

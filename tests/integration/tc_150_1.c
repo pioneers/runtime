@@ -5,7 +5,7 @@
  */
 
 int main() {
-    start_test("keyboard_input", "keyboard_input", "", NO_REGEX);
+    start_test("keyboard_input", "keyboard_input", NO_REGEX);
 
     connect_virtual_device("SimpleTestDevice", 20);
     sleep(1);
