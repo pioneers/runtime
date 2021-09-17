@@ -6,7 +6,6 @@ dual_sem_t sems[MAX_DEVICES];  // array of semaphores, two for each possible dev
 dev_shm_t* dev_shm_ptr;        // points to memory-mapped shared memory block for device data and commands
 sem_t* catalog_sem;            // semaphore used as a mutex on the catalog
 sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
-sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
 input_shm_t* input_shm_ptr;    // points to memory-mapped shared memory block for user inputs
 robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
@@ -180,7 +179,6 @@ static void shm_close() {
     }
     my_sem_close(catalog_sem, "catalog sem");
     my_sem_close(cmd_map_sem, "cmd map sem");
-    my_sem_close(sub_map_sem, "sub map sem");
     my_sem_close(input_sem, "inputs_mutex");
     my_sem_close(rd_sem, "robot_desc_mutex");
     my_sem_close(log_data_sem, "log data mutex");
@@ -240,7 +238,6 @@ void shm_init() {
     // open all the semaphores
     catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
     cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
-    sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
     input_sem = my_sem_open(INPUTS_MUTEX_NAME, "inputs mutex");
     rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
     log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
@@ -330,7 +327,6 @@ void device_connect(dev_id_t* dev_id, int* dev_ix) {
     // wait on associated data and command sems
     my_sem_wait(sems[*dev_ix].data_sem, "data_sem");
     my_sem_wait(sems[*dev_ix].command_sem, "command_sem");
-    my_sem_wait(sub_map_sem, "sub_map_sem");
 
     // fill in dev_id for that device with provided values
     dev_shm_ptr->dev_ids[*dev_ix].type = dev_id->type;
@@ -346,15 +342,6 @@ void device_connect(dev_id_t* dev_id, int* dev_ix) {
         dev_shm_ptr->params[COMMAND][*dev_ix][i] = (const param_val_t){0};
     }
 
-    // reset executor subscriptions to off
-    dev_shm_ptr->exec_sub_map[0] &= ~(1 << *dev_ix);
-    dev_shm_ptr->exec_sub_map[*dev_ix + 1] = 0;
-
-    // reset net_handler subscriptions to on
-    dev_shm_ptr->net_sub_map[0] |= 1 << *dev_ix;
-    dev_shm_ptr->net_sub_map[*dev_ix + 1] = -1;
-
-    my_sem_post(sub_map_sem, "sub_map_sem");
     // release associated data and command sems
     my_sem_post(sems[*dev_ix].data_sem, "data_sem");
     my_sem_post(sems[*dev_ix].command_sem, "command_sem");
