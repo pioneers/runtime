@@ -3,7 +3,7 @@
  * Includes (but not limited to) string output matching, device parameter
  * checks, user input checks, and what devices are connected and aren't connected.
  *
- * All tests must begin with start_test() and finish with end_test()
+ * All tests must begin with start_test()
  * The other functions defined in this header file can be used to verify the
  * state of runtime.
  */
@@ -11,6 +11,7 @@
 #define TEST_H
 
 #include <regex.h>
+#include <stdbool.h>
 
 #include "client/dev_handler_client.h"
 #include "client/executor_client.h"
@@ -35,22 +36,12 @@
  * Arguments:
  *    test_name: a short description of what the test is testing
  *    student_code: python file name of student code, excluding ".py"
- *    challenge_code: python file name of challenge code, excluding ".py"
- *    ** Set both STUDENT_CODE and CHALLENGE_CODE to empty string if executor
- *      is not necessary in the test.
  *    string_checks: number of strings needing to be checked for this test
  *    comparison_method: Whether to use regex for all string matching
  *      in this test (NO_REGEX or REGEX)
  * No return value.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method);
-
-/**
- * Stops runtime, takes care of resetting the plumbing of the outputs at the
- * end of the test, and prepares internal variables for calling the output
- * comparison functions below.
- */
-void end_test();
+void start_test(char* test_description, char* student_code, int comparison_method);
 
 // ******************* STRING OUTPUT COMPRISON FUNCTIONS ******************** //
 
@@ -82,6 +73,35 @@ void add_unordered_string_output(char* output);
  * No return value. (Will exit with status code 1 if incorrect input state)
  */
 void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
+
+/******************** Device Data Checks ******************/
+
+/**
+ * Checks that the given device was received by the client.
+ * 
+ * Args:
+ *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
+ *  index: index where device should be
+ *  type: what type the device should be
+ *  uid: what uid the device should be
+ * 
+ */
+void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid);
+
+/**
+ * Checks that the device at the given index has a parameter with the given attributes.
+ * 
+ * Args:
+ *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
+ *  index: index where device should be
+ *  param_name: name of parameter to check
+ *  param_type: desired type of parameter
+ *      If it is not one of INT, FLOAT, BOOL, then we assume that we don't care about checking parameter value.
+ *  param_val: desired value of parameter, only used if param_type is valid. Otherwise, use NULL
+ *  readonly: whether the parameter should be readonly. If it is not 0 or 1, then readonly isn't checked.
+ * 
+ */
+void check_device_param_sent(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly);
 
 // ***************************** RUN MODE CHECK ***************************** //
 

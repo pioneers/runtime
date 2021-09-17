@@ -352,3 +352,4 @@ cdef class Robot:
         PyMem_Free(param_value)
         if err == -1:
             raise DeviceError(f"Device with type {device.name.decode('utf-8')}({device_type}) and uid {device_uid} isn't connected to the robot")
+

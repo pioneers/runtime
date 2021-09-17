@@ -6,7 +6,7 @@
  */
 
 int main() {
-    start_test("nonexistent device subscription", "", "", NO_REGEX);
+    start_test("nonexistent device subscription", "", NO_REGEX);
 
     // poke
     dev_subs_t data1 = {.uid = 50, .name = "ServoControl", .params = 0b11};
@@ -18,6 +18,5 @@ int main() {
     send_device_subs(data_total, 2);
     add_ordered_string_output("recv_new_msg: Invalid device subscription, device uid 100 is invalid\n");
 
-    end_test();
     return 0;
 }

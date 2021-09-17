@@ -62,7 +62,7 @@ void send_game_state(robot_desc_field_t state);
 void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
 
 /**
- * Sends a Gamepad State message from Dawn over UDP with the specified buttons pushed and joystick values
+ * Sends a Gamepad State message from (fake) Dawn with the specified buttons pushed and joystick values
  * Arguments:
  *    - buttons: bitmap of which buttons are pressed. mappings are in runtime_util.h
  *    - joystick_vals[4]: values for the four joystick values. mappings are in runtime_util.h
@@ -70,16 +70,6 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
  * No return value.
  */
 void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_t source);
-
-/**
- * Sends a Challenge Data message from the specified client with the specified data
- * Arguments:
- *    - client: one of SHEPHERD or DAWN
- *    - data: array of strings, each containing the input to the corresponding challenge
- *	  - num_challenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
- * No return value.
- */
-void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges);
 
 /**
  * Sends device subscriptions from Dawn over TCP with the specified device subscriptions
@@ -99,17 +89,9 @@ void send_device_subs(dev_subs_t* subs, int num_devices);
 void send_timestamp();
 
 /**
- * Calling this function will let the next device data packet coming into Dawn from Runtime
- * to be printed to standard output (since device data packets are constantly coming in, they
- * are normally suppressed; this function unsuppresses one single packet).
+ * Calling this function will return the most recent device data packet coming into Dawn from Runtime.
+ * NOTE: you must free the pointer returned by this function using dev_data__free_unpacked
  */
-void print_next_dev_data();
-
-/**
- * Updates the file pointer receiving TCP messages coming into Dawn or Shepherd.
- * Arguments:
- *    - output_address: address of the file stream for new output destination
- */
-void update_tcp_output_fp(char* output_address);
+DevData* get_next_dev_data();
 
 #endif

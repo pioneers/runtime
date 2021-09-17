@@ -144,67 +144,6 @@ void prompt_start_pos() {
     send_start_pos(client, pos);
 }
 
-void prompt_challenge_data() {
-    int client = SHEPHERD;
-    char nextcmd[MAX_CMD_LEN];
-    int MAX_CHALLENGES = 32;
-    char** inputs = malloc(sizeof(char*) * MAX_CHALLENGES);
-    if (inputs == NULL) {
-        log_printf(FATAL, "prompt_challenge_data: Failed to malloc");
-        exit(1);
-    }
-
-    // get client to send as
-    while (true) {
-        printf("Send as DAWN or SHEPHERD: ");
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-        if (strcmp(nextcmd, "dawn\n") == 0) {
-            client = DAWN;
-            break;
-        } else if (strcmp(nextcmd, "shepherd\n") == 0) {
-            client = SHEPHERD;
-            break;
-        } else if (strcmp(nextcmd, "abort\n") == 0) {
-            return;
-        } else {
-            printf("Invalid response to prompt: %s", nextcmd);
-        }
-    }
-
-    // get challenge inputs to send
-    int num_challenges;
-    for (num_challenges = 0; num_challenges < MAX_CHALLENGES; num_challenges++) {
-        // TODO: if we ever put the current names of challenges in runtime_util, make this print better
-        printf("Provide input for challenge %d (or done or abort): ", num_challenges);
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-
-        if (strcmp(nextcmd, "done\n") == 0) {
-            break;
-        } else if (strcmp(nextcmd, "abort\n") == 0) {
-            return;
-        }
-
-        // we need to do this because nextcmd has a newline at the end
-        nextcmd[strlen(nextcmd) - 1] = '\0';
-        inputs[num_challenges] = malloc(strlen(nextcmd) + 1);
-        if (inputs[num_challenges] == NULL) {
-            log_printf(FATAL, "prompt_challenge_data: Failed to malloc");
-            exit(1);
-        }
-        strcpy(inputs[num_challenges], nextcmd);
-    }
-
-    // send
-    printf("Sending Challenge Data message!\n\n");
-    send_challenge_data(client, inputs, num_challenges);
-
-    // free pointers
-    for (int i = 0; i < num_challenges; i++) {
-        free(inputs[i]);
-    }
-    free(inputs);
-}
-
 void prompt_device_data() {
     char nextcmd[MAX_CMD_LEN];
     char dev_names[DEVICES_LENGTH][32];  // for holding the names of the valid devices
@@ -315,19 +254,33 @@ void prompt_device_data() {
     }
 }
 
-void prompt_reroute_output() {
-    char* dest = "net_handler_output.log";
-    char nextcmd[MAX_CMD_LEN];
-
-    printf("Enter new output destination (blank for net_handler_output.log): ");
-    fgets(nextcmd, MAX_CMD_LEN, stdin);
-    if (strcmp(nextcmd, "\n") != 0) {
-        // truncate new line character
-        nextcmd[strcspn(nextcmd, "\n")] = 0;
-        dest = nextcmd;
+void print_next_dev_data() {
+    DevData* dev_data = get_next_dev_data();
+    // display the message's fields.
+    for (int i = 0; i < dev_data->n_devices; i++) {
+        printf("Device No. %d:", i);
+        printf("\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+        printf("\tParams:\n");
+        for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
+            Param* param = dev_data->devices[i]->params[j];
+            printf("\t\tparam \"%s\" is read%s and has type ", param->name, param->readonly ? " only" : "/write");
+            switch (dev_data->devices[i]->params[j]->val_case) {
+                case (PARAM__VAL_FVAL):
+                    printf("FLOAT with value %f\n", param->fval);
+                    break;
+                case (PARAM__VAL_IVAL):
+                    printf("INT with value %d\n", param->ival);
+                    break;
+                case (PARAM__VAL_BVAL):
+                    printf("BOOL with value %s\n", param->bval ? "True" : "False");
+                    break;
+                default:
+                    printf("ERROR: no param value");
+                    break;
+            }
+        }
     }
-
-    update_tcp_output_fp(dest);
+    dev_data__free_unpacked(dev_data, NULL);
 }
 
 void display_help() {
@@ -338,10 +291,10 @@ void display_help() {
     printf("\trun mode           send a Run Mode message\n");
     printf("\tgame state         send a Game State message\n");
     printf("\tstart pos          send a Start Pos message\n");
-    printf("\tchallenge data     send a Challenge Data message\n");
+
     printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
-    printf("\tview device data   view the next UDP packet sent to Dawn containing most recent device data\n");
+    printf("\tview device data   view the next Device Data message sent to Dawn containing most recent device data\n");
     printf("\treroute output     reroute output to a file\n");
     printf("\thelp               display this help text\n");
     printf("\texit               exit the Net Handler CLI\n");
@@ -357,7 +310,7 @@ void sigint_handler(int signum) {
 void connect_keyboard() {
     pthread_t keyboard_id;  // id of thread running the keyboard_interface
     if (pthread_create(&keyboard_id, NULL, (void*) setup_keyboard, NULL) != 0) {
-        printf("pthread create: setup keyboard");
+        printf("pthread create: failed to create keyboard thread: %s", strerror(errno));
     }
 }
 
@@ -416,16 +369,12 @@ int main(int argc, char** argv) {
         // compare input string against the available commands
         if (strcmp(nextcmd, "exit\n") == 0) {
             stop = true;
-        } else if (strcmp(nextcmd, "reroute output\n") == 0) {
-            prompt_reroute_output();
         } else if (strcmp(nextcmd, "run mode\n") == 0) {
             prompt_run_mode();
         } else if (strcmp(nextcmd, "start pos\n") == 0) {
             prompt_start_pos();
         } else if (strcmp(nextcmd, "game state\n") == 0) {
             prompt_game_state();
-        } else if (strcmp(nextcmd, "challenge data\n") == 0) {
-            prompt_challenge_data();
         } else if (strcmp(nextcmd, "device data\n") == 0) {
             prompt_device_data();
         } else if (strcmp(nextcmd, "view device data\n") == 0) {
@@ -446,8 +395,5 @@ int main(int argc, char** argv) {
     if (spawned_net_handler) {
         stop_net_handler();
     }
-
-    printf("Done!\n");
-
     return 0;
 }

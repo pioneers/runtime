@@ -9,7 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Executor Subscriptions", "subscriptions", "", NO_REGEX);
+    start_test("Executor Subscriptions", "subscriptions", NO_REGEX);
 
     // Connect SimpleTestDevice and GeneralTestDevice
     connect_virtual_device("SimpleTestDevice", SIMPLE_UID);
@@ -32,7 +32,5 @@ int main() {
     uint32_t general_subs = (1 << get_param_idx(general_type, "EXP_ONE_PT_ONE")) | (1 << get_param_idx(general_type, "INCREASING_ODD")) | (1 << get_param_idx(general_type, "DECREASING_ODD"));
     check_sub_requests(GENERAL_UID, general_subs, EXECUTOR);
 
-    // Stop all processes
-    end_test();
     return 0;
 }

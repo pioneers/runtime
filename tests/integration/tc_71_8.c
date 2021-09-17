@@ -9,7 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Hotplug ForeignTestDevice", "", "", NO_REGEX);
+    start_test("Hotplug ForeignTestDevice", "", NO_REGEX);
 
     // Connect a ForeignTestDevice
     check_device_not_connected(UID);
@@ -17,7 +17,5 @@ int main() {
     sleep(2);
     check_device_not_connected(UID);
 
-    // Clean up
-    end_test();
     return 0;
 }

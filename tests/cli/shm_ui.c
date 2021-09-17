@@ -219,7 +219,7 @@ void display_robot_desc() {
     int line = 2;
     wmove(ROBOT_DESC_WIN, line, 0);
     wclrtoeol(ROBOT_DESC_WIN);
-    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "RUN_MODE\t= %s", (run_mode == IDLE) ? "IDLE" : (run_mode == AUTO ? "AUTO" : (run_mode == TELEOP ? "TELEOP" : "CHALLENGE")));
+    mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "RUN_MODE\t= %s", (run_mode == IDLE) ? "IDLE" : (run_mode == AUTO ? "AUTO" : "TELEOP"));
     wclrtoeol(ROBOT_DESC_WIN);
     mvwprintw(ROBOT_DESC_WIN, line++, INDENT, "DAWN\t\t= %s", (dawn_connection == CONNECTED) ? "CONNECTED" : "DISCONNECTED");
     wclrtoeol(ROBOT_DESC_WIN);
