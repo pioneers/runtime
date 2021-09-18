@@ -162,6 +162,15 @@ uint8_t device_name_to_type(char* dev_name);
 char* get_device_name(uint8_t dev_type);
 
 /**
+ * Returns a bitmap indicating what parameters are readable for a type of device.
+ * Arguments;
+ *    dev_type: The device type
+ * Returns:
+ *    bitmap where the i-th bit is on iff the i-th parameter exists and is readable
+ */
+uint32_t get_readable_param_bitmap(uint8_t dev_type);
+
+/**
  * Returns a parameter descriptor.
  * Arguments:
  *    dev_type: The device type with the parameter of interest

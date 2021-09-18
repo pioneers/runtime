@@ -5,12 +5,6 @@
 #include <sys/wait.h>
 #include "../../net_handler/net_util.h"
 
-typedef struct {
-    uint64_t uid;     // what the uid of this device is
-    char* name;       // name of this device ("KoalaBear", "LimitSwitch", etc.)
-    uint32_t params;  // which params to subscribe to
-} dev_subs_t;
-
 /**
  * Connects clients to an already existing instance of runtime.
  * Arguments:
@@ -70,15 +64,6 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
  * No return value.
  */
 void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_t source);
-
-/**
- * Sends device subscriptions from Dawn over TCP with the specified device subscriptions
- * Arguments:
- *    - subs: contains the subscriptions for the devices' parameters
- *    - num_devices: contains number of devices for which we are sending subscription requests
- * No return value.
- */
-void send_device_subs(dev_subs_t* subs, int num_devices);
 
 /**
  * Sends a Timestamp message with a "Dawn" timestamp attached to it. It is then received by the tcp_conn, where it 
