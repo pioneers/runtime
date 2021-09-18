@@ -55,9 +55,11 @@ void device_write(uint8_t type, message_t* dev_write, param_val_t params[]);
  * Builds a DEVICE_DATA message, reading params as appropriate
  * Arguments:
  *    type: The type of device being read from
- *    dev_data: message_t to be populated with the requested data
- *    pmap: bitmap indicating which params should be read into DEV_DATA
+ *    pmap: bitmap indicating which params should be read into DEVICE_DATA
+ *          i-th bit is on iff PARAMS[i] should be packaged in the DEVICE_DATA message
  *    params: Array of params to be read from
+ * Returns:
+ *    a DEVICE_DATA message
  */
 message_t* make_device_data(uint8_t type, uint32_t pmap, param_val_t params[]);
 

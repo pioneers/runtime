@@ -147,7 +147,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
 
         device->n_params = 0;
         param_val_t param_data[MAX_PARAMS];
-        device_read_uid(device->uid, NET_HANDLER, DATA, sub_map[idx + 1], param_data);
+        device_read_uid(device->uid, NET_HANDLER, DATA, get_readable_param_bitmap(device->type), param_data);
 
         device->params = malloc(device_info->num_params * sizeof(Param*));
         if (device->params == NULL) {

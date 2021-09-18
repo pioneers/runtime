@@ -144,116 +144,6 @@ void prompt_start_pos() {
     send_start_pos(client, pos);
 }
 
-void prompt_device_data() {
-    char nextcmd[MAX_CMD_LEN];
-    char dev_names[DEVICES_LENGTH][32];  // for holding the names of the valid devices
-    int num_devices = 0;
-    uint8_t dev_type;
-    long long int temp;
-    dev_subs_t data[MAX_DEVICES];
-    device_t* curr_dev;
-
-    // first get the list of device names
-    for (uint8_t i = 0; i < DEVICES_LENGTH; i++) {
-        if ((curr_dev = get_device(i)) != NULL) {
-            strcpy(dev_names[i], curr_dev->name);
-        } else {
-            strcpy(dev_names[i], "");
-        }
-    }
-
-    // enter prompt loop
-    while (true) {
-        // ask for UID
-        while (true) {
-            printf("Enter the UID of the device, in base 10: ");
-            fgets(nextcmd, MAX_CMD_LEN, stdin);
-
-            if (strcmp(nextcmd, "abort\n") == 0) {
-                return;
-            }
-            temp = strtoll(nextcmd, NULL, 10);
-            if (temp < 0) {
-                printf("Input is not a positive number: %lld\n", temp);
-                continue;
-            } else {
-                data[num_devices].uid = (uint64_t) temp;
-                break;
-            }
-        }
-
-        // ask for device type
-        data[num_devices].name = NULL;
-        printf("Specify the device type, one of the following\n\t(type the number corresponding to the device type):\n");
-        for (int i = 0; i < DEVICES_LENGTH; i++) {
-            if (strcmp(dev_names[i], "") != 0) {
-                printf("\t%4d %s\n", i, dev_names[i]);
-            }
-        }
-        while (true) {
-            printf("Enter the device type: ");
-            fgets(nextcmd, MAX_CMD_LEN, stdin);
-            if (strcmp(nextcmd, "abort\n") == 0) {
-                return;
-            }
-
-            // Assign type and make sure it's an integer
-            errno = 0;  // If strtol errors, errno will be set to a nonzero number. See the NOTES in https://man7.org/linux/man-pages/man3/strtol.3.html
-            dev_type = (uint8_t) strtol(nextcmd, NULL, 10);
-            if (errno != 0) {
-                printf("Did not enter integer: %s\n", nextcmd);
-                continue;
-            }
-
-            // Make sure the type refers to a valid device
-            curr_dev = get_device(dev_type);
-            if (curr_dev == NULL) {
-                printf("Did not specify a valid device type: %s\n", nextcmd);
-                continue;
-            }
-
-            // Assign name to data
-            data[num_devices].name = malloc(strlen(curr_dev->name) + 1);
-            strcpy(data[num_devices].name, curr_dev->name);
-            break;
-        }
-
-        // fetch parameters and prompt user "y" or "n" on each one
-        data[num_devices].params = 0;
-        printf("Now specify whether to subscribe to given param or not.\n");
-        printf("If a subscription is desired, type lowercase letter \"y\". Otherwise, press anything else: \n");
-        for (int i = 0; i < curr_dev->num_params; i++) {
-            printf("\t%s? ", curr_dev->params[i].name);
-            fgets(nextcmd, MAX_CMD_LEN, stdin);
-            // Abort subscription completely if "abort"
-            if (strcmp(nextcmd, "abort\n") == 0) {
-                return;
-            }
-            // Add subscription if "y"
-            if (strcmp(nextcmd, "y\n") == 0) {
-                data[num_devices].params |= (1 << i);
-            }
-        }
-        num_devices++;
-
-        // subscribe to another device?
-        printf("Type \"next\" to add another device subscription. If ready to send queued subscriptions, type anything else: \n");
-        fgets(nextcmd, MAX_CMD_LEN, stdin);
-        if (strcmp(nextcmd, "next\n") != 0) {
-            break;
-        }
-    }
-
-    // send
-    printf("Sending Device Data message!\n\n");
-    send_device_subs(data, num_devices);
-
-    // free everything
-    for (int i = 0; i < num_devices; i++) {
-        free(data[i].name);
-    }
-}
-
 void print_next_dev_data() {
     DevData* dev_data = get_next_dev_data();
     // display the message's fields.
@@ -292,7 +182,6 @@ void display_help() {
     printf("\tgame state         send a Game State message\n");
     printf("\tstart pos          send a Start Pos message\n");
 
-    printf("\tdevice data        send a Device Data message (send a subscription request)\n");
     printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
     printf("\tview device data   view the next Device Data message sent to Dawn containing most recent device data\n");
     printf("\treroute output     reroute output to a file\n");

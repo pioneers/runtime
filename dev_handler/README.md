@@ -15,6 +15,6 @@ The logs should indicate that the device handler has started polling. At this po
 1. The **relayer** verifies that the device is a lowcar device and connects it to shared memory. The relayer will then signal the **sender** and **receiver** to begin work. Afterward, the relayer makes sure that the device handler is receiving continuous messages from the device.
 If the device times out or disconnects, the relayer is responsible for cleaning up after all three threads and disconnecting the device from shared memory.
 
-2. The **sender** has the responsibility of checking if shared memory has new data to be written to the device. The sender will package, serialize, and write the data to the serial port in the form of a `DEVICE_WRITE` message. The sender also sends `SUBSCRIPTION_REQUEST` messages and periodic `PING` messages to the device.
+1. The **sender** has the responsibility of checking if shared memory has new data to be written to the device. The sender will package, serialize, and write the data to the serial port in the form of a `DEVICE_WRITE` message. The sender also sends periodic `PING` messages to the device.
 
-3. The **receiver** continuously attempts to parse incoming data from the device and takes action based on the type of message received. This means updating shared memory with new device data in `DEVICE_DATA` messages and sending `LOG` messages to the logger.
+2. The **receiver** continuously attempts to parse incoming data from the device and takes action based on the type of message received. This means updating shared memory with new device data in `DEVICE_DATA` messages and sending `LOG` messages to the logger.

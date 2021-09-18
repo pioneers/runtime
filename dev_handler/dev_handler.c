@@ -26,11 +26,6 @@
 #define LOWCAR_FILE_PATH "/dev/ttyACM"
 #define VIRTUAL_FILE_PATH "/tmp/ttyACM"
 
-// ********************************* CONFIG ********************************* //
-
-// The interval (ms) at which we want DEVICE_DATA messages for subscribed params
-#define SUB_INTERVAL 1
-
 // **************************** PRIVATE STRUCT ****************************** //
 
 /* A struct shared between SENDER, RECEIVER, and RELAYER threads communicating

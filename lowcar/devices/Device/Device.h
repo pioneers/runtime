@@ -47,14 +47,14 @@ class Device {
      */
 
     /**
-     * Reads the value of a paramter into a buffer.
+     * Reads the value of a parameter into a buffer.
      * Helper function used to build a DEVICE_DATA message.
      * Arguments:
      *    param: The 0-indexed index of the parameter to read
      *    data_buf: The buffer to read the parameter value into
      * Returns:
      *    the size of the parameter read into the buffer, or
-     *    0 on failure
+     *    0 on failure (ex: because the parameter is not readable)
      */
     virtual size_t device_read(uint8_t param, uint8_t* data_buf);
 
@@ -108,7 +108,7 @@ class Device {
     message_t curr_msg;                 // current message being processed
 
     /**
-     * Builds a DEVICE_DATA message by reading all parameters.
+     * Builds a DEVICE_DATA message by reading all readable parameters.
      * Arguments:
      *    msg: An empty message to be populated with parameter values ready for sending.
      */

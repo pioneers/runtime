@@ -232,6 +232,20 @@ char* get_device_name(uint8_t dev_type) {
     return device->name;
 }
 
+uint32_t get_readable_param_bitmap(uint8_t dev_type) {
+    device_t* device = get_device(dev_type);
+    if (device == NULL) {
+        return 0;
+    }
+    uint32_t readable_param_bitmap = 0;
+    for (int i = 0; i < device->num_params; i++) {
+        if (device->params->read) {
+            readable_param_bitmap |= (1 << i);
+        }
+    }
+    return readable_param_bitmap;
+}
+
 param_desc_t* get_param_desc(uint8_t dev_type, char* param_name) {
     device_t* device = get_device(dev_type);
     if (device == NULL) {

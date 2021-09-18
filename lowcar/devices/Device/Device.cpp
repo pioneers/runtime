@@ -113,7 +113,8 @@ void Device::device_read_params(message_t* msg) {
     memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
     uint32_t param_bitmap = 0;
 
-    // Loop over param_bitmap and attempt to read data for every parameter
+    // Loop through every parameter and attempt to read it into the buffer
+    // If the parameter is readable, then turn on the bit in the param_bitmap
     msg->payload_length = PARAM_BITMAP_BYTES;
     for (uint8_t param_num = 0; param_num < MAX_PARAMS; param_num++) {
         size_t param_size = device_read(param_num, msg->payload + msg->payload_length);
@@ -125,7 +126,7 @@ void Device::device_read_params(message_t* msg) {
         }
     }
 
-    // Set readable param bitmap at the beginning of the message
+    // The first 32 bits of the payload should be set to the param_bitmap we determined
     uint32_t* payload_ptr_uint32 = (uint32_t*) msg->payload;
     *payload_ptr_uint32 = param_bitmap;
 }
