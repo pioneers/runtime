@@ -10,6 +10,7 @@ RUN echo 'export PATH=$PATH:~/runtime' >> ~/.bashrc
 
 # Build Runtime processes
 RUN ./runtime build
+RUN cd tests && make cli && cd .. # runtime build does not build the cli's; we want to build this in case something fails here
 
 # By default, run Runtime when the Docker container starts
 CMD ./runtime run
