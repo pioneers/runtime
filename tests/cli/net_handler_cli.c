@@ -146,30 +146,7 @@ void prompt_start_pos() {
 
 void print_next_dev_data() {
     DevData* dev_data = get_next_dev_data();
-    // display the message's fields.
-    for (int i = 0; i < dev_data->n_devices; i++) {
-        printf("Device No. %d:", i);
-        printf("\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
-        printf("\tParams:\n");
-        for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
-            Param* param = dev_data->devices[i]->params[j];
-            printf("\t\tparam \"%s\" is read%s and has type ", param->name, param->readonly ? " only" : "/write");
-            switch (dev_data->devices[i]->params[j]->val_case) {
-                case (PARAM__VAL_FVAL):
-                    printf("FLOAT with value %f\n", param->fval);
-                    break;
-                case (PARAM__VAL_IVAL):
-                    printf("INT with value %d\n", param->ival);
-                    break;
-                case (PARAM__VAL_BVAL):
-                    printf("BOOL with value %s\n", param->bval ? "True" : "False");
-                    break;
-                default:
-                    printf("ERROR: no param value");
-                    break;
-            }
-        }
-    }
+    print_dev_data(stdout, dev_data);
     dev_data__free_unpacked(dev_data, NULL);
 }
 
@@ -184,7 +161,6 @@ void display_help() {
 
     printf("\tsend timestamp     send a timestamp message to Dawn to test latency\n");
     printf("\tview device data   view the next Device Data message sent to Dawn containing most recent device data\n");
-    printf("\treroute output     reroute output to a file\n");
     printf("\thelp               display this help text\n");
     printf("\texit               exit the Net Handler CLI\n");
 }
@@ -264,8 +240,6 @@ int main(int argc, char** argv) {
             prompt_start_pos();
         } else if (strcmp(nextcmd, "game state\n") == 0) {
             prompt_game_state();
-        } else if (strcmp(nextcmd, "device data\n") == 0) {
-            prompt_device_data();
         } else if (strcmp(nextcmd, "view device data\n") == 0) {
             print_next_dev_data();
         } else if (strcmp(nextcmd, "send timestamp\n") == 0) {
