@@ -1,0 +1,12 @@
+[Unit]
+Description=Sets the time on this raspberry pi when on CalVisitor
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/runtime/systemd/set_time.sh
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
