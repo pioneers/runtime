@@ -98,12 +98,12 @@ class Device {
     StatusLED* led;  // The LED on the Arduino
 
   private:
-    dev_id_t dev_id;                    // dev_id of this device determined when flashing
-    uint32_t timeout;                   // Maximum time (ms) we'll wait between PING messages from dev handler
-    uint64_t last_sent_data_time;       // Timestamp of last time we sent DEVICE_DATA
-    uint64_t last_received_ping_time;   // Timestamp of last time we received a PING
-    uint64_t curr_time;                 // The current time
-    message_t curr_msg;                 // current message being processed
+    dev_id_t dev_id;                   // dev_id of this device determined when flashing
+    uint32_t timeout;                  // Maximum time (ms) we'll wait between PING messages from dev handler
+    uint64_t last_sent_data_time;      // Timestamp of last time we sent DEVICE_DATA
+    uint64_t last_received_ping_time;  // Timestamp of last time we received a PING
+    uint64_t curr_time;                // The current time
+    message_t curr_msg;                // current message being processed
 
     /**
      * Builds a DEVICE_DATA message by reading all readable parameters.
