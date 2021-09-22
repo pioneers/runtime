@@ -1,8 +1,5 @@
 #include "Device.h"
 
-const int Device::DATA_INTERVAL_MS = 1;
-const int Device::MAX_PARAMS = 32;
-
 // Device constructor
 Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
     this->dev_id.type = dev_id;

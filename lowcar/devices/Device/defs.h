@@ -6,6 +6,10 @@
 
 // The maximum number of parameters for a lowcar device
 #define MAX_PARAMS 32
+
+// Number of milliseconds between sending data to Runtime
+#define DATA_INTERVAL_MS 1
+
 // The size of the param bitmap used in various messages (8 bits in a byte)
 #define PARAM_BITMAP_BYTES (MAX_PARAMS / 8)
 
