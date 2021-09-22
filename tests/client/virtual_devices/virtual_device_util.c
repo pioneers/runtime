@@ -1,5 +1,8 @@
 #include "virtual_device_util.h"
 
+// Number of milliseconds between sending each DEVICE_DATA message
+#define DATA_INTERVAL 1
+
 message_t* make_acknowledgement(uint8_t type, uint8_t year, uint64_t uid) {
     message_t* msg = malloc(sizeof(message_t));
     if (msg == NULL) {
@@ -157,11 +160,11 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
     uint64_t last_sent_ping_time = 0;
     uint64_t last_received_ping_time = millis();
     uint64_t last_sent_data_time = 0;
-    uint32_t subscribed_params = 0;
-    uint16_t subscription_interval = 0;
     uint64_t last_device_action = 0;
     uint8_t sent_ack = 0;
     uint64_t now;
+    uint32_t readable_param_bitmap = get_readable_param_bitmap(type);  // Calculated once outside the loop for performance
+
     // Every cycle, read a message and respond accordingly, then send messages as needed
     while (1) {
         now = millis();
@@ -177,11 +180,6 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
                         destroy_message(outgoing_msg);
                         sent_ack = 1;
                     }
-                    break;
-
-                case SUBSCRIPTION_REQUEST:
-                    memcpy(&subscribed_params, &incoming_msg->payload[0], BITMAP_SIZE);
-                    memcpy(&subscription_interval, &incoming_msg->payload[BITMAP_SIZE], INTERVAL_SIZE);
                     break;
 
                 case DEVICE_WRITE:
@@ -212,6 +210,8 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
             exit(1);
         }
         // Check if we should send another DEVICE_PING
+        // TODO: Physical lowcar devices don't send DEVICE_PING messages.
+        // We should remove this. See issue #164.
         if ((now - last_sent_ping_time) >= PING_FREQ) {
             outgoing_msg = make_ping();
             send_message(fd, outgoing_msg);
@@ -224,8 +224,8 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
             last_device_action = now;
         }
         // Check if we should send another DEVICE_DATA
-        if (subscribed_params && ((now - last_sent_data_time) >= subscription_interval)) {
-            outgoing_msg = make_device_data(type, subscribed_params, params);
+        if ((now - last_sent_data_time) >= DATA_INTERVAL) {
+            outgoing_msg = make_device_data(type, readable_param_bitmap, params);
             send_message(fd, outgoing_msg);
             destroy_message(outgoing_msg);
         }

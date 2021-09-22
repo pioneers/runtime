@@ -168,14 +168,6 @@ static void executor_init(char* student_code) {
         log_printf(ERROR, "Could not insert API into student code.");
         exit(1);
     }
-
-    // Send the device subscription requests to dev_handler
-    PyObject* ret = PyObject_CallMethod(pAPI, "make_device_subs", "s", student_code);
-    if (ret == NULL) {
-        PyErr_Print();
-        log_printf(ERROR, "Could not make device subscription requests");
-        exit(1);
-    }
 }
 
 

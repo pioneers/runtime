@@ -646,34 +646,6 @@ void check_start_pos(robot_desc_val_t expected_start_pos) {
     print_pass();
 }
 
-// *************************** SUBSCRIPTION CHECK **************************** //
-
-void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t process) {
-    // Read current subscriptions by the specified process
-    uint32_t curr_sub_map[MAX_DEVICES + 1];
-    get_sub_requests(curr_sub_map, process);
-
-    // Get the shm idx of the specified device
-    int shm_idx = get_dev_ix_from_uid(dev_uid);
-    if (shm_idx == -1) {  // Specified device is not connected
-        print_fail();
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "Device (0x%016llX) is not connected!\n", dev_uid);
-        fail_test();
-    }
-    if (curr_sub_map[shm_idx + 1] != expected_sub_map) {  // Sub map is not as expected
-        print_fail();
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, curr_sub_map[shm_idx + 1]);
-        fail_test();
-    }
-    print_pass();
-}
-
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**

@@ -95,7 +95,6 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     int len_pb;
     uint8_t* buffer;
 
-    uint32_t sub_map[MAX_DEVICES + 1];
     dev_id_t dev_ids[MAX_DEVICES];
     int valid_dev_idxs[MAX_DEVICES];
     uint32_t catalog;
@@ -109,7 +108,6 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
 
     //get information
     get_catalog(&catalog);
-    get_sub_requests(sub_map, NET_HANDLER);
     get_device_identifiers(dev_ids);
 
     //calculate num_devices, get valid device indices
@@ -149,7 +147,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
 
         device->n_params = 0;
         param_val_t param_data[MAX_PARAMS];
-        device_read_uid(device->uid, NET_HANDLER, DATA, sub_map[idx + 1], param_data);
+        device_read_uid(device->uid, NET_HANDLER, DATA, get_readable_param_bitmap(device->type), param_data);
 
         device->params = malloc(device_info->num_params * sizeof(Param*));
         if (device->params == NULL) {
@@ -158,32 +156,30 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
         }
         //populate device parameters
         for (int j = 0; j < device_info->num_params; j++) {
-            if (sub_map[idx + 1] & (1 << j)) {
-                Param* param = malloc(sizeof(Param));
-                if (param == NULL) {
-                    log_printf(FATAL, "send_device_data: Failed to malloc");
-                    exit(1);
-                }
-                param__init(param);
-                param->name = device_info->params[j].name;
-                switch (device_info->params[j].type) {
-                    case INT:
-                        param->val_case = PARAM__VAL_IVAL;
-                        param->ival = param_data[j].p_i;
-                        break;
-                    case FLOAT:
-                        param->val_case = PARAM__VAL_FVAL;
-                        param->fval = param_data[j].p_f;
-                        break;
-                    case BOOL:
-                        param->val_case = PARAM__VAL_BVAL;
-                        param->bval = param_data[j].p_b;
-                        break;
-                }
-                param->readonly = device_info->params[j].read && !device_info->params[j].write;
-                device->params[device->n_params] = param;
-                device->n_params++;
+            Param* param = malloc(sizeof(Param));
+            if (param == NULL) {
+                log_printf(FATAL, "send_device_data: Failed to malloc");
+                exit(1);
             }
+            param__init(param);
+            param->name = device_info->params[j].name;
+            switch (device_info->params[j].type) {
+                case INT:
+                    param->val_case = PARAM__VAL_IVAL;
+                    param->ival = param_data[j].p_i;
+                    break;
+                case FLOAT:
+                    param->val_case = PARAM__VAL_FVAL;
+                    param->fval = param_data[j].p_f;
+                    break;
+                case BOOL:
+                    param->val_case = PARAM__VAL_BVAL;
+                    param->bval = param_data[j].p_b;
+                    break;
+            }
+            param->readonly = device_info->params[j].read && !device_info->params[j].write;
+            device->params[device->n_params] = param;
+            device->n_params++;
         }
         dev_idx++;
     }
@@ -355,41 +351,6 @@ static int process_start_pos_msg(uint8_t* buf, uint16_t len_pb) {
 }
 
 /*
- * Processes new device data message from client and reacts appropriately
- * Arguments:
- *    - uint8_t *buf: buffer containing packed protobuf with run mode message
- *    - uint16_t len_pb: length of buf
- * Returns:
- *      0 on success (message was processed correctly)
- *     -1 on error unpacking message
- */
-static int process_device_data_msg(uint8_t* buf, uint16_t len_pb) {
-    DevData* dev_data_msg = dev_data__unpack(NULL, len_pb, buf);
-    if (dev_data_msg == NULL) {
-        log_printf(ERROR, "recv_new_msg: Cannot unpack dev_data msg");
-        return -1;
-    }
-    // For each device, place sub requests for the requested parameters
-    for (int i = 0; i < dev_data_msg->n_devices; i++) {
-        Device* req_device = dev_data_msg->devices[i];
-        uint32_t requests = 0;
-        for (int j = 0; j < req_device->n_params; j++) {
-            // Place a sub request for each parameter that has its boolean value set to 1
-            if (req_device->params[j]->val_case == PARAM__VAL_BVAL) {
-                requests |= (req_device->params[j]->bval << j);
-            }
-        }
-        int err = place_sub_request(req_device->uid, NET_HANDLER, requests);
-        if (err == -1) {
-            log_printf(ERROR, "recv_new_msg: Invalid device subscription, device uid %llu is invalid", req_device->uid);
-        }
-    }
-    dev_data__free_unpacked(dev_data_msg, NULL);
-
-    return 0;
-}
-
-/*
  * Processes new game state message from client and reacts appropriately
  * Arguments:
  *    - uint8_t *buf: buffer containing packed protobuf with run mode message
@@ -520,12 +481,6 @@ int recv_new_msg(int conn_fd, robot_desc_field_t client) {
         case START_POS_MSG:
             if (process_start_pos_msg(buf, len_pb) != 0) {
                 log_printf(ERROR, "recv_new_msg: error processing start position");
-                ret = -2;
-            }
-            break;
-        case DEVICE_DATA_MSG:
-            if (process_device_data_msg(buf, len_pb) != 0) {
-                log_printf(ERROR, "recv_new_msg: error processing device data");
                 ret = -2;
             }
             break;

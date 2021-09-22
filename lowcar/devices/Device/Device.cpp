@@ -1,16 +1,11 @@
 #include "Device.h"
 
-const float Device::MAX_SUB_INTERVAL_MS = 500.0;  // maximum tolerable subscription delay, in ms
-const float Device::MIN_SUB_INTERVAL_MS = 40.0;   // minimum tolerable subscription delay, in ms
-
 // Device constructor
 Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
     this->dev_id.uid = 0;  // sets a temporary value
 
-    this->params = 0;         // Initialize to no subscribed parameters (empty DEVICE_DATA)
-    this->sub_interval = 0;   // 0 acts as flag indicating no subscription
     this->timeout = timeout;  // timeout in ms how long we tolerate not receiving a DEVICE_PING from dev handler
     this->enabled = FALSE;    // Whether or not the device currently has a connection with Runtime
 
@@ -42,14 +37,6 @@ void Device::loop() {
                 }
                 break;
 
-            case MessageID::SUBSCRIPTION_REQUEST:
-                this->params = *((uint32_t*) this->curr_msg.payload);                               // Update subscribed params
-                this->sub_interval = *((uint16_t*) (this->curr_msg.payload + PARAM_BITMAP_BYTES));  // Update the interval at which we send DEVICE_DATA
-                // Make sure sub_interval is within bounds
-                this->sub_interval = min(this->sub_interval, MAX_SUB_INTERVAL_MS);
-                this->sub_interval = max(this->sub_interval, MIN_SUB_INTERVAL_MS);
-                break;
-
             case MessageID::DEVICE_WRITE:
                 device_write_params(&(this->curr_msg));
                 break;
@@ -77,13 +64,12 @@ void Device::loop() {
     // do device-specific actions. This may change params
     device_actions();
 
-    /* Send another DEVICE_DATA with subscribed parameters if this->sub_interval
+    /* Send another DEVICE_DATA with all readable parameters if DATA_INTERVAL_MS
      * milliseconds passed since the last time we sent a DEVICE_DATA
-     * If this->sub_interval == 0, don't send DEVICE_DATA
-     * Note that it is possible that no parameters are subscribed.
+     * Note that it is possible that no parameters are readable.
      * We send an "empty" DEVICE_DATA anyways to let dev handler know we're still online
      */
-    if ((this->sub_interval > 0) && (this->curr_time - this->last_sent_data_time >= this->sub_interval)) {
+    if (this->curr_time - this->last_sent_data_time >= DATA_INTERVAL_MS) {
         this->last_sent_data_time = this->curr_time;
         device_read_params(&(this->curr_msg));
         this->msngr->send_message(MessageID::DEVICE_DATA, &(this->curr_msg));
@@ -122,19 +108,24 @@ void Device::device_read_params(message_t* msg) {
     msg->message_id = MessageID::DEVICE_DATA;
     msg->payload_length = 0;
     memset(msg->payload, 0, MAX_PAYLOAD_SIZE);
+    uint32_t param_bitmap = 0;
 
-    // Read all subscribed params
-    // Set beginning of payload to subscribed param bitmap
-    uint32_t* payload_ptr_uint32 = (uint32_t*) msg->payload;
-    *payload_ptr_uint32 = this->params;
-
-    // Loop over param_bitmap and attempt to read data for subscribed bits
+    // Loop through every parameter and attempt to read it into the buffer
+    // If the parameter is readable, then turn on the bit in the param_bitmap
     msg->payload_length = PARAM_BITMAP_BYTES;
-    for (uint8_t param_num = 0; (this->params >> param_num) > 0; param_num++) {
-        if (this->params & (1 << param_num)) {
-            msg->payload_length += device_read(param_num, msg->payload + msg->payload_length);
+    for (uint8_t param_num = 0; param_num < MAX_PARAMS; param_num++) {
+        size_t param_size = device_read(param_num, msg->payload + msg->payload_length);
+        msg->payload_length += param_size;
+
+        // If the parameter is readable
+        if (param_size > 0) {
+            param_bitmap |= 1 << param_num;
         }
     }
+
+    // The first 32 bits of the payload should be set to the param_bitmap we determined
+    uint32_t* payload_ptr_uint32 = (uint32_t*) msg->payload;
+    *payload_ptr_uint32 = param_bitmap;
 }
 
 void Device::device_write_params(message_t* msg) {

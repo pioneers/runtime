@@ -5,8 +5,6 @@
  * Important blocks of shared memory each have a dedicated ncurses "window"
  * 
  * Note that messages sent to stdout will interfere with the ui.
- * Note also that if a parameter is not subscribed to, then shared memory will not have the most updated
- *    parameter data, so the data stream for that parameter will look "frozen" (This is normal)
  * 
  * This implementation revolves around displaying strings at specified rows and columns,
  * which means we need to do some math with window dimensions. (See #define's below)
@@ -44,7 +42,7 @@
 WINDOW* ROBOT_DESC_WIN;  // Displays the robot description (clients connected, run mode, start position, gamepad connected)
 WINDOW* GAMEPAD_WIN;     // Displays gamepad state (joystick values and what buttons are pressed)
 WINDOW* KEYBOARD_WIN;    // Displays keyboard state (what buttons are pressed)
-WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and subscriptions) for a single device at a time based on user input
+WINDOW* DEVICE_WIN;      // Displays device information (id, commands, and data) for a single device at a time based on user input
 
 // ************************** SIZES AND POSITIONS *************************** //
 // Some windows' dimensions are defined in terms of others so that their borders align
@@ -84,13 +82,11 @@ WINDOW* DEVICE_WIN;      // Displays device information (id, commands, data, and
 
 // Column positions in device window; Declared as const instead of #define to prevent repeated strlen() computation
 // Each one is determined by taking the previous column and adding the previous column's maximum width
-const int VALUE_WIDTH = strlen("123.000000") + 1;                        // String representation of float length; Used to determine column widths
-const int PARAM_IDX_COL = INDENT;                                        // The column at which we display the parameter index
-const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("00") + 1;             // The column at which we display the parameter name (Idx column is 2 digits wide)
-const int NET_SUB_COL = PARAM_NAME_COL + strlen("increasing_even") + 1;  // The column at which we display whether the parameter is subbed by net handler
-const int EXE_SUB_COL = NET_SUB_COL + strlen("NET") + 1;                 // The column at which we display whether the parameter is subbed by executor
-const int COMMAND_VAL_COL = EXE_SUB_COL + strlen("EXE") + 1;             // The column at which we display the command stream
-const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                  // The column at which we display the data stream
+const int VALUE_WIDTH = strlen("123.000000") + 1;                            // String representation of float length; Used to determine column widths
+const int PARAM_IDX_COL = INDENT;                                            // The column at which we display the parameter index
+const int PARAM_NAME_COL = PARAM_IDX_COL + strlen("00") + 1;                 // The column at which we display the parameter name (Idx column is 2 digits wide)
+const int COMMAND_VAL_COL = PARAM_NAME_COL + strlen("increasing_even") + 1;  // The column at which we display the command stream
+const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                      // The column at which we display the data stream
 
 // **************************** MISC GLOBAL VARS **************************** //
 
@@ -163,15 +159,11 @@ void display_param_table(int table_header_line) {
     // Draw table
     mvwprintw(DEVICE_WIN, table_header_line, PARAM_IDX_COL, "#");
     mvwprintw(DEVICE_WIN, table_header_line, PARAM_NAME_COL, "Parameter Name");
-    mvwprintw(DEVICE_WIN, table_header_line, NET_SUB_COL, "NET");
-    mvwprintw(DEVICE_WIN, table_header_line, EXE_SUB_COL, "EXE");
     mvwprintw(DEVICE_WIN, table_header_line, COMMAND_VAL_COL, "Command");
     mvwprintw(DEVICE_WIN, table_header_line, DATA_VAL_COL, "Data");
     mvwhline(DEVICE_WIN, table_header_line + 1, PARAM_IDX_COL, 0, DEVICE_WIDTH - PARAM_IDX_COL - INDENT);  // Horizontal line
     // Vertical Lines
     mvwvline(DEVICE_WIN, table_header_line, PARAM_NAME_COL - 1, 0, MAX_PARAMS + 2);
-    mvwvline(DEVICE_WIN, table_header_line, NET_SUB_COL - 1, 0, MAX_PARAMS + 2);
-    mvwvline(DEVICE_WIN, table_header_line, EXE_SUB_COL - 1, 0, MAX_PARAMS + 2);
     mvwvline(DEVICE_WIN, table_header_line, COMMAND_VAL_COL - 1, 0, MAX_PARAMS + 2);
     mvwvline(DEVICE_WIN, table_header_line, DATA_VAL_COL - 1, 0, MAX_PARAMS + 2);
 }
@@ -380,8 +372,7 @@ void display_keyboard_state(char** key_names) {
 
 /**
  * Displays a device's current state of parameters in a formatted table.
- * NET (NET_HANDLER) and EXE (EXECUTOR) refers to whether the parameter is subscribed by the process.
- * Param Idx (int) | Name (str) | NET (bool) | EXE (bool) | Command (var) | Data (var)
+ * Param Idx (int) | Name (str) | Command (var) | Data (var)
  * 
  * Arguments:
  *    catalog: current shared memory catalog; Used to handle when device at shm_idx is invalid
@@ -437,8 +428,6 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     uint8_t num_params = 0;
 
     // Init arrays to hold shm data
-    uint32_t sub_map_net_handler_all_devs[MAX_DEVICES + 1] = {0};  // Initialize subs to 0
-    uint32_t sub_map_executor_all_devs[MAX_DEVICES + 1] = {0};     // Initialize subs to 0
     uint32_t cmd_map_all_devs[MAX_DEVICES + 1];
     param_val_t command_vals[MAX_PARAMS];
     param_val_t data_vals[MAX_PARAMS];
@@ -448,22 +437,18 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
     param_type_t custom_param_types[UCHAR_MAX];
     param_val_t custom_param_values[UCHAR_MAX];  // We're assuming here that the number of logged params is at most MAX_PARAMS
 
-    // Get shm subscriptions
+    // If custom data, read the custom data. Otherwise, get the device data
     if (show_custom_data) {
         log_data_read(&num_params, custom_param_names, custom_param_types, custom_param_values);
     } else {
         num_params = device->num_params;
-        // Get shm subscriptions, command values, and data values
-        get_sub_requests(sub_map_net_handler_all_devs, NET_HANDLER);  // Get subscriptions made by net handler
-        get_sub_requests(sub_map_executor_all_devs, EXECUTOR);        // Get subscriptions made by executor
+        // Get command values and data values
         get_cmd_map(cmd_map_all_devs);
         device_read(shm_idx, SHM, COMMAND, ~0, command_vals);
         device_read(shm_idx, SHM, DATA, ~0, data_vals);
     }
 
     // We care about only the specified device (this is just for the sake of brevity)
-    uint32_t sub_map_net_handler = sub_map_net_handler_all_devs[shm_idx + 1];
-    uint32_t sub_map_executor = sub_map_executor_all_devs[shm_idx + 1];
     uint32_t cmd_map = cmd_map_all_devs[shm_idx + 1];
 
     // Each iteration prints out a row for each parameter
@@ -474,17 +459,6 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
         // Print the index and its name
         mvwprintw(DEVICE_WIN, line, PARAM_IDX_COL, "%d", i);
         mvwprintw(DEVICE_WIN, line, PARAM_NAME_COL, "%s", show_custom_data ? custom_param_names[i] : device->params[i].name);
-
-        // Print out subscriptions ("X" iff subbed)
-        // Note that subscriptions are irrelevant for custom data
-        //   Runtime will *always* send custom data to net handler
-        //   Executor initializes custom data parameters and never reads them
-        if (show_custom_data || sub_map_net_handler & (1 << i)) {
-            mvwprintw(DEVICE_WIN, line, NET_SUB_COL + 1, "X");
-        }
-        if (!show_custom_data && sub_map_executor & (1 << i)) {
-            mvwprintw(DEVICE_WIN, line, EXE_SUB_COL + 1, "X");
-        }
 
         // Determine whether we need to display the command value
         wattron(DEVICE_WIN, A_DIM);
