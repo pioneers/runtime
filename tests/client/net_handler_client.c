@@ -11,18 +11,14 @@ FILE* tcp_output_fp = NULL;  // holds current output location of incoming TCP me
 FILE* null_fp = NULL;        // file pointer to /dev/null
 
 /**
- * Printing received Device Data messages
  * A variable holds the most recent device data received from Runtime
  * - This is updated constantly, and done while holding the lock
- * This variable is accessed when we want to
- * - Print out the most recent device data message, or
- * - look at its contents manually (ex: as part of a test case)
- * A boolean flag is default false, and set to true when the most recent device data message should be printed
- * - After the device data message is printed, the flag is immediately set back to false
+ * - Before updating this variable, remember to free it since it holds the previous message 
+ *   which has memory allocated to it. This prevents memory leak.
+ * The mutex must be held whenever we want to access this global variable.
  */
-pthread_mutex_t print_next_dev_data_mutex;  // lock over the following two variables
-DevData* device_data = NULL;                // Holds the most recent device_data received from Runtime
-bool should_print_next_dev_data;            // false if we want to suppress incoming dev data, true to print incoming dev data to stdout
+pthread_mutex_t most_recent_dev_data_mutex;  // lock over the following two variables
+DevData* most_recent_dev_data = NULL;        // Holds the most recent device_data received from Runtime
 
 // 2021 Game Specific
 bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
@@ -74,31 +70,26 @@ static int connect_tcp(robot_desc_field_t client) {
     return sockfd;
 }
 
-/**
- * Helper function print out contents of a DevData message
- * Arguments:
- *    dev_data: the unpacked device data message to print
- */
-static void print_dev_data(DevData* dev_data) {
+void print_dev_data(FILE* file, DevData* dev_data) {
     // display the message's fields.
     for (int i = 0; i < dev_data->n_devices; i++) {
-        fprintf(tcp_output_fp, "Device No. %d:", i);
-        fprintf(tcp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
-        fprintf(tcp_output_fp, "\tParams:\n");
+        fprintf(file, "Device No. %d:", i);
+        fprintf(file, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+        fprintf(file, "\tParams:\n");
         for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
-            fprintf(tcp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
+            fprintf(file, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
             switch (dev_data->devices[i]->params[j]->val_case) {
                 case (PARAM__VAL_FVAL):
-                    fprintf(tcp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
+                    fprintf(file, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
                     break;
                 case (PARAM__VAL_IVAL):
-                    fprintf(tcp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
+                    fprintf(file, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
                     break;
                 case (PARAM__VAL_BVAL):
-                    fprintf(tcp_output_fp, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
+                    fprintf(file, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
                     break;
                 default:
-                    fprintf(tcp_output_fp, "ERROR: no param value");
+                    fprintf(file, "ERROR: no param value");
                     break;
             }
         }
@@ -155,23 +146,17 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         fflush(tcp_output_fp);
         text__free_unpacked(msg, NULL);
     } else if (msg_type == DEVICE_DATA_MSG) {
-        // Print out the contents of DeviceData message if flag is set
-        pthread_mutex_lock(&print_next_dev_data_mutex);
-        // Replace the most recent device data; Remember to free the unpacked data
-        if (device_data != NULL) {
-            dev_data__free_unpacked(device_data, NULL);
+        // Update the global variable containing the most recent device data
+        pthread_mutex_lock(&most_recent_dev_data_mutex);
+        // Free the previous most recent device data
+        if (most_recent_dev_data != NULL) {
+            dev_data__free_unpacked(most_recent_dev_data, NULL);
         }
-        device_data = dev_data__unpack(NULL, len, buf);
-        if (device_data == NULL) {
+        most_recent_dev_data = dev_data__unpack(NULL, len, buf);
+        if (most_recent_dev_data == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }
-        if (should_print_next_dev_data) {  // If flag is true, print out a device data message then reset the flag
-            print_dev_data(device_data);
-            fflush(tcp_output_fp);
-            // Reset the flag
-            should_print_next_dev_data = false;
-        }
-        pthread_mutex_unlock(&print_next_dev_data_mutex);
+        pthread_mutex_unlock(&most_recent_dev_data_mutex);
     } else {
         fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
         msg_type = -1;  // Set the return value as -1 to indicate failure
@@ -272,10 +257,9 @@ void connect_clients(bool dawn, bool shepherd) {
     null_fp = fopen("/dev/null", "w");
 
     // init the mutex that will control whether device data messages should be printed to screen
-    if (pthread_mutex_init(&print_next_dev_data_mutex, NULL) != 0) {
+    if (pthread_mutex_init(&most_recent_dev_data_mutex, NULL) != 0) {
         printf("pthread_mutex_init: print device data mutex\n");
     }
-    should_print_next_dev_data = false;
 
     // start the thread that is dumping output from net_handler to stdout of this process
     if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
@@ -487,89 +471,15 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     free(send_buf);
 }
 
-void send_device_subs(dev_subs_t* subs, int num_devices) {
-    DevData dev_data = DEV_DATA__INIT;
-    uint8_t* send_buf;
-    uint16_t len;
-
-    // build the message
-    device_t* curr_device;
-    uint8_t curr_type;
-    dev_data.n_devices = num_devices;
-    dev_data.devices = malloc(sizeof(Device*) * num_devices);
-    if (dev_data.devices == NULL) {
-        printf("send_device_subs: Failed to malloc\n");
-        exit(1);
-    }
-
-    // set each device
-    for (int i = 0; i < num_devices; i++) {
-        if ((curr_type = device_name_to_type(subs[i].name)) == (uint8_t) -1) {
-            printf("ERROR: no such device \"%s\"\n", subs[i].name);
-        }
-        // fill in device fields
-        curr_device = get_device(curr_type);
-        Device* dev = malloc(sizeof(Device));
-        if (dev == NULL) {
-            printf("send_device_subs: Failed to malloc\n");
-            exit(1);
-        }
-        device__init(dev);
-        dev->name = curr_device->name;
-        dev->uid = subs[i].uid;
-        dev->type = curr_type;
-        dev->n_params = curr_device->num_params;
-        dev->params = malloc(sizeof(Param*) * curr_device->num_params);
-        if (dev->params == NULL) {
-            printf("send_device_subs: Failed to malloc\n");
-            exit(1);
-        }
-
-        // set each param
-        for (int j = 0; j < curr_device->num_params; j++) {
-            // fill in param fields
-            Param* prm = malloc(sizeof(Param));
-            if (prm == NULL) {
-                printf("send_device_subs: Failed to malloc\n");
-                exit(1);
-            }
-            param__init(prm);
-            prm->val_case = PARAM__VAL_BVAL;
-            prm->bval = (subs[i].params & (1 << j)) ? 1 : 0;
-            dev->params[j] = prm;
-        }
-        dev_data.devices[i] = dev;
-    }
-    len = dev_data__get_packed_size(&dev_data);
-    send_buf = make_buf(DEVICE_DATA_MSG, len);
-    dev_data__pack(&dev_data, send_buf + BUFFER_OFFSET);
-
-    // send the message
-    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-        printf("writen: issue sending device subs message to shepherd\n");
-    }
-
-    // free everything
-    for (int i = 0; i < num_devices; i++) {
-        for (int j = 0; j < dev_data.devices[i]->n_params; j++) {
-            free(dev_data.devices[i]->params[j]);
-        }
-        free(dev_data.devices[i]->params);
-        free(dev_data.devices[i]);
-    }
-    free(dev_data.devices);
-    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
-}
-
 DevData* get_next_dev_data() {
-    pthread_mutex_lock(&print_next_dev_data_mutex);
+    pthread_mutex_lock(&most_recent_dev_data_mutex);
     // We need to copy the data in the device_data Protobuf to return to the caller
     // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
-    int pb_size = dev_data__get_packed_size(device_data);
+    int pb_size = dev_data__get_packed_size(most_recent_dev_data);
     uint8_t* buffer = malloc(pb_size);
-    dev_data__pack(device_data, buffer);
+    dev_data__pack(most_recent_dev_data, buffer);
     DevData* device_copy = dev_data__unpack(NULL, pb_size, buffer);
-    pthread_mutex_unlock(&print_next_dev_data_mutex);
+    pthread_mutex_unlock(&most_recent_dev_data_mutex);
     free(buffer);
     return device_copy;  // must be freed by caller with dev_data__free_unpacked
 }
@@ -586,11 +496,4 @@ void send_timestamp() {
         printf("writen: issue sending timestamp to Dawn\n");
     }
     free(send_buf);
-}
-
-void print_next_dev_data() {
-    pthread_mutex_lock(&print_next_dev_data_mutex);
-    should_print_next_dev_data = true;
-    pthread_mutex_unlock(&print_next_dev_data_mutex);
-    usleep(400000);  // allow time for output_dump to react and generate output before returning to client
 }

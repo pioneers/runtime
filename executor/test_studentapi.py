@@ -25,7 +25,5 @@ def test_api():
     except NotImplementedError:
         pass
 
-    print(studentapi.get_all_params("studentcode"))
-
 if __name__ == '__main__':
     test_api()

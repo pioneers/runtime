@@ -14,8 +14,11 @@
 #include "../runtime_util/runtime_util.h"
 
 /* The maximum number of milliseconds to wait between each DEVICE_PING from a device
- * Waiting for this long will exit all threads for that device (doing cleanup as necessary) */
-#define TIMEOUT 1000
+ * Waiting for this long will exit all threads for that device (doing cleanup as necessary)
+ * TODO: Reduce this from 2000 to 1000; This is a temporary solution to fix KoalaBear timing out
+ * See Issue #236
+ */
+#define TIMEOUT 2000
 
 // The number of milliseconds between each DEVICE_PING sent to the device
 #define PING_FREQ 250
@@ -28,10 +31,8 @@
 #define MESSAGE_ID_SIZE 1
 // The size in bytes of the section specifying the length of the payload in the message
 #define PAYLOAD_LENGTH_SIZE 1
-// The size in bytes of the param bitmap in SUBSCRIPTION_REQUEST, DEVICE_WRITE and DEVICE_DATA payloads
+// The size in bytes of the param bitmap in DEVICE_WRITE and DEVICE_DATA payloads
 #define BITMAP_SIZE (MAX_PARAMS / 8)
-// The size in bytes of the section specifying the interval for SUBSCRIPTION_REQUEST
-#define INTERVAL_SIZE 2
 // The size in bytes of the section specifying the device id for ACKNOWLEDGEMENT
 #define DEVICE_ID_SIZE 10
 // The size in bytes of the section specifying the checksum of the message id, the payload length, and the payload itself
@@ -41,13 +42,12 @@
 
 // The types of messages
 typedef enum {
-    NOP = 0x00,                   // Dummy message
-    DEVICE_PING = 0x01,           // To lowcar
-    ACKNOWLEDGEMENT = 0x02,       // To dev handler
-    SUBSCRIPTION_REQUEST = 0x03,  // To lowcar
-    DEVICE_WRITE = 0x04,          // To lowcar
-    DEVICE_DATA = 0x05,           // To dev handler
-    LOG = 0x06                    // To dev handler
+    NOP = 0x00,              // Dummy message
+    DEVICE_PING = 0x01,      // To lowcar
+    ACKNOWLEDGEMENT = 0x02,  // To dev handler
+    DEVICE_WRITE = 0x03,     // To lowcar
+    DEVICE_DATA = 0x04,      // To dev handler
+    LOG = 0x05               // To dev handler
 } message_id_t;
 
 // A struct defining a message to be sent over serial
@@ -89,20 +89,6 @@ message_t* make_empty(ssize_t payload_size);
  *      max_payload_length 0
  */
 message_t* make_ping();
-
-/**
- * Builds a SUBSCRIPTION_REQUEST
- * Arguments:
- *    dev_type: The type of device. Used to verify params are readable
- *    pmap: param bitmap indicating which params should be subscribed to
- *    interval: The number of milliseconds to wait between each DEVICE_DATA
- * Returns:
- *    A message of type SUBSCRIPTION_REQUEST
- *      Payload: bitmap, then interval
- *      payload_length: sizeof(pmap) + sizeof(interval)
- *      max_payload_length: same as above
- */
-message_t* make_subscription_request(uint8_t dev_type, uint32_t pmap, uint16_t interval);
 
 /**
  * Builds a DEVICE_WRITE
