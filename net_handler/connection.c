@@ -16,8 +16,14 @@ pthread_t dawn_events_tid, dawn_poll_tid, shepherd_events_tid, shepherd_poll_tid
 // The start time of when the tcp connection was created with Dawn
 uint64_t dawn_start_time = -1;
 
+// The last time that a runtime status message was sent
+uint64_t last_sent_status = 0;
+
 // Number of ms between sending each DeviceData to Dawn
 #define DEVICE_DATA_INTERVAL 10
+
+// Maximum number of ms between sending each Runtime Status message
+#define STATUS_INTERVAL 10000
 
 /*
  * Clean up memory and file descriptors before exiting from tcp_process
@@ -98,13 +104,19 @@ static void* tcp_events_thread(void* tcp_args) {
 
         //receive new message on socket if it is ready
         if (FD_ISSET(args->conn_fd, &read_set)) {
-            if ((ret = recv_new_msg(args->conn_fd, args->client)) != 0) {
+            if ((ret = recv_new_msg(args->conn_fd, args->client)) < 0) {
                 if (ret == -1) {
                     log_printf(DEBUG, "client %d has disconnected", args->client);
                     break;
                 } else {
                     log_printf(ERROR, "error parsing message from client %d", args->client);
                 }
+            } else {
+				// if we received a message for which we should send a status update, send a status update
+            	if (ret == (int) RUN_MODE_MSG || ret == (int) START_POS_MSG || ret == (int) GAME_STATE_MSG) {
+            		send_status_msg(args->conn_fd);
+					last_sent_status = millis();
+            	}
             }
         }
     }
@@ -138,8 +150,13 @@ static void* tcp_poll_thread(void* tcp_args) {
                 last_sent_device_data = time;
             }
         }
-        // If enough time has passed, send a Runtime status message
-        // TODO: @Ben/Daniel
+        
+		// If enough time has passed, send runtime status on connection
+		if (time - last_sent_status > STATUS_INTERVAL) {
+			send_status_message(args->conn_fd);
+			last_sent_status = time;
+		}
+		
         pthread_testcancel();  // Make sure we allow cancelling this thread at some point
         usleep(40000);         // Loop throttling
     }

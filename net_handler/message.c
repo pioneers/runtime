@@ -262,6 +262,56 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     free(buffer);  // Free buffer with device data protobuf
 }
 
+/*
+* Send a runtime status message to a client.
+* Arguments:
+    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+*/
+void send_status_msg(int conn_fd) {
+    RuntimeStatus status = RUNTIME_STATUS__INIT;
+	robot_desc_val_t val;
+    int len_pb;
+    uint8_t* buffer;
+	
+	// populate the fields
+	status.shep_connected = (robot_desc_read(SHEPHERD) == CONNECTED) ? 1 : 0;
+	status.dawn_connected = (robot_desc_read(DAWN) == CONNECTED) ? 1 : 0;
+	val = robot_desc_read(RUN_MODE);
+	switch (val) {
+		case IDLE:
+			status.mode = MODE__IDLE;
+			break;
+		case AUTO:
+			status.mode = MODE__AUTO;
+			break;
+		case TELEOP:
+			status.mode = MODE__TELEOP;
+			break;
+		default:
+			log_printf(ERROR, "send_status_msg: Unrecognized mode");
+	}
+	status.battery = 12.0; // change this when we can actually get the battery level
+	status.version = malloc(strlen(RUNTIME_VERSION_STR) + 1);
+	if (status.version == NULL) {
+		log_printf(FATAL, "send_status_msg: Failed to malloc");
+		return;
+	}
+	strcpy(status.version, RUNTIME_VERSION_STR);
+	
+    len_pb = runtime_satus__get_packed_size(&status);
+    buffer = make_buf(RUNTIME_STATUS_MSG, len_pb);
+    runtime_status__pack(&status, buffer + BUFFER_OFFSET);
+
+    // send message on socket
+    if (writen(conn_fd, buffer, len_pb + BUFFER_OFFSET) == -1) {
+        log_printf(ERROR, "send_status_msg: sending status message over socket failed: %s", strerror(errno));
+    }
+
+    // free everything
+	free(status.version); // free version string in status message
+    free(buffer);  // free buffer with device data protobuf
+}
+
 // **************************************** RECEIVE MESSAGES ***************************************** //
 
 /*
@@ -453,7 +503,7 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
  *    - int conn_fd: socket connection's file descriptor from which to read the message
  *    - robot_desc_field_t client: DAWN or SHEPHERD, depending on which connection is being handled
  * Returns: pointer to integer in which return status will be stored
- *      0 if message received and processed
+ *     (int)msg_type where msg_type is the type of the received message on success
  *     -1 if message could not be parsed because client disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
@@ -465,8 +515,10 @@ int recv_new_msg(int conn_fd, robot_desc_field_t client) {
 
     int err = parse_msg(conn_fd, &msg_type, &len_pb, &buf);
     if (err == 0) {  // Means there is EOF while reading which means client disconnected
+		free(buf);
         return -1;
     } else if (err == -1) {  // Means there is some other error while reading
+		free(buf);
         return -2;
     }
 
@@ -504,8 +556,12 @@ int recv_new_msg(int conn_fd, robot_desc_field_t client) {
             break;
         default:
             log_printf(ERROR, "recv_new_msg: unknown message type %d", msg_type);
-            return -2;
+            ret = -2;
     }
     free(buf);
-    return ret;
+    if (ret == 0) {
+    	return (int) msg_type;
+    } else {
+    	return ret;
+    }
 }

@@ -41,6 +41,8 @@
 // The interval (microseconds) at which we wait between detecting connects/disconnects
 #define POLL_INTERVAL 200000
 
+#define RUNTIME_VERSION_STR "1.1.5" // version string: (major version):(minor version):(pull request number)
+
 // enumerated names of processes
 typedef enum process {
     DEV_HANDLER,

@@ -26,6 +26,13 @@ void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg);
 void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time);
 
 /*
+* Send a runtime status message to a client.
+* Arguments:
+    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+*/
+void send_status_msg(int conn_fd);
+
+/*
  * Receives new message from client on TCP connection and processes the message.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor from which to read the message
