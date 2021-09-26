@@ -5,7 +5,6 @@
 #include <stdarg.h>   // to deal with variable-length argument lists arguments
 #include <wordexp.h>  // for wordexp
 
-
 #include "../runtime_util/runtime_util.h"
 
 #define CONFIG_FILE "logger.config"  // path to logger config file

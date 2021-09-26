@@ -400,6 +400,8 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         student_code = argv[1];
     }
+    log_printf(INFO, "Executor initialized");
+
     robot_desc_val_t new_mode = IDLE;
     // Main loop that checks for new run mode in shared memory from the network handler
     while (1) {

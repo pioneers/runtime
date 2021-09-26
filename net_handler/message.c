@@ -69,7 +69,7 @@ void send_log_msg(int conn_fd, FILE* log_file) {
 
 /*
 * Send a timestamp message over TCP with a timestamp attached to the message. The timestamp is when the net_handler on runtime has received the
-* packet and processed it. 
+* packet and processed it.
 * Arguments:
     - int conn_fd: socket connection's file descriptor on which to write to the TCP port
     - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_proto from Dawn
@@ -98,11 +98,6 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     dev_id_t dev_ids[MAX_DEVICES];
     int valid_dev_idxs[MAX_DEVICES];
     uint32_t catalog;
-
-    param_val_t custom_params[UCHAR_MAX];
-    param_type_t custom_types[UCHAR_MAX];
-    char custom_names[UCHAR_MAX][LOG_KEY_LENGTH];
-    uint8_t num_params;
 
     DevData dev_data = DEV_DATA__INIT;
 
@@ -192,8 +187,14 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     }
     device__init(custom);
     dev_data.devices[dev_idx] = custom;
-    log_data_read(&num_params, custom_names, custom_types, custom_params);
-    custom->n_params = num_params + 1;  // + 1 is for the current time
+
+    param_val_t custom_params[UCHAR_MAX];
+    param_type_t custom_types[UCHAR_MAX];
+    char custom_names[UCHAR_MAX][LOG_KEY_LENGTH];
+    uint8_t num_custom_params;
+    log_data_read(&num_custom_params, custom_names, custom_types, custom_params);
+
+    custom->n_params = num_custom_params + 1;  // + 1 is for the current time
     custom->params = malloc(sizeof(Param*) * custom->n_params);
     if (custom->params == NULL) {
         log_printf(FATAL, "send_device_data: Failed to malloc");
@@ -233,7 +234,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
         exit(1);
     }
     param__init(time);
-    custom->params[num_params] = time;
+    custom->params[num_custom_params] = time;
     time->name = "time_ms";
     time->val_case = PARAM__VAL_IVAL;
     time->ival = millis() - dawn_start_time;  // Can only give difference in millisecond since robot start since it is int32, not int64

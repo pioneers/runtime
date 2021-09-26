@@ -47,7 +47,7 @@ static void tcp_conn_cleanup(void* args) {
 }
 
 /*
- * A thread function to handle messages with a specific client. 
+ * A thread function to handle messages with a specific client.
  * This thread waits until a message can be read, reads it, then responds accordingly.
  * It is one of two main control loops for a TCP connection. Sets up connection by opening up pipe to read log messages from
  * and sets up read_set for select(). Then it runs main control loop, using select() to make actions event-driven.
@@ -125,7 +125,7 @@ static void* tcp_events_thread(void* tcp_args) {
  */
 static void* tcp_poll_thread(void* tcp_args) {
     tcp_conn_args_t* args = (tcp_conn_args_t*) tcp_args;
-    uint64_t time = millis();
+    uint64_t time;
     uint64_t last_sent_device_data = 0;
     while (1) {
         // Update time

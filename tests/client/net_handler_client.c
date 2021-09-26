@@ -1,7 +1,7 @@
 #include "net_handler_client.h"
 
 // throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid;        // holds the pid of the net_handler process
+pid_t nh_pid = -1;        // holds the pid of the net_handler process
 pthread_t dump_tid;  // holds the thread id of the output dumper threads
 
 // File pointers
@@ -13,7 +13,7 @@ FILE* null_fp = NULL;        // file pointer to /dev/null
 /**
  * A variable holds the most recent device data received from Runtime
  * - This is updated constantly, and done while holding the lock
- * - Before updating this variable, remember to free it since it holds the previous message 
+ * - Before updating this variable, remember to free it since it holds the previous message
  *   which has memory allocated to it. This prevents memory leak.
  * The mutex must be held whenever we want to access this global variable.
  */
@@ -33,8 +33,8 @@ bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
  * Returns: socket descriptor of new connection; kills net handler and exits on failure
  */
 static int connect_tcp(robot_desc_field_t client) {
-    int sockfd;
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
         printf("socket: failed to create listening socket: %s\n", strerror(errno));
         stop_net_handler();
         exit(1);
@@ -46,9 +46,9 @@ static int connect_tcp(robot_desc_field_t client) {
     }
 
     // set the elements of serv_addr
-    struct sockaddr_in serv_addr = {0};          // initialize everything to 0
-    serv_addr.sin_family = AF_INET;              // use IPv4
-    serv_addr.sin_port = htons(RASPI_TCP_PORT);  // want to connect to raspi port
+    struct sockaddr_in serv_addr = {0};  // initialize everything to 0
+    serv_addr.sin_family = AF_INET;      // use IPv4
+    serv_addr.sin_port = htons(6000);    // want to connect to raspi port
     serv_addr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
 
     // connect to the server
@@ -72,6 +72,7 @@ static int connect_tcp(robot_desc_field_t client) {
 
 void print_dev_data(FILE* file, DevData* dev_data) {
     // display the message's fields.
+    printf("About to print\n");
     for (int i = 0; i < dev_data->n_devices; i++) {
         fprintf(file, "Device No. %d:", i);
         fprintf(file, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
@@ -102,16 +103,12 @@ void print_dev_data(FILE* file, DevData* dev_data) {
  * Arguments:
  *    client: client that we are receiving data as; one of SHEPHERD or DAWN
  *    tcp_fd: file descriptor connected to net_handler from which to read data
- * Returns: 
+ * Returns:
  *    the type of message successfully received and printed out, or
  *    -1 on failure
  */
 static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
     // variables to read messages into
-    Text* msg;
-    net_msg_t msg_type;
-    uint8_t* buf;
-    uint16_t len;
     char client_str[16];
     if (client == SHEPHERD) {
         strcpy(client_str, "SHEPHERD");
@@ -120,6 +117,9 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
     }
 
     // parse message
+    net_msg_t msg_type;
+    uint8_t* buf;
+    uint16_t len;
     if (parse_msg(tcp_fd, &msg_type, &len, &buf) == 0) {
         return -1;
     }
@@ -136,7 +136,8 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         printf("Round Dawn trip: %llu ms\n", final_timestamp - time_stamp_msg->dawn_timestamp);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
     } else if (msg_type == LOG_MSG) {
-        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+        Text* msg = text__unpack(NULL, len, buf);
+        if (msg == NULL) {
             fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
         }
         // unpack the message
@@ -288,21 +289,22 @@ void start_net_handler() {
 }
 
 void stop_net_handler() {
-    // send signal to net_handler and wait for termination
-    if (kill(nh_pid, SIGINT) < 0) {
-        printf("kill net handler: %s\n", strerror(errno));
-    }
-    if (waitpid(nh_pid, NULL, 0) < 0) {
-        printf("waitpid net handler: %s\n", strerror(errno));
+    // send signal to net_handler and wait for terminationZ
+    if (nh_pid != -1) {
+        if (kill(nh_pid, SIGINT) < 0) {
+            printf("kill net handler: %s\n", strerror(errno));
+        }
+        if (waitpid(nh_pid, NULL, 0) < 0) {
+            printf("waitpid net handler: %s\n", strerror(errno));
+        }
     }
 
-    close_output();
-}
-
-void close_output() {
-    // killing net handler should cause dump thread to return, so join with it
+    // Need to cancel thread due to while loop, then join to ensure thread is finished
+    if (pthread_cancel(dump_tid) != 0) {
+        printf("pthread_cancel: canceling output_dump failed: %s\n", strerror(errno));
+    }
     if (pthread_join(dump_tid, NULL) != 0) {
-        printf("pthread_join: output dump\n");
+        printf("pthread_join: joining on output_dump failed: %s\n", strerror(errno));
     }
 
     // close all the file descriptors
@@ -529,7 +531,10 @@ void disconnect_user_input() {
 DevData* get_next_dev_data() {
     pthread_mutex_lock(&most_recent_dev_data_mutex);
     // We need to copy the data in the device_data Protobuf to return to the caller
-    // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
+    // The easiest way I (Ashwin) found was to pack it into a buffer then unpack it again, but this may not be optimal
+    if (most_recent_dev_data == NULL) {
+        return NULL;
+    }
     int pb_size = dev_data__get_packed_size(most_recent_dev_data);
     uint8_t* buffer = malloc(pb_size);
     dev_data__pack(most_recent_dev_data, buffer);

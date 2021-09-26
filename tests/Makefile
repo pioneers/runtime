@@ -19,7 +19,7 @@ clean:
 
 cli: net_handler_cli shm_ui executor_cli dev_handler_cli devices
 
-net_handler_cli: cli/net_handler_cli.* client/net_handler_client.* cli/keyboard_interface.* ../net_handler/net_util.* \
+net_handler_cli: cli/net_handler_cli.* client/net_handler_client.* ../net_handler/net_util.* \
 	../runtime_util/runtime_util.* ../logger/logger.c $(PBC_FILES)
 	$(CC) $^ -o $@ $(LIBS)
 

@@ -6,10 +6,10 @@ services:
             context: .
             dockerfile: docker/Dockerfile
         image: pierobotics/runtime:latest
-        command: bash -c "./runtime build && tail -f /dev/null"
+        command: bash -c "./runtime build && tail -f /dev/null" # tail makes the container run forever
         volumes:
             # Changes in local runtime/ and container /root/runtime are synced
             - .:/root/runtime
         ports:
             - "5005:5005" # Used to connect SoundDevice to localhost
-            - "5006:5006" # Used to connect keyboard_inputs.py with keyboard_interface.c
+            - "5006:5006" # Used to connect keyboard_inputs.py with net_handler_cli
