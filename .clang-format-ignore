@@ -1,2 +1,3 @@
 ./lowcar/lib/*
 ./executor/studentapi.c
+./net_handler/protos/*
