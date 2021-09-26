@@ -15,10 +15,9 @@
 
 /* The maximum number of milliseconds to wait between each DEVICE_PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary)
- * TODO: Reduce this from 2000 to 1000; This is a temporary solution to fix KoalaBear timing out
- * See Issue #236
+ * It's reasonable to match the TIMEOUT that the Arduino uses.
  */
-#define TIMEOUT 2000
+#define TIMEOUT 1000
 
 // The number of milliseconds between each DEVICE_PING sent to the device
 #define PING_FREQ 250

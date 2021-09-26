@@ -273,7 +273,6 @@ void KoalaBear::device_enable() {
     this->pid_enabled_b = TRUE;
 
     this->led->setup_LEDs();
-    this->led->test_LEDs();
 
     pinMode(AIN1, OUTPUT);
     pinMode(AIN2, OUTPUT);
