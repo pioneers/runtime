@@ -38,9 +38,6 @@
 
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
 
-#define CHALLENGE_LEN 128  // The maximum input/output string length for a challenge
-#define CHALLENGE_SOCKET "/tmp/challenge.sock"
-
 // The interval (microseconds) at which we wait between detecting connects/disconnects
 #define POLL_INTERVAL 200000
 
@@ -82,7 +79,6 @@ typedef enum robot_desc_vals {
     IDLE,
     AUTO,
     TELEOP,
-    CHALLENGE,
     // values for robot.dawn, robot.shepherd, robot.gamepad
     CONNECTED,
     DISCONNECTED,
@@ -164,6 +160,15 @@ uint8_t device_name_to_type(char* dev_name);
  *    NULL if the device doesn't exist.
  */
 char* get_device_name(uint8_t dev_type);
+
+/**
+ * Returns a bitmap indicating what parameters are readable for a type of device.
+ * Arguments;
+ *    dev_type: The device type
+ * Returns:
+ *    bitmap where the i-th bit is on iff the i-th parameter exists and is readable
+ */
+uint32_t get_readable_param_bitmap(uint8_t dev_type);
 
 /**
  * Returns a parameter descriptor.

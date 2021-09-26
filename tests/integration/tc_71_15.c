@@ -9,7 +9,7 @@
 
 int main() {
     // Setup
-    start_test("Sanity Write", "sanity_write", "", NO_REGEX);
+    start_test("Sanity Write", "sanity_write", NO_REGEX);
 
     // Connect GeneralTestDevice
     char* dev_name = "GeneralTestDevice";

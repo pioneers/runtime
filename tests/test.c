@@ -110,13 +110,13 @@ static void fprintf_delimiter(FILE* stream, char* format, ...) {
 /**
  * Helper function to start up runtime
  */
-static void start_runtime(char* student_code, char* challenge_code) {
+static void start_runtime(char* student_code) {
     start_shm();
     start_net_handler();
     start_dev_handler();
-    // If student_code is nonempty or challenge_code is nonempty, start executor
-    if (strcmp(student_code, "") != 0 || strcmp(challenge_code, "") != 0) {
-        start_executor(student_code, challenge_code);
+    // If student_code is nonempty is nonempty, start executor
+    if (strcmp(student_code, "") != 0) {
+        start_executor(student_code);
         started_executor = 1;
     }
     // Make sure runtime starts up
@@ -328,7 +328,7 @@ static void end_test() {
  * Creates a pipe to route stdout and stdin to for output handling, spawns the output handler thread.
  * Adds an exit handler which calls end_test to clean up pipes and Runtime processes.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method) {
+void start_test(char* test_description, char* student_code, int comparison_method) {
     fprintf_delimiter(stdout, "Starting Test: \"%s\"", test_description);
     fflush(stdout);
 
@@ -383,7 +383,7 @@ void start_test(char* test_description, char* student_code, char* challenge_code
     }
 
     // Start up runtime
-    start_runtime(student_code, challenge_code);
+    start_runtime(student_code);
 
     // Add exit handler for automatic cleanup
     atexit(end_test);
@@ -507,7 +507,7 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
     print_pass();
 }
 
-/******************** UDP Device Data Check ******************/
+/******************** Device Data Check ******************/
 
 void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid) {
     if (index >= dev_data->n_devices) {
@@ -610,9 +610,6 @@ static void print_run_mode(robot_desc_val_t run_mode) {
         case TELEOP:
             fprintf(stderr, "TELEOP\n");
             break;
-        case CHALLENGE:
-            fprintf(stderr, "CHALLENGE\n");
-            break;
         default:
             fprintf(stderr, "INVALID RUN MODE\n");
             break;
@@ -644,34 +641,6 @@ void check_start_pos(robot_desc_val_t expected_start_pos) {
         fprintf(stderr, "%s\n", (expected_start_pos == LEFT) ? "LEFT" : "RIGHT");
         fprintf_delimiter(stderr, "Got:");
         fprintf(stderr, "%s\n", (curr_start_pos == LEFT) ? "LEFT" : "RIGHT");
-        fail_test();
-    }
-    print_pass();
-}
-
-// *************************** SUBSCRIPTION CHECK **************************** //
-
-void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t process) {
-    // Read current subscriptions by the specified process
-    uint32_t curr_sub_map[MAX_DEVICES + 1];
-    get_sub_requests(curr_sub_map, process);
-
-    // Get the shm idx of the specified device
-    int shm_idx = get_dev_ix_from_uid(dev_uid);
-    if (shm_idx == -1) {  // Specified device is not connected
-        print_fail();
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "Device (0x%016llX) is not connected!\n", dev_uid);
-        fail_test();
-    }
-    if (curr_sub_map[shm_idx + 1] != expected_sub_map) {  // Sub map is not as expected
-        print_fail();
-        fprintf_delimiter(stderr, "Expected:");
-        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, expected_sub_map);
-        fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "Device (0x%016llX) subscriptions: 0x%08X\n", dev_uid, curr_sub_map[shm_idx + 1]);
         fail_test();
     }
     print_pass();

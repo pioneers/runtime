@@ -202,36 +202,6 @@ message_t* make_ping() {
     return ping;
 }
 
-message_t* make_subscription_request(uint8_t dev_type, uint32_t pmap, uint16_t interval) {
-    device_t* dev = get_device(dev_type);
-    // Don't read from non-existent params
-    pmap &= ((uint32_t) -1) >> (MAX_PARAMS - dev->num_params);  // Set non-existent params to 0
-    // Set non-read-able params to 0
-    for (int i = 0; i < MAX_PARAMS; i++) {
-        if (dev->params[i].read == 0) {
-            pmap &= ~(1 << i);  // Set bit i to 0
-        }
-    }
-    message_t* sub_request = malloc(sizeof(message_t));
-    if (sub_request == NULL) {
-        log_printf(FATAL, "make_subscription_request: Failed to malloc");
-        exit(1);
-    }
-    sub_request->message_id = SUBSCRIPTION_REQUEST;
-    sub_request->payload = malloc(BITMAP_SIZE + INTERVAL_SIZE);
-    if (sub_request->payload == NULL) {
-        log_printf(FATAL, "make_subscription_request: Failed to malloc");
-        exit(1);
-    }
-    sub_request->payload_length = 0;
-    sub_request->max_payload_length = BITMAP_SIZE + INTERVAL_SIZE;
-
-    int status = 0;
-    status += append_payload(sub_request, (uint8_t*) &pmap, BITMAP_SIZE);
-    status += append_payload(sub_request, (uint8_t*) &interval, INTERVAL_SIZE);
-    return (status == 0) ? sub_request : NULL;
-}
-
 message_t* make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_values[]) {
     device_t* dev = get_device(dev_type);
     // Don't write to non-existent params

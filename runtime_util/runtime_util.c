@@ -107,7 +107,7 @@ device_t KoalaBear = {
 // This is just here to avoid some errors when using get_device() on CustomDevice
 // Used in niche situations (ex: UDP_TCP_CONVERTER_TEST)for Spring 2021 comp.
 device_t CustomDevice = {
-    .type = MAX_DEVICES,  // Also used this way in udp_conn.c
+    .type = MAX_DEVICES,  // Also used this way in tcp_conn.c
     .name = "CustomDevice",
     .num_params = 1,
     .params = {
@@ -230,6 +230,20 @@ char* get_device_name(uint8_t dev_type) {
         return NULL;
     }
     return device->name;
+}
+
+uint32_t get_readable_param_bitmap(uint8_t dev_type) {
+    device_t* device = get_device(dev_type);
+    if (device == NULL) {
+        return 0;
+    }
+    uint32_t readable_param_bitmap = 0;
+    for (int i = 0; i < device->num_params; i++) {
+        if (device->params->read) {
+            readable_param_bitmap |= (1 << i);
+        }
+    }
+    return readable_param_bitmap;
 }
 
 param_desc_t* get_param_desc(uint8_t dev_type, char* param_name) {

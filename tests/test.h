@@ -36,15 +36,12 @@
  * Arguments:
  *    test_name: a short description of what the test is testing
  *    student_code: python file name of student code, excluding ".py"
- *    challenge_code: python file name of challenge code, excluding ".py"
- *    ** Set both STUDENT_CODE and CHALLENGE_CODE to empty string if executor
- *      is not necessary in the test.
  *    string_checks: number of strings needing to be checked for this test
  *    comparison_method: Whether to use regex for all string matching
  *      in this test (NO_REGEX or REGEX)
  * No return value.
  */
-void start_test(char* test_description, char* student_code, char* challenge_code, int comparison_method);
+void start_test(char* test_description, char* student_code, int comparison_method);
 
 // ******************* STRING OUTPUT COMPRISON FUNCTIONS ******************** //
 
@@ -77,13 +74,13 @@ void add_unordered_string_output(char* output);
  */
 void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_desc_field_t source);
 
-/******************** UDP Device Data Checks ******************/
+/******************** Device Data Checks ******************/
 
 /**
- * Checks that the given device was sent by the UDP thread.
+ * Checks that the given device was received by the client.
  * 
  * Args:
- *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
+ *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
  *  index: index where device should be
  *  type: what type the device should be
  *  uid: what uid the device should be
@@ -95,7 +92,7 @@ void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid)
  * Checks that the device at the given index has a parameter with the given attributes.
  * 
  * Args:
- *  dev_data: Protobuf struct that is outputted by the UDP thread from get_next_device_data()
+ *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
  *  index: index where device should be
  *  param_name: name of parameter to check
  *  param_type: desired type of parameter
@@ -125,20 +122,6 @@ void check_run_mode(robot_desc_val_t expected_run_mode);
  * No return value. (Will exit with status code 1 if incorrect start pos)
  */
 void check_start_pos(robot_desc_val_t expected_start_pos);
-
-// *************************** SUBSCRIPTION CHECK **************************** //
-
-/**
- * Verifies that the current subscriptions are as expected in shared memory.
- * Arguments:
- *    dev_uid: the device uid to check subscriptions on
- *    expected_sub_map: the expected bitmap of parameter subscriptions
- *    process: the process that is expected to have made the aforementioned subscriptions
- *             Choose from: NET_HANDLER, EXECUTOR, or TEST
- *             Set as TEST if it doesn't matter who made the subscription.
- * No return value. (Will exit with status code 1 if incorrect subscriptions)
- */
-void check_sub_requests(uint64_t dev_uid, uint32_t expected_sub_map, process_t process);
 
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 

@@ -1,9 +1,9 @@
 #include "../test.h"
 
 /**
- * This test ensures that received device data on UDP from the
+ * This test ensures that received device data from the
  * perspective of Dawn is as expected when devices are connected
- * and disocnnected by the student.
+ * and disconnected by the student.
  */
 
 #define UID1 0x1234
@@ -18,7 +18,7 @@ int main() {
     int port1, port2, port3;
 
     // setup
-    start_test("receive device data, general", "", "", NO_REGEX);
+    start_test("receive device data, general", "", NO_REGEX);
 
     // poke the system
     // send gamepad state so net_handler starts sending device data packets

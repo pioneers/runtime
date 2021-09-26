@@ -26,7 +26,6 @@ tcpSubstring = "tcp://"
 
 # The ngrok IP addresses
 publicTCPUrl = ""
-publicUDPUrl = ""
 publicSSHUrl = ""
 
 def update_IP_addresses():
@@ -34,7 +33,6 @@ def update_IP_addresses():
     Updates the global variables containing the IP addresses.
     """
     global publicTCPUrl
-    global publicUDPUrl
     global publicSSHUrl
     while True:
         try:
@@ -42,11 +40,6 @@ def update_IP_addresses():
             reqTCP = requests.get(url=requestedTcpUrl)
             parsedTCPRequest = reqTCP.json()
             publicTCPUrl = 'IP Address: ' + parsedTCPRequest["public_url"].replace(tcpSubstring, '') + '\n'
-
-            requestedUdpUrl = 'http://localhost:4040/api/tunnels/converted_udp' # url for the comms tunnel used for udp forwarding
-            reqUDP = requests.get(url=requestedUdpUrl)
-            parsedUDPRequest = reqUDP.json()
-            publicUDPUrl = 'UDP Tunneling: ' + parsedUDPRequest["public_url"].replace(tcpSubstring, '') + '\n'
 
             requestedSshUrl = 'http://localhost:4040/api/tunnels/ssh' # url for the comms tunnel used for ssh
             reqSSH = requests.get(url=requestedSshUrl)
@@ -83,7 +76,6 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     <br>
                     <br>
                     {publicTCPUrl}<br>
-                    {publicUDPUrl}<br>
                     {publicSSHUrl}
                 </p>
             </body>

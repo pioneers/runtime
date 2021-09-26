@@ -46,7 +46,6 @@ int main() {
     // unlink all semaphores
     my_sem_unlink(CATALOG_MUTEX_NAME, "catalog mutex");
     my_sem_unlink(CMDMAP_MUTEX_NAME, "cmd map mutex");
-    my_sem_unlink(SUBMAP_MUTEX_NAME, "sub map mutex");
     my_sem_unlink(INPUTS_MUTEX_NAME, "input mutex");
     my_sem_unlink(RD_MUTEX_NAME, "robot desc mutex");
     my_sem_unlink(LOG_DATA_MUTEX, "log data mutex");

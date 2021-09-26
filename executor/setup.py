@@ -20,6 +20,6 @@ setup(
     name="Student API",
     ext_modules = cythonize([
         Extension("studentapi", sources=sourcefiles, libraries=libraries)
-    ], compiler_directives={'language_level' : '3', 'boundscheck': False}),
+    ], compiler_directives={'language_level' : '3', 'boundscheck': False, 'embedsignature': True}),
     zip_safe=False,
 )

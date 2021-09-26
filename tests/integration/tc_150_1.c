@@ -5,7 +5,7 @@
  */
 
 int main() {
-    start_test("keyboard_input", "keyboard_input", "", NO_REGEX);
+    start_test("keyboard_input", "keyboard_input", NO_REGEX);
 
     connect_virtual_device("SimpleTestDevice", 20);
     sleep(1);
@@ -16,11 +16,11 @@ int main() {
     check_inputs(buttons, garbage, KEYBOARD);
 
     send_run_mode(SHEPHERD, TELEOP);
-    sleep(.1);
+    sleep(1);
 
     buttons = get_key_bit("y");
     send_user_input(buttons, garbage, KEYBOARD);
-    sleep(.8);
+    sleep(1);
     check_inputs(buttons, garbage, KEYBOARD);
     sleep(1);
 
@@ -32,7 +32,7 @@ int main() {
     send_user_input(buttons, garbage, KEYBOARD);
     sleep(1);
     check_inputs(buttons, garbage, KEYBOARD);
-    sleep(.2);
+    sleep(1);
 
     param_val_t expected = {.p_i = 123454321};
     same_param_value("SimpleTestDevice", 20, "MY_INT", INT, expected);

@@ -6,7 +6,6 @@ dual_sem_t sems[MAX_DEVICES];  // array of semaphores, two for each possible dev
 dev_shm_t* dev_shm_ptr;        // points to memory-mapped shared memory block for device data and commands
 sem_t* catalog_sem;            // semaphore used as a mutex on the catalog
 sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
-sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
 input_shm_t* input_shm_ptr;    // points to memory-mapped shared memory block for user inputs
 robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
@@ -214,7 +213,6 @@ static void shm_close() {
     }
     my_sem_close(catalog_sem, "catalog sem");
     my_sem_close(cmd_map_sem, "cmd map sem");
-    my_sem_close(sub_map_sem, "sub map sem");
     my_sem_close(input_sem, "inputs_mutex");
     my_sem_close(rd_sem, "robot_desc_mutex");
     my_sem_close(log_data_sem, "log data mutex");
@@ -274,7 +272,6 @@ void shm_init() {
     // open all the semaphores
     catalog_sem = my_sem_open(CATALOG_MUTEX_NAME, "catalog mutex");
     cmd_map_sem = my_sem_open(CMDMAP_MUTEX_NAME, "cmd map mutex");
-    sub_map_sem = my_sem_open(SUBMAP_MUTEX_NAME, "sub map mutex");
     input_sem = my_sem_open(INPUTS_MUTEX_NAME, "inputs mutex");
     rd_sem = my_sem_open(RD_MUTEX_NAME, "robot desc mutex");
     log_data_sem = my_sem_open(LOG_DATA_MUTEX, "log data mutex");
@@ -364,7 +361,6 @@ void device_connect(dev_id_t* dev_id, int* dev_ix) {
     // wait on associated data and command sems
     my_sem_wait(sems[*dev_ix].data_sem, "data_sem");
     my_sem_wait(sems[*dev_ix].command_sem, "command_sem");
-    my_sem_wait(sub_map_sem, "sub_map_sem");
 
     // fill in dev_id for that device with provided values
     dev_shm_ptr->dev_ids[*dev_ix].type = dev_id->type;
@@ -380,15 +376,6 @@ void device_connect(dev_id_t* dev_id, int* dev_ix) {
         dev_shm_ptr->params[COMMAND][*dev_ix][i] = (const param_val_t){0};
     }
 
-    // reset executor subscriptions to off
-    dev_shm_ptr->exec_sub_map[0] &= ~(1 << *dev_ix);
-    dev_shm_ptr->exec_sub_map[*dev_ix + 1] = 0;
-
-    // reset net_handler subscriptions to on
-    dev_shm_ptr->net_sub_map[0] |= 1 << *dev_ix;
-    dev_shm_ptr->net_sub_map[*dev_ix + 1] = -1;
-
-    my_sem_post(sub_map_sem, "sub_map_sem");
     // release associated data and command sems
     my_sem_post(sems[*dev_ix].data_sem, "data_sem");
     my_sem_post(sems[*dev_ix].command_sem, "command_sem");
@@ -472,79 +459,6 @@ int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint3
     // call the helper to do the actual reading
     device_write_helper(dev_ix, process, stream, params_to_write, params);
     return 0;
-}
-
-int place_sub_request(uint64_t dev_uid, process_t process, uint32_t params_to_sub) {
-    int dev_ix;              // dev_ix that we're operating on
-    uint32_t* curr_sub_map;  // sub map that we're operating on
-
-    // validate request and obtain dev_ix, sub_map
-    if (process != NET_HANDLER && process != EXECUTOR) {
-        log_printf(ERROR, "place_sub_request: calling place_sub_request from incorrect process %u", process);
-        return -1;
-    }
-    if ((dev_ix = get_dev_ix_from_uid(dev_uid)) == -1) {
-        log_printf(ERROR, "place_sub_request: no device at dev_uid = %llu, sub request failed", dev_uid);
-        return -1;
-    }
-    curr_sub_map = (process == NET_HANDLER) ? dev_shm_ptr->net_sub_map : dev_shm_ptr->exec_sub_map;
-
-    // wait on sub_map_sem
-    my_sem_wait(sub_map_sem, "sub_map_sem");
-
-    // only fill in params_to_sub if it's different from what's already there
-    if (curr_sub_map[dev_ix + 1] != params_to_sub) {
-        curr_sub_map[dev_ix + 1] = params_to_sub;
-        curr_sub_map[0] |= (1 << dev_ix);  // turn on corresponding bit
-    }
-
-    // release sub_map_sem
-    my_sem_post(sub_map_sem, "sub_map_sem");
-
-    return 0;
-}
-
-void get_sub_requests(uint32_t sub_map[MAX_DEVICES + 1], process_t process) {
-    // wait on sub_map_sem
-    my_sem_wait(sub_map_sem, "sub_map_sem");
-
-    // bitwise OR the changes into sub_map[0]; if no changes then return
-    if (process == NET_HANDLER) {
-        sub_map[0] = dev_shm_ptr->net_sub_map[0];
-    } else if (process == EXECUTOR) {
-        sub_map[0] = dev_shm_ptr->exec_sub_map[0];
-    } else {
-        sub_map[0] = dev_shm_ptr->net_sub_map[0] | dev_shm_ptr->exec_sub_map[0];
-    }
-
-    if (sub_map[0] == 0 && process == DEV_HANDLER) {
-        my_sem_post(sub_map_sem, "sub_map_sem");
-        return;
-    }
-
-    // bitwise OR each valid element together into sub_map[i]
-    for (int i = 1; i < MAX_DEVICES + 1; i++) {
-        if (dev_shm_ptr->catalog & (1 << (i - 1))) {  // if device exists
-            if (process == NET_HANDLER) {
-                sub_map[i] = dev_shm_ptr->net_sub_map[i];
-            } else if (process == EXECUTOR) {
-                sub_map[i] = dev_shm_ptr->exec_sub_map[i];
-            } else {
-                sub_map[i] = dev_shm_ptr->net_sub_map[i] | dev_shm_ptr->exec_sub_map[i];
-            }
-        } else {
-            sub_map[0] &= ~(1 << (i - 1));
-            sub_map[i] = 0;
-        }
-    }
-
-    if (process == DEV_HANDLER) {
-        // reset the change indicator eleemnts in net_sub_map and exec_sub_map
-        dev_shm_ptr->net_sub_map[0] = dev_shm_ptr->exec_sub_map[0] = 0;
-    }
-
-    // release sub_map_sem
-    my_sem_post(sub_map_sem, "sub_map_sem");
 }
 
 void get_cmd_map(uint32_t bitmap[MAX_DEVICES + 1]) {

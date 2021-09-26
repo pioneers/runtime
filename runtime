@@ -6,7 +6,7 @@
 # Examples:
 #     runtime build                      (to run build.sh)
 #     runtime run                        (to run run.sh)
-#     runtime test integration/tc_68_2   (to run the automated test tc_68_2)
+#     runtime test integration/tc_71_2   (to run the automated test tc_71_2)
 
 RUNTIME_DIR=$(dirname "${BASH_SOURCE[0]}")
 
