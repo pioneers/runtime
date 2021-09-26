@@ -31,7 +31,7 @@ void Device::loop() {
                 // If this is the first DEVICE_PING received, send an ACKNOWLEDGEMENT
                 if (!this->enabled) {
                     this->msngr->send_message(MessageID::ACKNOWLEDGEMENT, &(this->curr_msg), &(this->dev_id));
-                    this->msngr->lowcar_printf("Device type %d with UID ending in %X contacted; sent ACK", (uint8_t) this->dev_id.type, this->dev_id.uid);
+                    this->msngr->lowcar_printf("Device type %d, UID 0x...%X sent ACK", (uint8_t) this->dev_id.type, this->dev_id.uid);
                     this->enabled = TRUE;
                     device_enable();
                 }
@@ -51,7 +51,7 @@ void Device::loop() {
     }
 
     // If it's been too long since we received a DEVICE_PING, disable the device
-    if ((this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
+    if (this->enabled && (this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
         this->enabled = FALSE;
     }

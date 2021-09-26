@@ -20,8 +20,9 @@ class Device {
      * Arguments:
      *    dev_type: The type of device (ex: LimitSwitch)
      *    dev_year: The device year
-     *    timeout: the maximum number of milliseconds to wait for a PING from
+     *    timeout: the maximum number of milliseconds to wait between PING messages from
      *      dev handler before disabling
+     *      It's reasonable to match the TIMEOUT that dev handler uses.
      */
     Device(DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000);
 
