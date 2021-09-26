@@ -14,6 +14,7 @@ async def dawn_to_runtime(websocket, writer):
             data = await websocket.recv()
             print("Received data from Dawn:", len(data), "bytes")
         except websockets.exceptions.ConnectionClosed:
+            print("dawn_to_runtime: closed connection")
             return
         writer.write(data)
         await writer.drain()
@@ -27,6 +28,7 @@ async def runtime_to_dawn(websocket, reader):
             await websocket.send(data)
             print("Sent Runtime data to Dawn")
         except websockets.exceptions.ConnectionClosed:
+            print("runtime_to_dawn: closed connection")
             return
 
 async def converter(websocket, path):
@@ -35,7 +37,7 @@ async def converter(websocket, path):
     await asyncio.gather(dawn_to_runtime(websocket, writer), runtime_to_dawn(websocket, reader), return_exceptions=True)
 
 async def main():
-    async with websockets.serve(converter, "127.0.0.1", WEBSOCKET_PORT) as server:
+    async with websockets.serve(converter, "127.0.0.1", WEBSOCKET_PORT, ping_interval=None) as server:
         print("Started Websocket Converter")
         await asyncio.Future()  # run forever
 
