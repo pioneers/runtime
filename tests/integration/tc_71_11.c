@@ -8,7 +8,7 @@
 
 int main() {
     // Setup
-    start_test("Simple Device Read", "", "", NO_REGEX);
+    start_test("Simple Device Read", "", NO_REGEX);
 
     // Connect a device
     char* dev_name = "SimpleTestDevice";
@@ -32,7 +32,5 @@ int main() {
     vals_before[2].p_b = 1 - vals_before[2].p_b;  // FLIP_FLOP: Opposite truth value
     same_param_value(dev_name, UID, "FLIP_FLOP", BOOL, vals_before[2]);
 
-    // Stop all processes
-    end_test();
     return 0;
 }

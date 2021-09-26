@@ -1,13 +1,11 @@
 [Unit]
-Description=Ngrok startup process for Runtime
-After=converter.service
+Description=Serves a webpage that displays the ngrok tunnel IP addresses.
 
 [Service]
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/runtime/systemd/
-ExecStartPre=/bin/sleep 1
-ExecStart=/home/pi/runtime/systemd/ngrok.sh
+ExecStart=python3 ngrok_displayer.py
 ExecReload=/bin/kill -SIGINT $MAINPID
 
 [Install]

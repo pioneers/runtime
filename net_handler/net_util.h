@@ -5,6 +5,7 @@
 #include <netinet/in.h>  //for structures relating to IPv4 addresses
 #include <pthread.h>     //for threading
 #include <signal.h>      //for signal
+#include <stdbool.h>     // for booleans
 #include <stdio.h>
 #include <stdlib.h>  //for malloc, free, exit
 #include <string.h>  //for strcpy, memset
@@ -23,13 +24,10 @@
 #include "pbc_gen/run_mode.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
+#include "pbc_gen/timestamp.pb-c.h"
 
 #define RASPI_ADDR "127.0.0.1"  // The IP address of Runtime (Raspberry Pi) that clients can request a connection to
 #define RASPI_TCP_PORT 8101     // Port for Runtime as a TCP socket server
-#define SHEPHERD_PORT 6101      // Port for Shepherd as a TCP socket client
-#define DAWN_PORT 7101          // Port for Dawn as a TCP socket client
-
-#define RASPI_UDP_PORT 9000  // Port for Runtime as a UDP socket server
 
 #define MAX_NUM_LOGS 16  // Maximum number of logs that can be sent in one msg
 
@@ -39,11 +37,11 @@
 typedef enum net_msg {
     RUN_MODE_MSG,
     START_POS_MSG,
-    CHALLENGE_DATA_MSG,
     LOG_MSG,
     DEVICE_DATA_MSG,
     GAME_STATE_MSG,
-    INPUTS_MSG  // used for converter testing; remove after 2021 Spring Comp...maybe
+    INPUTS_MSG,  // used for converter testing; remove after 2021 Spring Comp...maybe
+    TIME_STAMP_MSG
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //

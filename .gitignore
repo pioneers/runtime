@@ -1,28 +1,29 @@
-# Ignore everything
+# ignore everything
 *
 
-# Unignore all with extensions
+# unignore all with extension
 !*.*
 
-# Unignore all directories
+# unignore all directories
 !*/
 
-# Unignore Makefiles
-!Makefile
+# unignore all Makefile
+!*/Makefile
 
-# Unignore Dockerfile
-!Dockerfile
-
-### Above combination will ignore all files without extension, except MakeFiles ###
+# unignore all Dockerfile
+!*/Dockerfile
 
 # ignore the entire lowcar/Device folder
 lowcar/Device
+
+# ignore the entire net_handler/pbc_gen folder
+net_handler/pbc_gen
 
 # Log files
 *.log
 
 # Cython build files
-studentapi.c
+*studentapi.c
 
 # Python build files
 *.pyc

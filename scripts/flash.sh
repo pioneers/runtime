@@ -36,15 +36,17 @@ CLEAN=0                   # whether or not the clean option was specified
 
 # prints the usage of this flash script
 function usage {
-    printf "Usage: flash [-cht] [-s UID] device_type\n"
+    printf "Usage: flash [-cht] [-s UID] [-p port] device_type\n"
     printf "\t-c: short for \"Clean\"; removes the \"Device\" folder and all symbolic links\n"
     printf "\t-h: short for \"Help\": displays this help message\n"
+    printf "\t-p: short for \"Port\": manually specify the port file path of the Arduino to flash\n"
     printf "\t-s: short for \"Set\"; manually set the UID for the device (input taken in hex, do not prefix \"0x\")\n"
     printf "\t-t: short for \"Test\"; set the UID for the device to \"0x123456789ABCDEF\"\n\n"
     printf "Examples:\n"
     printf "\tTo flash a DummyDevice: flash DummyDevice\n"
     printf "\tTo flash a DummyDevice specifying the UID \"ABCDEF\": flash -s ABCDEF DummyDevice\n"
     printf "\tTo flash a DummyDevice with the test UID \"123456789ABCDEF\": flash -t DummyDevice\n"
+    printf "\tTo flash a DummyDevice that is at the port \"/dev/ttyACM1\": flash -p /dev/ttyACM1 DummyDevice\n"
     printf "\tTo clean up directories without flashing anything: flash -c\n\n"
     printf "Valid values for \"device type\" are listed below:\n\n"
     
@@ -53,7 +55,29 @@ function usage {
     done
     printf "\n"
     
-    printf "Remember that you need to install arduino-cli first before you can use this flash script!\n\n"
+    printf "Valid values for \"port\" are listed below:\n\n"
+    num_ports=0 # counts the number of valid ports for the -p flag
+    line_num=0
+    while read line; do
+        line_num=$(( line_num + 1 ))
+        
+        # if first line, or line contains "Unknown" or is blank, then skip
+        if [[ $line_num == 1 || $line == *"Unknown"* || $line == "" ]]; then
+            continue
+        fi
+        
+        # arduino-cli has reported a flashable Arduino; increment num_ports and print the port path
+        num_ports=$(( num_ports + 1 ))
+        device_port=$(echo $line | awk '{ print $1 }') # save the port name in this line temporarily
+        printf "\t$device_port\n"
+    done <<< "$(arduino-cli board list)"
+    
+    # Print a message if there are no valid ports
+    if [[ $num_ports == 0 ]]; then
+        printf "\tFlash script could not find any flashable Arduinos attached to this computer!\n"
+    fi
+    printf "\n"
+    
     exit 1
 }
 
@@ -82,8 +106,18 @@ function check_device {
 # parse command-line options
 function parse_opts {
     # process the command-line arguments
-    while getopts "s:cth" opt; do
+    while getopts "p:s:cth" opt; do
         case $opt in
+            p)
+                # check to make sure that the p flag was specified with valid path
+                if [[ -e $OPTARG ]]; then
+                    DEVICE_PORT=$OPTARG
+                    printf "\nSpecified device port path $OPTARG exists\n\n"
+                else
+                    printf "\nERROR: Specified device port path $OPTARG does not exist\n\n"
+                    usage
+                fi
+                ;;
             s)
                 # check to make sure that s flag was specified with hexadecimal digits
                 if [[ $OPTARG =~ [:xdigit:] ]]; then
@@ -130,7 +164,14 @@ function get_board_info {
         fi
         
         # we found the board! now fill in the global variables
-        DEVICE_PORT=$(echo $line | awk '{ print $1 }')
+        device_port_temp=$(echo $line | awk '{ print $1 }') # save the port name in this line temporarily
+        
+        # if -p flag was specified and the specified path is not in this line of output, skip it
+        if [[ ($DEVICE_PORT != "empty") && ($DEVICE_PORT != $device_port_temp) ]]; then
+            continue
+        fi
+        
+        DEVICE_PORT=$device_port_temp
         DEVICE_FQBN=$(echo $line | awk '{ 
                 for (i=1; i<=NF; i++) {
                     tmp=match($i, /arduino:(avr|samd):.*/)
@@ -312,18 +353,17 @@ arduino-cli config init
 # update the core index (see arduino-cli documentation)
 arduino-cli core update-index
 
+# symlink libraries
+symlink_libs
+
+# insert uid and requested device into Device_template, copy into Device/Device.ino
+make_device_ino
+
 # get the device port, board, fqbn, and core
 get_board_info
 
 # install this device's core
 arduino-cli core install $DEVICE_CORE
-
-# symlink libraries
-get_lib_install_dir
-symlink_libs
-
-# insert uid and requested device into Device_template, copy into Device/Device.ino
-make_device_ino
 
 # compile the code
 printf "\nCompiling code...\n\n"

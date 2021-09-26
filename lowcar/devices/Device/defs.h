@@ -6,6 +6,10 @@
 
 // The maximum number of parameters for a lowcar device
 #define MAX_PARAMS 32
+
+// Number of milliseconds between sending data to Runtime
+#define DATA_INTERVAL_MS 1
+
 // The size of the param bitmap used in various messages (8 bits in a byte)
 #define PARAM_BITMAP_BYTES (MAX_PARAMS / 8)
 
@@ -38,17 +42,16 @@ enum class Digital : uint8_t {
 
 /* The types of messages */
 enum class MessageID : uint8_t {
-    NOP = 0x00,                   // Dummy message
-    PING = 0x01,                  // To lowcar
-    ACKNOWLEDGEMENT = 0x02,       // To dev handler
-    SUBSCRIPTION_REQUEST = 0x03,  // To lowcar
-    DEVICE_WRITE = 0x04,          // To lowcar
-    DEVICE_DATA = 0x05,           // To dev handler
-    LOG = 0x06                    // To dev handler
+    NOP = 0x00,              // Dummy message
+    DEVICE_PING = 0x01,      // To lowcar
+    ACKNOWLEDGEMENT = 0x02,  // To dev handler
+    DEVICE_WRITE = 0x03,     // To lowcar
+    DEVICE_DATA = 0x04,      // To dev handler
+    LOG = 0x05               // To dev handler
 };
 
 // identification for device types
-enum class DeviceType : uint16_t {
+enum class DeviceType : uint8_t {
     DUMMY_DEVICE = 0x00,
     LIMIT_SWITCH = 0x01,
     LINE_FOLLOWER = 0x02,

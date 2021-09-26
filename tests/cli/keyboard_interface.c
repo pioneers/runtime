@@ -53,15 +53,12 @@ int connect_tcp() {
         exit(0);
     }
 
-    printf("connect_tcp: Keyboard waiting for client\n");
-
     if ((listen(sockfd, 5)) != 0) {
         printf("connect_tcp: listen failed...\n");
         exit(0);
     }
     socklen_t len = sizeof(cli);
     connfd = accept(sockfd, (struct sockaddr*) &cli, &len);
-    printf("connect_tcp: Accepted client\n");
     if (connfd < 0) {
         printf("connect_tcp: server accept failed...\n");
         exit(0);
@@ -83,8 +80,10 @@ void setup_keyboard() {
     char keyboard_buff[NUM_KEYBOARD_BUTTONS + 1];
 
     // Start getting keyboard inputs
-    printf("setup_keyboard: Connecting keyboard\n");
     int fd = connect_tcp();
+
+    printf("Keyboard waiting for user input\n");
+
     // Receive a bitstring of buttons and parse it
     while (1) {
         // Reset buttons/joysticks
@@ -146,7 +145,7 @@ void setup_keyboard() {
         // Set bitmap for keyboard
         for (int i = 0; i < NUM_KEYBOARD_BUTTONS; i++) {
             if (keyboard_buff[i] == '1') {
-                keyboard_buttons |= (1L << i);
+                keyboard_buttons |= (((uint64_t) 1) << i);
             }
         }
 

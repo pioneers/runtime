@@ -1,20 +1,27 @@
 #include "net_handler_client.h"
 
 // throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid;                           // holds the pid of the net_handler process
-struct sockaddr_in udp_servaddr = {0};  // holds the udp server address
-pthread_t dump_tid;                     // holds the thread id of the output dumper threads
-pthread_mutex_t print_udp_mutex;        // lock over whether to print the next received udp
-int print_next_udp;                     // 0 if we want to suppress incoming dev data, 1 to print incoming dev data to stdout
-int hypothermia_enabled = 0;            // 0 if hypothermia enabled, 1 if disabled
+pid_t nh_pid;        // holds the pid of the net_handler process
+pthread_t dump_tid;  // holds the thread id of the output dumper threads
 
-int nh_tcp_shep_fd = -1;      // holds file descriptor for TCP Shepherd socket
-int nh_tcp_dawn_fd = -1;      // holds file descriptor for TCP Dawn socket
-int nh_udp_fd = -1;           // holds file descriptor for UDP Dawn socket
-FILE* default_tcp_fp = NULL;  // holds default output location of incoming TCP messages (stdout if NULL)
-FILE* tcp_output_fp = NULL;   // holds current output location of incoming TCP messages
-FILE* udp_output_fp = NULL;   // holds current output location of incoming UDP messages
-FILE* null_fp = NULL;         // file pointer to /dev/null
+// File pointers
+int nh_tcp_shep_fd = -1;     // holds file descriptor for TCP Shepherd socket
+int nh_tcp_dawn_fd = -1;     // holds file descriptor for TCP Dawn socket
+FILE* tcp_output_fp = NULL;  // holds current output location of incoming TCP messages
+FILE* null_fp = NULL;        // file pointer to /dev/null
+
+/**
+ * A variable holds the most recent device data received from Runtime
+ * - This is updated constantly, and done while holding the lock
+ * - Before updating this variable, remember to free it since it holds the previous message 
+ *   which has memory allocated to it. This prevents memory leak.
+ * The mutex must be held whenever we want to access this global variable.
+ */
+pthread_mutex_t most_recent_dev_data_mutex;  // lock over the following two variables
+DevData* most_recent_dev_data = NULL;        // Holds the most recent device_data received from Runtime
+
+// 2021 Game Specific
+bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
 
 // ************************************* HELPER FUNCTIONS ************************************** //
 
@@ -23,7 +30,7 @@ FILE* null_fp = NULL;         // file pointer to /dev/null
  * as the specified client.
  * Arguments:
  *    client: the client to connect as, one of DAWN or SHEPHERD
- * Returns: socket descriptor of new connection; exits on failure
+ * Returns: socket descriptor of new connection; kills net handler and exits on failure
  */
 static int connect_tcp(robot_desc_field_t client) {
     int sockfd;
@@ -36,20 +43,6 @@ static int connect_tcp(robot_desc_field_t client) {
     int optval = 1;
     if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(int))) != 0) {
         printf("setsockopt: failed to set listening socket for reuse of port: %s\n", strerror(errno));
-    }
-
-    // set the elements of cli_addr
-    struct sockaddr_in cli_addr = {0};                                                   // initialize everything to 0
-    cli_addr.sin_family = AF_INET;                                                       // use IPv4
-    cli_addr.sin_port = (client == SHEPHERD) ? htons(SHEPHERD_PORT) : htons(DAWN_PORT);  // use specifid port to connect
-    cli_addr.sin_addr.s_addr = htonl(INADDR_ANY);                                        // use any address set on this machine to connect
-
-    // bind the client side too, so that net_handler can verify it's the proper client
-    if ((bind(sockfd, (struct sockaddr*) &cli_addr, sizeof(struct sockaddr_in))) != 0) {
-        printf("bind: failed to bind listening socket to client port: %s\n", strerror(errno));
-        close(sockfd);
-        stop_net_handler();
-        exit(1);
     }
 
     // set the elements of serv_addr
@@ -74,76 +67,44 @@ static int connect_tcp(robot_desc_field_t client) {
         stop_net_handler();
         exit(1);
     }
-
     return sockfd;
 }
 
-/**
- * Function to receive data from net_handler on the UDP port
- * Arguments:
- *    udp_fd: file descriptor connected to UDP socket receiving data from net_handler
- */
-static void recv_udp_data(int udp_fd) {
-    int max_size = 4096;
-    uint8_t msg[max_size];
-    struct sockaddr_in recvaddr;
-    socklen_t addrlen = sizeof(recvaddr);
-    int recv_size;
-
-    // receive message from udp socket
-    if ((recv_size = recvfrom(udp_fd, msg, max_size, 0, (struct sockaddr*) &recvaddr, &addrlen)) < 0) {
-        fprintf(udp_output_fp, "recvfrom: %s\n", strerror(errno));
-    }
-
-    // unpack the data
-    DevData* dev_data = dev_data__unpack(NULL, recv_size, msg);
-    if (dev_data == NULL) {
-        printf("Error unpacking incoming message\n");
-    }
-
+void print_dev_data(FILE* file, DevData* dev_data) {
     // display the message's fields.
     for (int i = 0; i < dev_data->n_devices; i++) {
-        fprintf(udp_output_fp, "Device No. %d:", i);
-        fprintf(udp_output_fp, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
-        fprintf(udp_output_fp, "\tParams:\n");
+        fprintf(file, "Device No. %d:", i);
+        fprintf(file, "\ttype = %s, uid = %llu, itype = %d\n", dev_data->devices[i]->name, dev_data->devices[i]->uid, dev_data->devices[i]->type);
+        fprintf(file, "\tParams:\n");
         for (int j = 0; j < dev_data->devices[i]->n_params; j++) {
-            fprintf(udp_output_fp, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
+            fprintf(file, "\t\tparam \"%s\" has type ", dev_data->devices[i]->params[j]->name);
             switch (dev_data->devices[i]->params[j]->val_case) {
                 case (PARAM__VAL_FVAL):
-                    fprintf(udp_output_fp, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
+                    fprintf(file, "FLOAT with value %f\n", dev_data->devices[i]->params[j]->fval);
                     break;
                 case (PARAM__VAL_IVAL):
-                    fprintf(udp_output_fp, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
+                    fprintf(file, "INT with value %d\n", dev_data->devices[i]->params[j]->ival);
                     break;
                 case (PARAM__VAL_BVAL):
-                    fprintf(udp_output_fp, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
+                    fprintf(file, "BOOL with value %s\n", dev_data->devices[i]->params[j]->bval ? "True" : "False");
                     break;
                 default:
-                    fprintf(udp_output_fp, "ERROR: no param value");
+                    fprintf(file, "ERROR: no param value");
                     break;
             }
         }
     }
-
-    // free the unpacked message
-    dev_data__free_unpacked(dev_data, NULL);
-    fflush(udp_output_fp);
-
-    // if we were asked to print the last UDP message, set output back to /dev/null
-    pthread_mutex_lock(&print_udp_mutex);
-    if (print_next_udp) {
-        print_next_udp = 0;
-        udp_output_fp = null_fp;
-    }
-    pthread_mutex_unlock(&print_udp_mutex);
 }
 
 /**
- * Function to receive data as either Dawn or Shepherd on the connection
+ * Function to receive data as either Dawn or Shepherd on the connection.
+ * Receives the next message on the TCP socket and prints out the contents.
  * Arguments:
  *    client: client that we are receiving data as; one of SHEPHERD or DAWN
  *    tcp_fd: file descriptor connected to net_handler from which to read data
- * Returns: 0 on success, -1 on failure
+ * Returns: 
+ *    the type of message successfully received and printed out, or
+ *    -1 on failure
  */
 static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
     // variables to read messages into
@@ -163,28 +124,47 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         return -1;
     }
 
-    // unpack the message
-    if ((msg = text__unpack(NULL, len, buf)) == NULL) {
-        fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
-    }
-
-    // print the incoming message
-    if (msg_type == LOG_MSG) {
+    if (msg_type == TIME_STAMP_MSG) {
+        TimeStamps* time_stamp_msg = time_stamps__unpack(NULL, len, buf);
+        if (time_stamp_msg == NULL) {
+            fprintf(tcp_output_fp, "Cannot unpack time_stamp msg");
+        }
+        uint64_t final_timestamp = millis();
+        printf("First Dawn Timestamp: %llu ms\n", time_stamp_msg->dawn_timestamp);
+        printf("Runtime Timestamp: %llu ms\n", time_stamp_msg->runtime_timestamp);
+        printf("Final Dawn Timestamp: %llu ms\n", final_timestamp);
+        printf("Round Dawn trip: %llu ms\n", final_timestamp - time_stamp_msg->dawn_timestamp);
+        time_stamps__free_unpacked(time_stamp_msg, NULL);
+    } else if (msg_type == LOG_MSG) {
+        if ((msg = text__unpack(NULL, len, buf)) == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
+        // unpack the message
         for (int i = 0; i < msg->n_payload; i++) {
             fprintf(tcp_output_fp, "%s", msg->payload[i]);
         }
-    } else if (msg_type == CHALLENGE_DATA_MSG) {
-        for (int i = 0; i < msg->n_payload; i++) {
-            fprintf(tcp_output_fp, "Challenge %d result: %s\n", i, msg->payload[i]);
+        fflush(tcp_output_fp);
+        text__free_unpacked(msg, NULL);
+    } else if (msg_type == DEVICE_DATA_MSG) {
+        // Update the global variable containing the most recent device data
+        pthread_mutex_lock(&most_recent_dev_data_mutex);
+        // Free the previous most recent device data
+        if (most_recent_dev_data != NULL) {
+            dev_data__free_unpacked(most_recent_dev_data, NULL);
         }
+        most_recent_dev_data = dev_data__unpack(NULL, len, buf);
+        if (most_recent_dev_data == NULL) {
+            fprintf(tcp_output_fp, "Error unpacking incoming message from %s\n", client_str);
+        }
+        pthread_mutex_unlock(&most_recent_dev_data_mutex);
+    } else {
+        fprintf(tcp_output_fp, "Invalid message received over tcp from %s\n", client_str);
+        msg_type = -1;  // Set the return value as -1 to indicate failure
     }
-    fflush(tcp_output_fp);
 
     // free allocated memory
     free(buf);
-    text__free_unpacked(msg, NULL);
-
-    return 0;
+    return msg_type;
 }
 
 /**
@@ -204,16 +184,19 @@ static void* output_dump(void* args) {
     // set up the read_set argument for select()
     fd_set read_set;
     int maxfd = (nh_tcp_dawn_fd > nh_tcp_shep_fd) ? nh_tcp_dawn_fd : nh_tcp_shep_fd;
-    maxfd = (nh_udp_fd > maxfd) ? nh_udp_fd : maxfd;
     maxfd++;
 
+    // Initialize the output file to stdout
+    if (tcp_output_fp == NULL) {
+        tcp_output_fp = stdout;
+    }
+
     // wait for net handler to create some output, then print that output to stdout of this process
-    while (1) {
-        // set up the read_set argument to selct()
+    while (true) {
+        // set up the read_set argument to select()
         FD_ZERO(&read_set);
         FD_SET(nh_tcp_shep_fd, &read_set);
         FD_SET(nh_tcp_dawn_fd, &read_set);
-        FD_SET(nh_udp_fd, &read_set);
 
         // prepare to accept cancellation requests over the select
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -226,47 +209,63 @@ static void* output_dump(void* args) {
         // deny all cancellation requests until the next loop
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-        // enable tcp output if more than enable_thresh has passed between last time and previous time
-        if (FD_ISSET(nh_tcp_shep_fd, &read_set) || FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
-            curr_time = millis();
-            if (curr_time - last_received_time >= enable_threshold) {
-                less_than_disable_thresh = 0;
-                if (default_tcp_fp == NULL) {
-                    tcp_output_fp = stdout;
-                } else {
-                    tcp_output_fp = default_tcp_fp;
-                }
-            }
-            if (curr_time - last_received_time <= disable_threshold) {
-                less_than_disable_thresh++;
-                if (less_than_disable_thresh == sample_size) {
-                    printf("Suppressing output: too many messages...\n\n");
-                    fflush(tcp_output_fp);
-                    tcp_output_fp = null_fp;
-                }
-            }
-            last_received_time = curr_time;
-        }
-
         // print stuff from whichever file descriptors are ready for reading...
+        int msg_type = -1;
         if (FD_ISSET(nh_tcp_shep_fd, &read_set)) {
-            if (recv_tcp_data(SHEPHERD, nh_tcp_shep_fd) == -1) {
+            if ((msg_type = recv_tcp_data(SHEPHERD, nh_tcp_shep_fd)) == -1) {
                 return NULL;
             }
         }
         if (FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
-            if (recv_tcp_data(DAWN, nh_tcp_dawn_fd) == -1) {
+            if ((msg_type = recv_tcp_data(DAWN, nh_tcp_dawn_fd)) == -1) {
                 return NULL;
             }
         }
-        if (FD_ISSET(nh_udp_fd, &read_set)) {
-            recv_udp_data(nh_udp_fd);
+
+        // enable tcp output if more than enable_thresh has passed between last time and previous time
+        // It's expected to be spammed with Device Data messages, so we do this logic for only other message types
+        if (msg_type != DEVICE_DATA_MSG) {
+            if (FD_ISSET(nh_tcp_shep_fd, &read_set) || FD_ISSET(nh_tcp_dawn_fd, &read_set)) {
+                curr_time = millis();
+                if (curr_time - last_received_time >= enable_threshold) {  // Start printing output again
+                    less_than_disable_thresh = 0;
+                    tcp_output_fp = stdout;
+                }
+                if (curr_time - last_received_time <= disable_threshold) {  // Too many messages; Set output to /dev/null
+                    less_than_disable_thresh++;
+                    if (less_than_disable_thresh == sample_size) {
+                        printf("Suppressing output: too many messages...\n\n");
+                        fflush(tcp_output_fp);
+                        tcp_output_fp = null_fp;
+                    }
+                }
+                last_received_time = curr_time;
+            }
         }
     }
     return NULL;
 }
 
 // ************************************* NET HANDLER CLIENT FUNCTIONS ************************** //
+
+void connect_clients(bool dawn, bool shepherd) {
+    // Connect Dawn and Shepherd to net handler over TCP
+    nh_tcp_dawn_fd = (dawn) ? connect_tcp(DAWN) : -1;
+    nh_tcp_shep_fd = (shepherd) ? connect_tcp(SHEPHERD) : -1;
+
+    // open /dev/null, which will be used to disable log output if there are too many logs
+    null_fp = fopen("/dev/null", "w");
+
+    // init the mutex that will control whether device data messages should be printed to screen
+    if (pthread_mutex_init(&most_recent_dev_data_mutex, NULL) != 0) {
+        printf("pthread_mutex_init: print device data mutex\n");
+    }
+
+    // start the thread that is dumping output from net_handler to stdout of this process
+    if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
+        printf("pthread_create: output dump\n");
+    }
+}
 
 void start_net_handler() {
     // fork net_handler process
@@ -277,42 +276,14 @@ void start_net_handler() {
         if (chdir("../net_handler") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
-
         // exec the actual net_handler process
         if (execlp("./net_handler", "net_handler", NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
-
-    } else {       // parent
-        sleep(1);  // allows net_handler to set itself up
-
-        // connect to the raspi networking ports to catch network output
-        nh_tcp_dawn_fd = connect_tcp(DAWN);
-        nh_tcp_shep_fd = connect_tcp(SHEPHERD);
-        if ((nh_udp_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
-            printf("socket: UDP socket creation failed...\n");
-            stop_net_handler();
-            exit(1);
-        }
-        udp_servaddr.sin_family = AF_INET;
-        udp_servaddr.sin_addr.s_addr = inet_addr(RASPI_ADDR);
-        udp_servaddr.sin_port = htons(RASPI_UDP_PORT);
-
-        // open /dev/null
-        null_fp = fopen("/dev/null", "w");
-
-        // init the mutex that will control whether udp prints to screen
-        if (pthread_mutex_init(&print_udp_mutex, NULL) != 0) {
-            printf("pthread_mutex_init: print udp mutex\n");
-        }
-        print_next_udp = 0;
-        udp_output_fp = null_fp;  // by default set to output to /dev/null
-
-        // start the thread that is dumping output from net_handler to stdout of this process
-        if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
-            printf("pthread_create: output dump\n");
-        }
-        usleep(400000);  // allow time for thread to dump output before returning to client
+    } else {                    // parent
+        sleep(1);               // allows net_handler to set itself up
+        connect_clients(1, 1);  // Connect both fake Dawn and fake Shepherd
+        usleep(400000);         // allow time for thread to dump output before returning to client
     }
 }
 
@@ -340,9 +311,6 @@ void close_output() {
     }
     if (nh_tcp_dawn_fd != -1) {
         close(nh_tcp_dawn_fd);
-    }
-    if (nh_udp_fd != -1) {
-        close(nh_udp_fd);
     }
 }
 
@@ -400,11 +368,11 @@ void send_game_state(robot_desc_field_t state) {
         case (HYPOTHERMIA):
             if (hypothermia_enabled) {
                 game_state.state = STATE__HYPOTHERMIA_END;
-                hypothermia_enabled = 0;
+                hypothermia_enabled = false;
                 break;
             } else {
                 game_state.state = STATE__HYPOTHERMIA_START;
-                hypothermia_enabled = 1;
+                hypothermia_enabled = true;
                 break;
             }
         default:
@@ -484,15 +452,18 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     }
 
     uint16_t len = user_inputs__get_packed_size(&inputs);
-    uint8_t* send_buf = malloc(len);
+    uint8_t* send_buf = make_buf(INPUTS_MSG, len);
     if (send_buf == NULL) {
         printf("send_user_input: Failed to malloc buffer\n");
         exit(1);
     }
-    user_inputs__pack(&inputs, send_buf);
+    user_inputs__pack(&inputs, send_buf + BUFFER_OFFSET);
 
     // send the message
-    sendto(nh_udp_fd, send_buf, len, 0, (struct sockaddr*) &udp_servaddr, sizeof(struct sockaddr_in));
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("send_user_input: Error when sending UserInput message");
+        exit(1);
+    }
 
     // free everything
     free(input.axes);
@@ -500,115 +471,29 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     free(send_buf);
 }
 
-void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges) {
-    Text challenge_data = TEXT__INIT;
+DevData* get_next_dev_data() {
+    pthread_mutex_lock(&most_recent_dev_data_mutex);
+    // We need to copy the data in the device_data Protobuf to return to the caller
+    // The easiest way I found was to pack it into a buffer then unpack it again, but this may not be optimal
+    int pb_size = dev_data__get_packed_size(most_recent_dev_data);
+    uint8_t* buffer = malloc(pb_size);
+    dev_data__pack(most_recent_dev_data, buffer);
+    DevData* device_copy = dev_data__unpack(NULL, pb_size, buffer);
+    pthread_mutex_unlock(&most_recent_dev_data_mutex);
+    free(buffer);
+    return device_copy;  // must be freed by caller with dev_data__free_unpacked
+}
+
+void send_timestamp() {
+    TimeStamps timestamp_msg = TIME_STAMPS__INIT;
     uint8_t* send_buf;
     uint16_t len;
-
-    // build the message
-    challenge_data.payload = data;
-    challenge_data.n_payload = num_challenges;
-    len = text__get_packed_size(&challenge_data);
-    send_buf = make_buf(CHALLENGE_DATA_MSG, len);
-    text__pack(&challenge_data, send_buf + BUFFER_OFFSET);
-
-    // send the message
-    if (client == SHEPHERD) {
-        if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending challenge data message to shepherd\n");
-        }
-    } else {
-        if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending challenge data message to shepherd\n");
-        }
+    timestamp_msg.dawn_timestamp = millis();
+    len = time_stamps__get_packed_size(&timestamp_msg);
+    send_buf = make_buf(TIME_STAMP_MSG, len);
+    time_stamps__pack(&timestamp_msg, send_buf + BUFFER_OFFSET);
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("writen: issue sending timestamp to Dawn\n");
     }
     free(send_buf);
-    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
-}
-
-void send_device_subs(dev_subs_t* subs, int num_devices) {
-    DevData dev_data = DEV_DATA__INIT;
-    uint8_t* send_buf;
-    uint16_t len;
-
-    // build the message
-    device_t* curr_device;
-    uint8_t curr_type;
-    dev_data.n_devices = num_devices;
-    dev_data.devices = malloc(sizeof(Device*) * num_devices);
-    if (dev_data.devices == NULL) {
-        printf("send_device_subs: Failed to malloc\n");
-        exit(1);
-    }
-
-    // set each device
-    for (int i = 0; i < num_devices; i++) {
-        if ((curr_type = device_name_to_type(subs[i].name)) == (uint8_t) -1) {
-            printf("ERROR: no such device \"%s\"\n", subs[i].name);
-        }
-        // fill in device fields
-        curr_device = get_device(curr_type);
-        Device* dev = malloc(sizeof(Device));
-        if (dev == NULL) {
-            printf("send_device_subs: Failed to malloc\n");
-            exit(1);
-        }
-        device__init(dev);
-        dev->name = curr_device->name;
-        dev->uid = subs[i].uid;
-        dev->type = curr_type;
-        dev->n_params = curr_device->num_params;
-        dev->params = malloc(sizeof(Param*) * curr_device->num_params);
-        if (dev->params == NULL) {
-            printf("send_device_subs: Failed to malloc\n");
-            exit(1);
-        }
-
-        // set each param
-        for (int j = 0; j < curr_device->num_params; j++) {
-            // fill in param fields
-            Param* prm = malloc(sizeof(Param));
-            if (prm == NULL) {
-                printf("send_device_subs: Failed to malloc\n");
-                exit(1);
-            }
-            param__init(prm);
-            prm->val_case = PARAM__VAL_BVAL;
-            prm->bval = (subs[i].params & (1 << j)) ? 1 : 0;
-            dev->params[j] = prm;
-        }
-        dev_data.devices[i] = dev;
-    }
-    len = dev_data__get_packed_size(&dev_data);
-    send_buf = make_buf(DEVICE_DATA_MSG, len);
-    dev_data__pack(&dev_data, send_buf + BUFFER_OFFSET);
-
-    // send the message
-    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-        printf("writen: issue sending device subs message to shepherd\n");
-    }
-
-    // free everything
-    for (int i = 0; i < num_devices; i++) {
-        for (int j = 0; j < dev_data.devices[i]->n_params; j++) {
-            free(dev_data.devices[i]->params[j]);
-        }
-        free(dev_data.devices[i]->params);
-        free(dev_data.devices[i]);
-    }
-    free(dev_data.devices);
-    usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
-}
-
-
-void print_next_dev_data() {
-    pthread_mutex_lock(&print_udp_mutex);
-    print_next_udp = 1;
-    udp_output_fp = stdout;
-    pthread_mutex_unlock(&print_udp_mutex);
-    usleep(400000);  // allow time for output_dump to react and generate output before returning to client
-}
-
-void update_tcp_output_fp(char* output_address) {
-    default_tcp_fp = fopen(output_address, "w");
 }

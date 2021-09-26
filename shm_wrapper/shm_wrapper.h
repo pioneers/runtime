@@ -3,7 +3,8 @@
 
 #include <limits.h>     // for UCHAR_MAX
 #include <semaphore.h>  // for semaphores
-#include <sys/mman.h>   // for posix shared memory
+#include <stdbool.h>
+#include <sys/mman.h>  // for posix shared memory
 
 #include "../logger/logger.h"              // for logger
 #include "../runtime_util/runtime_util.h"  // for runtime constants
@@ -12,7 +13,6 @@
 #define DEV_SHM_NAME "/dev-shm"        // name of shared memory block across devices
 #define CATALOG_MUTEX_NAME "/cat-sem"  // name of semaphore used as a mutex on the catalog
 #define CMDMAP_MUTEX_NAME "/cmap-sem"  // name of semaphore used as a mutex on the command bitmap
-#define SUBMAP_MUTEX_NAME "/smap-sem"  // name of semaphore used as a mutex on the various subcription bitmaps
 
 #define INPUTS_SHM_NAME "/inputs-shm"    // name of shared memory block for inputs
 #define INPUTS_MUTEX_NAME "/inputs-sem"  // name of semaphore used as mutex over inputs shm
@@ -37,8 +37,6 @@ typedef enum stream {
 typedef struct {
     uint32_t catalog;                                // catalog of valid devices
     uint32_t cmd_map[MAX_DEVICES + 1];               // bitmap is 33 32-bit integers (changed devices and changed params of device commands from executor to dev_handler)
-    uint32_t net_sub_map[MAX_DEVICES + 1];           // bitmap is 33 32-bit integers (changed devices and changed params in which data net_handler is subscribed to)
-    uint32_t exec_sub_map[MAX_DEVICES + 1];          // bitmap is 33 32-bit integers (changed devices and changed params in which data executor is subscribed to)
     param_val_t params[2][MAX_DEVICES][MAX_PARAMS];  // all the device parameter info, data and commands
     dev_id_t dev_ids[MAX_DEVICES];                   // all the device identification info
 } dev_shm_t;
@@ -85,7 +83,6 @@ extern dual_sem_t sems[MAX_DEVICES];  // array of semaphores, two for each possi
 extern dev_shm_t* dev_shm_ptr;        // points to memory-mapped shared memory block for device data and commands
 extern sem_t* catalog_sem;            // semaphore used as a mutex on the catalog
 extern sem_t* cmd_map_sem;            // semaphore used as a mutex on the command bitmap
-extern sem_t* sub_map_sem;            // semaphore used as a mutex on the subscription bitmap
 
 extern input_shm_t* input_shm_ptr;    // points to memory-mapped shared memory block for user inputs
 extern robot_desc_shm_t* rd_shm_ptr;  // points to memory-mapped shared memory block for robot description
@@ -96,6 +93,9 @@ extern log_data_shm_t* log_data_shm_ptr;  // points to shared memory block for l
 extern sem_t* log_data_sem;               // semaphore used as a mutex on the log data
 
 // ******************************************* WRAPPER FUNCTIONS ****************************************** //
+
+// Returns true iff shared memory exists.
+bool shm_exists();
 
 /**
  * Function that generates a semaphore name for the data and command streams
@@ -185,31 +185,6 @@ int device_write(int dev_ix, process_t process, stream_t stream, uint32_t params
  * the device that should be written, rather than the device index.
  */
 int device_write_uid(uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params);
-
-/**
- * Send a sub request to dev_handler for a particular device. Takes care of updating the changed bits.
- * Should only be called by executor and net_handler
- * Arguments:
- *    dev_uid: unique 64-bit identifier of the device
- *    process: the calling process (will error if not EXECUTOR or NET_HANDLER)
- *    params_to_sub: bitmap representing params to subscribe to (nonexistent params should have corresponding bits set to 0)
- * Returns:
- *    0 on success
- *    -1 on failure (unrecognized process, or device is not connect in shm)
- */
-int place_sub_request(uint64_t dev_uid, process_t process, uint32_t params_to_sub);
-
-/**
- * Get current subscription requests for all devices.
- * Arguments:
- *    sub_map[MAX_DEVICES + 1]: bitwise OR of the executor and net_handler sub_maps that will be put into this provided buffer
- *        (expects an array of 33 elements, where the 0th index is a bitmap indicating which devices require a new sub request to be sent,
- *        and the remaining 32 elements indicate what the subscription request to each device should be if there are changes)
- *    process: If EXECUTOR, fills with executor subscriptions. If NET_HANDLER, fills with net_handler subscriptions.
- *             If neither EXECUTOR nor NET_HANDLER, fill with subscriptions of both EXECUTOR and NET_HANDLER.
- *             If DEV_HANDLER, also reset bitmap indicating which devices have new subscriptions.
- */
-void get_sub_requests(uint32_t sub_map[MAX_DEVICES + 1], process_t process);
 
 /**
  * Should be called from all processes that want to know current state of the command map (i.e. device handler)

@@ -1,17 +1,28 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
+#include <stdbool.h>
 #include <sys/wait.h>
 #include "../../net_handler/net_util.h"
 
-typedef struct {
-    uint64_t uid;     // what the uid of this device is
-    char* name;       // name of this device ("KoalaBear", "LimitSwitch", etc.)
-    uint32_t params;  // which params to subscribe to
-} dev_subs_t;
+/**
+ * Helper function to print out contents of a DevData message
+ * Arguments:
+ *    file: file to output printout to 
+ *    dev_data: the unpacked device data message to print
+ */
+void print_dev_data(FILE* file, DevData* dev_data);
 
 /**
- * Starts the real net handler process and connects to all of its outputs
+ * Connects clients to an already existing instance of runtime.
+ * Arguments:
+ *    dawn: Whether to connect a fake Dawn
+ *    shepherd: Whether to connect a fake Shepherd
+ */
+void connect_clients(bool dawn, bool shepherd);
+
+/**
+ * Starts a new instance of net handler and connects a fake Dawn and fake Shepherd.
  * Sets everything up for querying from the CLI or from a test.
  */
 void start_net_handler();
@@ -53,7 +64,7 @@ void send_game_state(robot_desc_field_t state);
 void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
 
 /**
- * Sends a Gamepad State message from Dawn over UDP with the specified buttons pushed and joystick values
+ * Sends a Gamepad State message from (fake) Dawn with the specified buttons pushed and joystick values
  * Arguments:
  *    - buttons: bitmap of which buttons are pressed. mappings are in runtime_util.h
  *    - joystick_vals[4]: values for the four joystick values. mappings are in runtime_util.h
@@ -63,36 +74,17 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos);
 void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_t source);
 
 /**
- * Sends a Challenge Data message from the specified client with the specified data
- * Arguments:
- *    - client: one of SHEPHERD or DAWN
- *    - data: array of strings, each containing the input to the corresponding challenge
- *	  - num_challenges: number of challenge inputs sent, must match the number of challenges in "executor/challenges.txt"
- * No return value.
+ * Calling this function will return the most recent device data packet coming into Dawn from Runtime.
+ * NOTE: you must free the pointer returned by this function using dev_data__free_unpacked
  */
-void send_challenge_data(robot_desc_field_t client, char** data, int num_challenges);
+DevData* get_next_dev_data();
 
 /**
- * Sends device subscriptions from Dawn over TCP with the specified device subscriptions
- * Arguments:
- *    - subs: contains the subscriptions for the devices' parameters
- *    - num_devices: contains number of devices for which we are sending subscription requests
- * No return value.
+ * Sends a Timestamp message with a "Dawn" timestamp attached to it. It is then received by the tcp_conn, where it 
+ * sends a new Timestamp message with the "Runtime" timestamp attached to it. Finally it comes back around to "net_handler_client"
+ * where it parses the message and calculates how much time it took to go to tcp_conn and back
+ * No return value
  */
-void send_device_subs(dev_subs_t* subs, int num_devices);
-
-/**
- * Calling this function will let the next device data packet coming into Dawn from Runtime
- * to be printed to standard output (since device data packets are constantly coming in, they
- * are normally suppressed; this function unsuppresses one single packet).
- */
-void print_next_dev_data();
-
-/**
- * Updates the file pointer receiving TCP messages coming into Dawn or Shepherd.
- * Arguments:
- *    - output_address: address of the file stream for new output destination
- */
-void update_tcp_output_fp(char* output_address);
+void send_timestamp();
 
 #endif

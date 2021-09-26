@@ -7,6 +7,7 @@
 #include <fcntl.h>       // for file opening constants (O_CREAT, O_RDONLY, O_RDWR, etc.)
 #include <pthread.h>     // for thread-functions: pthread_create, pthread_cancel, pthread_join, etc.
 #include <signal.h>      // for setting signal function (setting signal handler)
+#include <stdbool.h>     // for standard boolean types
 #include <stdint.h>      // for uint32_t, int16_t, uint8_t, etc.
 #include <stdio.h>       // for printf, perror, fprintf, fopen, etc.
 #include <stdlib.h>      // for malloc, free
@@ -36,9 +37,6 @@
 #define NUM_GAMEPAD_JOYSTICKS 4
 
 #define MAX_LOG_LEN 512  // The maximum number of characters in a log message
-
-#define CHALLENGE_LEN 128  // The maximum input/output string length for a challenge
-#define CHALLENGE_SOCKET "/tmp/challenge.sock"
 
 // The interval (microseconds) at which we wait between detecting connects/disconnects
 #define POLL_INTERVAL 200000
@@ -81,7 +79,6 @@ typedef enum robot_desc_vals {
     IDLE,
     AUTO,
     TELEOP,
-    CHALLENGE,
     // values for robot.dawn, robot.shepherd, robot.gamepad
     CONNECTED,
     DISCONNECTED,
@@ -163,6 +160,15 @@ uint8_t device_name_to_type(char* dev_name);
  *    NULL if the device doesn't exist.
  */
 char* get_device_name(uint8_t dev_type);
+
+/**
+ * Returns a bitmap indicating what parameters are readable for a type of device.
+ * Arguments;
+ *    dev_type: The device type
+ * Returns:
+ *    bitmap where the i-th bit is on iff the i-th parameter exists and is readable
+ */
+uint32_t get_readable_param_bitmap(uint8_t dev_type);
 
 /**
  * Returns a parameter descriptor.
