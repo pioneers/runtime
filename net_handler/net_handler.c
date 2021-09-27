@@ -56,10 +56,10 @@ static int socket_setup(int* sockfd) {
 static void sigint_handler(int sig_num) {
     log_printf(INFO, "Stopping net_handler...");
     if (robot_desc_read(SHEPHERD) == CONNECTED) {
-        stop_tcp_conn(SHEPHERD);
+        stop_conn(SHEPHERD);
     }
     if (robot_desc_read(DAWN) == CONNECTED) {
-        stop_tcp_conn(DAWN);
+        stop_conn(DAWN);
     }
     //sockfd and connfd are automatically closed when process terminates
     exit(0);
@@ -143,17 +143,17 @@ int main() {
                 log_printf(DEBUG, "Starting Shepherd connection");
             } else {  // Shepherd is already connected, but it's probably dead. This new connection is likely Shepherd trying to reconnect.
                 log_printf(DEBUG, "Restarting Shepherd connection");
-                stop_tcp_conn(SHEPHERD);
+                stop_conn(SHEPHERD);
             }
-            start_tcp_conn(SHEPHERD, connfd, 0);
+            start_conn(SHEPHERD, connfd, 0);
         } else if (client_id == 1 && cli_addr.sin_family == AF_INET) {
             if (robot_desc_read(DAWN) == DISCONNECTED) {
                 log_printf(DEBUG, "Starting Dawn connection");
             } else {  // Dawn is already connected, but it's probably dead. This new connection is likely Dawn trying to reconnect.
                 log_printf(DEBUG, "Restarting Dawn connection");
-                stop_tcp_conn(DAWN);
+                stop_conn(DAWN);
             }
-            start_tcp_conn(DAWN, connfd, 1);
+            start_conn(DAWN, connfd, 1);
         } else {
             log_printf(ERROR, "Client is neither Dawn nor Shepherd");
             close(connfd);

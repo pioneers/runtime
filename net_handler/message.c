@@ -7,8 +7,9 @@
  * or it has read MAX_NUM_LOGS lines from the pipe, packages the message, and sends it.
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+ *    - pthread_mutex_t* conn_lock: lock over the connection socket
  */
-void send_log_msg(int conn_fd, FILE* log_file) {
+void send_log_msg(int conn_fd, FILE* log_file, pthread_mutex_t* conn_lock) {
     char nextline[MAX_LOG_LEN];  //next log line read from FIFO pipe
     Text log_msg = TEXT__INIT;   //initialize a new Text protobuf message
     log_msg.n_payload = 0;       // The number of logs in this payload
@@ -54,10 +55,20 @@ void send_log_msg(int conn_fd, FILE* log_file) {
     uint8_t* send_buf = make_buf(LOG_MSG, len_pb);
     text__pack(&log_msg, send_buf + BUFFER_OFFSET);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
 
+	// acquire lock
+	if (pthread_mutex_lock(conn_lock) != 0) {
+		log_printf(ERROR, "send_log_msg: failed to acquire lock: %s", strerror(errno));
+	}
+
     //send message on socket
     if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_log_msg: sending log message over socket failed: %s", strerror(errno));
     }
+	
+	// release lock
+	if (pthread_mutex_unlock(conn_lock) != 0) {
+		log_printf(ERROR, "send_log_msg: failed to release lock: %s", strerror(errno));
+	}
 
     //free all allocated memory
     for (int i = 0; i < log_msg.n_payload; i++) {
@@ -68,21 +79,34 @@ void send_log_msg(int conn_fd, FILE* log_file) {
 }
 
 /*
-* Send a timestamp message over TCP with a timestamp attached to the message. The timestamp is when the net_handler on runtime has received the
-* packet and processed it. 
-* Arguments:
-    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
-    - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_proto from Dawn
-*/
-void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg) {
+ * Send a timestamp message over TCP with a timestamp attached to the message. The timestamp is when the net_handler on runtime has received the
+ * packet and processed it. 
+ * Arguments:
+ *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+ *    - pthread_mutex_t* conn_lock: lock over the connection socket
+ *    - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_proto from Dawn 
+ */
+void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg, pthread_mutex_t* conn_lock) {
     dawn_timestamp_msg->runtime_timestamp = millis();
     uint16_t len_pb = time_stamps__get_packed_size(dawn_timestamp_msg);
     uint8_t* send_buf = make_buf(TIME_STAMP_MSG, len_pb);
     time_stamps__pack(dawn_timestamp_msg, send_buf + BUFFER_OFFSET);
+	
+	// acquire lock
+	if (pthread_mutex_lock(conn_lock) != 0) {
+		log_printf(ERROR, "send_timestamp_msg: failed to acquire lock: %s", strerror(errno));
+	}
+	
+	// send message on socket
     if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_timestamp_msg: sending log message over socket failed: %s", strerror(errno));
     }
     free(send_buf);
+	
+	// release lock
+	if (pthread_mutex_unlock(conn_lock) != 0) {
+		log_printf(ERROR, "send_timestamp_msg: failed to release lock: %s", strerror(errno));
+	}
 }
 
 /**
@@ -90,8 +114,9 @@ void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg) {
  * Arguments:
  *    - int dawn_socket_fd: socket fd for Dawn connection
  *    - uint64_t dawn_start_time: time that Dawn connection started, for calculating time in CustomData
+ *    - pthread_mutex_t* conn_lock: lock over the connection socket
  */
-void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
+void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time, pthread_mutex_t* conn_lock) {
     int len_pb;
     uint8_t* buffer;
 
@@ -244,11 +269,21 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     len_pb = dev_data__get_packed_size(&dev_data);
     buffer = make_buf(DEVICE_DATA_MSG, len_pb);
     dev_data__pack(&dev_data, buffer + BUFFER_OFFSET);
+	
+	// acquire lock
+	if (pthread_mutex_lock(conn_lock) != 0) {
+		log_printf(ERROR, "send_device_data: failed to acquire lock: %s", strerror(errno));
+	}
 
     //send message on socket
     if (writen(dawn_socket_fd, buffer, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_device_data: sending log message over socket failed: %s", strerror(errno));
     }
+	
+	// release lock
+	if (pthread_mutex_unlock(conn_lock) != 0) {
+		log_printf(ERROR, "send_device_data: failed to release lock: %s", strerror(errno));
+	}
 
     //free everything
     for (int i = 0; i < dev_data.n_devices; i++) {
@@ -263,11 +298,12 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
 }
 
 /*
-* Send a runtime status message to a client.
-* Arguments:
-    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
-*/
-void send_status_msg(int conn_fd) {
+ * Send a runtime status message to a client.
+ * Arguments:
+ *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+ *    - pthread_mutex_t* conn_lock: lock over the connection socket 
+ */
+void send_status_msg(int conn_fd, pthread_mutex_t* conn_lock) {
     RuntimeStatus status = RUNTIME_STATUS__INIT;
 	robot_desc_val_t val;
     int len_pb;
@@ -298,14 +334,24 @@ void send_status_msg(int conn_fd) {
 	}
 	strcpy(status.version, RUNTIME_VERSION_STR);
 	
-    len_pb = runtime_satus__get_packed_size(&status);
+    len_pb = runtime_status__get_packed_size(&status);
     buffer = make_buf(RUNTIME_STATUS_MSG, len_pb);
     runtime_status__pack(&status, buffer + BUFFER_OFFSET);
+
+	// acquire lock
+	if (pthread_mutex_lock(conn_lock) != 0) {
+		log_printf(ERROR, "send_status_msg: failed to acquire lock: %s", strerror(errno));
+	}
 
     // send message on socket
     if (writen(conn_fd, buffer, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_status_msg: sending status message over socket failed: %s", strerror(errno));
     }
+	
+	// release lock
+	if (pthread_mutex_unlock(conn_lock) != 0) {
+		log_printf(ERROR, "send_status_msg: failed to acquire lock: %s", strerror(errno));
+	}
 
     // free everything
 	free(status.version); // free version string in status message
@@ -446,17 +492,18 @@ static int process_game_state_msg(uint8_t* buf, uint16_t len_pb) {
  *    - int conn_fd: file descriptor of socket to send timestamp message back to Dawn
  *    - uint8_t *buf: buffer containing packed protobuf with run mode message
  *    - uint16_t len_pb: length of buf
+ *    - pthread_mutex_t* conn_lock: lock over the connection socket 
  * Returns:
  *      0 on success (message was processed correctly)
  *     -1 on error unpacking message
  */
-static int process_time_stamp_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
+static int process_time_stamp_msg(int conn_fd, uint8_t* buf, uint16_t len_pb, pthread_mutex_t* conn_lock) {
     TimeStamps* time_stamp_msg = time_stamps__unpack(NULL, len_pb, buf);
     if (time_stamp_msg == NULL) {
         log_printf(ERROR, "recv_new_msg: Cannot unpack time_stamp msg");
         return -1;
     }
-    send_timestamp_msg(conn_fd, time_stamp_msg);
+    send_timestamp_msg(conn_fd, time_stamp_msg, conn_lock);
     time_stamps__free_unpacked(time_stamp_msg, NULL);
 
     return 0;
@@ -502,12 +549,13 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
  * Arguments:
  *    - int conn_fd: socket connection's file descriptor from which to read the message
  *    - robot_desc_field_t client: DAWN or SHEPHERD, depending on which connection is being handled
+ *    - pthread_mutex_t* conn_lock: lock over the connection socket
  * Returns: pointer to integer in which return status will be stored
  *     (int)msg_type where msg_type is the type of the received message on success
  *     -1 if message could not be parsed because client disconnected and connection closed
  *     -2 if message could not be unpacked or other error
  */
-int recv_new_msg(int conn_fd, robot_desc_field_t client) {
+int recv_new_msg(int conn_fd, robot_desc_field_t client, pthread_mutex_t* conn_lock) {
     net_msg_t msg_type;  //message type
     uint16_t len_pb;     //length of incoming serialized protobuf message
     uint8_t* buf;        //buffer to read raw data into
@@ -543,7 +591,7 @@ int recv_new_msg(int conn_fd, robot_desc_field_t client) {
             }
             break;
         case TIME_STAMP_MSG:
-            if (process_time_stamp_msg(conn_fd, buf, len_pb) != 0) {
+            if (process_time_stamp_msg(conn_fd, buf, len_pb, conn_lock) != 0) {
                 log_printf(ERROR, "recv_new_msg: error processing time stamp");
                 ret = -2;
             }
