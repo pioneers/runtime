@@ -22,7 +22,7 @@ sem_t* log_data_sem;               // semaphore used as a mutex on the log data
  * 
  * Depending on the state of Runtime, it may be wise to emergency stop the robot.
  * Note that this does not block further commands to move the robot; that should be implemented
- * in the student API.
+ * in the student API. (This sends only ONE stop command that can be overwritten if not careful.)
  * 
  * The implementation of this function may change annually based on the relevant
  * devices and parameters.
@@ -31,18 +31,17 @@ sem_t* log_data_sem;               // semaphore used as a mutex on the log data
  */
 static void stop_robot() {
     uint8_t koalabear = device_name_to_type("KoalaBear");
+    uint32_t params_to_write = (1 << get_param_idx(koalabear, "velocity_a")) | (1 << get_param_idx(koalabear, "velocity_b"));
     // Get currently connected devices
     uint32_t catalog = 0;
     get_catalog(&catalog);
     dev_id_t dev_ids[MAX_DEVICES] = {0};
     get_device_identifiers(dev_ids);
-    uint32_t params_to_write = 0;
-    param_val_t params_zero[MAX_PARAMS] = {0};
     // Zero out parameters that move the robot
+    param_val_t params_zero[MAX_PARAMS] = {0};
     for (int i = 0; i < MAX_DEVICES; i++) {
         if (catalog & (1 << i)) {  // Device i is connected
             if (dev_ids[i].type == koalabear) {
-                params_to_write = get_param_idx(koalabear, "velocity_a") | get_param_idx(koalabear, "velocity_b");
                 device_write(i, SHM, COMMAND, params_to_write, params_zero);
             }
         }
@@ -180,9 +179,8 @@ static void device_write_helper(int dev_ix, process_t process, stream_t stream, 
         }
     }
 
-    // turn on flag if executor is sending a command to the device
-    // if stream = downstream and process = executor then also update params bitmap
-    if (process == EXECUTOR && stream == COMMAND) {
+    // If writing a command, update the command map to indicate which param should be changed
+    if (stream == COMMAND) {
         // wait on cmd_map_sem
         my_sem_wait(cmd_map_sem, "cmd_map_sem @device_write");
 
@@ -514,14 +512,26 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val) {
     // wait on rd_sem
     my_sem_wait(rd_sem, "robot_desc_mutex");
 
-    // write the val into the field, and set appropriate pending element to 1
-    rd_shm_ptr->fields[field] = val;
+    robot_desc_val_t prev_val = rd_shm_ptr->fields[field];
+    if (prev_val != val) {
+        // write the val into the field
+        rd_shm_ptr->fields[field] = val;
 
-    // Edge case: If no inputs are connected during TELEOP, stop the robot
-    // This is a safety precaution; a UserInput is expected to be connected during TELEOP,
-    // so it's safe to assume something is wrong if there isn't one connected.
-    if (rd_shm_ptr->fields[RUN_MODE] == TELEOP && rd_shm_ptr->fields[KEYBOARD] == DISCONNECTED && rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
-        stop_robot();
+        /**
+         * Edge case: If no inputs are connected during TELEOP, stop the robot
+         * This is a safety precaution; a UserInput is expected to be connected during TELEOP,
+         * so it's safe to assume something is wrong if there isn't one connected.
+         * Note: We may be spammed with DISCONNECT, so this check should be done only when a change is made.
+         * 
+         * Example:
+         *  Write to velocity in teleop_setup() while input connected, which will succeed
+         *  Disconnect input
+         *  velocity will still be nonzero, so we need to stop it
+         */
+        if (rd_shm_ptr->fields[RUN_MODE] == TELEOP && rd_shm_ptr->fields[KEYBOARD] == DISCONNECTED && rd_shm_ptr->fields[GAMEPAD] == DISCONNECTED) {
+            log_printf(INFO, "Stopping Robot... (TELEOP with no input connected)");
+            stop_robot();
+        }
     }
 
     // release rd_sem
@@ -539,7 +549,6 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
 
     // if input isn't connected, then release rd_sem and return
     if (rd_shm_ptr->fields[source] == DISCONNECTED) {
-        log_printf(ERROR, "input_read: no %s connected", field_to_string(source));
         my_sem_post(rd_sem, "robot_desc_mutex");
         return -1;
     }
