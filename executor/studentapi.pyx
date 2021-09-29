@@ -93,19 +93,17 @@ cdef class Gamepad:
         cdef uint64_t buttons
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, GAMEPAD)
-        if err == -1:
-            _print(f"Called Gamepad.get_value() with no Gamepad connected.", level=WARN)
-            return False
+        gamepad_connected = (err != -1)
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
         for i in range(NUM_GAMEPAD_BUTTONS):
             if param == button_names[i]:
-                return bool(buttons & (1 << i))
+                return bool(buttons & (1 << i)) if gamepad_connected else False
         # Check if param is joystick
         for i in range(4):
             if param == joystick_names[i]:
-                return joysticks[i]
+                return joysticks[i] if gamepad_connected else 0.0
         raise KeyError(f"Invalid gamepad parameter {param_name}")
 
 
@@ -134,7 +132,6 @@ cdef class Keyboard:
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, KEYBOARD)
         if err == -1:
-            _print(f"Called Keyboard.get_value() with no Keyboard connected.", level=WARN)
             return False
         cdef char** key_names = get_key_names()
         for i in range(NUM_KEYBOARD_BUTTONS):
@@ -341,11 +338,12 @@ cdef class Robot:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
         # EDGE CASE: If it's TELEOP but no UserInput is connected, motor controller velocities should remain 0
-        if (strcmp(device.name, "KoalaBear") == 0 and (param_name == "velocity_a" or param_name == "velocity_b") \
+        if (strcmp(device.name, "KoalaBear") == 0 \
+            and (param_name == "velocity_a" or param_name == "velocity_b") \
             and robot_desc_read(RUN_MODE) == TELEOP \
-            and input_read(NULL, NULL, GAMEPAD) == -1 and input_read(NULL, NULL, KEYBOARD) == -1):
-            _print("Without UserInput connected during TELEOP, velocity will remain zero!", level=WARN)
-            value = 0
+            and robot_desc_read(GAMEPAD) == DISCONNECTED \
+            and robot_desc_read(KEYBOARD) == DISCONNECTED):
+            value = 0.0
         
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
