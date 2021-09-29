@@ -23,7 +23,7 @@
 /**
  * Function which sets all gamestates INACTIVE when exiting run mode
  */
-static void set_to_idle() {
+static void clear_gamestates() {
     robot_desc_write(HYPOTHERMIA, INACTIVE);
     robot_desc_write(POISON_IVY, INACTIVE);
     robot_desc_write(DEHYDRATION, INACTIVE);
@@ -97,7 +97,7 @@ int filter_device_write_uid(uint8_t dev_type, uint64_t dev_uid, process_t proces
     // Spawn thread if it doesn't already exist
     if (gamestate_handler_tid == 0) {
         pthread_create(&gamestate_handler_tid, NULL, gamestate_handler, NULL);
-        atexit(set_to_idle);
+        atexit(clear_gamestates);
     }
     // Spring 2021: Only KoalaBear is affected by game states
     if (dev_type == KOALABEAR) {
