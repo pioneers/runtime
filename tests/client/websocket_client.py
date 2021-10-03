@@ -14,6 +14,8 @@ async def reverse_converter():
         while True:
             data = conn.recv(4096)
             print("Received data from net_handler_client", len(data), "bytes")
+            if len(data) == 0:
+                break
             await websocket.send(data)
             print("Sent client data to Net Handler websocket")
 

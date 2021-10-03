@@ -1,7 +1,7 @@
 """Converts the websocket communication from browser Dawn
 into a Unix socket communication that Runtime will understand."""
 
-
+import socket
 import asyncio
 import websockets
 
@@ -37,7 +37,7 @@ async def converter(websocket, path):
     await asyncio.gather(dawn_to_runtime(websocket, writer), runtime_to_dawn(websocket, reader), return_exceptions=True)
 
 async def main():
-    async with websockets.serve(converter, "127.0.0.1", WEBSOCKET_PORT, ping_interval=None) as server:
+    async with websockets.serve(converter, None, WEBSOCKET_PORT, family=socket.AF_INET, ping_interval=None) as server:
         print("Started Websocket Converter")
         await asyncio.Future()  # run forever
 

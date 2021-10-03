@@ -175,7 +175,7 @@ void setup_keyboard() {
 // ********************************** COMMAND-SPECIFIC FUNCTIONS  ****************************** //
 
 void lowercase_string(char* str) {
-    for(int i = 0; str[i] != '\0'; i++){
+    for (int i = 0; str[i] != '\0'; i++) {
         str[i] = tolower(str[i]);
     }
 }
@@ -367,8 +367,7 @@ int main(int argc, char** argv) {
                     "\t-d: Attach to net_handler acting like Dawn\n"
                     "\t-s: Attack to net_handler acting like Shepherd\n"
                     "\t-h: Display this help message\n"
-                    "\tDefault: Start net_handler and attach with both Dawn and Shepherd\n"
-                );
+                    "\tDefault: Start net_handler and attach with both Dawn and Shepherd\n");
                 return 0;
             case '?':
                 fprintf(stderr, "Unknown option `-%c'.\n", optopt);
