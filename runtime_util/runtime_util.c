@@ -328,6 +328,12 @@ char* field_to_string(robot_desc_field_t field) {
             return "Shepherd";
         case START_POS:
             return "Start Pos";
+        case HYPOTHERMIA:
+            return "Hypothermia";
+        case POISON_IVY:
+            return "Poison Ivy";
+        case DEHYDRATION:
+            return "Dehydration";
         default:
             return NULL;
     }

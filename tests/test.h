@@ -123,6 +123,17 @@ void check_run_mode(robot_desc_val_t expected_run_mode);
  */
 void check_start_pos(robot_desc_val_t expected_start_pos);
 
+// *************************** GAME STATE CHECK ***************************** //
+
+/**
+ * Verifies that the current robot game state has the expected value.
+ * Arguments:
+ *    game_state: the game state to check (POISON_IVY, DEHYDRATION, or HYPOTHERMIA)
+ *    expected_value: ACTIVE or INACTIVE
+ * No return value. (Will exit with status code 1 if mismatch)
+ */
+void check_game_state(robot_desc_field_t game_state, robot_desc_val_t expected_value);
+
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**
