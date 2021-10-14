@@ -30,6 +30,8 @@
  * Starts the gamestate handler thread so that gamestates are deactivated
  * after the respective debuff duration passes.
  * All game states are deactivated also when run mode is set to IDLE
+ * If the game state handler thread is already active for the process calling this,
+ * this won't spawn a new thread (no-op).
  */
 void start_gamestate_handler_thread();
 
