@@ -30,19 +30,28 @@ sem_t* log_data_sem;               // semaphore used as a mutex on the log data
  * - KoalaBear: velocity_a, velocity_b
  */
 static void stop_robot() {
-    uint8_t koalabear = device_name_to_type("KoalaBear");
-    uint32_t params_to_write = (1 << get_param_idx(koalabear, "velocity_a")) | (1 << get_param_idx(koalabear, "velocity_b"));
+    // Get the identifiers of the parameters that need to be killed
+    uint8_t num_devices_with_params_to_kill = get_num_devices_with_params_to_kill();
+    param_id_t params_to_kill[num_devices_with_params_to_kill];
+    get_params_to_kill(params_to_kill, num_devices_with_params_to_kill);
+
     // Get currently connected devices
     uint32_t catalog = 0;
     get_catalog(&catalog);
     dev_id_t dev_ids[MAX_DEVICES] = {0};
     get_device_identifiers(dev_ids);
+
     // Zero out parameters that move the robot
     param_val_t params_zero[MAX_PARAMS] = {0};
-    for (int i = 0; i < MAX_DEVICES; i++) {
-        if (catalog & (1 << i)) {  // Device i is connected
-            if (dev_ids[i].type == koalabear) {
-                device_write(i, SHM, COMMAND, params_to_write, params_zero);
+
+    // Search through currently connected devices and kill the necessary parameters as found above
+    for (int device_idx = 0; device_idx < MAX_DEVICES; device_idx++) {
+        if (catalog & (1 << device_idx)) {  // Device is connected
+            // Check if it has parameters to be killed
+            for (uint8_t i = 0; i < num_devices_with_params_to_kill; i++) {
+                if (dev_ids[device_idx].type == params_to_kill[i].device_type) {
+                    device_write(device_idx, SHM, COMMAND, params_to_kill[i].param_bitmap, params_zero);
+                }
             }
         }
     }

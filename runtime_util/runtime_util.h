@@ -121,6 +121,13 @@ typedef struct param_desc {
     uint8_t write;      // Whether or not the param is writable
 } param_desc_t;
 
+// A struct that details a bitmap of parameters that should be killed for a device 
+// when the robot needs to be emergency stopped (ex: motor velocities)
+typedef struct param_id {
+    uint8_t device_type;   // The type of the device that should have params killed
+    uint32_t param_bitmap; // Bitmap of parameters that should be killd
+} param_id_t;
+
 // A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
     uint8_t type;                     // The type of device
@@ -191,6 +198,26 @@ param_desc_t* get_param_desc(uint8_t dev_type, char* param_name);
  *    -1 if the device doesn't exist or the parameter doesn't exist.
  */
 int8_t get_param_idx(uint8_t dev_type, char* param_name);
+
+/**
+ * Returns the number of devices that have parameters that need to be
+ * killed when the Robot needs to be emergency stopped.
+ */
+uint8_t get_num_devices_with_params_to_kill();
+
+/**
+ * Populates input array with param identifiers of params that should be
+ * killed (0, 0.0, or False) when the Robot needs to be emergency stopped.
+ * Arguments:
+ *    params_to_kill: Array to be overwritten with the param identifiers
+ *    len: The length of input array; Used to stay within bounds of the array
+ * Returns:
+ *    the number of parameters actually written to the array
+ *      = min(LEN, number of parameters that need to be killed)
+ * 
+ * Tip: Use get_num_devices_with_params_to_kill() to initialize the array to the sufficient length.
+ */
+uint8_t get_params_to_kill(param_id_t* params_to_kill, uint8_t len);
 
 /**
  * Returns an array of button names.

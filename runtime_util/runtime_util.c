@@ -272,6 +272,36 @@ int8_t get_param_idx(uint8_t dev_type, char* param_name) {
     return -1;
 }
 
+/**
+ * Parameters that should set to (and remain) 0, 0.0, or False, depending on the type,
+ * when the Robot should be emergency stopped.
+ * Ex: Robot may be emergency stopped if no user input is connected during TELEOP.
+ */
+param_id_t PARAMS_TO_KILL[] = {
+    {
+        .device_type = KoalaBear.type, 
+        .param_bitmap = (1 << get_param_idx(KoalaBear.type, "velocity_a") 
+                        | (1 << get_param_idx(KoalaBear.type, "velocity_b")))
+    },
+    {
+        .device_type = SimpleTestDevice.type,
+        .param_bitmap = 1 << get_param_idx(SimpleTestDevice.type, "MY_INT")
+    },
+};
+
+uint8_t get_num_devices_with_params_to_kill() {
+    return sizeof(PARAMS_TO_KILL)/sizeof(param_id_t);
+}
+
+uint8_t get_params_to_kill(param_id_t* params_to_kill, uint8_t len) {
+    // This properly calculates the length of the array
+    uint8_t num_params_to_kill = get_num_devices_with_params_to_kill();
+    for (uint8_t i = 0; i < len && i < num_params_to_kill; i++) {
+        params_to_kill[i] = PARAMS_TO_KILL[i];
+    }
+    return (len < num_params_to_kill) ? len : num_params_to_kill;
+}
+
 char* BUTTON_NAMES[NUM_GAMEPAD_BUTTONS] = {
     "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
     "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"};
