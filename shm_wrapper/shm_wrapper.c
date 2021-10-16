@@ -23,17 +23,11 @@ sem_t* log_data_sem;               // semaphore used as a mutex on the log data
  * Depending on the state of Runtime, it may be wise to emergency stop the robot.
  * Note that this does not block further commands to move the robot; that should be implemented
  * in the student API. (This sends only ONE stop command that can be overwritten if not careful.)
- * 
- * The implementation of this function may change annually based on the relevant
- * devices and parameters.
- * Devices affected:
- * - KoalaBear: velocity_a, velocity_b
  */
 static void stop_robot() {
     // Get the identifiers of the parameters that need to be killed
-    uint8_t num_devices_with_params_to_kill = get_num_devices_with_params_to_kill();
-    param_id_t params_to_kill[num_devices_with_params_to_kill];
-    get_params_to_kill(params_to_kill, num_devices_with_params_to_kill);
+    uint8_t num_devices_with_params_to_kill = 0;
+    param_id_t* params_to_kill = get_params_to_kill(&num_devices_with_params_to_kill);
 
     // Get currently connected devices
     uint32_t catalog = 0;
@@ -55,6 +49,8 @@ static void stop_robot() {
             }
         }
     }
+    // Our responsibility to free the array
+    free(params_to_kill);
 }
 
 // ****************************************** SEMAPHORE UTILITIES ***************************************** //

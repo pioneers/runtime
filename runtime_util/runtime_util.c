@@ -272,34 +272,25 @@ int8_t get_param_idx(uint8_t dev_type, char* param_name) {
     return -1;
 }
 
-/**
- * Parameters that should set to (and remain) 0, 0.0, or False, depending on the type,
- * when the Robot should be emergency stopped.
- * Ex: Robot may be emergency stopped if no user input is connected during TELEOP.
- */
-param_id_t PARAMS_TO_KILL[] = {
-    {
-        .device_type = KoalaBear.type, 
-        .param_bitmap = (1 << get_param_idx(KoalaBear.type, "velocity_a") 
-                        | (1 << get_param_idx(KoalaBear.type, "velocity_b")))
-    },
-    {
-        .device_type = SimpleTestDevice.type,
-        .param_bitmap = 1 << get_param_idx(SimpleTestDevice.type, "MY_INT")
-    },
-};
-
-uint8_t get_num_devices_with_params_to_kill() {
-    return sizeof(PARAMS_TO_KILL)/sizeof(param_id_t);
-}
-
-uint8_t get_params_to_kill(param_id_t* params_to_kill, uint8_t len) {
+param_id_t* get_params_to_kill(uint8_t* num_devices_with_params_to_kill) {
+    // Change this array as necessary
+    /**
+     * Parameters that should set to (and remain) 0, 0.0, or False, depending on the type,
+     * when the Robot should be emergency stopped.
+     * Ex: Robot may be emergency stopped if no user input is connected during TELEOP.
+     */
+    param_id_t params_to_kill[] = {
+        {.device_type = KoalaBear.type,
+         .param_bitmap = (1 << get_param_idx(KoalaBear.type, "velocity_a") | (1 << get_param_idx(KoalaBear.type, "velocity_b")))},
+        {.device_type = SimpleTestDevice.type,
+         .param_bitmap = 1 << get_param_idx(SimpleTestDevice.type, "MY_INT")},
+    };
     // This properly calculates the length of the array
-    uint8_t num_params_to_kill = get_num_devices_with_params_to_kill();
-    for (uint8_t i = 0; i < len && i < num_params_to_kill; i++) {
-        params_to_kill[i] = PARAMS_TO_KILL[i];
-    }
-    return (len < num_params_to_kill) ? len : num_params_to_kill;
+    *num_devices_with_params_to_kill = sizeof(params_to_kill) / sizeof(param_id_t);
+    // Allocate a copied array and return a pointer
+    param_id_t* params_to_kill_copy = malloc(sizeof(params_to_kill));
+    memcpy(params_to_kill_copy, params_to_kill, sizeof(params_to_kill));
+    return params_to_kill_copy;
 }
 
 char* BUTTON_NAMES[NUM_GAMEPAD_BUTTONS] = {
