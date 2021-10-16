@@ -293,6 +293,23 @@ param_id_t* get_params_to_kill(uint8_t* num_devices_with_params_to_kill) {
     return params_to_kill_copy;
 }
 
+uint8_t is_param_to_kill(uint8_t dev_type, char* param_name) {
+    uint8_t num_devices_with_params_to_kill = 0;
+    param_id_t* params_to_kill = get_params_to_kill(&num_devices_with_params_to_kill);
+    uint8_t ret = 0;
+    for (uint8_t i = 0; i < num_devices_with_params_to_kill; i++) {
+        if (dev_type == params_to_kill[i].device_type) {  // There's a match for a device with param to kill
+            uint32_t bit = 1 << get_param_idx(dev_type, param_name);
+            if (bit & params_to_kill[i].param_bitmap) {  // There's a match for the specific parameter
+                ret = 1;
+                break;
+            }
+        }
+    }
+    free(params_to_kill);
+    return ret;
+}
+
 char* BUTTON_NAMES[NUM_GAMEPAD_BUTTONS] = {
     "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
     "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"};

@@ -211,6 +211,12 @@ int8_t get_param_idx(uint8_t dev_type, char* param_name);
 param_id_t* get_params_to_kill(uint8_t* num_devices_with_params_to_kill);
 
 /**
+ * Returns 1 iff the specified parameter should be killed
+ * during an emergency stop. Otherwise, 0
+ */
+uint8_t is_param_to_kill(uint8_t dev_type, char* param_name);
+
+/**
  * Returns an array of button names.
  */
 char** get_button_names();

@@ -337,15 +337,13 @@ cdef class Robot:
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
-        # EDGE CASE: If it's TELEOP but no UserInput is connected, motor controller velocities should remain 0
-        # TODO: Don't hard code these; Use runtime util function to determine which params to void
+        # EDGE CASE: If it's TELEOP but no UserInput is connected, robot is emergency stopped
+        # There are certain parameters that need to remain 0
         if (robot_desc_read(RUN_MODE) == TELEOP \
             and robot_desc_read(GAMEPAD) == DISCONNECTED \
-            and robot_desc_read(KEYBOARD) == DISCONNECTED):
-            if strcmp(device.name, "SimpleTestDevice") == 0 and param_name == "MY_INT":
-                value = 0
-            elif strcmp(device.name, "KoalaBear") == 0 and (param_name == "velocity_a" or param_name == "velocity_b"):
-                value = 0.0
+            and robot_desc_read(KEYBOARD) == DISCONNECTED) \
+            and is_param_to_kill(device_type, param):
+            value = 0
         
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)

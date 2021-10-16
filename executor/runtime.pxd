@@ -28,6 +28,7 @@ cdef extern from "../runtime_util/runtime_util.h":
         GAMEPAD, KEYBOARD, START_POS, RUN_MODE
     ctypedef enum robot_desc_val_t:
         CONNECTED, DISCONNECTED, LEFT, RIGHT, AUTO, TELEOP
+    uint8_t is_param_to_kill(uint8_t dev_type, char* param_name) nogil
     char** get_button_names() nogil
     char** get_joystick_names() nogil
     char** get_key_names() nogil
