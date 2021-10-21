@@ -24,6 +24,7 @@
  *    sudo apt-get install libncurses5-dev libncursesw5-dev
  */
 #include <curses.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/wait.h>
 
@@ -104,10 +105,11 @@ const int DATA_VAL_COL = COMMAND_VAL_COL + VALUE_WIDTH;                      // 
  */
 int DEVICE_WIN_IS_BLANK = 0;
 
-// This is a global flag that is TRUE (1) when shm_ui is attaching to
-// existing shared memory, and FALSE (0) when shm_ui is creating/destroying
-// to shared memory and attaching to that newly created shared memory.
-uint8_t attach = 0;
+// Initalized to FALSE -- This process will create shm
+//   and destroy it when this process exits.
+// Set to TRUE at the start of main() if shm already exists when shm_ui starts
+//   in which case we should not create/destroy shm
+bool shm_already_exists = false;
 
 // The header of DEVICE_WIN; Useful for clearing and redrawing DEVICE_WIN
 #define DEVICE_WIN_HEADER "~~~~~~~~~~~~~~~~~~~~~~~~~~~~DEVICE INFORMATION~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -521,8 +523,7 @@ void display_device(uint32_t catalog, dev_id_t dev_ids[MAX_DEVICES], int shm_idx
 
 // Sending SIGINT to the process will stop shared memory
 void clean_up(int signum) {
-    // only stop shared memory if we did not attach
-    if (!attach) {
+    if (!shm_already_exists) {
         stop_shm();
     }
     endwin();
@@ -534,17 +535,13 @@ int main(int argc, char** argv) {
     signal(SIGINT, clean_up);
     logger_init(TEST);
 
-    // If the argument "attach" is specified, then set the global variable
-    if (argc == 2 && strcmp(argv[1], "attach") == 0) {
-        attach = 1;
-    }
-
-    // Start shm if we aren't attaching to existing shared memory
-    if (!attach) {
+    // If SHM exists, simply attach to it. Otherwise, create SHM
+    if (shm_exists()) {
+        shm_init();
+        shm_already_exists = true;
+    } else {
         start_shm();
         sleep(1);  // Allow shm to initialize
-    } else {
-        shm_init();  // If just attaching, init shm to have access to sems and shm blocks
     }
 
     // Start UI
@@ -629,7 +626,7 @@ int main(int argc, char** argv) {
     }
 
     // Properly clean up
-    if (!attach) {
+    if (!shm_already_exists) {
         stop_shm();
     }
     endwin();
