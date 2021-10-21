@@ -24,9 +24,9 @@ int main() {
     check_inputs(buttons, garbage, KEYBOARD);
     sleep(1);
 
-    // Check that student code is run properly which will print out the current value of MY_INT twice, which should be 1
-    add_ordered_string_output(") 1\n");
-    add_ordered_string_output(") 1\n");
+    // Check that student code is run properly which will print out the current value of MY_INT twice, which should be 0
+    add_ordered_string_output(") 0\n");
+    add_ordered_string_output(") 0\n");
 
     buttons = get_key_bit("a");
     send_user_input(buttons, garbage, KEYBOARD);

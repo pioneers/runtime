@@ -272,6 +272,44 @@ int8_t get_param_idx(uint8_t dev_type, char* param_name) {
     return -1;
 }
 
+param_id_t* get_params_to_kill(uint8_t* num_devices_with_params_to_kill) {
+    // Change this array as necessary
+    /**
+     * Parameters that should set to (and remain) 0, 0.0, or False, depending on the type,
+     * when the Robot should be emergency stopped.
+     * Ex: Robot may be emergency stopped if no user input is connected during TELEOP.
+     */
+    param_id_t params_to_kill[] = {
+        {.device_type = KoalaBear.type,
+         .param_bitmap = (1 << get_param_idx(KoalaBear.type, "velocity_a") | (1 << get_param_idx(KoalaBear.type, "velocity_b")))},
+        {.device_type = SimpleTestDevice.type,
+         .param_bitmap = 1 << get_param_idx(SimpleTestDevice.type, "MY_INT")},
+    };
+    // This properly calculates the length of the array
+    *num_devices_with_params_to_kill = sizeof(params_to_kill) / sizeof(param_id_t);
+    // Allocate a copied array and return a pointer
+    param_id_t* params_to_kill_copy = malloc(sizeof(params_to_kill));
+    memcpy(params_to_kill_copy, params_to_kill, sizeof(params_to_kill));
+    return params_to_kill_copy;
+}
+
+uint8_t is_param_to_kill(uint8_t dev_type, char* param_name) {
+    uint8_t num_devices_with_params_to_kill = 0;
+    param_id_t* params_to_kill = get_params_to_kill(&num_devices_with_params_to_kill);
+    uint8_t ret = 0;
+    for (uint8_t i = 0; i < num_devices_with_params_to_kill; i++) {
+        if (dev_type == params_to_kill[i].device_type) {  // There's a match for a device with param to kill
+            uint32_t bit = 1 << get_param_idx(dev_type, param_name);
+            if (bit & params_to_kill[i].param_bitmap) {  // There's a match for the specific parameter
+                ret = 1;
+                break;
+            }
+        }
+    }
+    free(params_to_kill);
+    return ret;
+}
+
 char* BUTTON_NAMES[NUM_GAMEPAD_BUTTONS] = {
     "button_a", "button_b", "button_x", "button_y", "l_bumper", "r_bumper", "l_trigger", "r_trigger",
     "button_back", "button_start", "l_stick", "r_stick", "dpad_up", "dpad_down", "dpad_left", "dpad_right", "button_xbox"};
@@ -328,6 +366,12 @@ char* field_to_string(robot_desc_field_t field) {
             return "Shepherd";
         case START_POS:
             return "Start Pos";
+        case HYPOTHERMIA:
+            return "Hypothermia";
+        case POISON_IVY:
+            return "Poison Ivy";
+        case DEHYDRATION:
+            return "Dehydration";
         default:
             return NULL;
     }

@@ -646,6 +646,28 @@ void check_start_pos(robot_desc_val_t expected_start_pos) {
     print_pass();
 }
 
+// *************************** GAME STATE CHECK ***************************** //
+
+void check_game_state(robot_desc_field_t game_state, robot_desc_val_t expected_value) {
+    // Input check
+    if ((game_state != POISON_IVY && game_state != DEHYDRATION && game_state != HYPOTHERMIA) || (expected_value != INACTIVE && expected_value != ACTIVE)) {
+        print_fail();
+        fprintf(stderr, "Bad usage of check_game_state; Invalid arguments");
+        fail_test();
+    }
+    // Read current game state
+    robot_desc_val_t curr_game_state_val = robot_desc_read(game_state);
+    if (curr_game_state_val != expected_value) {
+        print_fail();
+        fprintf_delimiter(stderr, "Expected Game State %s:", field_to_string(game_state));
+        fprintf(stderr, "%s\n", (expected_value == ACTIVE) ? "ACTIVE" : "INACTIVE");
+        fprintf_delimiter(stderr, "Got:");
+        fprintf(stderr, "%s\n", (curr_game_state_val == ACTIVE) ? "ACTIVE" : "INACTIVE");
+        fail_test();
+    }
+    print_pass();
+}
+
 // ************************* DEVICE CHECK FUNCTIONS ************************* //
 
 /**

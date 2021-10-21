@@ -23,7 +23,7 @@ void init_params(param_val_t params[]) {
     params[INCREASING].p_i = 0;
     params[DOUBLING].p_f = 1;
     params[FLIP_FLOP].p_b = 1;
-    params[MY_INT].p_i = 1;
+    params[MY_INT].p_i = 0;
 }
 
 /**
