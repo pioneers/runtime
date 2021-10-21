@@ -3,6 +3,7 @@
 # from libc.stdint cimport *
 from runtime cimport *
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from libc.string cimport strcmp
 
 import threading
 import sys
@@ -92,18 +93,17 @@ cdef class Gamepad:
         cdef uint64_t buttons
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, GAMEPAD)
-        if err == -1:
-            raise DeviceError(f"Gamepad isn't connected to Dawn")
+        gamepad_connected = (err != -1)
         cdef char** button_names = get_button_names()
         cdef char** joystick_names = get_joystick_names()
         # Check if param is button
         for i in range(NUM_GAMEPAD_BUTTONS):
             if param == button_names[i]:
-                return bool(buttons & (1 << i))
+                return bool(buttons & (1 << i)) if gamepad_connected else False
         # Check if param is joystick
         for i in range(4):
             if param == joystick_names[i]:
-                return joysticks[i]
+                return joysticks[i] if gamepad_connected else 0.0
         raise KeyError(f"Invalid gamepad parameter {param_name}")
 
 
@@ -132,7 +132,7 @@ cdef class Keyboard:
         cdef float joysticks[4]
         cdef int err = input_read(&buttons, joysticks, KEYBOARD)
         if err == -1:
-            raise DeviceError(f"Keyboard isn't connected to Dawn")
+            return False
         cdef char** key_names = get_key_names()
         for i in range(NUM_KEYBOARD_BUTTONS):
             if param == key_names[i]:
@@ -337,6 +337,14 @@ cdef class Robot:
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
 
+        # EDGE CASE: If it's TELEOP but no UserInput is connected, robot is emergency stopped
+        # There are certain parameters that need to remain 0
+        if (robot_desc_read(RUN_MODE) == TELEOP \
+            and robot_desc_read(GAMEPAD) == DISCONNECTED \
+            and robot_desc_read(KEYBOARD) == DISCONNECTED) \
+            and is_param_to_kill(device_type, param):
+            value = 0
+        
         # Allocating memory for parameter to write
         cdef param_val_t* param_value = <param_val_t*> PyMem_Malloc(sizeof(param_val_t) * MAX_PARAMS)
         if not param_value:

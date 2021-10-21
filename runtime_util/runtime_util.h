@@ -121,6 +121,13 @@ typedef struct param_desc {
     uint8_t write;      // Whether or not the param is writable
 } param_desc_t;
 
+// A struct that details a bitmap of parameters that should be killed for a device
+// when the robot needs to be emergency stopped (ex: motor velocities)
+typedef struct param_id {
+    uint8_t device_type;    // The type of the device that should have params killed
+    uint32_t param_bitmap;  // Bitmap of parameters that should be killd
+} param_id_t;
+
 // A struct defining a kind of device (ex: LimitSwitch, KoalaBear)
 typedef struct device {
     uint8_t type;                     // The type of device
@@ -191,6 +198,23 @@ param_desc_t* get_param_desc(uint8_t dev_type, char* param_name);
  *    -1 if the device doesn't exist or the parameter doesn't exist.
  */
 int8_t get_param_idx(uint8_t dev_type, char* param_name);
+
+/**
+ * Returns an array with identifiers of params that should be
+ * killed (0, 0.0, or False) when the Robot needs to be emergency stopped.
+ * Arguments:
+ *    num_devices_with_params_to_kill: Will be populated with the length of the output array
+ * Returns:
+ *    a newly allocated array of param identifiers to kill.
+ *    *** It's the caller's responsibility to free this array
+ */
+param_id_t* get_params_to_kill(uint8_t* num_devices_with_params_to_kill);
+
+/**
+ * Returns 1 iff the specified parameter should be killed
+ * during an emergency stop. Otherwise, 0
+ */
+uint8_t is_param_to_kill(uint8_t dev_type, char* param_name);
 
 /**
  * Returns an array of button names.

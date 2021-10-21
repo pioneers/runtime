@@ -471,6 +471,61 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     free(send_buf);
 }
 
+void disconnect_user_input() {
+    UserInputs inputs = USER_INPUTS__INIT;
+
+    // build the message
+    inputs.n_inputs = 2;
+    inputs.inputs = malloc(sizeof(Input*) * inputs.n_inputs);
+    if (inputs.inputs == NULL) {
+        printf("disconnect_user_input: Failed to malloc inputs\n");
+        exit(1);
+    }
+
+    // Disconnect Gamepad
+    Input gamepad = INPUT__INIT;
+    inputs.inputs[0] = &gamepad;
+    gamepad.connected = 0;
+    gamepad.source = SOURCE__GAMEPAD;
+    gamepad.buttons = 0;
+    gamepad.n_axes = 4;
+    gamepad.axes = malloc(sizeof(double) * gamepad.n_axes);
+    if (gamepad.axes == NULL) {
+        printf("disconnect_user_input: Failed to malloc axes\n");
+        exit(1);
+    }
+    for (int i = 0; i < gamepad.n_axes; i++) {
+        gamepad.axes[i] = 0;
+    }
+
+    // Disconnect Keyboard
+    Input keyboard = INPUT__INIT;
+    inputs.inputs[1] = &keyboard;
+    keyboard.connected = 0;
+    keyboard.source = SOURCE__KEYBOARD;
+    keyboard.buttons = 0;
+    keyboard.n_axes = 0;
+
+    uint16_t len = user_inputs__get_packed_size(&inputs);
+    uint8_t* send_buf = make_buf(INPUTS_MSG, len);
+    if (send_buf == NULL) {
+        printf("disconnect_user_input: Failed to malloc buffer\n");
+        exit(1);
+    }
+    user_inputs__pack(&inputs, send_buf + BUFFER_OFFSET);
+
+    // send the message
+    if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("disconnect_user_input: Error when sending UserInput message");
+        exit(1);
+    }
+
+    // free everything
+    free(gamepad.axes);
+    free(inputs.inputs);
+    free(send_buf);
+}
+
 DevData* get_next_dev_data() {
     pthread_mutex_lock(&most_recent_dev_data_mutex);
     // We need to copy the data in the device_data Protobuf to return to the caller

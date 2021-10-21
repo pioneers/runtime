@@ -21,10 +21,24 @@
  *           will flip the sign of VALUE before being written to shared memory.
  */
 
+#include <stdbool.h>
 #include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 
+/**
+ * Starts the gamestate handler thread so that gamestates are deactivated
+ * after the respective debuff duration passes.
+ * All game states are deactivated also when run mode is set to IDLE
+ * If the game state handler thread is already active for the process calling this,
+ * this won't spawn a new thread (no-op).
+ */
+void start_gamestate_handler_thread();
+
+/**
+ * A wrapper function to device_write_uid that modifies the input params
+ * based on the current active game states.
+ */
 int filter_device_write_uid(uint8_t dev_type, uint64_t dev_uid, process_t process, stream_t stream, uint32_t params_to_write, param_val_t* params);
 
 #endif

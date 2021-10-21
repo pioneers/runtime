@@ -1,3 +1,4 @@
+#include "../executor/gamestate_filter.h"
 #include "connection.h"
 #include "net_util.h"
 
@@ -117,6 +118,9 @@ int main() {
     }
     shm_init();
 
+    // TODO: Net Handler is in charge of regulating game states.
+    // Net Handler may not have this responsibility in the future.
+    start_gamestate_handler_thread();
     log_printf(INFO, "Net handler initialized");
 
     //run net_handler main control loop
