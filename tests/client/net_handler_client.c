@@ -1,7 +1,7 @@
 #include "net_handler_client.h"
 
 // throughout this code, net_handler is abbreviated "nh"
-pid_t nh_pid = -1;        // holds the pid of the net_handler process
+pid_t nh_pid = -1;   // holds the pid of the net_handler process
 pthread_t dump_tid;  // holds the thread id of the output dumper threads
 
 // File pointers
@@ -417,11 +417,10 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
     // send the message
     if (client == SHEPHERD) {
         if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending start position message to shepherd\n");
+            printf("writen: issue sending start position message from shepherd\n");
         }
-    } else {
-        writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
-        printf("writen: issue sending start position message to dawn\n");
+    } else if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
+        printf("writen: issue sending start position message from dawn\n");
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
