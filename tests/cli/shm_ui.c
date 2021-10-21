@@ -24,9 +24,9 @@
  *    sudo apt-get install libncurses5-dev libncursesw5-dev
  */
 #include <curses.h>
+#include <stdbool.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <stdbool.h>
 
 #include "../../logger/logger.h"
 #include "../../runtime_util/runtime_util.h"
@@ -541,7 +541,7 @@ int main(int argc, char** argv) {
         shm_already_exists = true;
     } else {
         start_shm();
-        sleep(1); // Allow shm to initialize
+        sleep(1);  // Allow shm to initialize
     }
 
     // Start UI
