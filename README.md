@@ -2,9 +2,9 @@
 
 Welcome to the PiE Runtime repo! This README will only cover how to install, build, and run Runtime. If you want to learn more info about how Runtime works, or are a new member, please check out our wiki https://github.com/pioneers/runtime/wiki.
 
-This is a diagram of the entirety of Runtime. To download and view in detail, see `docs/Runtime-Diagram.png`:
+This is a diagram of the entirety of Runtime. To download and view in detail, see `runtime-docs/Runtime-Diagram.png`:
 
-![runtime-diagram](docs/Runtime-Diagram.png)
+![runtime-diagram](https://raw.githubusercontent.com/pioneers/runtime-docs/master/Runtime-Diagram.png)
 
 ## Overall Structure
 
