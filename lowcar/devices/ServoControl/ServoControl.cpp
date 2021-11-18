@@ -20,20 +20,32 @@ ServoControl::ServoControl() : Device(DeviceType::SERVO_CONTROL, 1) {
 }
 
 size_t ServoControl::device_read(uint8_t param, uint8_t* data_buf) {
-    float* float_buf = (float*) data_buf;
-    float_buf[0] = this->positions[param];
-    return sizeof(float);
-}
-
-size_t ServoControl::device_write(uint8_t param, uint8_t* data_buf) {
-    float value = ((float*) data_buf)[0];
-    if (value < -1 || value > 1) {
+    if (param < NUM_SERVOS && param >= 0) {
+        float* float_buf = (float*) data_buf;
+        float_buf[0] = this->positions[param];
+        return sizeof(float);
+    } else {
         return 0;
     }
 
-    // if servo isn't attached yet, attach the pin to the servo object
-    if (!servos[param].attached()) {
-        servos[param].attach(this->pins[param]);
+}
+
+size_t ServoControl::device_write(uint8_t param, uint8_t* data_buf) {
+    if (param < NUM_SERVOS && param >= 0) {
+        float value = ((float*) data_buf)[0];
+        if (value < -1 || value > 1) {
+            return 0;
+        }
+
+        // if servo isn't attached yet, attach the pin to the servo object
+        if (!servos[param].attached()) {
+            servos[param].attach(this->pins[param]);
+        }
+        this->positions[param] = value;
+        servos[param].writeMicroseconds(ServoControl::SERVO_CENTER + (this->positions[param] * ServoControl::SERVO_RANGE / 2.0));
+        return sizeof(float);
+    } else {
+        return 0;
     }
     this->positions[param] = value;
     servos[param].writeMicroseconds(ServoControl::SERVO_CENTER + (this->positions[param] * ServoControl::SERVO_RANGE));
