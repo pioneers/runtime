@@ -8,6 +8,7 @@
 #include <string.h>    // for strcat, strcpy
 #include <sys/wait.h>  // for waitpid, pid_t
 #include <unistd.h>    // for execlp, fork, chdir
+#include "../../logger/logger.h" // for log_printf
 
 /**
  * Spawns the executor running student_code
