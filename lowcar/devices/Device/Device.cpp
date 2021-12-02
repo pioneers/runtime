@@ -39,6 +39,7 @@ void Device::loop() {
                 break;
 
             case MessageID::DEVICE_WRITE:
+                this->last_received_ping_time = this->curr_time;
                 device_write_params(&(this->curr_msg));
                 break;
 
