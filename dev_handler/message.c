@@ -249,6 +249,18 @@ message_t* make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_
     return (status == 0) ? dev_write : NULL;
 }
 
+message_t* make_rst() {
+    message_t* rst = malloc(sizeof(message_t));
+    if (rst == NULL) {
+        log_printf(FATAL, "make_rst: Failed to malloc");
+        exit(1);
+    }
+    ping->message_id = RST;
+    ping->payload = NULL;
+    ping->payload_length = 0;
+    ping->max_payload_length = 0;
+}
+
 void destroy_message(message_t* message) {
     free(message->payload);
     free(message);

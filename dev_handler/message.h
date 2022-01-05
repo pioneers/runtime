@@ -46,7 +46,8 @@ typedef enum {
     ACKNOWLEDGEMENT = 0x02,  // To dev handler
     DEVICE_WRITE = 0x03,     // To lowcar
     DEVICE_DATA = 0x04,      // To dev handler
-    LOG = 0x05               // To dev handler
+    LOG = 0x05,              // To dev handler
+    RST = 0x06               // Between dev handler and lowcar
 } message_id_t;
 
 // A struct defining a message to be sent over serial
