@@ -255,10 +255,11 @@ message_t* make_rst() {
         log_printf(FATAL, "make_rst: Failed to malloc");
         exit(1);
     }
-    ping->message_id = RST;
-    ping->payload = NULL;
-    ping->payload_length = 0;
-    ping->max_payload_length = 0;
+    rst->message_id = RST;
+    rst->payload = NULL;
+    rst->payload_length = 0;
+    rst->max_payload_length = 0;
+    return rst;
 }
 
 void destroy_message(message_t* message) {

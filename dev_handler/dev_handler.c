@@ -350,8 +350,8 @@ void relay_clean_up(relay_t* relay) {
     }
 
     // Send a RST message to the device to signal that we are closing the connection
-    messsage_t* rst = make_rst();
-    int ret = send_message(relay, msg);
+    message_t* rst = make_rst();
+    ret = send_message(relay, rst);
     if (ret != 0) {
         log_printf(WARN, "Couldn't send RST to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
     }
@@ -490,7 +490,7 @@ void* receiver(void* relay_cast) {
                 // If received LOG, send it to the logger
                 log_printf(DEBUG, "[%s (0x%016llX)]: %s", get_device_name(relay->dev_id.type), relay->dev_id.uid, msg->payload);
             }
-        // Device is going to disconnect, so we clean up on our end
+            // Device is going to disconnect, so we clean up on our end
         } else if (msg->message_id == RST) {
             relay_clean_up(relay);
             return NULL;

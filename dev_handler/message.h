@@ -106,6 +106,15 @@ message_t* make_ping();
 message_t* make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_values[]);
 
 /**
+ * Builds a RST message
+ * Returns:
+ *    A message of type RST
+ *      payload_length 0
+ *      max_payload_length 0
+ */
+message_t* make_rst();
+
+/**
  * Frees the memory allocated for the message struct and its payload.
  * Arguments:
  *    message: The message to have its memory deallocated.
