@@ -189,8 +189,13 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
                         (*device_actions)(params);
                     }
                     break;
+
+                case RST:
+                    printf("lowcar_protocol (%llX): Received a RST\n", uid);
+                    exit(1);
+
                 default:
-                    printf("lowcar_protocol: Received message of invalid type\n");
+                    printf("lowcar_protocol (%llX): Received message of invalid type\n", uid);
                     break;
             }
         }
@@ -206,9 +211,14 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
 
         // Make sure we're receiving DEVICE_PING messages still
         if ((now - last_received_ping_time) >= TIMEOUT) {
-            printf("lowcar_protocol: DEV_HANDLER timed out!\n");
+            printf("lowcar_protocol (%llX): DEV_HANDLER timed out!\n", uid);
+            // Send a RST
+            outgoing_msg = make_rst();
+            send_message(fd, outgoing_msg);
+            destroy_message(outgoing_msg);
             exit(1);
         }
+
         // Check if we should send another DEVICE_PING
         // TODO: Physical lowcar devices don't send DEVICE_PING messages.
         // We should remove this. See issue #164.
