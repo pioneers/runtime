@@ -328,6 +328,7 @@ void relay_clean_up(relay_t* relay) {
         uint32_t* used_ports = relay->is_virtual ? &used_virtual_ports : &used_lowcar_ports;
         *used_ports &= ~(1 << relay->port_num);  // Set bit to 0 to indicate unused
         free(relay);
+        // Sleep so that we don't spam attempts to connect to a possibly bad device
         sleep(TIMEOUT / 1000);
         return;
     }
@@ -348,17 +349,25 @@ void relay_clean_up(relay_t* relay) {
         device_disconnect(relay->shm_dev_idx);
     }
 
-    /* 1) If lowcar device timed out, we sleep to give it time to reset and try to send an ACK again
-     * 2) If not lowcar device, we want to minimize time spent on multiple attempts to receive an ACK
-     */
-    sleep(TIMEOUT / 1000);
-    // Close the device and mark that it disconnected
+    // Send a RST message to the device to signal that we are closing the connection
+    messsage_t* rst = make_rst();
+    int ret = send_message(relay, msg);
+    if (ret != 0) {
+        log_printf(WARN, "Couldn't send RST to %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
+    }
+    destroy_message(rst);
+
+    // Close the device
     serialport_close(relay->file_descriptor);
+
+    // Mark that the device is disconnected in the global bitmap
     if ((ret = pthread_mutex_lock(&used_ports_lock))) {
         log_printf(ERROR, "relay_clean_up: used_ports_lock mutex lock failed with code %d", ret);
     }
     uint32_t* used_ports = relay->is_virtual ? &used_virtual_ports : &used_lowcar_ports;
     *used_ports &= ~(1 << relay->port_num);  // Set bit to 0 to indicate unused
+
+    /// Clean up relay struct
     pthread_mutex_unlock(&used_ports_lock);
     pthread_mutex_destroy(&relay->relay_lock);
     pthread_cond_destroy(&relay->start_cond);
@@ -427,6 +436,7 @@ void* sender(void* relay_cast) {
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         pthread_testcancel();  // Cancellation point
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+        // Sleep to throttle this loop; Determines how frequently we can send messages to the device
         usleep(1000);
     }
     return NULL;
@@ -461,6 +471,7 @@ void* receiver(void* relay_cast) {
     }
     while (1) {
         // Try to read a message
+        // Since this function blocks the thread until a message is received, we don't need to sleep in this loop
         if (receive_message(relay, msg) != 0) {
             // Message was broken... try to read the next message
             continue;
@@ -479,6 +490,10 @@ void* receiver(void* relay_cast) {
                 // If received LOG, send it to the logger
                 log_printf(DEBUG, "[%s (0x%016llX)]: %s", get_device_name(relay->dev_id.type), relay->dev_id.uid, msg->payload);
             }
+        // Device is going to disconnect, so we clean up on our end
+        } else if (msg->message_id == RST) {
+            relay_clean_up(relay);
+            return NULL;
         } else {  // Invalid message type
             log_printf(WARN, "Dropped bad message (type %d) from %s (0x%016llX)", msg->message_id, get_device_name(relay->dev_id.type), relay->dev_id.uid);
         }
