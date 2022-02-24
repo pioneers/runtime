@@ -2,7 +2,7 @@
 
 #define MAX_CMD_LEN 64  // maximum length of a CLI command
 
-#define NUMBER_OF_TEST_DEVICES 6  // number of test devices to connect
+#define NUMBER_OF_TEST_DEVICES 7  // number of test devices to connect
 #define MAX_STRING_SIZE 64        // maximum length of a device name
 
 char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] = {
@@ -11,12 +11,13 @@ char devices[NUMBER_OF_TEST_DEVICES][MAX_STRING_SIZE] = {
     "SimpleTestDevice",
     "UnresponsiveTestDevice",
     "ForeignTestDevice",
-    "UnstableTestDevice"};
+    "UnstableTestDevice",
+    "OtherTestDevice"};
 
 char nextcmd[MAX_CMD_LEN];
 
 void display_help() {
-    printf("This is the list of commands.\n");
+    printf("This is the list of commands. [TEST FOR PRINT REMOVE AFTER]\n");
     printf("All commands should be typed in all lower case.\n");
     printf("\thelp          show this menu of commands\n");
     printf("\texit          exit the device handler CLI\n");

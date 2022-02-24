@@ -147,6 +147,15 @@ device_t SimpleTestDevice = {
         {.name = "MY_INT", .type = INT, .read = 1, .write = 1},
     }};
 
+device_t OtherTestDevice = {
+    .type = 2003,
+    .name = "OtherTestDevice",
+    .num_params = 3,
+    .params = {
+        {.name = "VOLUME", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "GAIN", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "STATUS", .type = BOOL, .read = 1, .write = 1}}};
+
 device_t GeneralTestDevice = {
     .type = 63,
     .name = "GeneralTestDevice",
@@ -206,6 +215,7 @@ __attribute__((constructor)) void devices_arr_init() {
     DEVICES[UnstableTestDevice.type] = &UnstableTestDevice;
     DEVICES[SimpleTestDevice.type] = &SimpleTestDevice;
     DEVICES[GeneralTestDevice.type] = &GeneralTestDevice;
+    DEVICES[OtherTestDevice.type] = &OtherTestDevice;
 }
 
 device_t* get_device(uint8_t dev_type) {
