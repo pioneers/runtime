@@ -21,12 +21,12 @@ void device_actions(param_val_t params[]) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 3)
-        [printf("Incorrect number of arguments: %d out of %d\n", argc, 3);
-            exit(1);
-        ]
+    if (argc < 3) {
+        printf("Incorrect number of arguments: %d out of %d\n", argc, 3);
+        exit(1);
+    }
 
-            int fd = atoi(argv[1]);
+    int fd = atoi(argv[1]);
     uint64_t uid = strtoull(argv[2], NULL, 0);
 
     uint8_t dev_type = device_name_to_type("OtherTestDevice");
