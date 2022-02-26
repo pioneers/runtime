@@ -148,7 +148,7 @@ device_t SimpleTestDevice = {
     }};
 
 device_t OtherTestDevice = {
-    .type = 2003,
+    .type = 58,
     .name = "OtherTestDevice",
     .num_params = 3,
     .params = {

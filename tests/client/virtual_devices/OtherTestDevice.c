@@ -4,7 +4,8 @@
 enum {
     VOLUME,
     GAIN,
-    STATUS
+    STATUS,
+    CONSTANT
 };
 
 
@@ -12,6 +13,7 @@ void init_params(param_val_t params[]) {
     params[VOLUME].p_f = 100.0;
     params[GAIN].p_f = 5.0;
     params[STATUS].p_b = 1;
+    params[CONSTANT].p_i = 100;
 }
 
 void device_actions(param_val_t params[]) {
