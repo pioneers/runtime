@@ -15,6 +15,7 @@
 //include other runtime files
 #include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
+#include "../security/security.h"
 #include "../shm_wrapper/shm_wrapper.h"
 
 //include compiled protobuf headers
@@ -22,6 +23,7 @@
 #include "pbc_gen/gamestate.pb-c.h"
 #include "pbc_gen/input.pb-c.h"
 #include "pbc_gen/run_mode.pb-c.h"
+#include "pbc_gen/security.pb-c.h"
 #include "pbc_gen/start_pos.pb-c.h"
 #include "pbc_gen/text.pb-c.h"
 #include "pbc_gen/timestamp.pb-c.h"
@@ -41,7 +43,8 @@ typedef enum net_msg {
     DEVICE_DATA_MSG,
     GAME_STATE_MSG,
     INPUTS_MSG,  // used for converter testing; remove after 2021 Spring Comp...maybe
-    TIME_STAMP_MSG
+    TIME_STAMP_MSG,
+    SECURITY_MSG
 } net_msg_t;
 
 // ******************************************* USEFUL UTIL FUNCTIONS ******************************* //

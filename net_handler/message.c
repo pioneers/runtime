@@ -1,5 +1,4 @@
 #include "message.h"
-
 // ******************************************* SEND MESSAGES ***************************************** //
 
 /*
@@ -262,6 +261,43 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     free(buffer);  // Free buffer with device data protobuf
 }
 
+void send_security_message(int conn_fd, char* public_key) {
+    SecurityMessage security_msg = SECURITY_MESSAGE__INIT;
+    security_msg.type = TYPE__EncryptKey;
+    security_msg.key = malloc(strlen(public_key) * sizeof(char));
+    strcpy(*security_msg.key, public_key);
+    uint16_t len_pb = security_message__get_packed_size(&security_msg);
+    uint8_t* send_buf = make_buf(SECURITY_MSG, len_pb);
+    security_message__pack(&security_msg, send_buf + BUFFER_OFFSET);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
+
+    //send message on socket
+    if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
+        log_printf(ERROR, "send_log_msg: sending log message over socket failed: %s", strerror(errno));
+    }
+    free(security_msg.key);
+    free(send_buf);
+}
+
+void send_connection_request_status(int conn_fd, int success) {
+    SecurityMessage security_msg = SECURITY_MESSAGE__INIT;
+    if (success == 0) {
+        security_msg.type = TYPE__SuccessMessage;
+    } else {
+        security_msg.type = TYPE__FailureMessage;
+    }
+    uint16_t len_pb = security_message__get_packed_size(&security_msg);
+    uint8_t* send_buf = make_buf(SECURITY_MSG, len_pb);
+    security_message__pack(&security_msg, send_buf + BUFFER_OFFSET);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
+
+    //send message on socket
+    if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
+        log_printf(ERROR, "send_log_msg: sending log message over socket failed: %s", strerror(errno));
+    }
+    free(security_msg.key);
+    free(send_buf);
+}
+
+
 // **************************************** RECEIVE MESSAGES ***************************************** //
 
 /*
@@ -415,7 +451,7 @@ static int process_time_stamp_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
 /*
  * Processes new inputs message from client and reacts appropriately
  * Arguments:
- *    - uint8_t *buf: buffer containing packed protobuf with run mode message
+ *    - uint8_t *buf: buffer containing packed protobuf with security message
  *    - uint16_t len_pb: length of buf
  * Returns:
  *      0 on success (message was processed correctly)
@@ -444,6 +480,62 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
     }
     user_inputs__free_unpacked(inputs, NULL);
 
+    return 0;
+}
+
+/*
+ * Processes new security message from client and reacts appropriately
+ * Arguments:
+ *    - uint8_t *buf: buffer containing packed protobuf with security message
+ *    - uint16_t len_pb: length of buf
+ * Returns:
+ *      0 on success (message was processed correctly)
+ *     -1 on error unpacking message
+ */
+static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
+    SecurityMessage* security_message = security_message__unpack(NULL, len_pb, buf);
+    if (security_message == NULL) {
+        log_printf(ERROR, "recv_new_msg: Failed to unpack SecurityMessage");
+        return -1;
+    }
+    char* public_key = NULL;
+    char* decrypted_message = NULL;
+    if (initialize_BIO() < 0) {
+        log_printf(ERROR, "recv_new_msg: Failed to initialize BIO");
+        return -1;
+    }
+    switch (security_message->type) {
+        case (TYPE__Request):
+            if (create_public_key(&public_key) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to generate public key");
+                return -1;
+            }
+            send_security_message(conn_fd, public_key);
+            break;
+        case (TYPE__LoginInfo):
+            if (decrypt_login_info(*security_message->signedencryptedpassword, decrypted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to decrypt login info");
+                return -1;
+            }
+            char* salted_message = NULL;
+            if (salt_string(decrypted_message, salted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to salt login info");
+                return -1;
+            }
+            unsigned char* hashed_salted_message = NULL;
+            if (hash_message(salted_message, hashed_salted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to hash login info");
+                return -1;
+            }
+            if (compare_hashed_password((char*) hashed_salted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to compare the hashed password to the on file password");
+                return -1;
+            }
+            break;
+        default:
+            log_printf(ERROR, "sent security action: %s", security_message->type);
+            return -1;
+    }
     return 0;
 }
 
@@ -502,6 +594,11 @@ int recv_new_msg(int conn_fd, robot_desc_field_t client) {
                 ret = -2;
             }
             break;
+        case SECURITY_MSG:
+            if (process_security_msg(conn_fd, buf, len_pb) != 0) {
+                log_printf(ERROR, "recv_new_msg: error processing security message");
+                ret = -2;
+            }
         default:
             log_printf(ERROR, "recv_new_msg: unknown message type %d", msg_type);
             return -2;
