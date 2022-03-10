@@ -150,11 +150,12 @@ device_t SimpleTestDevice = {
 device_t OtherTestDevice = {
     .type = 58,
     .name = "OtherTestDevice",
-    .num_params = 3,
+    .num_params = 4,
     .params = {
         {.name = "VOLUME", .type = FLOAT, .read = 1, .write = 0},
         {.name = "GAIN", .type = FLOAT, .read = 1, .write = 0},
-        {.name = "STATUS", .type = BOOL, .read = 1, .write = 1}}};
+        {.name = "STATUS", .type = BOOL, .read = 1, .write = 1},
+        {.name = "CONSTANT", .type = INT, .read = 1, .write = 0}}};
 
 device_t GeneralTestDevice = {
     .type = 63,

@@ -1,6 +1,6 @@
-#include LimitSwitch.h
+#include SoundDevice.h
 
-const int LimitSwitch::pin = 0;
+const int SoundDevice::pin = 0;
 
 SoundDevice::SoundDevice() : Device(DeviceType::SOUND_DEVICE, 0) {
     ;

@@ -63,7 +63,7 @@ client/virtual_devices/TimeTestDevice: client/virtual_devices/TimeTestDevice.c $
 client/virtual_devices/SoundDevice: client/virtual_devices/SoundDevice.c $(VIRTUAL_DEVICE_FILES)
 	$(CC) $^ -o $@
 
-client/virtual_devices/SoundDevice: client/virtual_devices/OtherTestDevice.c $(VIRTUAL_DEVICE_FILES)
+client/virtual_devices/OtherTestDevice: client/virtual_devices/OtherTestDevice.c $(VIRTUAL_DEVICE_FILES)
 	$(CC) $^ -o $@
 
 ##################################### TESTS ####################################
