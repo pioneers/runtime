@@ -273,12 +273,17 @@ cdef class Robot:
         cdef device_t* device = get_device(device_type)
         if not device:
             raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
+
+        cdef param_type_t param_read
         cdef param_type_t param_type
         cdef int8_t param_idx = -1
         for i in range(device.num_params):
             if device.params[i].name == param:
                 param_idx = i
                 param_type = device.params[i].type
+                param_read = device.params[i].read
+                if param_read == 0:
+                    raise DeviceError(f"Cannot read parameter {param_name} because it is not readable")
                 break
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
@@ -327,12 +332,17 @@ cdef class Robot:
         cdef device_t* device = get_device(device_type)
         if not device:
             raise DeviceError(f"Device with uid {device_uid} has invalid type {device_type}")
+
+        cdef param_type_t param_write
         cdef param_type_t param_type
         cdef int8_t param_idx = -1
         for i in range(device.num_params):
             if device.params[i].name == param:
                 param_idx = i
                 param_type = device.params[i].type
+                param_write = device.params[i].write
+                if param_write == 0:
+                    raise DeviceError(f"Cannot write to parameter {param_name} because it's not writeable")
                 break
         if param_idx == -1:
             raise DeviceError(f"Invalid device parameter {param_name} for device type {device.name.decode('utf-8')}({device_type})")
