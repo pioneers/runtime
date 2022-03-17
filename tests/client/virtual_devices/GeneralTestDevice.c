@@ -11,6 +11,10 @@
 
 // GeneralTestDevice params
 enum {
+    // Neither Read nor Write
+    CONSTANT_NEITHER,
+    // Write-only
+    CONSTANT_WRITE,
     // Read-only
     INCREASING_ODD,
     DECREASING_ODD,
@@ -53,8 +57,13 @@ enum {
  *    params: Array of params to be initialized
  */
 void init_params(param_val_t params[]) {
-    params[INCREASING_ODD].p_i = 1;
-    params[DECREASING_ODD].p_i = -1;
+    // Neither Read nor Write
+    params[CONSTANT_NEITHER].p_i = 1;
+    // Write only
+    params[CONSTANT_WRITE].p_i = 1;
+    // Read only
+    // params[INCREASING_ODD].p_i = 1;
+    // params[DECREASING_ODD].p_i = -1;
     params[INCREASING_EVEN].p_i = 0;
     params[DECREASING_EVEN].p_i = 0;
     params[INCREASING_FLIP].p_i = 0;
@@ -94,8 +103,8 @@ void init_params(param_val_t params[]) {
  *    params: Array of param values to be modified
  */
 void device_actions(param_val_t params[]) {
-    params[INCREASING_ODD].p_i += 2;
-    params[DECREASING_ODD].p_i -= 2;
+    // params[INCREASING_ODD].p_i += 2;
+    // params[DECREASING_ODD].p_i -= 2;
     params[INCREASING_EVEN].p_i += 2;
     params[DECREASING_EVEN].p_i -= 2;
     params[INCREASING_FLIP].p_i = (-1) *

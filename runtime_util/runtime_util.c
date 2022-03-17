@@ -152,9 +152,13 @@ device_t GeneralTestDevice = {
     .name = "GeneralTestDevice",
     .num_params = 32,
     .params = {
+        // Neither Read nor Write
+        {.name = "CONSTANT_NEITHER", .type = INT, .read = 0, .write = 0},
+        // Write-only
+        {.name = "CONSTANT_WRITE", .type = INT, .read = 0, .write = 1},
         // Read-only
-        {.name = "INCREASING_ODD", .type = INT, .read = 1, .write = 0},
-        {.name = "DECREASING_ODD", .type = INT, .read = 1, .write = 0},
+        // {.name = "INCREASING_ODD", .type = INT, .read = 1, .write = 0},
+        // {.name = "DECREASING_ODD", .type = INT, .read = 1, .write = 0},
         {.name = "INCREASING_EVEN", .type = INT, .read = 1, .write = 0},
         {.name = "DECREASING_EVEN", .type = INT, .read = 1, .write = 0},
         {.name = "INCREASING_FLIP", .type = INT, .read = 1, .write = 0},
