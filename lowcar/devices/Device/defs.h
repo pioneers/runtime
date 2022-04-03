@@ -58,7 +58,8 @@ enum class DeviceType : uint8_t {
     BATTERY_BUZZER = 0x03,
     SERVO_CONTROL = 0x04,
     POLAR_BEAR = 0x05,
-    KOALA_BEAR = 0x06
+    KOALA_BEAR = 0x06,
+    SOUND_DEVICE = 0x07
     // DISTANCE_SENSOR   = 0x07 Uncomment when implemented
 };
 
