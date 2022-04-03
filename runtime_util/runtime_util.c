@@ -155,7 +155,7 @@ device_t OtherTestDevice = {
         {.name = "VOLUME", .type = FLOAT, .read = 1, .write = 0},
         {.name = "GAIN", .type = FLOAT, .read = 1, .write = 0},
         {.name = "STATUS", .type = BOOL, .read = 1, .write = 1},
-        {.name = "CONSTANT", .type = INT, .read = 1, .write = 0}}};
+        {.name = "CONSTANT", .type = INT, .read = 0, .write = 0}}};
 
 device_t GeneralTestDevice = {
     .type = 63,

@@ -17,7 +17,7 @@ void init_params(param_val_t params[]) {
 }
 
 void device_actions(param_val_t params[]) {
-    params[VOLUME].p_f += 5;
+    // params[VOLUME].p_f += 5;
     params[GAIN].p_f += 1;
     params[STATUS].p_b = 1 - params[STATUS].p_b;
 }

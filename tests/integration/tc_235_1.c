@@ -1,11 +1,11 @@
 #include "../test.h"
 
-#define DEVICE_NAME "GeneralTestDevice"
-#define UID 1
-#define PARAM_NAME "ALWAYS_TRUE"
+#define DEVICE_NAME "OtherTestDevice"
+#define UID 0x123
+#define PARAM_NAME "Volume"
 
 /**
- * Tests #235 (should throw an error when trying to read a non-readable parameter)
+ * Tests #235 (should throw an error when trying to write to a non-writeable parameter)
  * Input: Not connected until after TELEOP
  * teleop_setup: Nothing
  * teleop_main: Only reads if 'w' is detected from the Keyboard
@@ -18,20 +18,21 @@ int main() {
     // Connect device and start TELEOP
     connect_virtual_device(DEVICE_NAME, UID);
     sleep(1);
+    check_device_connected(UID);
 
     // Check that parameter is zero from the start
-    param_val_t initial_param;
-    initial_param.p_b = 1;
-    same_param_value(DEVICE_NAME, UID, PARAM_NAME, INT, initial_param);
+    // param_val_t initial_param;
+    // initial_param.p_f = 100.0;
+    // same_param_value(DEVICE_NAME, UID, PARAM_NAME, FLOAT, initial_param);
 
     // Connect Input, which should allow writes to happen when TELEOP starts
-    float joysticks[4];
-    send_user_input(get_button_bit("w"), joysticks, KEYBOARD);
-    sleep(1);
+    // float joysticks[4];
+    // send_user_input(get_button_bit("w"), joysticks, KEYBOARD);
+    // sleep(1);
 
     // Start TELEOP, which will attempt to write a nonzero value
-    send_run_mode(SHEPHERD, TELEOP);
-    sleep(1);
+    // send_run_mode(SHEPHERD, TELEOP);
+    // sleep(1);
 
     // // Check that parameter is changed
     // param_val_t held_key_val;
