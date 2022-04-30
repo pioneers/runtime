@@ -36,7 +36,7 @@ size_t ServoControl::device_write(uint8_t param, uint8_t* data_buf) {
         servos[param].attach(this->pins[param]);
     }
     this->positions[param] = value;
-    servos[param].writeMicroseconds(ServoControl::SERVO_CENTER + (this->positions[param] * ServoControl::SERVO_RANGE / 2.0));
+    servos[param].writeMicroseconds(ServoControl::SERVO_CENTER + (this->positions[param] * ServoControl::SERVO_RANGE));
     return sizeof(float);
 }
 
