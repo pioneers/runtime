@@ -7,9 +7,6 @@
  * exception occurs.
  */
 
-
-// we have to skip the File: <file path> because on the pi it's /home/pi/runtime
-// but on Docker it's /root/runtime
 char check_output_6[] =
     "line 25, in teleop_main\n"
     "    oops = 1 / 0\n"

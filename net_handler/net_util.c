@@ -16,19 +16,19 @@ uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb) {
 int parse_msg(int fd, net_msg_t* msg_type, uint16_t* len_pb, uint8_t** buf) {
     int result;
     uint8_t type;
-    //read one byte -> determine message type
+    // read one byte -> determine message type
     if ((result = readn(fd, &type, 1)) <= 0) {
         return result;
     }
     *msg_type = type;
 
-    //read two bytes -> determine message length
+    // read two bytes -> determine message length
     if ((result = readn(fd, len_pb, 2)) <= 0) {
         return result;
     }
 
     *buf = malloc(*len_pb);
-    //read len_pb bytes -> put into buffer
+    // read len_pb bytes -> put into buffer
     if ((result = readn(fd, *buf, *len_pb)) < 0) {
         free(*buf);
         return result;

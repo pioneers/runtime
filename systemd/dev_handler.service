@@ -7,9 +7,9 @@ OnFailure=shm_stop.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/runtime/dev_handler
-ExecStart=/home/pi/runtime/dev_handler/dev_handler
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime/bin
+ExecStart=/home/ubuntu/runtime/bin/dev_handler
 KillSignal=SIGINT
 
 [Install]

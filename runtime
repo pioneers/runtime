@@ -14,6 +14,7 @@ cd $RUNTIME_DIR
 
 case $1 in
     build)
+        mkdir -p bin # make the runtime/bin directory
         shift 1
         pushd shm_wrapper && make $@
         popd
@@ -46,6 +47,7 @@ case $1 in
         ;;
     
     test)
+        mkdir -p tests/bin # make the runtime/tests/bin directory
         shift 1
         scripts/test.sh $@
         ;;

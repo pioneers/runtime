@@ -27,7 +27,7 @@ int main() {
 
     printf("Starting Executor CLI...\n");
     strcpy(student_code, "studentcode");
-    //start executor process
+    // start executor process
     start_executor(student_code);
 
     // command-line loop which prompts user for commands to send to net_handler

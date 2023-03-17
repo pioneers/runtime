@@ -78,19 +78,19 @@ void check_inputs(uint64_t expected_buttons, float expected_joysticks[4], robot_
 
 /**
  * Checks that the given device was received by the client.
- * 
+ *
  * Args:
  *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
  *  index: index where device should be
  *  type: what type the device should be
  *  uid: what uid the device should be
- * 
+ *
  */
 void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid);
 
 /**
  * Checks that the device at the given index has a parameter with the given attributes.
- * 
+ *
  * Args:
  *  dev_data: Protobuf struct that is outputted by Runtime from get_next_device_data()
  *  index: index where device should be
@@ -99,7 +99,7 @@ void check_device_sent(DevData* dev_data, int index, uint8_t type, uint64_t uid)
  *      If it is not one of INT, FLOAT, BOOL, then we assume that we don't care about checking parameter value.
  *  param_val: desired value of parameter, only used if param_type is valid. Otherwise, use NULL
  *  readonly: whether the parameter should be readonly. If it is not 0 or 1, then readonly isn't checked.
- * 
+ *
  */
 void check_device_param_sent(DevData* dev_data, int dev_idx, char* param_name, param_type_t param_type, param_val_t* param_val, uint8_t readonly);
 
@@ -192,11 +192,11 @@ void same_param_value(char* dev_name, uint64_t uid, char* param_name, param_type
 void check_param_range(char* dev_name, uint64_t uid, char* param_name, param_type_t param_type, param_val_t expected_low, param_val_t expected_high);
 
 /**
-* Checks the latency between an action and the TIMESTAMP parameter on a TimeTestDevice
+ * Checks the latency between an action and the TIMESTAMP parameter on a TimeTestDevice
  * Arguments:
  *    uid: unique identifier of TimeTestDevice
  *    upper_bound_latency: The expected upperbound latency
  *    start_time: The start of a timer provided by the test case(in ms), usually a call to the millis() function
-*/
+ */
 void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_time);
 #endif

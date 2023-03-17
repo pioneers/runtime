@@ -18,7 +18,7 @@ class BatteryBuzzer : public Device {
 
     BatteryBuzzer();
 
-    //overriden functions from Device class; see descriptions in Device.h
+    // overriden functions from Device class; see descriptions in Device.h
     virtual size_t device_read(uint8_t param, uint8_t* data_buf);
     virtual void device_enable();
     virtual void device_actions();
@@ -47,7 +47,7 @@ class BatteryBuzzer : public Device {
     const float max_cell = 4.4;
 
     const float d_cell = 0.3;      // Max voltage difference between cells.
-    const float end_d_cell = 0.1;  //imbalance must be less than this before i'm happy again.
+    const float end_d_cell = 0.1;  // imbalance must be less than this before i'm happy again.
     uint8_t imbalance;
 
     uint8_t compute_safety();
@@ -87,9 +87,9 @@ class BatteryBuzzer : public Device {
     SevenSeg disp;
 
     int digitPins[numOfDigits];
-    unsigned long last_LED_time;  //Time the last LED switched
-    int sequence;                 //used to switch states for the display.  Remember that the handle_8_segment cannot be blocking.
-    SEQ_NUM segment_8_run;        //0 for the normal voltage readout.  1 for "Clear Calibration".  2 for "New Calibration"
+    unsigned long last_LED_time;  // Time the last LED switched
+    int sequence;                 // used to switch states for the display.  Remember that the handle_8_segment cannot be blocking.
+    SEQ_NUM segment_8_run;        // 0 for the normal voltage readout.  1 for "Clear Calibration".  2 for "New Calibration"
 
     void start_8_seg_sequence(SEQ_NUM sequence_num);
     void handle_8_segment();

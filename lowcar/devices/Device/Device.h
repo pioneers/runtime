@@ -1,7 +1,7 @@
 /**
-* Class defining a lowcar device, receiving/sending messages
-* and performing actions based on received messages.
-*/
+ * Class defining a lowcar device, receiving/sending messages
+ * and performing actions based on received messages.
+ */
 
 #ifndef DEVICE_H
 #define DEVICE_H

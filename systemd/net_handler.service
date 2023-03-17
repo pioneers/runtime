@@ -7,9 +7,9 @@ OnFailure=shm_stop.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/runtime/net_handler
-ExecStart=/home/pi/runtime/net_handler/net_handler
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime/bin
+ExecStart=/home/ubuntu/runtime/bin/net_handler
 KillSignal=SIGINT
 
 [Install]

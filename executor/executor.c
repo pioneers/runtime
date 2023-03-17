@@ -97,7 +97,7 @@ static void executor_init(char* student_code) {
     // Need this so that the Python interpreter sees the Python files in this directory
     PyRun_SimpleString("import sys;sys.path.insert(0, '.')");
 
-    //imports the Cython student API
+    // imports the Cython student API
     pAPI = PyImport_ImportModule(api_module);
     if (pAPI == NULL) {
         PyErr_Print();
@@ -114,7 +114,7 @@ static void executor_init(char* student_code) {
         exit(1);
     }
 
-    //checks to make sure there is a Robot class, then instantiates it
+    // checks to make sure there is a Robot class, then instantiates it
     PyObject* robot_class = PyObject_GetAttrString(pAPI, "Robot");
     if (robot_class == NULL) {
         PyErr_Print();
@@ -129,7 +129,7 @@ static void executor_init(char* student_code) {
     }
     Py_DECREF(robot_class);
 
-    //checks to make sure there is a Gamepad class, then instantiates it
+    // checks to make sure there is a Gamepad class, then instantiates it
     PyObject* gamepad_class = PyObject_GetAttrString(pAPI, "Gamepad");
     if (gamepad_class == NULL) {
         PyErr_Print();
@@ -144,7 +144,7 @@ static void executor_init(char* student_code) {
     }
     Py_DECREF(gamepad_class);
 
-    //checks to make sure there is a Keyboard class, then instantiates it
+    // checks to make sure there is a Keyboard class, then instantiates it
     PyObject* keyboard_class = PyObject_GetAttrString(pAPI, "Keyboard");
     if (keyboard_class == NULL) {
         PyErr_Print();
@@ -196,7 +196,7 @@ static void executor_init(char* student_code) {
 static uint8_t run_py_function(const char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
     uint8_t ret = 0;
 
-    //retrieve the Python function from the student code
+    // retrieve the Python function from the student code
     PyObject* pFunc = PyObject_GetAttrString(pModule, func_name);
     PyObject* pValue = NULL;
     if (pFunc && PyCallable_Check(pFunc)) {
@@ -211,12 +211,12 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
             pValue = PyObject_CallObject(pFunc, args);  // make call to Python function
             clock_gettime(CLOCK_MONOTONIC, &end);
 
-            //if the time the Python function took was greater than max_time, warn that it's taking too long
+            // if the time the Python function took was greater than max_time, warn that it's taking too long
             time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
             if (timeout != NULL && time > max_time) {
                 log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop or sleep in the code. You probably forgot to put a Robot.sleep call into a robot action instead of a regular function.", func_name, (long) (max_time / 1e6));
             }
-            //if the time the Python function took was less than min_time, sleep to slow down execution
+            // if the time the Python function took was less than min_time, sleep to slow down execution
             if (time < min_time) {
                 usleep((min_time - time) / 1000);  // Need to convert nanoseconds to microseconds
             }
@@ -229,7 +229,7 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
                 Py_XDECREF(pValue);
             }
 
-            //catch execution error
+            // catch execution error
             if (pValue == NULL) {
                 if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
                     PyErr_Print();
@@ -286,7 +286,7 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
  *      args: string of the mode to start running
  */
 static void run_mode(robot_desc_val_t mode) {
-    //Set up the arguments to the threads that will run the setup and main threads
+    // Set up the arguments to the threads that will run the setup and main threads
     char* mode_str = get_mode_str(mode);
     char setup_str[20], main_str[20];
     sprintf(setup_str, "%s_setup", mode_str);
@@ -417,6 +417,6 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        usleep(100000);  //throttle this thread to ~10 Hz
+        usleep(100000);  // throttle this thread to ~10 Hz
     }
 }

@@ -1,8 +1,8 @@
 #ifndef PDB_DEFS
 #define PDB_DEFS
 
-//voltage_sense
-//All resistor values (R2-7) are in kOhms
+// voltage_sense
+// All resistor values (R2-7) are in kOhms
 #define R2 10.0
 #define R3 30.0
 #define R4 51.0
@@ -21,7 +21,7 @@
 #define ENABLE 16
 #define CALIB_BUTTON 21
 
-//disp_8
+// disp_8
 #define A 8
 #define B 9
 #define C 7

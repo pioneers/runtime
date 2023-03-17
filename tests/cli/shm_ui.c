@@ -1,14 +1,14 @@
 /**
  * The UI for shared memory using ncurses, a third-party dependency (not required to run runtime)
  * This displays a live view of memory blocks in SHM by polling frequently.
- * 
+ *
  * Important blocks of shared memory each have a dedicated ncurses "window"
- * 
+ *
  * Note that messages sent to stdout will interfere with the ui.
- * 
+ *
  * This implementation revolves around displaying strings at specified rows and columns,
  * which means we need to do some math with window dimensions. (See #define's below)
- * 
+ *
  * The general "template" for updating a window:
  *    - Get the current shared memory data
  *    - Display any "headers" (ex: the name of the window)
@@ -19,7 +19,7 @@
  *         increment our line pointer
  *    - Redraw the box around the window (which is fragmented due to line clearing in the for-loop)
  *    - refresh the screen with our new changes
- * 
+ *
  * Install ncurses with:
  *    sudo apt-get install libncurses5-dev libncursesw5-dev
  */
@@ -375,7 +375,7 @@ void display_keyboard_state(char** key_names) {
 /**
  * Displays a device's current state of parameters in a formatted table.
  * Param Idx (int) | Name (str) | Command (var) | Data (var)
- * 
+ *
  * Arguments:
  *    catalog: current shared memory catalog; Used to handle when device at shm_idx is invalid
  *    dev_ids: current shared memory device information; used to get device information at shm_idx
