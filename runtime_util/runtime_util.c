@@ -101,6 +101,22 @@ device_t KoalaBear = {
         {.name = "enc_b", .type = INT, .read = 1, .write = 1},
     }};
 
+device_t PDB = {
+    .type = 7,
+    .name = "PDB",
+    .num_params = 9,
+    .params = {
+        {.name = "is_unsafe", .type = BOOL, .read = 1, .write = 0},
+        {.name = "calibrated", .type = BOOL, .read = 1, .write = 0},
+        {.name = "v_cell1", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "v_cell2", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "v_cell3", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "v_batt", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "dv_cell2", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "dv_cell3", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "network_switch", .type = BOOL, .read = 1, .write = 0}
+    }};
+
 // *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
 
 // A CustomDevice is unusual because the parameters are dynamic
