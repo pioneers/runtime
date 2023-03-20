@@ -23,7 +23,7 @@
 #define FALSE 0
 
 // identification for analog pins
-enum class Analog : uint8_t {
+enum Analog : uint8_t {
     IO0 = A0,
     IO1 = A1,
     IO2 = A2,
@@ -31,7 +31,7 @@ enum class Analog : uint8_t {
 };
 
 // identification for digital pins
-enum class Digital : uint8_t {
+enum Digital : uint8_t {
     IO4 = 2,
     IO5 = 3,
     IO6 = 6,

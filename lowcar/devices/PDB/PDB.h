@@ -89,7 +89,7 @@ class PDB : public Device {
 
     unsigned long last_check_time;
 
-    Disp disp;
+    Disp* disp;
 
     int digitPins[numOfDigits];
     unsigned long last_LED_time;  //Time the last LED switched

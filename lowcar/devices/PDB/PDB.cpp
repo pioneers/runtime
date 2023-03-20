@@ -75,7 +75,7 @@ void PDB::device_enable() {
     pinMode(digitPins[3], OUTPUT); 
 
     pinMode(CELL1, INPUT);
-    pinMode(CELL2 INPUT);
+    pinMode(CELL2, INPUT);
     pinMode(CELL3, INPUT);
   
     pinMode(BUZZER, OUTPUT);
@@ -89,8 +89,8 @@ void PDB::device_enable() {
 }
 
 void PDB::device_actions() {
-    setup_display();
-    disp.clearDisp();
+    //setup_display();
+    disp->clearDisp();
 
     handle_8_segment();
     SEQ_NUM mode = handle_calibration();
@@ -101,7 +101,7 @@ void PDB::device_actions() {
         last_check_time = millis();
         handle_safety();
     }
-    disp.clearDisp();
+    disp->clearDisp();
 }
 
 // function that determines whether this PDB has been calibrated or not
@@ -118,10 +118,10 @@ uint8_t PDB::is_calibrated() {
     return TRUE;
 }
 
-void PDB::setup_display() {
-    disp.setDigitPins(numOfDigits, digitPins);
-    disp.setDPPin(DECIMAL_POINT);  //set the Decimal Point pin to #1
-}
+// void PDB::setup_display() {
+//     disp->setDigitPins(numOfDigits, digitPins);
+//     disp->setDPPin(DECIMAL_POINT);  //set the Decimal Point pin to #1
+// }
 
 /**
  * a function to ensure that all outputs of the display are working.
@@ -129,12 +129,13 @@ void PDB::setup_display() {
  * The library is capable of handling : and ', but the wires are not hooked up to it.
  */
 void PDB::test_display() {
-    for (int i = 0; i < 250; i++) {
-        //this function call takes a surprising amount of time,
-        //probably because of how many characters are in it.
-        disp.write(PDB::DisplayChars(String("8.8.8.8.")));
-    }
-    disp.clearDisp();
+    // for (int i = 0; i < 250; i++) {
+    //     //this function call takes a surprising amount of time,
+    //     //probably because of how many characters are in it.
+    //     disp->write(Disp::DisplayChars(string("8.8.8.8.")));
+    // }
+    disp->writeString("8.8.8.8.");
+    disp->clearDisp();
 }
 
 /**
@@ -147,28 +148,28 @@ void PDB::handle_8_segment() {
         //Changed every Second
         switch (sequence) {
             case 0:
-                disp.write("ALL");
+                disp->writeString("ALL");
                 break;
             case 1:
-                disp.write(Disp::DisplayChars(String(v_batt)));
+                disp->writeFloat(v_batt);
                 break;
             case 2:
-                disp.write("CEL1");
+                disp->writeString("CEL1");
                 break;
             case 3:
-                disp.write(Disp::DisplayChars(String(v_cell1)));
+                disp->writeFloat(v_cell1);
                 break;
             case 4:
-                disp.write("CEL2");
+                disp->writeString("CEL2");
                 break;
             case 5:
-                disp.write(Disp::DisplayChars(String(v_cell2)));
+                disp->writeFloat(v_cell2);
                 break;
             case 6:
-                disp.write("CEL3");
+                disp->writeString("CEL3");
                 break;
             case 7:
-                disp.write(Disp::DisplayChars(String(v_cell3)));
+                disp->writeFloat(v_cell3);
                 break;
         }
 
@@ -181,9 +182,9 @@ void PDB::handle_8_segment() {
         }
     } else if (segment_8_run == CLEAR_CALIB) {
         if (sequence == 0) {
-            disp.write("CAL");
+            disp->writeString("CAL");
         } else if (sequence == 1) {
-            disp.write("CLR");
+            disp->writeString("CLR");
         }
 
         if (millis() > (last_LED_time + 750)) {  //every 3/4 second
@@ -198,28 +199,28 @@ void PDB::handle_8_segment() {
         if (triple_calibration) {
             switch (sequence) {
                 case 0:
-                    disp.write("CAL");
+                    disp->writeString("CAL");
                     break;
                 case 1:
-                    disp.write("DONE");
+                    disp->writeString("DONE");
                     break;
                 case 2:
-                    disp.write("CAL.1");
+                    disp->writeString("CAL1");
                     break;
                 case 3:
-                    disp.write(calib[0]);
+                    disp->writeFloat(calib[0]);
                     break;
                 case 4:
-                    disp.write("CAL.2");
+                    disp->writeString("CAL2");
                     break;
                 case 5:
-                    disp.write(calib[1]);
+                    disp->writeFloat(calib[1]);
                     break;
                 case 6:
-                    disp.write("CAL.3");
+                    disp->writeString("CAL3");
                     break;
                 case 7:
-                    disp.write(calib[2]);
+                    disp->writeFloat(calib[2]);
                     break;
             }
 
@@ -233,16 +234,16 @@ void PDB::handle_8_segment() {
         } else {
             switch (sequence) {
                 case 0:
-                    disp.write("CAL");
+                    disp->writeString("CAL");
                     break;
                 case 1:
-                    disp.write("DONE");
+                    disp->writeString("DONE");
                     break;
                 case 2:
-                    disp.write("CAL");
+                    disp->writeString("CAL");
                     break;
                 case 3:
-                    disp.write(vref_guess);
+                    disp->writeFloat(vref_guess);
                     break;
             }
 
@@ -264,14 +265,14 @@ void PDB::start_8_seg_sequence(SEQ_NUM sequence_num) {
 }
 
 void PDB::setup_sensing() {
-    pinMode(ENABLE, OUTPUT);
+    //pinMode(ENABLE, OUTPUT);
     pinMode(CALIB_BUTTON, INPUT);
 
     //for stable (if unknown) internal voltage.
     analogReference(INTERNAL);
 
     //let's turn enable on, so we can measure the battery voltage.
-    digitalWrite(ENABLE, HIGH);
+    //digitalWrite(ENABLE, HIGH);
 
     if (triple_calibration) {
         update_triple_calibration();  //and then update the calibration values I use based on what I now know
@@ -355,25 +356,26 @@ float PDB::calibrate() {
     //I want to calculate the best-fit for the 1 vref.
 
     //expected voltages, after the resistive dividers.
-    float expected_vc1 = EXT_CALIB_VOLT * R5 / (R2 + R5);
-    float expected_vc2 = EXT_CALIB_VOLT * R6 / (R3 + R6);
-    float expected_vc3 = EXT_CALIB_VOLT * R7 / (R4 + R7);
+    // float expected_vc1 = EXT_CALIB_VOLT * R5 / (R2 + R5);
+    // float expected_vc2 = EXT_CALIB_VOLT * R6 / (R3 + R6);
+    // float expected_vc3 = EXT_CALIB_VOLT * R7 / (R4 + R7);
 
     int r_cell1 = analogRead(CELL1);
     int r_cell2 = analogRead(CELL2);
     int r_cell3 = analogRead(CELL3);
 
     //as per whiteboard math.
-    float vref1 = ADC_COUNTS / (float(r_cell1)) * R5 / (R2 + R5) * EXT_CALIB_VOLT;
-    float vref2 = ADC_COUNTS / (float(r_cell2)) * R6 / (R3 + R6) * EXT_CALIB_VOLT;
-    float vref3 = ADC_COUNTS / (float(r_cell3)) * R7 / (R4 + R7) * EXT_CALIB_VOLT;
+    // float vref1 = ADC_COUNTS / (float(r_cell1)) * R5 / (R2 + R5) * EXT_CALIB_VOLT;
+    // float vref2 = ADC_COUNTS / (float(r_cell2)) * R6 / (R3 + R6) * EXT_CALIB_VOLT;
+    // float vref3 = ADC_COUNTS / (float(r_cell3)) * R7 / (R4 + R7) * EXT_CALIB_VOLT;
 
     //calibration array values are updated.  These are only used if triple calibration is in use.
-    calib[0] = vref1;
-    calib[1] = vref2;
-    calib[2] = vref3;
+    // calib[0] = vref1;
+    // calib[1] = vref2;
+    // calib[2] = vref3;
     //avg all vrefs together to get best guess value
-    vref_guess = (vref1 + vref2 + vref3) / 3.0f;
+    // vref_guess = (vref1 + vref2 + vref3) / 3.0f;
+    vref_guess = 1;
     return vref_guess;
 }
 
