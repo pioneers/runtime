@@ -43,9 +43,8 @@ void Disp::expanderWrite(byte data) { //write the given byte data to the display
 }
 
 void Disp::writeString(char* str) {
-  uint8_t bytearray[4];
+  uint8_t bytearray[strlen(str)];
   int index = 0;
-
   for (int i = 0; i < strlen(str); i++) {
     for (int j = 0; j < 17; j++) {
       if(Disp::INVERTED_7SEG_CHARS[j][1] == str[i]) {
@@ -54,7 +53,7 @@ void Disp::writeString(char* str) {
           bytearray[index] = justChar;
           index++;
         }
-        if(str[i+1] == '.') {
+        else if(str[i+1] == '.') {
           bytearray[index] = (0b00000100 | justChar);
           index++;
           i++;
@@ -65,7 +64,8 @@ void Disp::writeString(char* str) {
       }
     }
   }
-  for(int k = 0; k < 4; k++) {
+  //debugging notes: changed byte array size to strlen(str)
+  for(int k = 0; k < strlen(str); k++) {
     expanderWrite(~bytearray[k]);
     delay(1);
   }

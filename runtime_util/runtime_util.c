@@ -216,6 +216,7 @@ __attribute__((constructor)) void devices_arr_init() {
     DEVICES[ServoControl.type] = &ServoControl;
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
+    DEVICES[PDB.type] = &PDB;
     DEVICES[CustomDevice.type] = &CustomDevice;
     DEVICES[SoundDevice.type] = &SoundDevice;
     DEVICES[TimeTestDevice.type] = &TimeTestDevice;

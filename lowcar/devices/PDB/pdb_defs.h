@@ -53,7 +53,6 @@ typedef enum {
     V_BATT,
     DV_CELL2,
     DV_CELL3,
-    VREF_GUESS,
     NETWORK_SWITCH
 } PARAMS;
 

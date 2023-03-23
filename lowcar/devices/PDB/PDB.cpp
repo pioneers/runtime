@@ -12,6 +12,7 @@ PDB::PDB() : Device(DeviceType::PDB, 1) {
     this->v_cell3 = 0;     // param 5
     this->v_batt = 0;      // param 6
     this->vref_guess = 0;  // param 9
+    this->unsafe_status = FALSE;
 
     this->triple_calibration = TRUE;
 
@@ -37,7 +38,7 @@ size_t PDB::device_read(uint8_t param, uint8_t* data_buf) {
     switch (param) {
         // Boolean params
         case IS_UNSAFE:
-            data_buf[0] = is_unsafe();
+            data_buf[0] = FALSE; // is_unsafe();
             return sizeof(uint8_t);
         case CALIBRATED:
             data_buf[0] = is_calibrated();
@@ -114,7 +115,7 @@ uint8_t PDB::is_calibrated() {
     if (!triple_calibration && (get_calibration() == -1.0)) {
         return FALSE;
     }
-    //device is calibrated: no default values
+    // device is calibrated: no default values
     return TRUE;
 }
 
