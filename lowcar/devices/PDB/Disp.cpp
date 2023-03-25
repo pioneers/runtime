@@ -25,11 +25,14 @@ const uint8_t Disp::INVERTED_7SEG_CHARS[][2] = {
     {0b00000000,' '}//blank
   };
 Disp::Disp() {
-
+    this->digitPins[0] = DISP_PIN_1;
+    this->digitPins[1] = DISP_PIN_2;
+    this->digitPins[2] = DISP_PIN_3;
+    this->digitPins[3] = DISP_PIN_4;
 }
 
 void Disp::clearDisp() { //reset all the pins so none of the digits are displayed
-  digitalWrite(DISP_PIN_1, LOW); 
+  digitalWrite(DISP_PIN_1, LOW);//Set all back to LOW after 
   digitalWrite(DISP_PIN_2, LOW);
   digitalWrite(DISP_PIN_3, LOW);
   digitalWrite(DISP_PIN_4, LOW);
@@ -37,7 +40,7 @@ void Disp::clearDisp() { //reset all the pins so none of the digits are displaye
 }
 
 void Disp::expanderWrite(byte data) { //write the given byte data to the display //this DISPLAYS
-  Wire.beginTransmission(expander);
+  Wire.beginTransmission(expander); 
   Wire.write(data);
   Wire.endTransmission(); 
 }
@@ -65,9 +68,11 @@ void Disp::writeString(char* str) {
     }
   }
   //debugging notes: changed byte array size to strlen(str)
-  for(int k = 0; k < strlen(str); k++) {
+  for(int k = 0; k < strlen(str) && k < 4; k++) {
+    digitalWrite(digitPins[k], HIGH);
     expanderWrite(~bytearray[k]);
-    delay(1);
+    delay(250);
+    clearDisp(); // digitalWrite(digitPins[k], LOW);
   }
 }
 
@@ -77,5 +82,5 @@ void Disp::writeFloat(float val) {
 	int decimal_part = (int) ((val - integer_part) * 100);
 
 	sprintf(str, "%d.%d", integer_part, decimal_part);
-	Disp::writeString(str);
+	writeString(str);
 }

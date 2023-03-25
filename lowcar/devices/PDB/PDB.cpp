@@ -16,6 +16,8 @@ PDB::PDB() : Device(DeviceType::PDB, 1) {
 
     this->triple_calibration = TRUE;
 
+    analogReference(DEFAULT);
+
     //this->buzzer = 10;
     this->last_check_time = 0;  //for loop counter
 
@@ -24,7 +26,7 @@ PDB::PDB() : Device(DeviceType::PDB, 1) {
     this->digitPins[2] = DISP_PIN_3;
     this->digitPins[3] = DISP_PIN_4;
 
-    this->last_LED_time = 0;  //Time the last LED switched
+    this->last_LED_time = millis();  //Time the last LED switched
     this->sequence = 0;       //used to switch states for the display.  Remember that the hangle_8_segment cannot be blocking.
 
     this->segment_8_run = NORMAL_VOLT_READ;  //0 for the normal voltage readout.  1 for "Clear Calibration".  2 for "New Calibration"
@@ -41,7 +43,7 @@ size_t PDB::device_read(uint8_t param, uint8_t* data_buf) {
             data_buf[0] = FALSE; // is_unsafe();
             return sizeof(uint8_t);
         case CALIBRATED:
-            data_buf[0] = is_calibrated();
+            data_buf[0] = TRUE; // auto set to true, not using calibrations right now, maybe fix later
             return sizeof(uint8_t);
         case V_CELL1:
             float_buf[0] = v_cell1;
@@ -91,18 +93,18 @@ void PDB::device_enable() {
 
 void PDB::device_actions() {
     //setup_display();
-    disp->clearDisp();
+    // disp->clearDisp();
 
     handle_8_segment();
-    SEQ_NUM mode = handle_calibration();
-    setup_sensing();
+    //SEQ_NUM mode = handle_calibration(); // calibrations and EEPROM
+    //setup_sensing();
 
     if ((millis() - last_check_time) > 250) {
         measure_cells();
         last_check_time = millis();
-        handle_safety();
+        //handle_safety();    don't buzz, change back when voltages are working again
     }
-    disp->clearDisp();
+    // disp->clearDisp();
 }
 
 // function that determines whether this PDB has been calibrated or not
@@ -150,9 +152,11 @@ void PDB::handle_8_segment() {
         switch (sequence) {
             case 0:
                 disp->writeString("ALL");
+                this->msngr->lowcar_printf("case 0");
                 break;
             case 1:
                 disp->writeFloat(v_batt);
+                this->msngr->lowcar_printf("case 1");
                 break;
             case 2:
                 disp->writeString("CEL1");
@@ -294,10 +298,11 @@ void PDB::measure_cells() {
     // v_cell1 = float(r_cell1) * (R2 + R5) / R5 * calib[0] / ADC_COUNTS;
     // v_cell2 = float(r_cell2) * (R3 + R6) / R6 * calib[1] / ADC_COUNTS;
     // v_cell3 = float(r_cell3) * (R4 + R7) / R7 * calib[2] / ADC_COUNTS;
+
     v_cell1 = float(r_cell1) * 4.0 / float(ADC_COUNTS) * 5.0;
     v_cell2 = (float(r_cell2) * 4.0 / float(ADC_COUNTS) * 5.0) - v_cell1;
     v_cell3 = (float(r_cell3) * 4.0 / float(ADC_COUNTS) * 5.0) - v_cell2 - v_cell1;
-
+    
     // dv_cell2 = v_cell2 - v_cell1;
     // dv_cell3 = v_cell3 - v_cell2;
 

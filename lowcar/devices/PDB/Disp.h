@@ -14,6 +14,7 @@ class Disp {
     private:
         // Byte List for Seven Segment Characters
         const static uint8_t INVERTED_7SEG_CHARS[][2];
+        int digitPins[4];
 };
 
 #endif
