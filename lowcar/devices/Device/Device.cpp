@@ -144,5 +144,3 @@ void Device::device_write_params(message_t* msg) {
         }
     }
 }
-
-

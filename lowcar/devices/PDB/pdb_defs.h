@@ -2,7 +2,7 @@
 #define PDB_DEFS
 #include "defs.h"
 
-#define expander B0100000 //hardwired ID of the expander
+#define expander B0100000  // hardwired ID of the expander
 
 #define CELL1 Analog::IO3
 #define CELL2 Analog::IO2

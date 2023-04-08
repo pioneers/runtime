@@ -96,8 +96,8 @@ class Device {
   protected:
     Messenger* msngr;  // Encodes/decodes and send/receive messages over serial
     uint8_t enabled;
-    StatusLED* led;  // The LED on the Arduino
-    uint64_t curr_time;                // The current time
+    StatusLED* led;      // The LED on the Arduino
+    uint64_t curr_time;  // The current time
 
   private:
     dev_id_t dev_id;                   // dev_id of this device determined when flashing

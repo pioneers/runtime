@@ -114,8 +114,7 @@ device_t PDB = {
         {.name = "v_batt", .type = FLOAT, .read = 1, .write = 0},
         {.name = "dv_cell2", .type = FLOAT, .read = 1, .write = 0},
         {.name = "dv_cell3", .type = FLOAT, .read = 1, .write = 0},
-        {.name = "network_switch", .type = BOOL, .read = 1, .write = 0}
-    }};
+        {.name = "network_switch", .type = BOOL, .read = 1, .write = 0}}};
 
 // *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
 
