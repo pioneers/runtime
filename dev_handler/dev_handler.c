@@ -78,6 +78,7 @@ int serialport_close(int fd);
 
 // Utility
 void cleanup_handler(void* args);
+void handle_net_switch(relay_t* relay);
 
 // **************************** GLOBAL VARIABLES **************************** //
 
@@ -475,6 +476,7 @@ void* receiver(void* relay_cast) {
                 // If received DEVICE_DATA, write to shared memory
                 parse_device_data(relay->dev_id.type, msg, vals);  // Get param values from payload
                 device_write(relay->shm_dev_idx, DEV_HANDLER, DATA, *((uint32_t*) msg->payload), vals);
+                handle_net_switch(relay); // Change wifi network if the PDB network switch is switched
             } else if (msg->message_id == LOG) {
                 // If received LOG, send it to the logger
                 log_printf(DEBUG, "[%s (0x%016llX)]: %s", get_device_name(relay->dev_id.type), relay->dev_id.uid, msg->payload);
@@ -800,6 +802,43 @@ int serialport_close(int fd) {
 void cleanup_handler(void* args) {
     relay_t* relay = (relay_t*) args;
     pthread_mutex_unlock(&relay->relay_lock);
+}
+
+void handle_net_switch(relay_t* relay) {
+    // static variable to keep track of previous state
+    static bool current_switch = false;
+    if (relay->dev_id.type == 7) { // PDB type number is 7, look at runtime_util.c for addition info
+        uint32_t pmap = 1 << 8; // pmap set to only allow network switch value to be read since only bit 9 is 1, rest 0
+        param_val_t* params = malloc(MAX_PARAMS * sizeof(param_val_t));  // Array of params to be filled on device_read()
+        bool new_switch;
+        if (params == NULL) {
+            log_printf(FATAL, "handle_net_switch: Failed to malloc");
+            exit(1);
+        }
+        // retrieve network switch from shared memory
+        device_read(relay->shm_dev_idx, DEV_HANDLER, DATA, pmap, params);
+        new_switch = params[8].p_b;
+        // if the previous state is different from the current state
+            // do the change_wifi.c code
+            // set the current state to the previous state
+        char *which_network[3];
+        which_network[0] = "network_switch";
+        which_network[2] = NULL;
+        if (new_switch != current_switch) {
+            pid_t pid;
+            if ((pid = fork()) < 0) {
+                log_printf(WARN, "handle_net_switch: Failed to fork");
+            } else if (pid == 0) {
+                if (new_switch == false) {
+                    which_network[1] = "network 1";
+                } else {
+                    which_network[1] = "network 2";
+                }
+                execv("network_switch", which_network);
+            }
+            current_switch = new_switch;
+        }
+    }
 }
 
 // ********************************** MAIN ********************************** //
