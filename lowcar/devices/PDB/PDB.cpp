@@ -34,6 +34,24 @@ PDB::PDB() : Device(DeviceType::PDB, 1) {
     this->digitPins[2] = DISP_PIN_3;
     this->digitPins[3] = DISP_PIN_4;
     this->last_seg_change = this->last_measure_time = this->curr_time;
+
+    pinMode(digitPins[0], OUTPUT);
+    pinMode(digitPins[1], OUTPUT);
+    pinMode(digitPins[2], OUTPUT);
+    pinMode(digitPins[3], OUTPUT);
+
+    pinMode(CELL1, INPUT);
+    pinMode(CELL2, INPUT);
+    pinMode(CELL3, INPUT);
+
+    pinMode(NET_SWITCH_PIN, INPUT);  // network switch
+    pinMode(BUZZER, OUTPUT);
+
+    pinMode(TX, OUTPUT);
+    pinMode(RX, INPUT);
+
+    Wire.begin();
+
 }
 
 size_t PDB::device_read(uint8_t param, uint8_t* data_buf) {
@@ -74,22 +92,22 @@ size_t PDB::device_read(uint8_t param, uint8_t* data_buf) {
 
 void PDB::device_enable() {
     // set pins, clear display, obtain calibrations?
-    pinMode(digitPins[0], OUTPUT);
-    pinMode(digitPins[1], OUTPUT);
-    pinMode(digitPins[2], OUTPUT);
-    pinMode(digitPins[3], OUTPUT);
+    // pinMode(digitPins[0], OUTPUT);
+    // pinMode(digitPins[1], OUTPUT);
+    // pinMode(digitPins[2], OUTPUT);
+    // pinMode(digitPins[3], OUTPUT);
 
-    pinMode(CELL1, INPUT);
-    pinMode(CELL2, INPUT);
-    pinMode(CELL3, INPUT);
+    // pinMode(CELL1, INPUT);
+    // pinMode(CELL2, INPUT);
+    // pinMode(CELL3, INPUT);
 
-    pinMode(NET_SWITCH_PIN, INPUT);  // network switch
-    pinMode(BUZZER, OUTPUT);
+    // pinMode(NET_SWITCH_PIN, INPUT);  // network switch
+    // pinMode(BUZZER, OUTPUT);
 
-    pinMode(TX, OUTPUT);
-    pinMode(RX, INPUT);
+    // pinMode(TX, OUTPUT);
+    // pinMode(RX, INPUT);
 
-    Wire.begin();  // SDA / SCL for expander
+    //Wire.begin();  // SDA / SCL for expander
 }
 
 void PDB::device_actions() {

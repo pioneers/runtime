@@ -395,6 +395,7 @@ int main(int argc, char* argv[]) {
     signal(SIGINT, exit_handler);
     logger_init(EXECUTOR);
     shm_init();
+    chdir("../executor");
 
     char* student_code = "studentcode";
     if (argc > 1) {

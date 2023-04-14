@@ -49,7 +49,7 @@ void Device::loop() {
     } else if (sts != Status::NO_DATA) {
         this->msngr->lowcar_printf("Error when reading message by lowcar device");
     }
-
+    device_actions();  //[MOVED TO HERE]
     // If it's been too long since we received a DEVICE_PING, disable the device
     if (this->enabled && (this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
@@ -62,7 +62,7 @@ void Device::loop() {
     }
 
     // do device-specific actions. This may change params
-    device_actions();
+    //device_actions(); //[MOVED]
 
     /* Send another DEVICE_DATA with all readable parameters if DATA_INTERVAL_MS
      * milliseconds passed since the last time we sent a DEVICE_DATA
