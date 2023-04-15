@@ -13,3 +13,4 @@ shm_stop: shm_stop.c $(FILES)
 
 clean:
 	rm -f $(BIN)/shm_start $(BIN)/shm_stop
+	rm -f shm_start shm_stop

@@ -66,6 +66,10 @@ case $1 in
         scripts/update.sh
         ;;
 
+    status)
+        ps -ef | grep ubuntu
+        ;;
+
     *)
         printf "usage: runtime command [args]\n\n"
         printf "commands:\n"
@@ -92,6 +96,8 @@ case $1 in
 
         printf "\tupdate\t\tUnzips a copy of a Runtime repo at '/tmp/runtime.zip' and replaces the current one.\n"
         printf "\t\t\tAlso reboots Runtime.\n"
+
+        printf "\tstatus\t\tPrints out the status of runtime running\n"
         ;;
 esac
 

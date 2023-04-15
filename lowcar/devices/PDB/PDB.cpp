@@ -51,7 +51,6 @@ PDB::PDB() : Device(DeviceType::PDB, 1) {
     pinMode(RX, INPUT);
 
     Wire.begin();
-
 }
 
 size_t PDB::device_read(uint8_t param, uint8_t* data_buf) {
@@ -107,7 +106,7 @@ void PDB::device_enable() {
     // pinMode(TX, OUTPUT);
     // pinMode(RX, INPUT);
 
-    //Wire.begin();  // SDA / SCL for expander
+    // Wire.begin();  // SDA / SCL for expander
 }
 
 void PDB::device_actions() {

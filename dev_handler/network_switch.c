@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv) {
     if (strcmp(argv[1], "network 1") == 0) {
-        system("sudo nmcli d wifi connect Motherbase password pieisgreat");
+        system("sudo nmcli d wifi connect pioneers password pieisgreat");
 
     } else if (strcmp(argv[1], "network 2") == 0) {
         char* router_name = malloc(sizeof(char) * 32);

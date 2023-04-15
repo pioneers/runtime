@@ -22,4 +22,5 @@ test_api: studentapi.c test_studentapi.py
 clean:
 	rm -f studentapi.c
 	rm -f $(BIN)/executor
+	rm -f executor
 	rm -f *.so

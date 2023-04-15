@@ -62,7 +62,7 @@ void Device::loop() {
     }
 
     // do device-specific actions. This may change params
-    //device_actions(); //[MOVED]
+    // device_actions(); //[MOVED]
 
     /* Send another DEVICE_DATA with all readable parameters if DATA_INTERVAL_MS
      * milliseconds passed since the last time we sent a DEVICE_DATA

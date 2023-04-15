@@ -9,4 +9,5 @@ network_switch: network_switch.c
 
 clean:
 	rm -f $(BIN)/dev_handler
+	rm -f dev_handler
     
