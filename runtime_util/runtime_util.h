@@ -47,7 +47,8 @@ typedef enum process {
     EXECUTOR,
     NET_HANDLER,
     SHM,
-    TEST
+    TEST,
+    NETWORK_SWITCH
 } process_t;
 
 // enumerated names for the joystick params of the gamepad
