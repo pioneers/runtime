@@ -21,7 +21,9 @@ const uint8_t PDB::INVERTED_7SEG_CHARS[][2] = {
     {0b00000000, ' '}   // blank
 };
 
-PDB::PDB() : Device(DeviceType::PDB, 1) {
+// Here, we call the Device constructor with Serial1 as the argument for
+// Serial port because we want the PDB to use the Serial1 port, not the Serial port (micro USB)
+PDB::PDB() : Device(DeviceType::PDB, 1, true, &Serial1) {
     this->v_cell1 = 0;     // param
     this->v_cell2 = 0;     // param 4
     this->v_cell3 = 0;     // param 5

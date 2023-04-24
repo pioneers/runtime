@@ -18,9 +18,12 @@ const int Messenger::DEV_ID_UID_BYTES = 8;   // Bytes in uid field of dev id
 
 // ************************* MESSENGER CLASS METHODS ************************ //
 
-Messenger::Messenger() {
-    Serial.begin(115200);  // open Serial (USB) connection
-
+Messenger::Messenger(bool is_hardware_serial, HardwareSerial *hw_serial_port) {
+    // Get a new GeneralSerial object to use with this device (will be Serial by default, which is typical)
+    // Then, open a serial (USB) connection on that port
+    this->serial_object = new GeneralSerial(is_hardware_serial, hw_serial_port);
+    this->serial_object->begin(115200);
+    
     // A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
     this->log_queue_max_size = 10;
     this->log_queue = (char**) malloc(sizeof(char*) * this->log_queue_max_size);
@@ -62,7 +65,7 @@ Status Messenger::send_message(MessageID msg_id, message_t* msg, dev_id_t* dev_i
     cobs_buf[1] = (byte) cobs_len;
 
     // Write to serial
-    uint8_t written = Serial.write(cobs_buf, Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len);
+    uint8_t written = this->serial_object->write(cobs_buf, Messenger::DELIMITER_BYTES + Messenger::COBS_LEN_BYTES + cobs_len);
 
     // Clear the message for the next send
     msg->message_id = MessageID::NOP;
@@ -74,14 +77,14 @@ Status Messenger::send_message(MessageID msg_id, message_t* msg, dev_id_t* dev_i
 
 Status Messenger::read_message(message_t* msg) {
     // Check if there's something to read
-    if (!Serial.available()) {
+    if (!this->serial_object->available()) {
         return Status::NO_DATA;
     }
 
     // Find the start of the packet (the delimiter)
     int last_byte_read = -1;
-    while (Serial.available()) {
-        last_byte_read = Serial.read();
+    while (this->serial_object->available()) {
+        last_byte_read = this->serial_object->read();
         if (last_byte_read == 0) {  // Byte 0x00 is the delimiter
             break;
         }
@@ -90,16 +93,16 @@ Status Messenger::read_message(message_t* msg) {
     if (last_byte_read != 0) {  // no start of packet found
         return Status::MALFORMED_DATA;
     }
-    if (Serial.available() == 0 || Serial.peek() == 0) {  // no packet length found
+    if (this->serial_object->available() == 0 || this->serial_object->peek() == 0) {  // no packet length found
         return Status::MALFORMED_DATA;
     }
 
     // Read the cobs len (how many bytes left in the message)
-    size_t cobs_len = Serial.read();
+    size_t cobs_len = this->serial_object->read();
 
     // Read the rest of the message into buffer
     uint8_t cobs_buf[cobs_len];
-    size_t read_len = Serial.readBytesUntil(0x00, (char*) cobs_buf, cobs_len);  // Read cobs_len bytes or until the next delimiter (whichever is first)
+    size_t read_len = this->serial_object->readBytesUntil(0x00, (char*) cobs_buf, cobs_len);  // Read cobs_len bytes or until the next delimiter (whichever is first)
     if (cobs_len != read_len) {
         return Status::PROCESS_ERROR;
     }
