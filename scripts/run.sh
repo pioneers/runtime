@@ -19,6 +19,8 @@ sleep 0.5
 cd bin && ./executor &
 sleep 0.5
 cd bin && ./dev_handler &
+sleep 0.5
+cd bin && ./network_switch & 
 
 # waits for background processes to stop (they won't ever stop)
 wait

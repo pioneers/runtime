@@ -1,6 +1,6 @@
 [Unit]
 Description=Network switch process for Runtime
-BindsTo=executor.service net_handler.service network_switch.service
+BindsTo=executor.service net_handler.service dev_handler.service
 After=shm_start.service
 Conflicts=shm_stop.service
 OnFailure=shm_stop.service
@@ -8,7 +8,7 @@ OnFailure=shm_stop.service
 [Service]
 Type=simple
 User=ubuntu
-WorkingDirectory=/home/ubuntu/runtime/network_switch
+WorkingDirectory=/home/ubuntu/runtime/bin
 ExecStart=/home/ubuntu/runtime/bin/network_switch
 KillSignal=SIGINT
 

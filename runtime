@@ -24,6 +24,8 @@ case $1 in
         popd
         pushd dev_handler && make $@
         popd
+        pushd network_switch && make $@ 
+        popd
         scripts/run_clang_format.py -ir .        
         ;;
 
@@ -33,6 +35,7 @@ case $1 in
         pushd executor    && make clean && popd
         pushd dev_handler && make clean && popd
         pushd tests       && make clean && popd
+        pushd network_switch && make clean && popd
         rm -f /tmp/log-fifo
         rm -f /tmp/challenge.sock
         rm -f /tmp/ttyACM*
