@@ -533,6 +533,7 @@ void clean_up(int signum) {
 int main(int argc, char** argv) {
     // signal handler to clean up shm
     signal(SIGINT, clean_up);
+    chdir(".."); // move out to the tests folder
     logger_init(TEST);
 
     // If SHM exists, simply attach to it. Otherwise, create SHM

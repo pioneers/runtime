@@ -103,26 +103,6 @@ size_t PDB::device_read(uint8_t param, uint8_t* data_buf) {
     return sizeof(float);
 }
 
-void PDB::device_enable() {
-    // set pins, clear display, obtain calibrations?
-    // pinMode(digitPins[0], OUTPUT);
-    // pinMode(digitPins[1], OUTPUT);
-    // pinMode(digitPins[2], OUTPUT);
-    // pinMode(digitPins[3], OUTPUT);
-
-    // pinMode(CELL1, INPUT);
-    // pinMode(CELL2, INPUT);
-    // pinMode(CELL3, INPUT);
-
-    // pinMode(NET_SWITCH_PIN, INPUT);  // network switch
-    // pinMode(BUZZER, OUTPUT);
-
-    // pinMode(TX, OUTPUT);
-    // pinMode(RX, INPUT);
-
-    // Wire.begin();  // SDA / SCL for expander
-}
-
 void PDB::device_actions() {
     handle_8_segment();
 
