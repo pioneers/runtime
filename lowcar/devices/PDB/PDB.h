@@ -16,7 +16,6 @@ class PDB : public Device {
 
     // overriden functions from Device class; see descriptions in Device.h
     virtual size_t device_read(uint8_t param, uint8_t* data_buf);
-    virtual void device_enable();
     virtual void device_actions();
     void expanderWrite(byte data);
     void writeString(char* str);
