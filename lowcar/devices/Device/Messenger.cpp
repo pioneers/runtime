@@ -18,12 +18,12 @@ const int Messenger::DEV_ID_UID_BYTES = 8;   // Bytes in uid field of dev id
 
 // ************************* MESSENGER CLASS METHODS ************************ //
 
-Messenger::Messenger(bool is_hardware_serial, HardwareSerial *hw_serial_port) {
+Messenger::Messenger(bool is_hardware_serial, HardwareSerial* hw_serial_port) {
     // Get a new GeneralSerial object to use with this device (will be Serial by default, which is typical)
     // Then, open a serial (USB) connection on that port
     this->serial_object = new GeneralSerial(is_hardware_serial, hw_serial_port);
     this->serial_object->begin(115200);
-    
+
     // A queue initialized with room for 10 strings each of size MAX_PAYLOAD_SIZE
     this->log_queue_max_size = 10;
     this->log_queue = (char**) malloc(sizeof(char*) * this->log_queue_max_size);

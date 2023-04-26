@@ -11,7 +11,7 @@ const int numOfDigits = 4;
 
 class PDB : public Device {
   public:
-    // Constructor 
+    // Constructor
     PDB();
 
     // overriden functions from Device class; see descriptions in Device.h

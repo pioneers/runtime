@@ -5,8 +5,6 @@
 
 #include <termios.h>  // for POSIX terminal control definitions in serialport_open()
 
-#include <errno.h>
-
 #include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"

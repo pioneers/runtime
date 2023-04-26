@@ -26,7 +26,7 @@ const uint8_t PDB::INVERTED_7SEG_CHARS[][2] = {
     {0b00000000, ' '}   // blank
 };
 
-/* 
+/*
  * Bit correspondence to display:
  * |  x  |  x  |  x  |  x  |  x  |  x  |  x  |  x  |
  * | top | top | bot | mid | top | pt. | bot | bot |
@@ -109,7 +109,6 @@ void PDB::device_actions() {
     if ((this->curr_time - this->last_measure_time) > 1500) {
         measure_cells();
         this->last_measure_time = this->curr_time;
-        // handle_safety();    don't buzz, change back when voltages are working again
     }
 }
 
@@ -157,13 +156,13 @@ void PDB::handle_8_segment() {
             this->writeFloat(this->v_cell3);
             break;
         case 8:
-            this->writeString("0N"); // Supposed to be "On" for "On network:" -> display the network status
+            this->writeString("0N");  // Supposed to be "On" for "On network:" -> display the network status
             break;
         case 9:
             if (digitalRead(NET_SWITCH_PIN) == false) {
-                this->writeString("P1E"); // Supposed to be "PiE" -> pioneers or Motherbase
+                this->writeString("P1E");  // Supposed to be "PiE" -> pioneers or Motherbase
             } else {
-                this->writeString("L0C"); // Supposed to be "LOC" for "Local" -> Team router
+                this->writeString("L0C");  // Supposed to be "LOC" for "Local" -> Team router
             }
             break;
     }

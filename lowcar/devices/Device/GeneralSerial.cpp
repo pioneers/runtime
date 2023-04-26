@@ -1,6 +1,6 @@
 #include "GeneralSerial.h"
 
-GeneralSerial::GeneralSerial(bool is_hardware_serial, HardwareSerial *hw_serial_port) {
+GeneralSerial::GeneralSerial(bool is_hardware_serial, HardwareSerial* hw_serial_port) {
     this->is_hardware_serial = is_hardware_serial;
     this->hw_serial_port = hw_serial_port;
 }
@@ -37,7 +37,7 @@ size_t GeneralSerial::write(const uint8_t byte) {
     }
 }
 
-size_t GeneralSerial::write(const uint8_t *buffer, size_t size) {
+size_t GeneralSerial::write(const uint8_t* buffer, size_t size) {
     if (is_hardware_serial) {
         return this->hw_serial_port->write(buffer, size);
     } else {
