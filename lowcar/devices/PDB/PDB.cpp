@@ -1,5 +1,8 @@
 #include "PDB.h"
 
+// this is the length of the INVERTED_7SEG_CHARS array
+#define NUM_UNIQUE_DISPLAY_CHARS 19
+
 const uint8_t PDB::INVERTED_7SEG_CHARS[][2] = {
     {0b11101011, '0'},  // 0
     {0b01100000, '1'},  // 1
@@ -15,11 +18,20 @@ const uint8_t PDB::INVERTED_7SEG_CHARS[][2] = {
     {0b11111001, 'A'},  // A
     {0b10011001, 'F'},  // F
     {0b10000011, 'L'},  // L
-    {0b10011011, 'E'},
+    {0b10011011, 'E'},  // E
     {0b10001011, 'C'},  // C
     {0b11100011, 'U'},  // U
+    {0b11011001, 'P'},  // P
+    {0b11101001, 'N'},  // N
     {0b00000000, ' '}   // blank
 };
+
+/* 
+ * Bit correspondence to display:
+ * |  x  |  x  |  x  |  x  |  x  |  x  |  x  |  x  |
+ * | top | top | bot | mid | top | pt. | bot | bot |
+ * | left|right|right|     |     |     |     | left|
+ */
 
 // Here, we call the Device constructor with Serial1 as the argument for
 // Serial port because we want the PDB to use the Serial1 port, not the Serial port (micro USB)
@@ -164,11 +176,21 @@ void PDB::handle_8_segment() {
         case 7:
             this->writeFloat(this->v_cell3);
             break;
+        case 8:
+            this->writeString("0N"); // Supposed to be "On" for "On network:" -> display the network status
+            break;
+        case 9:
+            if (digitalRead(NET_SWITCH_PIN) == false) {
+                this->writeString("P1E"); // Supposed to be "PiE" -> pioneers or Motherbase
+            } else {
+                this->writeString("L0C"); // Supposed to be "LOC" for "Local" -> Team router
+            }
+            break;
     }
 
     if (this->curr_time > (this->last_seg_change + 1000)) {  // every second
         this->sequence = this->sequence + 1;
-        if (this->sequence == 8) {
+        if (this->sequence == 10) {
             this->sequence = 0;
         }
         this->last_seg_change = this->curr_time;
@@ -195,7 +217,7 @@ void PDB::writeString(char* str) {
     uint8_t bytearray[strlen(str)];
     int index = 0;
     for (int i = 0; i < strlen(str); i++) {
-        for (int j = 0; j < 17; j++) {
+        for (int j = 0; j < NUM_UNIQUE_DISPLAY_CHARS; j++) {
             if (PDB::INVERTED_7SEG_CHARS[j][1] == str[i]) {
                 uint8_t justChar = PDB::INVERTED_7SEG_CHARS[j][0];
                 if (i == strlen(str) - 1) {
