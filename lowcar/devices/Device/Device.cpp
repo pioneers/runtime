@@ -1,7 +1,7 @@
 #include "Device.h"
 
 // Device constructor
-Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
+Device::Device(DeviceType dev_id, uint8_t dev_year, bool is_hardware_serial, HardwareSerial* hw_serial_port, uint32_t timeout) {
     this->dev_id.type = dev_id;
     this->dev_id.year = dev_year;
     this->dev_id.uid = 0;  // sets a temporary value
@@ -9,7 +9,8 @@ Device::Device(DeviceType dev_id, uint8_t dev_year, uint32_t timeout) {
     this->timeout = timeout;  // timeout in ms how long we tolerate not receiving a DEVICE_PING from dev handler
     this->enabled = FALSE;    // Whether or not the device currently has a connection with Runtime
 
-    this->msngr = new Messenger();
+    // make a new Messenger on the specified serial port
+    this->msngr = new Messenger(is_hardware_serial, hw_serial_port);
     this->led = new StatusLED();
 
     this->last_sent_data_time = this->last_received_ping_time = this->curr_time = millis();
@@ -49,7 +50,7 @@ void Device::loop() {
     } else if (sts != Status::NO_DATA) {
         this->msngr->lowcar_printf("Error when reading message by lowcar device");
     }
-
+    device_actions();  //[MOVED TO HERE]
     // If it's been too long since we received a DEVICE_PING, disable the device
     if (this->enabled && (this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
@@ -62,7 +63,7 @@ void Device::loop() {
     }
 
     // do device-specific actions. This may change params
-    device_actions();
+    // device_actions(); //[MOVED]
 
     /* Send another DEVICE_DATA with all readable parameters if DATA_INTERVAL_MS
      * milliseconds passed since the last time we sent a DEVICE_DATA

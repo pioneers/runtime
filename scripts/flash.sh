@@ -351,7 +351,7 @@ printf "\nAttempting to flash a $DEVICE_NAME!\n\n"
 arduino-cli config init
 
 # update the core index (see arduino-cli documentation)
-arduino-cli core update-index
+arduino-cli core update-index --override
 
 # symlink libraries
 symlink_libs

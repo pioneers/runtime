@@ -10,7 +10,7 @@ void send_log_msg(int conn_fd, FILE* log_file);
 
 /*
 * Send a timestamp message over TCP with a timestamp attached to the message. The timestamp is when the net_handler on runtime has received the
-* packet and processed it. 
+* packet and processed it.
 * Arguments:
     - int conn_fd: socket connection's file descriptor on which to write to the TCP port
     - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_proto from Dawn

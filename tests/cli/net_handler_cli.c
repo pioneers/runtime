@@ -11,7 +11,7 @@
  * Flags:
  *   -d: Connects a fake Dawn
  *   -s: Connects a fake Shepherd
- * 
+ *
  * If no flags are specified, both (fake) Dawn and (fake) Shepherd will be connected to a new
  * net handler instance.
  */
@@ -77,7 +77,7 @@ void prompt_run_mode() {
 void prompt_game_state() {
     robot_desc_field_t state;
     char nextcmd[MAX_CMD_LEN];
-    //get state to send
+    // get state to send
     while (true) {
         printf("Send state POISON_IVY, DEHYDRATION, HYPOTHERMIA: ");
         fgets(nextcmd, MAX_CMD_LEN, stdin);

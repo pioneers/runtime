@@ -13,7 +13,7 @@ FILE* null_fp = NULL;        // file pointer to /dev/null
 /**
  * A variable holds the most recent device data received from Runtime
  * - This is updated constantly, and done while holding the lock
- * - Before updating this variable, remember to free it since it holds the previous message 
+ * - Before updating this variable, remember to free it since it holds the previous message
  *   which has memory allocated to it. This prevents memory leak.
  * The mutex must be held whenever we want to access this global variable.
  */
@@ -102,7 +102,7 @@ void print_dev_data(FILE* file, DevData* dev_data) {
  * Arguments:
  *    client: client that we are receiving data as; one of SHEPHERD or DAWN
  *    tcp_fd: file descriptor connected to net_handler from which to read data
- * Returns: 
+ * Returns:
  *    the type of message successfully received and printed out, or
  *    -1 on failure
  */
@@ -277,7 +277,7 @@ void start_net_handler() {
             printf("chdir: %s\n", strerror(errno));
         }
         // exec the actual net_handler process
-        if (execlp("./net_handler", "net_handler", NULL) < 0) {
+        if (execlp("./../bin/net_handler", "net_handler", NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
     } else {                    // parent

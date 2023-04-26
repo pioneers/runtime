@@ -19,7 +19,7 @@ sem_t* log_data_sem;               // semaphore used as a mutex on the log data
 
 /**
  * Send a command to stop all moving parts on the robot. State of the game is unaffected.
- * 
+ *
  * Depending on the state of Runtime, it may be wise to emergency stop the robot.
  * Note that this does not block further commands to move the robot; that should be implemented
  * in the student API. (This sends only ONE stop command that can be overwritten if not careful.)
@@ -527,7 +527,7 @@ void robot_desc_write(robot_desc_field_t field, robot_desc_val_t val) {
          * This is a safety precaution; a UserInput is expected to be connected during TELEOP,
          * so it's safe to assume something is wrong if there isn't one connected.
          * Note: We may be spammed with DISCONNECT, so this check should be done only when a change is made.
-         * 
+         *
          * Example:
          *  Write to velocity in teleop_setup() while input connected, which will succeed
          *  Disconnect input

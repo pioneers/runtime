@@ -1,7 +1,7 @@
 #include "KoalaBear.h"
 
 //********************************* constants and variables used for setting up the controller ********************//
-//TODO: ask electrical for what they mean
+// TODO: ask electrical for what they mean
 #define CTRL_REG 0b000
 #define TORQUE_REG 0b001
 

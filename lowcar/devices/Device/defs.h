@@ -23,7 +23,7 @@
 #define FALSE 0
 
 // identification for analog pins
-enum class Analog : uint8_t {
+enum Analog : uint8_t {
     IO0 = A0,
     IO1 = A1,
     IO2 = A2,
@@ -31,7 +31,7 @@ enum class Analog : uint8_t {
 };
 
 // identification for digital pins
-enum class Digital : uint8_t {
+enum Digital : uint8_t {
     IO4 = 2,
     IO5 = 3,
     IO6 = 6,
@@ -58,7 +58,8 @@ enum class DeviceType : uint8_t {
     BATTERY_BUZZER = 0x03,
     SERVO_CONTROL = 0x04,
     POLAR_BEAR = 0x05,
-    KOALA_BEAR = 0x06
+    KOALA_BEAR = 0x06,
+    PDB = 0x07
     // DISTANCE_SENSOR   = 0x07 Uncomment when implemented
 };
 

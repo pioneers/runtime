@@ -261,8 +261,8 @@ size_t calc_max_cobs_msg_length(message_t* msg) {
     // Cobs encoding a length N message adds overhead of at most ceil(N/254)
     size_t cobs_length = required_packet_length + (required_packet_length / 254) + 1;
     /* Add 2 additional bytes to the buffer for use in message_to_bytes()
-    * 0th byte will be 0x0 indicating the start of a packet.
-    * 1st byte will hold the actual length from cobs encoding */
+     * 0th byte will be 0x0 indicating the start of a packet.
+     * 1st byte will hold the actual length from cobs encoding */
     return DELIMITER_SIZE + COBS_LENGTH_SIZE + cobs_length;
 }
 
@@ -331,7 +331,7 @@ void parse_device_data(uint8_t dev_type, message_t* dev_data, param_val_t vals[]
     // Bitmap is stored in the first 32 bits of the payload
     uint32_t bitmap = *((uint32_t*) dev_data->payload);
     /* Iterate through device's parameters. If bit is off, continue
-    * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
+     * If bit is on, determine how much to read from the payload then put it in VALS in the appropriate field */
     uint8_t* payload_ptr = &(dev_data->payload[BITMAP_SIZE]);  // Start the pointer at the beginning of the values (skip the bitmap)
     for (int i = 0; ((bitmap >> i) > 0) && (i < MAX_PARAMS); i++) {
         // If bit is on, parameter is included in the payload

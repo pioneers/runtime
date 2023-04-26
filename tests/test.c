@@ -171,12 +171,12 @@ static char* rstrstr(char* haystack, char* needle) {
     regex_t expr;
     regmatch_t tracker;
 
-    //Compiles regex string into a usable regex expression
+    // Compiles regex string into a usable regex expression
     if (regcomp(&expr, needle, REG_EXTENDED)) {
         fprintf(stderr, "Unable to build regex expression");
         return NULL;
     }
-    //Looks for first instance of regex expression in HAYSTACK
+    // Looks for first instance of regex expression in HAYSTACK
     if (regexec(&expr, haystack, 1, &tracker, REG_EXTENDED)) {
         return NULL;
     }

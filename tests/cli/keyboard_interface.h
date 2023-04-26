@@ -15,9 +15,9 @@
 // ********************************** MAIN PROCESS ****************************************** //
 
 /**
-* Setups connection to keyboard_inputs python script. Processes incoming inputs and translates
-* it to gamepad and joystick info to send through the send_gamepad_state() function
-*/
+ * Setups connection to keyboard_inputs python script. Processes incoming inputs and translates
+ * it to gamepad and joystick info to send through the send_gamepad_state() function
+ */
 void setup_keyboard();
 
 #endif

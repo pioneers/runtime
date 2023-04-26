@@ -8,7 +8,7 @@
 /**
  * Helper function to print out contents of a DevData message
  * Arguments:
- *    file: file to output printout to 
+ *    file: file to output printout to
  *    dev_data: the unpacked device data message to print
  */
 void print_dev_data(FILE* file, DevData* dev_data);
@@ -33,7 +33,7 @@ void start_net_handler();
 void stop_net_handler();
 
 /**
- * Cleans up threads and closes open file descriptors 
+ * Cleans up threads and closes open file descriptors
  */
 void close_output();
 
@@ -47,10 +47,10 @@ void close_output();
 void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode);
 
 /**
-* Sends a Game State message from Shepherd with the specified state
-* Arguments:
-*   - state: one of POISON_IVY, DEHYDRATION, or HYPOTHERMIA 
-*/
+ * Sends a Game State message from Shepherd with the specified state
+ * Arguments:
+ *   - state: one of POISON_IVY, DEHYDRATION, or HYPOTHERMIA
+ */
 void send_game_state(robot_desc_field_t state);
 
 /**
@@ -85,7 +85,7 @@ void disconnect_user_input();
 DevData* get_next_dev_data();
 
 /**
- * Sends a Timestamp message with a "Dawn" timestamp attached to it. It is then received by the tcp_conn, where it 
+ * Sends a Timestamp message with a "Dawn" timestamp attached to it. It is then received by the tcp_conn, where it
  * sends a new Timestamp message with the "Runtime" timestamp attached to it. Finally it comes back around to "net_handler_client"
  * where it parses the message and calculates how much time it took to go to tcp_conn and back
  * No return value

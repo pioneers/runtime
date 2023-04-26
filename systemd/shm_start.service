@@ -4,9 +4,9 @@ OnFailure=shm_start.service
 
 [Service]
 Type=oneshot
-User=pi
-WorkingDirectory=/home/pi/runtime/shm_wrapper
-ExecStart=/home/pi/runtime/shm_wrapper/shm_start
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime/bin
+ExecStart=/home/ubuntu/runtime/bin/shm_start
 KillSignal=SIGINT
 
 [Install]

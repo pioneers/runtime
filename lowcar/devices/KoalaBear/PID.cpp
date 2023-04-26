@@ -100,7 +100,7 @@ float PID::regression(float x_vals[], float y_vals[], int number) {
     float x_avg, y_avg, slope;
     float numerator[number], denominator[number];
 
-    //calculate averages
+    // calculate averages
     x_avg = average(x_vals, number);
     y_avg = average(y_vals, number);
 

@@ -244,7 +244,7 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
  * This function writes the given state of the gamepad to shared memory.
  * Blocks on both the gamepad semaphore and device description semaphore (to check if gamepad connected).
  * Arguments:
- *    pressed_buttons: a 64-bit bitmap that corresponds to which buttons are currently pressed. 
+ *    pressed_buttons: a 64-bit bitmap that corresponds to which buttons are currently pressed.
  *                     only some of the bits are used, depending on the input source
  *    joystick_vals[4]: array of 4 floats that contain the values to write to the joystick
  *    source: which input source to write to, either GAMEPAD or KEYBOARD
@@ -255,7 +255,7 @@ int input_read(uint64_t* pressed_buttons, float joystick_vals[4], robot_desc_fie
 int input_write(uint64_t pressed_buttons, float joystick_vals[4], robot_desc_field_t source);
 
 /**
- * Write the given custom parameter to shared memory. 
+ * Write the given custom parameter to shared memory.
  * Arguments:
  *    key: name of the parameter. Must be at most LOG_KEY_LENGTH characters, including the null terminator
  *    type: type of the parameter

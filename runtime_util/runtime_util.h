@@ -47,7 +47,8 @@ typedef enum process {
     EXECUTOR,
     NET_HANDLER,
     SHM,
-    TEST
+    TEST,
+    NETWORK_SWITCH
 } process_t;
 
 // enumerated names for the joystick params of the gamepad
@@ -233,7 +234,7 @@ char** get_key_names();
 
 /**
  * Get the bit corresponding to a gamepad button name.
- * 
+ *
  * Args:
  *     button_name: string representation of a button, matching the name in BUTTON_NAMES
  * Returns:
@@ -244,11 +245,11 @@ uint64_t get_button_bit(char* button_name);
 
 /**
  * Get the bit corresponding to a keyboard key name.
- * 
+ *
  * Args:
  *     key_name: string representation of a key, matching the name in KEY_NAMES
  * Returns:
- *     the bit shifted to the index corresponding to the key 
+ *     the bit shifted to the index corresponding to the key
  *     -1 on error if given key_name doesn't exist
  */
 uint64_t get_key_bit(char* key_name);
@@ -256,12 +257,12 @@ uint64_t get_key_bit(char* key_name);
 
 /**
  * Convert the robot_desc_field_t to its string representation.
- * 
+ *
  * Args:
  *      field: the robot description field to convert
  * Returns:
  *      string corresponding to the enum or NULL if string representation doesn't exist yet
- * 
+ *
  */
 char* field_to_string(robot_desc_field_t field);
 
