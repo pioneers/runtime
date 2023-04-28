@@ -31,11 +31,11 @@ uint16_t torque_read_data;
 //******************************* KOALABEAR CONSTANTS AND PARAMS ****************************//
 
 // ----------------------> CHANGE THIS TO IMPLEMENT MAX SPEED FOR KARTS <----------------------
-#define MAX_DUTY_CYCLE 0.75  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
+#define MAX_DUTY_CYCLE 1.0  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
 // --------------------------------------------------------------------------------------------
 
 // --------------------> CHANGE THIS TO IMPLEMENT ACCELERATION FOR KARTS <---------------------
-#define ACCEL 0.7  // acceleration of motors, in duty cycle units per second squared
+#define ACCEL 2.0  // acceleration of motors, in duty cycle units per second squared
 // --------------------------------------------------------------------------------------------
 
 // default values for PID controllers; PID control is explained in the Wiki!

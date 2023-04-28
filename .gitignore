@@ -11,6 +11,9 @@ lowcar/Device
 # ignore the entire net_handler/pbc_gen folder
 net_handler/pbc_gen
 
+# ignore network_switch/exit_status.txt
+network_switch/exit_status.txt
+
 # Log files
 *.log
 
