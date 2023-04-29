@@ -16,7 +16,7 @@
  * a file with path "/dev/ttyACM0". A second device connected will appear as
  * "/dev/ttyACM1".
  * Virtual devices (not Arduinos) on the other hand are UNIX sockets that appear as
- * "/tmp/ttyACM0"
+ * "/var/ttyACM0"
  * In the code, the number is referred to as "port_num"
  * Depending on whether a device is an Arduino ("lowcar") or a virtual device,
  * dev handler has to open a connection with it differently.
@@ -24,7 +24,7 @@
  * These file paths may also be referred to as "port_prefix" in the code.
  */
 #define LOWCAR_FILE_PATH "/dev/ttyACM"
-#define VIRTUAL_FILE_PATH "/tmp/ttyACM"
+#define VIRTUAL_FILE_PATH "/var/ttyACM"
 #define LOWCAR_USB_FILE_PATH "/dev/ttyUSB"
 
 // **************************** PRIVATE STRUCT ****************************** //

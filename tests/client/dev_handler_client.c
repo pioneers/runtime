@@ -4,7 +4,7 @@
 #define TIMEOUT 2000
 
 // The name of a socket's file to be succeeded by an integer
-#define SOCKET_PREFIX "/tmp/ttyACM"
+#define SOCKET_PREFIX "/var/ttyACM"
 
 // The maximum number of devices that can be connected
 #define MAX_DEVICES 32
