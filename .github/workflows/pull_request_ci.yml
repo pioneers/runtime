@@ -42,4 +42,4 @@ jobs:
       
       - name: Test
         run: |
-          ./runtime test integration/tc_150_1
+          ./runtime test integration/tc_71_5

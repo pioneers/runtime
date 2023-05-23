@@ -10,6 +10,8 @@
 #include "../shm_wrapper/shm_wrapper.h"
 #include "message.h"
 
+#include <sys/stat.h> // *************************************************************************************
+
 /**
  * Each device will have a unique port number.
  * For example, if there is only one Arduino connected, it will (probably) appear as
@@ -24,7 +26,7 @@
  * These file paths may also be referred to as "port_prefix" in the code.
  */
 #define LOWCAR_FILE_PATH "/dev/ttyACM"
-#define VIRTUAL_FILE_PATH "/var/ttyACM"
+#define VIRTUAL_FILE_PATH "ttyACM"			// will be created in the home directory
 #define LOWCAR_USB_FILE_PATH "/dev/ttyUSB"
 
 // **************************** PRIVATE STRUCT ****************************** //
@@ -92,7 +94,10 @@ uint32_t used_virtual_ports = 0;
 uint32_t used_lowcar_usb_ports = 0;
 pthread_mutex_t used_ports_lock;  // poll_connected_devices() and relay_clean_up() shouldn't access used_ports at the same time
 
-#define MAX_PORT_NAME_SIZE 16
+// String to hold the home directory path (for looking for virtual device sockets)
+const char *home_dir;
+
+#define MAX_PORT_NAME_SIZE 64
 
 // ***************************** MAIN FUNCTIONS ***************************** //
 
@@ -185,11 +190,14 @@ static int get_new_devices_helper(bool is_virtual, bool is_usb, uint32_t* found_
             construct_port_name(device_path, is_virtual, is_usb, i);
             // If that port currently connected (file exists), it's a new device
             if (access(device_path, F_OK) != -1) {
+                log_printf(DEBUG, "device found at path: %s\n", device_path); // *********************************************************
                 // Turn bit on
                 *found_devices |= (1 << i);
                 // Mark that we've taken care of this device
                 *used_ports |= (1 << i);
+                log_printf(DEBUG, "virtual device bitmap is %d\n", *used_ports); // *********************************************************
                 num_devices_found++;
+                log_printf(DEBUG, "num_Devices_found = %d\n", num_devices_found); // *********************************************************
             }
         }
         pthread_mutex_unlock(&used_ports_lock);
@@ -241,6 +249,7 @@ void communicate(bool is_virtual, bool is_usb, uint8_t port_num) {
 
     if (relay->is_virtual) {  // Bind to socket
         relay->file_descriptor = connect_socket(port_name);
+        log_printf(DEBUG, "dev_handler: relay->file_descriptor = %d\n", relay->file_descriptor); // *******************************************************
         if (relay->file_descriptor == -1) {
             log_printf(ERROR, "communicate: Couldn't connect to socket %s\n", port_name);
             relay_clean_up(relay);
@@ -312,7 +321,7 @@ void* relayer(void* relay_cast) {
 
     // If the device disconnects or times out, clean up
     log_printf(DEBUG, "Monitoring %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
-    char port_name[14];
+    char port_name[MAX_PORT_NAME_SIZE];
     construct_port_name(port_name, relay->is_virtual, relay->is_usb, relay->port_num);
     while (1) {
         // If Arduino port file doesn't exist, it disconnected
@@ -486,6 +495,8 @@ void* receiver(void* relay_cast) {
         // Try to read a message
         if (receive_message(relay, msg) != 0) {
             // Message was broken... try to read the next message
+           printf("something happpened");
+           fflush(stdout);
             continue;
         }
         if (msg->message_id == DEVICE_DATA || msg->message_id == LOG || msg->message_id == DEVICE_PING) {
@@ -568,10 +579,29 @@ int receive_message(relay_t* relay, message_t* msg) {
         /* Haven't verified device is lowcar yet
          * read() is set to timeout while waiting for an ACK (see serialport_open())*/
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+        log_printf(DEBUG, "before read call: relay->file_descriptor = %d", relay->file_descriptor);
+        log_printf(DEBUG, "before read call"); // *******************************************************************************************
+        fflush(stdout);
+        
+        usleep(100000); // stop so virtul device can print out its fd's before spammy
+        
+        // make a call that will give EBADF if fd is bad that is not close() XD
+        struct stat fd_stat;
+        int ret = fstat(relay->file_descriptor, &fd_stat);
+        
+        
+        log_printf(DEBUG, "after fstat call");
+        usleep(100000); // ***************************** make sure that this log has time to print
+        
         num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
+        usleep(100000); // throttle?????? // *********************************************************
+        log_printf(DEBUG, "after read call"); // *******************************************************************************************
+        fflush(stdout);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
         if (num_bytes_read == -1) {
             log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
+            fflush(stdout);
+            usleep(100000); // throttle? please please please throttle // *********************************************************
             return 3;
         } else if (num_bytes_read == 0) {  // read() returned due to timeout
             log_printf(WARN, "Timed out when waiting for ACK from %s!", port_name);
@@ -722,6 +752,7 @@ int verify_device(relay_t* relay) {
 int connect_socket(const char* socket_name) {
     // Make a local socket for sending/receiving raw byte streams
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    log_printf(DEBUG, "dev_handler fd = %d\n", fd); // *********************************************************
     if (fd == -1) {
         log_printf(ERROR, "connect_socket: Couldn't create socket--%s", strerror(errno));
         return -1;
@@ -811,6 +842,7 @@ int serialport_open(const char* port_name) {
  *    -1 on error and sets errno
  */
 int serialport_close(int fd) {
+    log_printf(DEBUG, "closing! ???"); // ************************************************************
     return close(fd);
 }
 
@@ -829,7 +861,8 @@ void cleanup_handler(void* args) {
 
 void construct_port_name(char* port_name, bool is_virtual, bool is_usb, int port_num) {
     if (is_virtual) {
-        sprintf(port_name, "%s%d", VIRTUAL_FILE_PATH, port_num);
+        // append home directory in front of the socket name
+        sprintf(port_name, "%s/%s%d", home_dir, VIRTUAL_FILE_PATH, port_num);
     } else if (is_usb) {
         sprintf(port_name, "%s%d", LOWCAR_USB_FILE_PATH, port_num);
     } else {
@@ -853,6 +886,7 @@ int main(int argc, char* argv[]) {
     // If SIGINT (Ctrl+C) is received, call stop() to clean up
     signal(SIGINT, stop);
     init();
+	home_dir = getenv("HOME"); // set the home directory 
     log_printf(INFO, "DEV_HANDLER initialized.");
     poll_connected_devices();
     return 0;
