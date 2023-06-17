@@ -5,6 +5,8 @@ on:
   pull_request:
     branches: [master]
     types: [opened, synchronize]
+  push:
+    branches: [master]
 
 jobs:
   build-and-test:
@@ -29,13 +31,39 @@ jobs:
       - name: Install Cython
         run: |
           python3 -m pip install Cython
+      
+      - name: Give tar root permissions
+        run: |
+          sudo chown root:root /usr/bin/tar && sudo chmod u+s /usr/bin/tar
+          
+      - name: Cache protobuf-c
+        id: cache-protobuf-c
+        uses: actions/cache@v3
+        with:
+          path: |
+            /usr/local/lib/libprotobuf-c.*
+            /usr/local/lib/pkgconfig
+            /usr/local/bin/protoc-*
+            /usr/local/include/protobuf-c
+            /usr/local/include/google
+          key: libprotobuf
+          
+      - name: Take tar root permissions away
+        run: |
+          sudo chown runner:runner /usr/bin/tar && sudo chmod u+s /usr/bin/tar
 
-      - name: Install protobuf-c
+      - if: ${{ steps.cache-protobuf-c.outputs.cache-hit != 'true' }}
+        name: Install protobuf-c
         run: |
           wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.4.1/protobuf-c-1.4.1.tar.gz
           tar -xzf protobuf-c-1.4.1.tar.gz
           cd protobuf-c-1.4.1 && ./configure && make && sudo make install && sudo ldconfig
       
+      - if: ${{ steps.cache-protobuf-c.outputs.cache-hit == 'true' }}
+        name: Run ldconfig
+        run: |
+          sudo ldconfig
+
       - name: Build
         run: |
           ./runtime build
