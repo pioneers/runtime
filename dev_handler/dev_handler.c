@@ -190,14 +190,11 @@ static int get_new_devices_helper(bool is_virtual, bool is_usb, uint32_t* found_
             construct_port_name(device_path, is_virtual, is_usb, i);
             // If that port currently connected (file exists), it's a new device
             if (access(device_path, F_OK) != -1) {
-                log_printf(DEBUG, "device found at path: %s\n", device_path); // *********************************************************
                 // Turn bit on
                 *found_devices |= (1 << i);
                 // Mark that we've taken care of this device
                 *used_ports |= (1 << i);
-                log_printf(DEBUG, "virtual device bitmap is %d\n", *used_ports); // *********************************************************
                 num_devices_found++;
-                log_printf(DEBUG, "num_Devices_found = %d\n", num_devices_found); // *********************************************************
             }
         }
         pthread_mutex_unlock(&used_ports_lock);
@@ -249,7 +246,6 @@ void communicate(bool is_virtual, bool is_usb, uint8_t port_num) {
 
     if (relay->is_virtual) {  // Bind to socket
         relay->file_descriptor = connect_socket(port_name);
-        log_printf(DEBUG, "dev_handler: relay->file_descriptor = %d\n", relay->file_descriptor); // *******************************************************
         if (relay->file_descriptor == -1) {
             log_printf(ERROR, "communicate: Couldn't connect to socket %s\n", port_name);
             relay_clean_up(relay);
@@ -495,8 +491,6 @@ void* receiver(void* relay_cast) {
         // Try to read a message
         if (receive_message(relay, msg) != 0) {
             // Message was broken... try to read the next message
-           printf("something happpened");
-           fflush(stdout);
             continue;
         }
         if (msg->message_id == DEVICE_DATA || msg->message_id == LOG || msg->message_id == DEVICE_PING) {
@@ -579,29 +573,10 @@ int receive_message(relay_t* relay, message_t* msg) {
         /* Haven't verified device is lowcar yet
          * read() is set to timeout while waiting for an ACK (see serialport_open())*/
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-        log_printf(DEBUG, "before read call: relay->file_descriptor = %d", relay->file_descriptor);
-        log_printf(DEBUG, "before read call"); // *******************************************************************************************
-        fflush(stdout);
-        
-        usleep(100000); // stop so virtul device can print out its fd's before spammy
-        
-        // make a call that will give EBADF if fd is bad that is not close() XD
-        struct stat fd_stat;
-        int ret = fstat(relay->file_descriptor, &fd_stat);
-        
-        
-        log_printf(DEBUG, "after fstat call");
-        usleep(100000); // ***************************** make sure that this log has time to print
-        
         num_bytes_read = read(relay->file_descriptor, &last_byte_read, 1);
-        usleep(100000); // throttle?????? // *********************************************************
-        log_printf(DEBUG, "after read call"); // *******************************************************************************************
-        fflush(stdout);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
         if (num_bytes_read == -1) {
             log_printf(ERROR, "receive_message: Error on read() for ACK--%s", strerror(errno));
-            fflush(stdout);
-            usleep(100000); // throttle? please please please throttle // *********************************************************
             return 3;
         } else if (num_bytes_read == 0) {  // read() returned due to timeout
             log_printf(WARN, "Timed out when waiting for ACK from %s!", port_name);
@@ -752,7 +727,6 @@ int verify_device(relay_t* relay) {
 int connect_socket(const char* socket_name) {
     // Make a local socket for sending/receiving raw byte streams
     int fd = socket(AF_UNIX, SOCK_STREAM, 0);
-    log_printf(DEBUG, "dev_handler fd = %d\n", fd); // *********************************************************
     if (fd == -1) {
         log_printf(ERROR, "connect_socket: Couldn't create socket--%s", strerror(errno));
         return -1;
@@ -842,7 +816,6 @@ int serialport_open(const char* port_name) {
  *    -1 on error and sets errno
  */
 int serialport_close(int fd) {
-    log_printf(DEBUG, "closing! ???"); // ************************************************************
     return close(fd);
 }
 

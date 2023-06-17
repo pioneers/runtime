@@ -204,20 +204,20 @@ void lowcar_protocol(int fd, uint8_t type, uint8_t year, uint64_t uid,
             continue;
         }
 
-        // // Make sure we're receiving DEVICE_PING messages still
- //        if ((now - last_received_ping_time) >= TIMEOUT) {
- //            printf("lowcar_protocol: DEV_HANDLER timed out!\n");
- //            exit(1);
- //        }
- //        // Check if we should send another DEVICE_PING
- //        // TODO: Physical lowcar devices don't send DEVICE_PING messages.
- //        // We should remove this. See issue #164.
- //        if ((now - last_sent_ping_time) >= PING_FREQ) {
- //            outgoing_msg = make_ping();
- //            send_message(fd, outgoing_msg);
- //            destroy_message(outgoing_msg);
- //            last_sent_ping_time = now;
- //        }
+        // Make sure we're receiving DEVICE_PING messages still
+        if ((now - last_received_ping_time) >= TIMEOUT) {
+            printf("lowcar_protocol: DEV_HANDLER timed out!\n");
+            exit(1);
+        }
+        // Check if we should send another DEVICE_PING
+        // TODO: Physical lowcar devices don't send DEVICE_PING messages.
+        // We should remove this. See issue #164.
+        if ((now - last_sent_ping_time) >= PING_FREQ) {
+            outgoing_msg = make_ping();
+            send_message(fd, outgoing_msg);
+            destroy_message(outgoing_msg);
+            last_sent_ping_time = now;
+        }
         // Change read-only params periodically
         if (action_interval != -1 && (now - last_device_action) >= action_interval) {
             (*device_actions)(params);

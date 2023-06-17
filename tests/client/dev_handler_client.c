@@ -67,14 +67,9 @@ static int connect_socket() {
         return -1;
     }
 
-    //    printf("successfully (?) created socket: server_fd = %d\n", server_fd);  // *******************************************************************************************
-    //    fflush(stdout);
-
     // Build socket name
     char socket_name[64];
     sprintf(socket_name, "%s/%s%d", home_dir, SOCKET_PREFIX, socket_num);
-    printf("socket_name = %s\n", socket_name);
-    fflush(stdout);
 
     // Build socket address
     struct sockaddr_un dev_socket_addr;
@@ -87,24 +82,17 @@ static int connect_socket() {
         remove(socket_name);
         return -1;
     }
-	
-	printf("listening...\n");
-	fflush(stdout);
 
     // Listen for dev_handler to connect to the virtual device socket
     listen(server_fd, 1);
 
     // Accept the connection
     int connection_fd;
-	printf("listening before accept ...\n");
     if ((connection_fd = accept(server_fd, NULL, NULL)) < 0) {
         printf("connect_socket: Couldn't accept socket connection\n");
         return -1;
     }
     close(server_fd);
-
-    //    printf("successful connection from dev_handler to device\n");
-    //    fflush(stdout);
 
     // Indicate in global variable that socket is now used
     used_sockets[socket_num] = malloc(sizeof(device_socket_t));
@@ -119,9 +107,6 @@ static int connect_socket() {
     tv.tv_sec = TIMEOUT / 1000;
     tv.tv_usec = 0;
     setsockopt(connection_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*) &tv, sizeof(tv));
-
-    printf("socket_num = %d\n", socket_num);  // *******************************************************************************************
-    fflush(stdout);
 
     return socket_num;
 }
@@ -187,8 +172,6 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
         char exe_name[32], fd_str[4], uid_str[20];
         sprintf(exe_name, "./%s", used_sockets[socket_num]->dev_name);
         sprintf(fd_str, "%d", used_sockets[socket_num]->fd);
-        printf("fd_str = %s\n", fd_str);  // **********************************************************************
-        fflush(stdout);
         sprintf(uid_str, "0x%016llX", uid);
         if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, uid_str, (char*) NULL) < 0) {
             printf("connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
@@ -212,9 +195,7 @@ int disconnect_virtual_device(int socket_num) {
     // Kill virtual device process
     kill(used_sockets[socket_num]->pid, SIGTERM);
     waitpid(used_sockets[socket_num]->pid, NULL, 0);  // Block until killed
-                                                      // CLose file descriptor
-    printf("DEV HANDLER CLIENT CLOSE ?????? heh? \n");
-    fflush(stdout);
+    // CLose file descriptor
     close(used_sockets[socket_num]->fd);
     // Remove socket (dev handler should recognize disconnect after removal)
     char socket_name[32];
