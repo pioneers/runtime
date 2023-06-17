@@ -10,8 +10,6 @@
 #include "../shm_wrapper/shm_wrapper.h"
 #include "message.h"
 
-#include <sys/stat.h> // *************************************************************************************
-
 /**
  * Each device will have a unique port number.
  * For example, if there is only one Arduino connected, it will (probably) appear as
