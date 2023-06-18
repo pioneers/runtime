@@ -6,12 +6,18 @@
 #define MESSENGER_H
 
 #include <stdarg.h>  // va_start, va_list, va_arg, va_end
+#include "GeneralSerial.h"
 #include "defs.h"
 
 class Messenger {
   public:
-    /* constructor; opens Serial connection */
-    Messenger();
+    /*
+     * Constructor; opens Serial connection on specified port
+     * Arguments:
+     *     is_hardware_serial: False by default (use Serial); set to True for devices that use SerialX pins
+     *     hw_serial_prt: Unused (NULL) by default; when is_hardware_serial == True, specify which SerialX port to use
+     */
+    Messenger(bool is_hardware_serial, HardwareSerial* hw_serial_port);
 
     /**
      * Handles any type of message and fills in appropriate parameters, then sends onto Serial port
@@ -75,9 +81,10 @@ class Messenger {
     const static int DEV_ID_UID_BYTES;   // bytes in uid field of dev_id
 
     // private variables
-    uint8_t log_queue_max_size;  // The size of the log queue in bytes
-    char** log_queue;            // The log queue
-    uint8_t num_logs;            // The number of logs in the log queue
+    uint8_t log_queue_max_size;    // The size of the log queue in bytes
+    char** log_queue;              // The log queue
+    uint8_t num_logs;              // The number of logs in the log queue
+    GeneralSerial* serial_object;  // The Serial port to use (either Serial or Serial1)
 
     // *************************** HELPER METHODS *************************** //
 

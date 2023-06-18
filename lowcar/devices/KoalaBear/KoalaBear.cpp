@@ -1,7 +1,7 @@
 #include "KoalaBear.h"
 
 //********************************* constants and variables used for setting up the controller ********************//
-//TODO: ask electrical for what they mean
+// TODO: ask electrical for what they mean
 #define CTRL_REG 0b000
 #define TORQUE_REG 0b001
 
@@ -31,11 +31,11 @@ uint16_t torque_read_data;
 //******************************* KOALABEAR CONSTANTS AND PARAMS ****************************//
 
 // ----------------------> CHANGE THIS TO IMPLEMENT MAX SPEED FOR KARTS <----------------------
-#define MAX_DUTY_CYCLE 0.75  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
+#define MAX_DUTY_CYCLE 1.0  // maximum duty cycle to cap how fast the motors can go: range (0, 1]
 // --------------------------------------------------------------------------------------------
 
 // --------------------> CHANGE THIS TO IMPLEMENT ACCELERATION FOR KARTS <---------------------
-#define ACCEL 0.7  // acceleration of motors, in duty cycle units per second squared
+#define ACCEL 2.0  // acceleration of motors, in duty cycle units per second squared
 // --------------------------------------------------------------------------------------------
 
 // default values for PID controllers; PID control is explained in the Wiki!
@@ -116,7 +116,7 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
     // initialize PID controllers
     this->pid_a = new PID();
     this->pid_b = new PID();
-    this->pid_enabled_a = this->pid_enabled_b = TRUE;  // by default, PID control is enabled
+    this->pid_enabled_a = this->pid_enabled_b = FALSE;  // by default, PID control is enabled
     this->pid_a->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
     this->pid_b->set_coefficients(KP_DEFAULT, KI_DEFAULT, KD_DEFAULT);
 
@@ -269,8 +269,8 @@ void KoalaBear::device_enable() {
     pinMode(BENC1, INPUT);
     pinMode(BENC2, INPUT);
 
-    this->pid_enabled_a = TRUE;
-    this->pid_enabled_b = TRUE;
+    this->pid_enabled_a = FALSE;
+    this->pid_enabled_b = FALSE;
 
     this->led->setup_LEDs();
 
@@ -288,8 +288,8 @@ void KoalaBear::device_reset() {
     this->velocity_b = 0.0;
     this->curr_velocity_a = 0.0;
     this->curr_velocity_b = 0.0;
-    this->pid_enabled_a = TRUE;
-    this->pid_enabled_b = TRUE;
+    this->pid_enabled_a = FALSE;
+    this->pid_enabled_b = FALSE;
     this->online = FALSE;
 }
 

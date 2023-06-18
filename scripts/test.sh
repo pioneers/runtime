@@ -43,7 +43,7 @@ function run_tests {
 
 		# run test
 		printf "Running $test...\n"
-		./$test
+		./bin/$test
 
 		# if that test failed, set failed to 1
 		if [[ $? != 0 ]]; then

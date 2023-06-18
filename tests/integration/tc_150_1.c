@@ -1,7 +1,7 @@
 #include "../test.h"
 
 /**
- * Tests the Keyboard input source through net_handler, SHM, and executor. 
+ * Tests the Keyboard input source through net_handler, SHM, and executor.
  */
 
 int main() {

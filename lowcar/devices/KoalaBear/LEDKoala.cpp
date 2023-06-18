@@ -24,7 +24,7 @@ void LEDKoala::ctrl_LEDs(float vel, float deadband, bool enabled) {
 }
 
 void LEDKoala::ctrl_red(float vel, float deadband, bool enabled) {
-    //turn red LED on if motor is stopped
+    // turn red LED on if motor is stopped
     if ((vel > deadband * -1.0 && vel < deadband) && enabled) {
         this->red_state = true;
     } else {
@@ -39,7 +39,7 @@ void LEDKoala::ctrl_red(float vel, float deadband, bool enabled) {
 }
 
 void LEDKoala::ctrl_yellow(float vel, float deadband, bool enabled) {
-    //turn yellow LED on if motor is going backwards
+    // turn yellow LED on if motor is going backwards
     if ((vel < deadband * -1.0) && enabled) {
         this->yellow_state = true;
     } else {
@@ -54,7 +54,7 @@ void LEDKoala::ctrl_yellow(float vel, float deadband, bool enabled) {
 }
 
 void LEDKoala::ctrl_green(float vel, float deadband, bool enabled) {
-    //turn green LED on if motor moving forward
+    // turn green LED on if motor moving forward
     if (vel > deadband && enabled) {
         this->green_state = true;
     } else {

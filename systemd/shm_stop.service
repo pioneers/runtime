@@ -1,13 +1,13 @@
 [Unit]
 Description=Shared memory cleanup process for Runtime
-After=dev_handler.service executor.service net_handler.service
-OnFailure=dev_handler.service executor.service net_handler.service shm_start.service
+After=dev_handler.service executor.service net_handler.service network_switch.service
+OnFailure=dev_handler.service executor.service net_handler.service network_switch.service shm_start.service 
 
 [Service]
 Type=oneshot
-User=pi
-WorkingDirectory=/home/pi/runtime/shm_wrapper
-ExecStart=/home/pi/runtime/shm_wrapper/shm_stop
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime/bin
+ExecStart=/home/ubuntu/runtime/bin/shm_stop
 KillSignal=SIGINT
 
 [Install]

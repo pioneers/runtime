@@ -266,6 +266,8 @@ void logger_init(process_t process) {
         sprintf(process_str, "SHM");
     } else if (process == TEST) {
         sprintf(process_str, "TEST");
+    } else if (process == NETWORK_SWITCH) {
+        sprintf(process_str, "NETWORK_SWITCH");
     }
 
     pthread_mutex_init(&log_mutex, NULL);  // initialize the log_mutex

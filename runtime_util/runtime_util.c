@@ -101,6 +101,21 @@ device_t KoalaBear = {
         {.name = "enc_b", .type = INT, .read = 1, .write = 1},
     }};
 
+device_t PDB = {
+    .type = 7,
+    .name = "PDB",
+    .num_params = 9,
+    .params = {
+        {.name = "is_unsafe", .type = BOOL, .read = 1, .write = 0},
+        {.name = "calibrated", .type = BOOL, .read = 1, .write = 0},
+        {.name = "v_cell1", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "v_cell2", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "v_cell3", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "v_batt", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "dv_cell2", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "dv_cell3", .type = FLOAT, .read = 1, .write = 0},
+        {.name = "network_switch", .type = BOOL, .read = 1, .write = 0}}};
+
 // *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
 
 // A CustomDevice is unusual because the parameters are dynamic
@@ -200,6 +215,7 @@ __attribute__((constructor)) void devices_arr_init() {
     DEVICES[ServoControl.type] = &ServoControl;
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
+    DEVICES[PDB.type] = &PDB;
     DEVICES[CustomDevice.type] = &CustomDevice;
     DEVICES[SoundDevice.type] = &SoundDevice;
     DEVICES[TimeTestDevice.type] = &TimeTestDevice;
@@ -383,8 +399,8 @@ char* field_to_string(robot_desc_field_t field) {
 uint64_t millis() {
     struct timeval time;  // Holds the current time in seconds + microseconds
     gettimeofday(&time, NULL);
-    uint64_t s1 = (uint64_t)(time.tv_sec) * 1000;  // Convert seconds to milliseconds
-    uint64_t s2 = (time.tv_usec / 1000);           // Convert microseconds to milliseconds
+    uint64_t s1 = (uint64_t) (time.tv_sec) * 1000;  // Convert seconds to milliseconds
+    uint64_t s2 = (time.tv_usec / 1000);            // Convert microseconds to milliseconds
     return s1 + s2;
 }
 

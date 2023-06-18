@@ -1,7 +1,7 @@
 /**
-* Class defining a lowcar device, receiving/sending messages
-* and performing actions based on received messages.
-*/
+ * Class defining a lowcar device, receiving/sending messages
+ * and performing actions based on received messages.
+ */
 
 #ifndef DEVICE_H
 #define DEVICE_H
@@ -20,11 +20,13 @@ class Device {
      * Arguments:
      *    dev_type: The type of device (ex: LimitSwitch)
      *    dev_year: The device year
+     *    is_hardware_serial: False by default (use Serial); set to True for devices that use SerialX pins
+     *    hw_serial_prt: Unused (NULL) by default; when is_hardware_serial == True, specify which SerialX port to use
      *    timeout: the maximum number of milliseconds to wait between PING messages from
      *      dev handler before disabling
      *      It's reasonable to match the TIMEOUT that dev handler uses.
      */
-    Device(DeviceType dev_type, uint8_t dev_year, uint32_t timeout = 1000);
+    Device(DeviceType dev_type, uint8_t dev_year, bool is_hardware_serial = false, HardwareSerial* hw_serial_port = NULL, uint32_t timeout = 1000);
 
     // Sets the UID of the Device
     void set_uid(uint64_t uid);
@@ -96,14 +98,14 @@ class Device {
   protected:
     Messenger* msngr;  // Encodes/decodes and send/receive messages over serial
     uint8_t enabled;
-    StatusLED* led;  // The LED on the Arduino
+    StatusLED* led;      // The LED on the Arduino
+    uint64_t curr_time;  // The current time
 
   private:
     dev_id_t dev_id;                   // dev_id of this device determined when flashing
     uint32_t timeout;                  // Maximum time (ms) we'll wait between PING messages from dev handler
     uint64_t last_sent_data_time;      // Timestamp of last time we sent DEVICE_DATA
     uint64_t last_received_ping_time;  // Timestamp of last time we received a PING
-    uint64_t curr_time;                // The current time
     message_t curr_msg;                // current message being processed
 
     /**

@@ -12,12 +12,12 @@
 #include <sys/un.h>  //for unix sockets
 #include <unistd.h>  //for read, write, close
 
-//include other runtime files
+// include other runtime files
 #include "../logger/logger.h"
 #include "../runtime_util/runtime_util.h"
 #include "../shm_wrapper/shm_wrapper.h"
 
-//include compiled protobuf headers
+// include compiled protobuf headers
 #include "pbc_gen/device.pb-c.h"
 #include "pbc_gen/gamestate.pb-c.h"
 #include "pbc_gen/input.pb-c.h"
@@ -33,7 +33,7 @@
 
 #define BUFFER_OFFSET 3  // Num bytes at the beginning of a buffer for metadata (message type and length) See net_util::make_buf()
 
-//All the different possible messages the network handler works with. The order must be the same between net_handler and clients
+// All the different possible messages the network handler works with. The order must be the same between net_handler and clients
 typedef enum net_msg {
     RUN_MODE_MSG,
     START_POS_MSG,

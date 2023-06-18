@@ -122,7 +122,7 @@ void start_dev_handler() {
             printf("chdir: %s\n", strerror(errno));
         }
         // execute the device handler process
-        if (execlp("./dev_handler", "dev_handler", (char*) 0) < 0) {
+        if (execlp("./../bin/dev_handler", "dev_handler", (char*) 0) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
     }
@@ -161,9 +161,10 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
         return -1;
     } else if (pid == 0) {  // Child process
         // Cd into virtual_devices dir where the device exe is
-        if (chdir("client/virtual_devices") == -1) {
+        if (chdir("bin/virtual_devices") == -1) {
             printf("chdir: %s\n", strerror(errno));
         }
+
         // Become the virtual device by calling "./<dev_name> <fd> <uid>"
         char exe_name[32], fd_str[2], uid_str[20];
         sprintf(exe_name, "./%s", used_sockets[socket_num]->dev_name);

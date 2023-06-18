@@ -1,23 +1,18 @@
-# ignore everything
-*
+# ignore any bin
+bin/*
+tests/bin/*
 
-# unignore all with extension
-!*.*
-
-# unignore all directories
-!*/
-
-# unignore all Makefile
-!*/Makefile
-
-# unignore all Dockerfile
-!*/Dockerfile
+# ignore the tests/devices
+tests/devices
 
 # ignore the entire lowcar/Device folder
 lowcar/Device
 
 # ignore the entire net_handler/pbc_gen folder
 net_handler/pbc_gen
+
+# ignore network_switch/exit_status.txt
+network_switch/exit_status.txt
 
 # Log files
 *.log

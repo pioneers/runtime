@@ -9,8 +9,8 @@
  *    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
  */
 void send_log_msg(int conn_fd, FILE* log_file) {
-    char nextline[MAX_LOG_LEN];  //next log line read from FIFO pipe
-    Text log_msg = TEXT__INIT;   //initialize a new Text protobuf message
+    char nextline[MAX_LOG_LEN];  // next log line read from FIFO pipe
+    Text log_msg = TEXT__INIT;   // initialize a new Text protobuf message
     log_msg.n_payload = 0;       // The number of logs in this payload
     log_msg.payload = malloc(MAX_NUM_LOGS * sizeof(char*));
     if (log_msg.payload == NULL) {
@@ -18,7 +18,7 @@ void send_log_msg(int conn_fd, FILE* log_file) {
         exit(1);
     }
 
-    //read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
+    // read in log lines until there are no more to read, or we read MAX_NUM_LOGS lines
     while (log_msg.n_payload < MAX_NUM_LOGS) {
         if (fgets(nextline, MAX_LOG_LEN, log_file) != NULL) {
             log_msg.payload[log_msg.n_payload] = malloc(strlen(nextline) + 1);
@@ -30,7 +30,7 @@ void send_log_msg(int conn_fd, FILE* log_file) {
             log_msg.n_payload++;
         } else if (feof(log_file) != 0) {  // All write ends of FIFO are closed, don't send any more logs
             // It's expected that all write ends are closed only when processes with logger_init() are killed
-            if (log_msg.n_payload != 0) {  //if a few last logs to send, break to send those logs
+            if (log_msg.n_payload != 0) {  // if a few last logs to send, break to send those logs
                 break;
             } else {  // log_msg.n_payload == 0;  (payload is empty) Return immediately
                 free(log_msg.payload);
@@ -49,17 +49,17 @@ void send_log_msg(int conn_fd, FILE* log_file) {
         }
     }
 
-    //prepare the message for sending
+    // prepare the message for sending
     uint16_t len_pb = text__get_packed_size(&log_msg);
     uint8_t* send_buf = make_buf(LOG_MSG, len_pb);
-    text__pack(&log_msg, send_buf + BUFFER_OFFSET);  //pack message into the rest of send_buf (starting at send_buf[3] onward)
+    text__pack(&log_msg, send_buf + BUFFER_OFFSET);  // pack message into the rest of send_buf (starting at send_buf[3] onward)
 
-    //send message on socket
+    // send message on socket
     if (writen(conn_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_log_msg: sending log message over socket failed: %s", strerror(errno));
     }
 
-    //free all allocated memory
+    // free all allocated memory
     for (int i = 0; i < log_msg.n_payload; i++) {
         free(log_msg.payload[i]);
     }
@@ -69,7 +69,7 @@ void send_log_msg(int conn_fd, FILE* log_file) {
 
 /*
 * Send a timestamp message over TCP with a timestamp attached to the message. The timestamp is when the net_handler on runtime has received the
-* packet and processed it. 
+* packet and processed it.
 * Arguments:
     - int conn_fd: socket connection's file descriptor on which to write to the TCP port
     - TimeStamps* dawn_timestamp_msg: Unpacked timestamp_proto from Dawn
@@ -106,11 +106,11 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
 
     DevData dev_data = DEV_DATA__INIT;
 
-    //get information
+    // get information
     get_catalog(&catalog);
     get_device_identifiers(dev_ids);
 
-    //calculate num_devices, get valid device indices
+    // calculate num_devices, get valid device indices
     int num_devices = 0;
     for (int i = 0; i < MAX_DEVICES; i++) {
         if (catalog & (1 << i)) {
@@ -124,7 +124,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
         exit(1);
     }
 
-    //populate dev_data.device[i]
+    // populate dev_data.device[i]
     int dev_idx = 0;
     for (int i = 0; i < num_devices; i++) {
         int idx = valid_dev_idxs[i];
@@ -154,7 +154,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
             log_printf(FATAL, "send_device_data: Failed to malloc");
             exit(1);
         }
-        //populate device parameters
+        // populate device parameters
         for (int j = 0; j < device_info->num_params; j++) {
             Param* param = malloc(sizeof(Param));
             if (param == NULL) {
@@ -245,12 +245,12 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     buffer = make_buf(DEVICE_DATA_MSG, len_pb);
     dev_data__pack(&dev_data, buffer + BUFFER_OFFSET);
 
-    //send message on socket
+    // send message on socket
     if (writen(dawn_socket_fd, buffer, len_pb + BUFFER_OFFSET) == -1) {
         log_printf(ERROR, "send_device_data: sending log message over socket failed: %s", strerror(errno));
     }
 
-    //free everything
+    // free everything
     for (int i = 0; i < dev_data.n_devices; i++) {
         for (int j = 0; j < dev_data.devices[i]->n_params; j++) {
             free(dev_data.devices[i]->params[j]);
@@ -281,14 +281,14 @@ static int process_run_mode_msg(uint8_t* buf, uint16_t len_pb, robot_desc_field_
         return -1;
     }
 
-    //if shepherd is connected and dawn tries to set RUN_MODE == AUTO or TELEOP, block it
+    // if shepherd is connected and dawn tries to set RUN_MODE == AUTO or TELEOP, block it
     if (client == DAWN && robot_desc_read(SHEPHERD) == CONNECTED &&
         (run_mode_msg->mode == MODE__AUTO || (run_mode_msg->mode == MODE__TELEOP))) {
         log_printf(INFO, "You cannot send Robot to Auto or Teleop from Dawn with Shepherd connected!");
         return 0;
     }
 
-    //write the specified run mode to the RUN_MODE field of the robot description
+    // write the specified run mode to the RUN_MODE field of the robot description
     switch (run_mode_msg->mode) {
         case (MODE__IDLE):
             log_printf(DEBUG, "entering IDLE mode");
@@ -331,7 +331,7 @@ static int process_start_pos_msg(uint8_t* buf, uint16_t len_pb) {
         return -1;
     }
 
-    //write the specified start pos to the STARTPOS field of the robot description
+    // write the specified start pos to the STARTPOS field of the robot description
     switch (start_pos_msg->pos) {
         case (POS__LEFT):
             log_printf(DEBUG, "robot is in LEFT start position");
@@ -458,10 +458,10 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
  *     -2 if message could not be unpacked or other error
  */
 int recv_new_msg(int conn_fd, robot_desc_field_t client) {
-    net_msg_t msg_type;  //message type
-    uint16_t len_pb;     //length of incoming serialized protobuf message
-    uint8_t* buf;        //buffer to read raw data into
-    int ret = 0;         //return status OK by default
+    net_msg_t msg_type;  // message type
+    uint16_t len_pb;     // length of incoming serialized protobuf message
+    uint8_t* buf;        // buffer to read raw data into
+    int ret = 0;         // return status OK by default
 
     int err = parse_msg(conn_fd, &msg_type, &len_pb, &buf);
     if (err == 0) {  // Means there is EOF while reading which means client disconnected
@@ -470,7 +470,7 @@ int recv_new_msg(int conn_fd, robot_desc_field_t client) {
         return -2;
     }
 
-    //unpack according to message
+    // unpack according to message
     switch (msg_type) {
         case RUN_MODE_MSG:
             if (process_run_mode_msg(buf, len_pb, client) != 0) {

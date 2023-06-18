@@ -49,7 +49,7 @@ void start_executor(char* student_code) {
             student_code[len - 1] = '\0';
         }
         // exec the actual executor process
-        if (execlp("./executor", "executor", student_code, NULL) < 0) {
+        if (execlp("./../bin/executor", "executor", student_code, NULL) < 0) {
             printf("execlp: %s\n", strerror(errno));
         }
     }

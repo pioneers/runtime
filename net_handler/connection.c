@@ -1,6 +1,6 @@
 #include "connection.h"
 
-//used for creating and cleaning up TCP connection
+// used for creating and cleaning up TCP connection
 typedef struct {
     int conn_fd;
     int send_logs;
@@ -47,7 +47,7 @@ static void tcp_conn_cleanup(void* args) {
 }
 
 /*
- * A thread function to handle messages with a specific client. 
+ * A thread function to handle messages with a specific client.
  * This thread waits until a message can be read, reads it, then responds accordingly.
  * It is one of two main control loops for a TCP connection. Sets up connection by opening up pipe to read log messages from
  * and sets up read_set for select(). Then it runs main control loop, using select() to make actions event-driven.
@@ -61,7 +61,7 @@ static void* tcp_events_thread(void* tcp_args) {
     pthread_cleanup_push(tcp_conn_cleanup, args);
     int ret;
 
-    //variables used for waiting for something to do using select()
+    // variables used for waiting for something to do using select()
     fd_set read_set;
     int log_fd;
     int maxfd = args->conn_fd;
@@ -71,24 +71,24 @@ static void* tcp_events_thread(void* tcp_args) {
     }
     maxfd = maxfd + 1;
 
-    //main control loop that is responsible for sending and receiving data
+    // main control loop that is responsible for sending and receiving data
     while (1) {
-        //set up the read_set argument to select()
+        // set up the read_set argument to select()
         FD_ZERO(&read_set);
         FD_SET(args->conn_fd, &read_set);
         if (args->send_logs) {
             FD_SET(log_fd, &read_set);
         }
 
-        //prepare to accept cancellation requests over the select
+        // prepare to accept cancellation requests over the select
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-        //wait for something to happen
+        // wait for something to happen
         if (select(maxfd, &read_set, NULL, NULL, NULL) < 0) {
             log_printf(ERROR, "tcp_process: Failed to wait for select in control loop for client %d: %s", args->client, strerror(errno));
         }
 
-        //deny all cancellation requests until the next loop
+        // deny all cancellation requests until the next loop
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
         // If client wants logs, logs are availble to send, and FIFO doesn't have an EOF, send logs
@@ -96,7 +96,7 @@ static void* tcp_events_thread(void* tcp_args) {
             send_log_msg(args->conn_fd, args->log_file);
         }
 
-        //receive new message on socket if it is ready
+        // receive new message on socket if it is ready
         if (FD_ISSET(args->conn_fd, &read_set)) {
             if ((ret = recv_new_msg(args->conn_fd, args->client)) != 0) {
                 if (ret == -1) {
@@ -109,7 +109,7 @@ static void* tcp_events_thread(void* tcp_args) {
         }
     }
 
-    //call the cleanup function
+    // call the cleanup function
     pthread_cleanup_pop(1);
     return NULL;
 }
@@ -155,7 +155,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
         return;
     }
 
-    //initialize argument to new connection thread
+    // initialize argument to new connection thread
     tcp_conn_args_t* args = malloc(sizeof(tcp_conn_args_t));
     if (args == NULL) {
         log_printf(FATAL, "start_tcp_conn: Failed to malloc args");
@@ -166,7 +166,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
     args->send_logs = send_logs;
     args->log_file = NULL;
 
-    //Open FIFO pipe for logs
+    // Open FIFO pipe for logs
     if (send_logs) {
         int log_fd;
         if ((log_fd = open(LOG_FIFO, O_RDONLY | O_NONBLOCK)) == -1) {
@@ -185,7 +185,7 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
         dawn_start_time = millis();
     }
 
-    //create the main control threads for this client
+    // create the main control threads for this client
     if (pthread_create((client == DAWN) ? &dawn_events_tid : &shepherd_events_tid, NULL, tcp_events_thread, args) != 0) {
         log_printf(ERROR, "start_tcp_conn: Failed to create main TCP thread tcp_events for %d: %s", client, strerror(errno));
         return;

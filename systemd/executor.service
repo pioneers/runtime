@@ -1,15 +1,15 @@
 [Unit]
 Description=Executor process for Runtime
-BindsTo=dev_handler.service net_handler.service
+BindsTo=dev_handler.service net_handler.service network_switch.service
 After=shm_start.service
 Conflicts=shm_stop.service
 OnFailure=shm_stop.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/runtime/executor
-ExecStart=/home/pi/runtime/executor/executor
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime/bin
+ExecStart=/home/ubuntu/runtime/bin/executor
 KillSignal=SIGINT
 
 [Install]
