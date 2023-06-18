@@ -16,7 +16,7 @@
  * a file with path "/dev/ttyACM0". A second device connected will appear as
  * "/dev/ttyACM1".
  * Virtual devices (not Arduinos) on the other hand are UNIX sockets that appear as
- * "/tmp/ttyACM0"
+ * "/var/ttyACM0"
  * In the code, the number is referred to as "port_num"
  * Depending on whether a device is an Arduino ("lowcar") or a virtual device,
  * dev handler has to open a connection with it differently.
@@ -24,7 +24,7 @@
  * These file paths may also be referred to as "port_prefix" in the code.
  */
 #define LOWCAR_FILE_PATH "/dev/ttyACM"
-#define VIRTUAL_FILE_PATH "/tmp/ttyACM"
+#define VIRTUAL_FILE_PATH "ttyACM"			// will be created in the home directory
 #define LOWCAR_USB_FILE_PATH "/dev/ttyUSB"
 
 // **************************** PRIVATE STRUCT ****************************** //
@@ -92,7 +92,10 @@ uint32_t used_virtual_ports = 0;
 uint32_t used_lowcar_usb_ports = 0;
 pthread_mutex_t used_ports_lock;  // poll_connected_devices() and relay_clean_up() shouldn't access used_ports at the same time
 
-#define MAX_PORT_NAME_SIZE 16
+// String to hold the home directory path (for looking for virtual device sockets)
+const char *home_dir;
+
+#define MAX_PORT_NAME_SIZE 64
 
 // ***************************** MAIN FUNCTIONS ***************************** //
 
@@ -312,7 +315,7 @@ void* relayer(void* relay_cast) {
 
     // If the device disconnects or times out, clean up
     log_printf(DEBUG, "Monitoring %s (0x%016llX)", get_device_name(relay->dev_id.type), relay->dev_id.uid);
-    char port_name[14];
+    char port_name[MAX_PORT_NAME_SIZE];
     construct_port_name(port_name, relay->is_virtual, relay->is_usb, relay->port_num);
     while (1) {
         // If Arduino port file doesn't exist, it disconnected
@@ -829,7 +832,8 @@ void cleanup_handler(void* args) {
 
 void construct_port_name(char* port_name, bool is_virtual, bool is_usb, int port_num) {
     if (is_virtual) {
-        sprintf(port_name, "%s%d", VIRTUAL_FILE_PATH, port_num);
+        // append home directory in front of the socket name
+        sprintf(port_name, "%s/%s%d", home_dir, VIRTUAL_FILE_PATH, port_num);
     } else if (is_usb) {
         sprintf(port_name, "%s%d", LOWCAR_USB_FILE_PATH, port_num);
     } else {
@@ -853,6 +857,7 @@ int main(int argc, char* argv[]) {
     // If SIGINT (Ctrl+C) is received, call stop() to clean up
     signal(SIGINT, stop);
     init();
+	home_dir = getenv("HOME"); // set the home directory 
     log_printf(INFO, "DEV_HANDLER initialized.");
     poll_connected_devices();
     return 0;

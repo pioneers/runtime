@@ -1,0 +1,103 @@
+# This configures the Continuous Integration builds on every PR, 
+# as well as every commit on master.
+
+# This is the name of this workflow
+name: CI
+
+# Under what conditions do we run this workflow? Either
+# a) It is a commit on a pull request on a branch to be merged into master
+# b) It is a push to master (which only happens when we close a pull request)
+# c) It's 10:45 UTC on the 1st, 8th, 15th, 22nd, or 29th of a month (to prevent the cache from expiring)
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize]
+  push:
+    branches: [master]
+  schedule:
+    - cron: '45 10 1,8,15,22,29 * *'
+
+# Here is the list of jobs that this workflow will run. There is only one job.
+jobs:
+  # The name of the job: "build-and-test"
+  build-and-test:
+    # This specifies the OS that we are running the workflow on: the latest version of Ubuntu
+    runs-on: ubuntu-latest
+
+    # Here is the list of specific commands this job will run. They are run in order
+    steps:
+      # First, we check out the repository's code using the Github Actions' "Checkout" tool.
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      
+      # Next, we install dev packages needed for Runtime
+      - name: Install dev packages
+        run: |
+          sudo apt-get install -y \
+          python3-dev \
+          clang-format \
+          protobuf-compiler \
+          libprotoc-dev
+      
+      # Next, we install Cython
+      - name: Install Cython
+        run: |
+            python3 -m pip install Cython
+        
+      # The next steps steps do the following:
+      #  
+      # 1) Give the program "tar" root permissions
+      # 2) Retrieve cached files associated with the protobuf-c library, if they exist
+      # 3) Take away root permission from the "tar" program
+      #
+      # We need to do this because the Cache Action uses "tar" to restore cached files
+      # into the runner. However, the cached files need root permission to get restored.
+      # Thus, we need to give tar root permissions to do the cache restoration, then 
+      # take it away once we're done (since if the caching step fails and we do the
+      # insallation of protobuf-c with root permissions, we will get permission errors)
+      - name: Give tar root permissions
+        run: |
+            sudo chown root:root /usr/bin/tar && sudo chmod u+s /usr/bin/tar
+      - name: Cache protobuf-c
+        id: cache-protobuf-c
+        uses: actions/cache@v3 # Uses the Github Actions' "Cache" tool
+        with:
+          # These are the files we cache
+          path: |
+              /usr/local/lib/libprotobuf-c.*
+              /usr/local/lib/pkgconfig
+              /usr/local/bin/protoc-*
+              /usr/local/include/protobuf-c
+              /usr/local/include/google
+          # This is the name (key) of the cache that we look for each time
+          key: libprotobuf-c
+      - name: Take away tar root permissions
+        run: |
+          sudo chown runner:runner /usr/bin/tar && sudo chmod u+x /usr/bin/tar
+
+      # This if statement determine whether the cache lookup was a hit (true) or miss (not true--idk, false doesn't work)
+      # If the cache lookup hit, we just run "sudo ldconfig" to tell the linker where to look for
+      # protobuf-c files. If the cache lookup missed, we have to install protobuf-c from scratch
+      # See https://docs.github.com/en/actions/using-workflows/caching-dependencies-to-speed-up-workflows#using-the-output-of-the-cache-action
+      - if: ${{ steps.cache-protobuf-c.outputs.cache-hit == 'true' }}
+        name: Run ldconfig
+        run: |
+            sudo ldconfig
+      - if: ${{ steps.cache-protobuf-c.outputs.cache-hit != 'true' }}
+        name: Install protobuf-c
+        run: |
+            wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.4.1/protobuf-c-1.4.1.tar.gz
+            tar -xzf protobuf-c-1.4.1.tar.gz
+            cd protobuf-c-1.4.1 && ./configure && make && sudo make install && sudo ldconfig
+
+      # Now that we are done installing Runtime's dependencies, we build Runtime
+      - name: Build
+        run: |
+          ./runtime build
+
+      # And finally, we test Runtime
+      - name: Test
+        run: |
+          ./runtime test

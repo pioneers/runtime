@@ -67,9 +67,6 @@ function run_tests {
 # installs function clean_up as SIGINT handler
 trap 'sigint_handler' INT
 
-# build all of Runtime
-./runtime build
-
 # replace the logger config with the production config
 mv logger/logger.config logger/logger.config.orig
 cp -p tests/logger.config logger/logger.config

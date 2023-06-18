@@ -3,8 +3,9 @@
 // Timeout time in ms for a socket read()
 #define TIMEOUT 2000
 
-// The name of a socket's file to be succeeded by an integer
-#define SOCKET_PREFIX "/tmp/ttyACM"
+// The name of a socket's file to be preceded by the home directory and succeeded by an integer
+#define SOCKET_PREFIX "ttyACM"
+const char* home_dir;  // holds home directory path
 
 // The maximum number of devices that can be connected
 #define MAX_DEVICES 32
@@ -67,8 +68,8 @@ static int connect_socket() {
     }
 
     // Build socket name
-    char socket_name[14];
-    sprintf(socket_name, "%s%d", SOCKET_PREFIX, socket_num);
+    char socket_name[64];
+    sprintf(socket_name, "%s/%s%d", home_dir, SOCKET_PREFIX, socket_num);
 
     // Build socket address
     struct sockaddr_un dev_socket_addr;
@@ -123,8 +124,10 @@ void start_dev_handler() {
         }
         // execute the device handler process
         if (execlp("./../bin/dev_handler", "dev_handler", (char*) 0) < 0) {
-            printf("execlp: %s\n", strerror(errno));
+            printf("start_dev_handler execlp: %s\n", strerror(errno));
         }
+    } else {  // in parent
+        home_dir = getenv("HOME");
     }
 }
 
@@ -166,7 +169,7 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
         }
 
         // Become the virtual device by calling "./<dev_name> <fd> <uid>"
-        char exe_name[32], fd_str[2], uid_str[20];
+        char exe_name[32], fd_str[4], uid_str[20];
         sprintf(exe_name, "./%s", used_sockets[socket_num]->dev_name);
         sprintf(fd_str, "%d", used_sockets[socket_num]->fd);
         sprintf(uid_str, "0x%016llX", uid);
@@ -177,6 +180,9 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
     } else {  // Parent process
         // Take note of child pid so we can kill it in disconnect_device()
         used_sockets[socket_num]->pid = pid;
+		
+		// close duplicate connection file descriptor
+		close(used_sockets[socket_num]->fd);
     }
     return socket_num;
 }
@@ -192,8 +198,8 @@ int disconnect_virtual_device(int socket_num) {
     // CLose file descriptor
     close(used_sockets[socket_num]->fd);
     // Remove socket (dev handler should recognize disconnect after removal)
-    char socket_name[14];
-    sprintf(socket_name, "%s%d", SOCKET_PREFIX, socket_num);
+    char socket_name[32];
+    sprintf(socket_name, "%s/%s%d", home_dir, SOCKET_PREFIX, socket_num);
     remove(socket_name);
     // Mark socket as unoccupied
     free(used_sockets[socket_num]->dev_name);
