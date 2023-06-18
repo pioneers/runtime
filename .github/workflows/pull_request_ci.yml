@@ -7,15 +7,12 @@ name: CI
 # Under what conditions do we run this workflow? Either
 # a) It is a commit on a pull request on a branch to be merged into master
 # b) It is a push to master (which only happens when we close a pull request)
-# c) It's 10:45 UTC on the 1st, 8th, 15th, 22nd, or 29th of a month (to prevent the cache from expiring)
 on:
   pull_request:
     branches: [master]
     types: [opened, synchronize]
   push:
     branches: [master]
-  schedule:
-    - cron: '45 10 1,8,15,22,29 * *'
 
 # Here is the list of jobs that this workflow will run. There is only one job.
 jobs:
