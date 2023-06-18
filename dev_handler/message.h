@@ -46,7 +46,8 @@ typedef enum {
     ACKNOWLEDGEMENT = 0x02,  // To dev handler
     DEVICE_WRITE = 0x03,     // To lowcar
     DEVICE_DATA = 0x04,      // To dev handler
-    LOG = 0x05               // To dev handler
+    LOG = 0x05,              // To dev handler
+    RST = 0x06               // Between dev handler and lowcar
 } message_id_t;
 
 // A struct defining a message to be sent over serial
@@ -103,6 +104,15 @@ message_t* make_ping();
  *      max_payload_length: same as above
  */
 message_t* make_device_write(uint8_t dev_type, uint32_t pmap, param_val_t param_values[]);
+
+/**
+ * Builds a RST message
+ * Returns:
+ *    A message of type RST
+ *      payload_length 0
+ *      max_payload_length 0
+ */
+message_t* make_rst();
 
 /**
  * Frees the memory allocated for the message struct and its payload.

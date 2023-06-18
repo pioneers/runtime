@@ -42,6 +42,12 @@ void Device::loop() {
                 device_write_params(&(this->curr_msg));
                 break;
 
+            // Runtime intends to disconnect this device
+            case MessageID::RST:
+                device_reset();
+                this->enabled = FALSE;
+                break;
+
             // Receiving some other Message
             default:
                 this->msngr->lowcar_printf("Unrecognized message received by lowcar device");
@@ -52,9 +58,15 @@ void Device::loop() {
     }
     device_actions();  //[MOVED TO HERE]
     // If it's been too long since we received a DEVICE_PING, disable the device
+    // Send a message to Runtime that we will terminate the connection
     if (this->enabled && (this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
         this->enabled = FALSE;
+        // Send RST message
+        this->curr_msg->message_id = MessageID::RST;
+        this->curr_msg->payload_length = 0;
+        memset(this->curr_msg->payload, 0, MAX_PAYLOAD_SIZE);
+        this->msngr->send_message(MessageID::RST, &(this->curr_msg));
     }
 
     // If we still haven't gotten our first DEVICE_PING yet (or dev handler timed out), keep waiting for a DEVICE_PING
