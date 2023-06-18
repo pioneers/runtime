@@ -30,7 +30,7 @@ device_socket_t** used_sockets;
 __attribute__((constructor)) void used_sockets_init() {
     used_sockets = malloc(MAX_DEVICES * sizeof(device_socket_t*));
     if (used_sockets == NULL) {
-        printf("used_sockets_init: Failed to malloc\n");
+        log_printf(ERROR, "used_sockets_init: Failed to malloc\n");
         exit(1);
     }
     for (int i = 0; i < MAX_DEVICES; i++) {
@@ -63,7 +63,7 @@ static int connect_socket() {
     // Make UNIX socket with raw byte streams
     int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (server_fd < 0) {
-        printf("connect_socket: Couldn't create socket\n");
+        log_printf(ERROR, "connect_socket: Couldn't create socket\n");
         return -1;
     }
 
@@ -78,7 +78,7 @@ static int connect_socket() {
 
     // Bind socket address to socket
     if (bind(server_fd, (struct sockaddr*) &dev_socket_addr, sizeof(dev_socket_addr)) < 0) {
-        printf("connect_socket: Couldn't bind socket -- %s\n", strerror(errno));
+        log_printf(ERROR, "connect_socket: Couldn't bind socket -- %s\n", strerror(errno));
         remove(socket_name);
         return -1;
     }
@@ -89,7 +89,7 @@ static int connect_socket() {
     // Accept the connection
     int connection_fd;
     if ((connection_fd = accept(server_fd, NULL, NULL)) < 0) {
-        printf("connect_socket: Couldn't accept socket connection\n");
+        log_printf(ERROR, "connect_socket: Couldn't accept socket connection\n");
         return -1;
     }
     close(server_fd);
@@ -97,7 +97,7 @@ static int connect_socket() {
     // Indicate in global variable that socket is now used
     used_sockets[socket_num] = malloc(sizeof(device_socket_t));
     if (used_sockets[socket_num] == NULL) {
-        printf("connect_socket: Failed to malloc\n");
+        log_printf(ERROR, "connect_socket: Failed to malloc\n");
         exit(1);
     }
     used_sockets[socket_num]->fd = connection_fd;
@@ -116,15 +116,15 @@ static int connect_socket() {
 void start_dev_handler() {
     // Check to see if creation of child is successful
     if ((dev_handler_pid = fork()) < 0) {
-        printf("fork: %s\n", strerror(errno));
+        log_printf(ERROR, "fork: %s\n", strerror(errno));
     } else if (dev_handler_pid == 0) {  // child created!
         // redirect to dev handler folder
         if (chdir("../dev_handler") == -1) {
-            printf("chdir: %s\n", strerror(errno));
+            log_printf(ERROR, "chdir: %s\n", strerror(errno));
         }
         // execute the device handler process
         if (execlp("./../bin/dev_handler", "dev_handler", (char*) 0) < 0) {
-            printf("start_dev_handler execlp: %s\n", strerror(errno));
+            log_printf(ERROR, "execlp: %s\n", strerror(errno));
         }
     } else {  // in parent
         home_dir = getenv("HOME");
@@ -134,10 +134,10 @@ void start_dev_handler() {
 void stop_dev_handler() {
     // send signal to dev_handler and wait for termination
     if (kill(dev_handler_pid, SIGINT) < 0) {
-        printf("kill dev_handler:  %s\n", strerror(errno));
+        log_printf(ERROR, "kill dev_handler:  %s\n", strerror(errno));
     }
     if (waitpid(dev_handler_pid, NULL, 0) < 0) {
-        printf("waitpid dev_haandler: %s\n", strerror(errno));
+        log_printf(ERROR, "waitpid dev_haandler: %s\n", strerror(errno));
     }
 }
 
@@ -151,7 +151,7 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
     // Take note of the type of device connected
     used_sockets[socket_num]->dev_name = malloc(strlen(dev_name));
     if (used_sockets[socket_num] == NULL) {
-        printf("connect_virtual_device: Failed to malloc\n");
+        log_printf(ERROR, "connect_virtual_device: Failed to malloc\n");
         exit(1);
     }
     strcpy(used_sockets[socket_num]->dev_name, dev_name);
@@ -160,12 +160,12 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
     // Fork to make child process execute virtual device
     pid_t pid = fork();
     if (pid < 0) {
-        printf("connect_device: Couldn't spawn child process %s\n", dev_name);
+        log_printf(ERROR, "connect_device: Couldn't spawn child process %s\n", dev_name);
         return -1;
     } else if (pid == 0) {  // Child process
         // Cd into virtual_devices dir where the device exe is
         if (chdir("bin/virtual_devices") == -1) {
-            printf("chdir: %s\n", strerror(errno));
+            log_printf(ERROR, "chdir: %s\n", strerror(errno));
         }
 
         // Become the virtual device by calling "./<dev_name> <fd> <uid>"
@@ -174,7 +174,7 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
         sprintf(fd_str, "%d", used_sockets[socket_num]->fd);
         sprintf(uid_str, "0x%016llX", uid);
         if (execlp(exe_name, used_sockets[socket_num]->dev_name, fd_str, uid_str, (char*) NULL) < 0) {
-            printf("connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
+            log_printf(ERROR, "connect_device: execlp %s failed -- %s\n", exe_name, strerror(errno));
             return -1;
         }
     } else {  // Parent process

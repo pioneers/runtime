@@ -9,19 +9,19 @@ char* PYTHONPATH = "PYTHONPATH";
 void start_executor(char* student_code) {
     // fork executor process
     if ((executor_pid = fork()) < 0) {
-        printf("fork: %s\n", strerror(errno));
+        log_printf(ERROR, "fork: %s\n", strerror(errno));
     } else if (executor_pid == 0) {  // child
         char* python_path = NULL;
         char* new_python_path = malloc(strlen(path_to_test_student_code) + 1);
         if (new_python_path == NULL) {
-            printf("start_executor: Failed to malloc\n");
+            log_printf(ERROR, "start_executor: Failed to malloc\n");
             exit(1);
         }
         int len;
 
         // cd to the executor directory
         if (chdir("../executor") == -1) {
-            printf("chdir: %s\n", strerror(errno));
+            log_printf(ERROR, "chdir: %s\n", strerror(errno));
         }
 
         // add the directory with all the student code to PYTHONPATH if it's not already there
@@ -50,7 +50,7 @@ void start_executor(char* student_code) {
         }
         // exec the actual executor process
         if (execlp("./../bin/executor", "executor", student_code, NULL) < 0) {
-            printf("execlp: %s\n", strerror(errno));
+            log_printf(ERROR, "execlp: %s\n", strerror(errno));
         }
     }
 }
@@ -58,9 +58,9 @@ void start_executor(char* student_code) {
 void stop_executor() {
     // send signal to executor and wait for termination
     if (kill(executor_pid, SIGINT) < 0) {
-        printf("kill executor:  %s\n", strerror(errno));
+        log_printf(ERROR, "kill executor:  %s\n", strerror(errno));
     }
     if (waitpid(executor_pid, NULL, 0) < 0) {
-        printf("waitpid executor: %s\n", strerror(errno));
+        log_printf(ERROR, "waitpid executor: %s\n", strerror(errno));
     }
 }

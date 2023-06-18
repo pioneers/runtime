@@ -35,14 +35,14 @@ bool hypothermia_enabled = false;  // 0 if hypothermia enabled, 1 if disabled
 static int connect_tcp(robot_desc_field_t client) {
     int sockfd;
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        printf("socket: failed to create listening socket: %s\n", strerror(errno));
+        log_printf(ERROR, "socket: failed to create listening socket: %s\n", strerror(errno));
         stop_net_handler();
         exit(1);
     }
 
     int optval = 1;
     if ((setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(int))) != 0) {
-        printf("setsockopt: failed to set listening socket for reuse of port: %s\n", strerror(errno));
+        log_printf(ERROR, "setsockopt: failed to set listening socket for reuse of port: %s\n", strerror(errno));
     }
 
     // set the elements of serv_addr
@@ -53,7 +53,7 @@ static int connect_tcp(robot_desc_field_t client) {
 
     // connect to the server
     if (connect(sockfd, (struct sockaddr*) &serv_addr, sizeof(struct sockaddr_in)) != 0) {
-        printf("connect: failed to connect to socket: %s\n", strerror(errno));
+        log_printf(ERROR, "connect: failed to connect to socket: %s\n", strerror(errno));
         close(sockfd);
         stop_net_handler();
         exit(1);
@@ -62,7 +62,7 @@ static int connect_tcp(robot_desc_field_t client) {
     // send the verification byte
     uint8_t verif_byte = (client == SHEPHERD) ? 0 : 1;
     if (writen(sockfd, &verif_byte, 1) == -1) {
-        printf("writen: error sending verification byte\n");
+        log_printf(ERROR, "writen: error sending verification byte\n");
         close(sockfd);
         stop_net_handler();
         exit(1);
@@ -134,6 +134,7 @@ static int recv_tcp_data(robot_desc_field_t client, int tcp_fd) {
         printf("Runtime Timestamp: %llu ms\n", time_stamp_msg->runtime_timestamp);
         printf("Final Dawn Timestamp: %llu ms\n", final_timestamp);
         printf("Round Dawn trip: %llu ms\n", final_timestamp - time_stamp_msg->dawn_timestamp);
+        fflush(stdout);
         time_stamps__free_unpacked(time_stamp_msg, NULL);
     } else if (msg_type == LOG_MSG) {
         if ((msg = text__unpack(NULL, len, buf)) == NULL) {
@@ -203,7 +204,7 @@ static void* output_dump(void* args) {
 
         // wait for something to happen
         if (select(maxfd, &read_set, NULL, NULL, NULL) < 0) {
-            printf("select: output dump: %s\n", strerror(errno));
+            log_printf(ERROR, "select: output dump: %s\n", strerror(errno));
         }
 
         // deny all cancellation requests until the next loop
@@ -234,7 +235,7 @@ static void* output_dump(void* args) {
                 if (curr_time - last_received_time <= disable_threshold) {  // Too many messages; Set output to /dev/null
                     less_than_disable_thresh++;
                     if (less_than_disable_thresh == sample_size) {
-                        printf("Suppressing output: too many messages...\n\n");
+                        log_printf(ERROR, "Suppressing output: too many messages...\n\n");
                         fflush(tcp_output_fp);
                         tcp_output_fp = null_fp;
                     }
@@ -258,27 +259,27 @@ void connect_clients(bool dawn, bool shepherd) {
 
     // init the mutex that will control whether device data messages should be printed to screen
     if (pthread_mutex_init(&most_recent_dev_data_mutex, NULL) != 0) {
-        printf("pthread_mutex_init: print device data mutex\n");
+        log_printf(ERROR, "pthread_mutex_init: print device data mutex\n");
     }
 
     // start the thread that is dumping output from net_handler to stdout of this process
     if (pthread_create(&dump_tid, NULL, output_dump, NULL) != 0) {
-        printf("pthread_create: output dump\n");
+        log_printf(ERROR, "pthread_create: output dump\n");
     }
 }
 
 void start_net_handler() {
     // fork net_handler process
     if ((nh_pid = fork()) < 0) {
-        printf("fork: %s\n", strerror(errno));
+        log_printf(ERROR, "fork: %s\n", strerror(errno));
     } else if (nh_pid == 0) {  // child
         // cd to the net_handler directory
         if (chdir("../net_handler") == -1) {
-            printf("chdir: %s\n", strerror(errno));
+            log_printf(ERROR, "chdir: %s\n", strerror(errno));
         }
         // exec the actual net_handler process
         if (execlp("./../bin/net_handler", "net_handler", NULL) < 0) {
-            printf("execlp: %s\n", strerror(errno));
+            log_printf(ERROR, "execlp: %s\n", strerror(errno));
         }
     } else {                    // parent
         sleep(1);               // allows net_handler to set itself up
@@ -290,10 +291,10 @@ void start_net_handler() {
 void stop_net_handler() {
     // send signal to net_handler and wait for termination
     if (kill(nh_pid, SIGINT) < 0) {
-        printf("kill net handler: %s\n", strerror(errno));
+        log_printf(ERROR, "kill net handler: %s\n", strerror(errno));
     }
     if (waitpid(nh_pid, NULL, 0) < 0) {
-        printf("waitpid net handler: %s\n", strerror(errno));
+        log_printf(ERROR, "waitpid net handler: %s\n", strerror(errno));
     }
 
     close_output();
@@ -302,7 +303,7 @@ void stop_net_handler() {
 void close_output() {
     // killing net handler should cause dump thread to return, so join with it
     if (pthread_join(dump_tid, NULL) != 0) {
-        printf("pthread_join: output dump\n");
+        log_printf(ERROR, "pthread_join: output dump\n");
     }
 
     // close all the file descriptors
@@ -331,7 +332,7 @@ void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode) {
             run_mode.mode = MODE__TELEOP;
             break;
         default:
-            printf("ERROR: sending run mode message\n");
+            log_printf(ERROR, "ERROR: sending run mode message\n");
     }
 
     // build the message
@@ -342,11 +343,11 @@ void send_run_mode(robot_desc_field_t client, robot_desc_val_t mode) {
     // send the message
     if (client == SHEPHERD) {
         if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending run mode message\n");
+            log_printf(ERROR, "writen: issue sending run mode message\n");
         }
     } else {
         if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending run mode message\n");
+            log_printf(ERROR, "writen: issue sending run mode message\n");
         }
     }
     free(send_buf);
@@ -376,7 +377,7 @@ void send_game_state(robot_desc_field_t state) {
                 break;
             }
         default:
-            printf("ERROR: sending game state message\n");
+            log_printf(ERROR, "ERROR: sending game state message\n");
     }
     len = game_state__get_packed_size(&game_state);
     send_buf = make_buf(GAME_STATE_MSG, len);
@@ -384,7 +385,7 @@ void send_game_state(robot_desc_field_t state) {
 
     // send the message
     if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-        printf("writen: issue sending game state message\n");
+        log_printf(ERROR, "writen: issue sending game state message\n");
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
@@ -404,7 +405,7 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
             start_pos.pos = POS__RIGHT;
             break;
         default:
-            printf("ERROR: sending run mode message\n");
+            log_printf(ERROR, "ERROR: sending run mode message\n");
     }
 
     // build the message
@@ -415,11 +416,11 @@ void send_start_pos(robot_desc_field_t client, robot_desc_val_t pos) {
     // send the message
     if (client == SHEPHERD) {
         if (writen(nh_tcp_shep_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-            printf("writen: issue sending start position message to shepherd\n");
+            log_printf(ERROR, "writen: issue sending start position message to shepherd\n");
         }
     } else {
         writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET);
-        printf("writen: issue sending start position message to dawn\n");
+        log_printf(ERROR, "writen: issue sending start position message to dawn\n");
     }
     free(send_buf);
     usleep(400000);  // allow time for net handler and runtime to react and generate output before returning to client
@@ -432,7 +433,7 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     inputs.n_inputs = 1;
     inputs.inputs = malloc(sizeof(Input*) * inputs.n_inputs);
     if (inputs.inputs == NULL) {
-        printf("send_user_input: Failed to malloc inputs\n");
+        log_printf(ERROR, "send_user_input: Failed to malloc inputs\n");
         exit(1);
     }
     Input input = INPUT__INIT;
@@ -444,7 +445,7 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     input.n_axes = 4;
     input.axes = malloc(sizeof(double) * 4);
     if (input.axes == NULL) {
-        printf("send_user_input: Failed to malloc axes\n");
+        log_printf(ERROR, "send_user_input: Failed to malloc axes\n");
         exit(1);
     }
     for (int i = 0; i < 4; i++) {
@@ -454,14 +455,14 @@ void send_user_input(uint64_t buttons, float joystick_vals[4], robot_desc_field_
     uint16_t len = user_inputs__get_packed_size(&inputs);
     uint8_t* send_buf = make_buf(INPUTS_MSG, len);
     if (send_buf == NULL) {
-        printf("send_user_input: Failed to malloc buffer\n");
+        log_printf(ERROR, "send_user_input: Failed to malloc buffer\n");
         exit(1);
     }
     user_inputs__pack(&inputs, send_buf + BUFFER_OFFSET);
 
     // send the message
     if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-        printf("send_user_input: Error when sending UserInput message");
+        log_printf(ERROR, "send_user_input: Error when sending UserInput message");
         exit(1);
     }
 
@@ -478,7 +479,7 @@ void disconnect_user_input() {
     inputs.n_inputs = 2;
     inputs.inputs = malloc(sizeof(Input*) * inputs.n_inputs);
     if (inputs.inputs == NULL) {
-        printf("disconnect_user_input: Failed to malloc inputs\n");
+        log_printf(ERROR, "disconnect_user_input: Failed to malloc inputs\n");
         exit(1);
     }
 
@@ -491,7 +492,7 @@ void disconnect_user_input() {
     gamepad.n_axes = 4;
     gamepad.axes = malloc(sizeof(double) * gamepad.n_axes);
     if (gamepad.axes == NULL) {
-        printf("disconnect_user_input: Failed to malloc axes\n");
+        log_printf(ERROR, "disconnect_user_input: Failed to malloc axes\n");
         exit(1);
     }
     for (int i = 0; i < gamepad.n_axes; i++) {
@@ -509,14 +510,14 @@ void disconnect_user_input() {
     uint16_t len = user_inputs__get_packed_size(&inputs);
     uint8_t* send_buf = make_buf(INPUTS_MSG, len);
     if (send_buf == NULL) {
-        printf("disconnect_user_input: Failed to malloc buffer\n");
+        log_printf(ERROR, "disconnect_user_input: Failed to malloc buffer\n");
         exit(1);
     }
     user_inputs__pack(&inputs, send_buf + BUFFER_OFFSET);
 
     // send the message
     if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-        printf("disconnect_user_input: Error when sending UserInput message");
+        log_printf(ERROR, "disconnect_user_input: Error when sending UserInput message");
         exit(1);
     }
 
@@ -548,7 +549,7 @@ void send_timestamp() {
     send_buf = make_buf(TIME_STAMP_MSG, len);
     time_stamps__pack(&timestamp_msg, send_buf + BUFFER_OFFSET);
     if (writen(nh_tcp_dawn_fd, send_buf, len + BUFFER_OFFSET) == -1) {
-        printf("writen: issue sending timestamp to Dawn\n");
+        log_printf(ERROR, "writen: issue sending timestamp to Dawn\n");
     }
     free(send_buf);
 }
