@@ -262,6 +262,55 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     free(buffer);  // Free buffer with device data protobuf
 }
 
+/*
+* Send a runtime status message to a client.
+* Arguments:
+    - int conn_fd: socket connection's file descriptor on which to write to the TCP port
+*/
+void send_status_msg(int conn_fd) {
+    RuntimeStatus status = RUNTIME_STATUS__INIT;
+	robot_desc_val_t val;
+    int len_pb;
+    uint8_t* buffer;
+	
+	// populate the fields
+	status.shep_connected = (robot_desc_read(SHEPHERD) == CONNECTED) ? 1 : 0;
+	status.dawn_connected = (robot_desc_read(DAWN) == CONNECTED) ? 1 : 0;
+	val = robot_desc_read(RUN_MODE);
+	switch (val) {
+		case IDLE:
+			status.mode = MODE__IDLE;
+			break;
+		case AUTO:
+			status.mode = MODE__AUTO;
+			break;
+		case TELEOP:
+			status.mode = MODE__TELEOP;
+			break;
+		default:
+			log_printf(ERROR, "send_status_msg: Unrecognized mode");
+	}
+	status.battery = 12.0; //change to get actual battery level
+    status.version = malloc(strlen(RUNTIME_VERSION_STR) + 1);
+	if (status.version == NULL) {
+		log_printf(FATAL, "send_status_msg: Failed to malloc");
+		return;
+	}
+	strcpy(status.version, RUNTIME_VERSION_STR);
+    len_pb = runtime_status__get_packed_size(&status);
+    buffer = make_buf(RUNTIME_STATUS_MSG, len_pb);
+    runtime_status__pack(&status, buffer + BUFFER_OFFSET);
+
+    // send message on socket
+    if (writen(conn_fd, buffer, len_pb + BUFFER_OFFSET) == -1) {
+        log_printf(ERROR, "send_status_msg: sending status message over socket failed: %s", strerror(errno));
+    }
+    // free everything
+	free(status.version); // free version string in status message
+
+}
+
+
 // **************************************** RECEIVE MESSAGES ***************************************** //
 
 /*
