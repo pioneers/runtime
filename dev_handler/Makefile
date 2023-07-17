@@ -1,10 +1,13 @@
-LIBFLAGS=-pthread -lrt -Wall
-BIN=../bin
+LIBS=-pthread -lrt -Wall
 
-dev_handler: dev_handler.c message.c message.h ../logger/logger.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c
-	gcc $^ -o $(BIN)/dev_handler $(LIBFLAGS)
+# include top-level Makefile
+include ../Makefile
 
-clean:
-	rm -f $(BIN)/dev_handler
-	rm -f dev_handler
+SRCS = dev_handler.c message.c ../logger/logger.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c
+HEADERS = message.h ../logger/logger.h ../runtime_util/runtime_util.h ../shm_wrapper/shm_wrapper.h
+
+OBJS = $(foreach file,$(SRCS),../$(OBJ)/$(shell basename $(file)).o) # list of all object files for dev handler
+
+dev_handler: $(SRCS) $(HEADERS) | $(BIN)
+	gcc $(OBJS) -o $(BIN)/$@ $(LIBS)
     
