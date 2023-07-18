@@ -1,0 +1,11 @@
+# definitions for all Makefiles
+
+PY_VER = python3.10
+CFLAGS1 = $(shell pkg-config --cflags libprotobuf-c)
+CFLAGS2 = $(shell $(PY_VER)-config --cflags)
+CFLAGS = $(CFLAGS1) $(CFLAGS2)
+CC = gcc
+
+BIN = bin
+BUILD = build
+OBJ = $(BUILD)/obj

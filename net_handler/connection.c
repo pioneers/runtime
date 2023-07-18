@@ -1,4 +1,4 @@
-#include "connection.h"
+#include <connection.h>
 
 // used for creating and cleaning up TCP connection
 typedef struct {

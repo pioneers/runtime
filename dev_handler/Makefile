@@ -1,13 +1,19 @@
+# list of libraries that dev_handler needs to compile
 LIBS=-pthread -lrt -Wall
 
-# include top-level Makefile
+# list of source files that the target (dev_handler) depends on, relative to this folder
+SRCS = dev_handler.c dev_handler_message.c ../logger/logger.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c
+
 include ../Makefile
 
-SRCS = dev_handler.c message.c ../logger/logger.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c
-HEADERS = message.h ../logger/logger.h ../runtime_util/runtime_util.h ../shm_wrapper/shm_wrapper.h
+all: dev_handler
 
-OBJS = $(foreach file,$(SRCS),../$(OBJ)/$(shell basename $(file)).o) # list of all object files for dev handler
+dev_handler: $(OBJS) | $(BIN)
+	$(CC) $(OBJS) -o $(BIN)/$@ $(LIBS)
 
-dev_handler: $(SRCS) $(HEADERS) | $(BIN)
-	gcc $(OBJS) -o $(BIN)/$@ $(LIBS)
-    
+clean:
+	rm -f $(OBJS)
+	rm -f $(patsubst %.o,%.d,$(OBJS))
+	rm -f $(BIN)/dev_handler
+
+-include $(patsubst %.o,%.d,$(OBJS))

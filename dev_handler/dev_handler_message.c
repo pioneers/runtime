@@ -1,10 +1,10 @@
-#include "message.h"
+#include <dev_handler_message.h>
 
 // ******************************** Utility ********************************* //
 
 void print_bytes(uint8_t* data, size_t len) {
     printf("0x");
-    for (int i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; i++) {
         printf("%02X ", data[i]);
     }
     printf("\n");
@@ -71,7 +71,7 @@ static int append_payload(message_t* msg, uint8_t* data, size_t len) {
  */
 static uint8_t checksum(uint8_t* data, size_t len) {
     uint8_t chk = data[0];
-    for (int i = 1; i < len; i++) {
+    for (size_t i = 1; i < len; i++) {
         chk ^= data[i];
     }
     return chk;
@@ -292,7 +292,7 @@ ssize_t message_to_bytes(message_t* msg, uint8_t cobs_encoded[], size_t len) {
     }
     data[0] = msg->message_id;
     data[1] = msg->payload_length;
-    for (int i = 0; i < msg->payload_length; i++) {
+    for (size_t i = 0; i < msg->payload_length; i++) {
         data[i + MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE] = msg->payload[i];
     }
     data[MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length] = checksum(data, MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + msg->payload_length);
@@ -317,7 +317,7 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
         // Smaller than valid message
         free(decoded);
         return 3;
-    } else if (ret > (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE)) {
+    } else if (ret > (int)(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE)) {
         // Larger than the largest valid message
         free(decoded);
         return 3;

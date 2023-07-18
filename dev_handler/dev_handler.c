@@ -5,10 +5,10 @@
 
 #include <termios.h>  // for POSIX terminal control definitions in serialport_open()
 
-#include "../logger/logger.h"
-#include "../runtime_util/runtime_util.h"
-#include "../shm_wrapper/shm_wrapper.h"
-#include "message.h"
+#include <logger.h>
+#include <runtime_util.h>
+#include <shm_wrapper.h>
+#include <dev_handler_message.h>
 
 /**
  * Each device will have a unique port number.
@@ -395,7 +395,7 @@ void relay_clean_up(relay_t* relay) {
     pthread_mutex_unlock(&used_ports_lock);
     pthread_mutex_destroy(&relay->relay_lock);
     pthread_cond_destroy(&relay->start_cond);
-    if (relay->dev_id.uid == -1) {
+    if (relay->dev_id.uid == (uint64_t) -1) {
         char port_name[MAX_PORT_NAME_SIZE];
         construct_port_name(port_name, relay->is_virtual, relay->is_usb, relay->port_num);
         log_printf(DEBUG, "Cleaned up bad device %s\n", port_name);
@@ -582,7 +582,7 @@ int receive_message(relay_t* relay, message_t* msg) {
     char port_name[MAX_PORT_NAME_SIZE];
     construct_port_name(port_name, relay->is_virtual, relay->is_usb, relay->port_num);
 
-    if (relay->dev_id.uid == -1) {
+    if (relay->dev_id.uid == (uint64_t) -1) {
         /* Haven't verified device is lowcar yet
          * read() is set to timeout while waiting for an ACK (see serialport_open())*/
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -872,7 +872,7 @@ int main(int argc, char* argv[]) {
     // If SIGINT (Ctrl+C) is received, call stop() to clean up
     signal(SIGINT, stop);
     init();
-	home_dir = getenv("HOME"); // set the home directory 
+    home_dir = getenv("HOME"); // set the home directory
     log_printf(INFO, "DEV_HANDLER initialized.");
     poll_connected_devices();
     return 0;

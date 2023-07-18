@@ -1,4 +1,4 @@
-#include "net_util.h"
+#include <net_util.h>
 
 uint8_t* make_buf(net_msg_t msg_type, uint16_t len_pb) {
     uint8_t* send_buf = malloc(len_pb + 3);

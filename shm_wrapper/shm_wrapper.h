@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <sys/mman.h>  // for posix shared memory
 
-#include "../logger/logger.h"              // for logger
-#include "../runtime_util/runtime_util.h"  // for runtime constants
+#include <logger.h>              // for logger
+#include <runtime_util.h>        // for runtime constants
 
 // names of various objects used in shm_wrapper; should not be used outside of shm_wrapper.c, shm_start.c, and shm_stop.c
 #define DEV_SHM_NAME "/dev-shm"        // name of shared memory block across devices

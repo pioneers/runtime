@@ -22,9 +22,9 @@
  */
 
 #include <stdbool.h>
-#include "../logger/logger.h"
-#include "../runtime_util/runtime_util.h"
-#include "../shm_wrapper/shm_wrapper.h"
+#include <logger.h>
+#include <runtime_util.h>
+#include <shm_wrapper.h>
 
 /**
  * Starts the gamestate handler thread so that gamestates are deactivated

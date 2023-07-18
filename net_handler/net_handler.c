@@ -1,6 +1,6 @@
-#include "../executor/gamestate_filter.h"
-#include "connection.h"
-#include "net_util.h"
+#include <gamestate_filter.h>
+#include <connection.h>
+#include <net_util.h>
 
 /*
  * Sets up TCP listening socket on raspberry pi.

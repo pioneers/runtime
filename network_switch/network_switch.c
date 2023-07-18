@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
-#include "../logger/logger.h"
-#include "../runtime_util/runtime_util.h"
-#include "../shm_wrapper/shm_wrapper.h"
+#include <logger.h>
+#include <runtime_util.h>
+#include <shm_wrapper.h>
 
 
 #define SLEEP_DELAY 1

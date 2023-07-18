@@ -10,8 +10,8 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
-#include "../logger/logger.h"
-#include "../runtime_util/runtime_util.h"
+#include <logger.h>
+#include <runtime_util.h>
 
 /* The maximum number of milliseconds to wait between each DEVICE_PING from a device
  * Waiting for this long will exit all threads for that device (doing cleanup as necessary)

@@ -11,9 +11,11 @@
 #include <sys/wait.h>                      //for wait functions
 #include <time.h>                          // for getting time
 #include <unistd.h>                        //for sleep
-#include "../logger/logger.h"              // for runtime logger
-#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
-#include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
+
+// runtime includes
+#include <logger.h>                        // for runtime logger
+#include <runtime_util.h>                  //for runtime constants (TODO: consider removing relative pathname in include)
+#include <shm_wrapper.h>                   // Shared memory wrapper to get/send device data
 
 
 // Global variables to all functions and threads
