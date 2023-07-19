@@ -8,5 +8,7 @@ all:
 	cd executor && make
 
 clean:
+	# executor needs to take care of its Cython build products
+	cd executor && make clean
 	rm -rf bin
 	rm -rf build

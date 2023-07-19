@@ -89,6 +89,11 @@ jobs:
             tar -xzf protobuf-c-1.4.1.tar.gz
             cd protobuf-c-1.4.1 && ./configure && make && sudo make install && sudo ldconfig
 
+      # Before we build Runtime, we check the formatting
+      - name: Format
+        run: |
+           ./runtime format -r .
+
       # Now that we are done installing Runtime's dependencies, we build Runtime
       - name: Build
         run: |

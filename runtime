@@ -14,33 +14,15 @@ cd $RUNTIME_DIR
 
 case $1 in
     build)
-        mkdir -p bin # make the runtime/bin directory
-        shift 1
-        pushd shm_wrapper && make $@
-        popd
-        pushd net_handler && make $@
-        popd
-        pushd executor    && make $@
-        popd
-        pushd dev_handler && make $@
-        popd
-        pushd network_switch && make $@ 
-        popd
-        scripts/run_clang_format.py -ir .        
+        make
         ;;
 
     clean)
-        pushd shm_wrapper && make clean && popd
-        pushd net_handler && make clean && popd
-        pushd executor    && make clean && popd
-        pushd dev_handler && make clean && popd
-        pushd tests       && make clean && popd
-        pushd network_switch && make clean && popd
+        make clean
         rm -f /tmp/log-fifo
-        rm -f /tmp/challenge.sock
         rm -f /tmp/ttyACM*
         ;;
-    
+
     run)
         scripts/run.sh
         ;;
@@ -48,7 +30,7 @@ case $1 in
     stop)
         scripts/stop.sh
         ;;
-    
+
     test)
         mkdir -p tests/bin # make the runtime/tests/bin directory
         shift 1
