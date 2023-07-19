@@ -9,6 +9,12 @@ sourcefiles = [
     "studentapi.pyx"
 ]
 
+includedirectories = [
+    "../logger",
+    "../shm_wrapper",
+    "../runtime_util"
+]
+
 if sys.platform == 'linux':
     libraries = ['rt']
 elif sys.platform == 'darwin':
@@ -19,7 +25,7 @@ else:
 setup(
     name="Student API",
     ext_modules = cythonize([
-        Extension("studentapi", sources=sourcefiles, libraries=libraries)
+        Extension("studentapi", sources=sourcefiles, include_dirs=includedirectories, libraries=libraries)
     ], compiler_directives={'language_level' : '3', 'boundscheck': False, 'embedsignature': True}),
     zip_safe=False,
 )

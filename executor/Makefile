@@ -1,26 +1,45 @@
-# Change this to point to your specific Python version. Need >= 3.6
-py=python3.10
+# list of libraries that executor needs to compile
+LIBS=-pthread -lrt -Wall -export-dynamic -fPIC
 
-CFLAGS=$(shell $(py)-config --cflags)
-LDFLAGS=$(shell $(py)-config --ldflags)
-PY_LIB=-l$(py)
-LIBS=-pthread -lrt -export-dynamic -fPIC -lprotobuf-c
-#-rdynamic or -export-dynamic to make it dynamically linked
-BIN=../bin
+# list of source files that the target (executor) depends on, relative to this folder
+SRCS = executor.c gamestate_filter.c ../logger/logger.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c
 
-all: executor studentapi.c
+# Python compilation definitions
+PY_VER = python3.10
+PY_LIB = -l$(PY_VER)
+CFLAGS = $(shell $(PY_VER)-config --cflags)
 
-executor: executor.c gamestate_filter.c ../shm_wrapper/shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c ../net_handler/net_util.c ../net_handler/pbc_gen/text.pb-c.c
-	gcc $(CFLAGS) $^ -o $(BIN)/$@ $(LIBS) $(PY_LIB)
+# specify the target (executable we want to make)
+TARGET = executor
 
-studentapi.c: studentapi.pyx runtime.pxd
-	$(py) setup.py build_ext -i
+.PHONY: all clean $(TARGET)
 
+all: $(TARGET) studentapi.c
+
+# include top-level Makefile
+include ../Makefile_defs
+
+$(TARGET): $(BIN)/$(TARGET)
+
+# rule to compile executor
+$(BIN)/$(TARGET): $(OBJS) | $(BIN)
+	$(CC) $(OBJS) -o $@ $(LIBS) $(PY_LIB)
+
+# rule to compile studentapi.c
+studentapi.c: studentapi.pyx runtime.pxd setup.py
+	$(PY_VER) setup.py build_ext -i
+
+# rule to compile testapi
 test_api: studentapi.c test_studentapi.py
-	- $(py) test_studentapi.py
+	- $(PY_VER) test_studentapi.py
 
+# remove build artifacts
 clean:
-	rm -f studentapi.c
-	rm -f $(BIN)/executor
-	rm -f executor
+	rm -f $(OBJS)
+	rm -f $(patsubst %.o,%.d,$(OBJS))
+	rm -rf studentapi.c
 	rm -f *.so
+	rm -rf build
+	rm -f $(BIN)/$(TARGET)
+
+-include $(patsubst %.o,%.d,$(OBJS))

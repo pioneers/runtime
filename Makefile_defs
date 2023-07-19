@@ -12,18 +12,19 @@ THIS_DIR = $(strip $(shell pwd | xargs basename -z))
 
 COMPONENT_DIRS = dev_handler net_handler executor network_switch shm_wrapper runtime_util logger # list of runtime component directories
 OBJ_SUBDIR = $(foreach dir,$(COMPONENT_DIRS),$(OBJ)/$(dir)) # list of subfolders in $(OBJ) for runtime object files
-INCLUDE = $(foreach dir,$(COMPONENT_DIRS),-I../$(dir)) # list of folders to include in compilation commands
+INCLUDE += $(foreach dir,$(COMPONENT_DIRS),-I../$(dir)) # list of folders to include in compilation commands
 
 OBJS = $(patsubst %.c,$(OBJ)/$(THIS_DIR)/%.o,$(SRCS)) # make a list of all object files this executable is dependent on relative to this Makefile
 
-.PHONY: all clean
-
 # list of build folders
-BUILD_DIR = $(OBJ) $(BIN) $(BUILD) $(OBJ_SUBDIR)
+BUILD_DIR += $(OBJ) $(BIN) $(BUILD) $(OBJ_SUBDIR)
+
+# append -MMD and -MP to CFLAGS to get the dependency files built for the object files
+CFLAGS += -MMD -MP
 
 # general rule for compiling a list of source files to object files in the $(OBJ) directory
 $(OBJ)/$(THIS_DIR)/%.o: %.c | $(OBJ_SUBDIR)
-	$(CC) $(CFLAGS) -MMD -MP $(INCLUDE) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
 # general rule for making a build directory
 $(BUILD_DIR):

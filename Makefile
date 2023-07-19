@@ -3,6 +3,9 @@
 all:
 	cd dev_handler && make
 	cd network_switch && make
+	cd shm_wrapper && make
+	cd net_handler && make
+	cd executor && make
 
 clean:
 	rm -rf bin
