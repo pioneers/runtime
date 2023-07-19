@@ -35,11 +35,11 @@ class KoalaBear : public Device {
     virtual void device_actions();
 
   private:
-    float velocity_a, velocity_b;            // student-specified velocities of motors, range [-1.0, 1.0]
-    float deadband_a, deadband_b;            // deadbands of motors
+    double velocity_a, velocity_b;            // student-specified velocities of motors, range [-1.0, 1.0]
+    double deadband_a, deadband_b;            // deadbands of motors
     uint8_t invert_a, invert_b;              // true if Motor A should rotate in opposite direction of default; false for default direction
     uint8_t pid_enabled_a, pid_enabled_b;    // true if using PID control; false if using manual drive mode
-    float curr_velocity_a, curr_velocity_b;  // current velocity of motors
+    double curr_velocity_a, curr_velocity_b;  // current velocity of motors
     unsigned long prev_loop_time;            // for calculating acceleration
     uint8_t online;                          // true if controller is online and in nominal loop; false otherwise
     PID *pid_a, *pid_b;                      // PID controllers for motors
@@ -54,7 +54,7 @@ class KoalaBear : public Device {
      *    target: value between -1 and 1 inclusive indicating how much to move the motor
      *    mtr: The motor to move
      */
-    void drive(float target, uint8_t mtr);
+    void drive(double target, uint8_t mtr);
 
     // Writes to pins to setup hardware.
     // Ask team electrical for how it works and what it does

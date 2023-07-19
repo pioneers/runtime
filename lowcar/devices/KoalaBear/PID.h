@@ -12,26 +12,26 @@ class PID {
      * Computes a value between -1 and 1 inclusive to tell how to
      * adjust the motor controller pins.
      * Arguments:
-     *    curr_pos: current value of the encoder, as a float
+     *    curr_pos: current value of the encoder, as a double
      */
-    float compute(float curr_pos);
+    double compute(double curr_pos);
 
     // Private field setters
-    void set_coefficients(float kp, float ki, float kd);
-    void set_velocity(float velocity);
-    void set_position(float curr_pos);
+    void set_coefficients(double kp, double ki, double kd);
+    void set_velocity(double velocity);
+    void set_position(double curr_pos);
 
     // Private field getters
-    float get_kp();
-    float get_ki();
-    float get_kd();
+    double get_kp();
+    double get_ki();
+    double get_kd();
 
   private:
-    float kp, ki, kd;
-    float prev_pos, prev_desired_pos;
-    float velocity;
-    float integral;
-    float *prev_error, *prev_time;
+    double kp, ki, kd;
+    double prev_pos, prev_desired_pos;
+    double velocity;
+    double integral;
+    double *prev_error, *prev_time;
 
     // ************************** HELPER FUNCTIONS ************************** //
 
@@ -43,7 +43,7 @@ class PID {
      * Returns:
      *    nums[0] + nums[1] + ... + nums[i - 1]
      */
-    float sum(float nums[], int i);
+    double sum(double nums[], int i);
 
     /**
      * Finds the average of the first i elements of the provided array
@@ -53,7 +53,7 @@ class PID {
      * Returns:
      *    (nums[0] + nums[1] + ... + nums[i - 1]) / i
      */
-    float average(float nums[], int i);
+    double average(double nums[], int i);
 
     /**
      * Computes the linear least squares regression of the points
@@ -68,7 +68,7 @@ class PID {
      * Returns:
      *    Slope of regression line through the given points
      */
-    float regression(float x_vals[], float y_vals[], int number);
+    double regression(double x_vals[], double y_vals[], int number);
 
     /**
      * Converts speed (in duty cycle units from -1.0 to 1.0) to
@@ -78,7 +78,7 @@ class PID {
      * Returns:
      *    the converted value to encoder ticks
      */
-    float velocity_to_tps(float velocity);
+    double velocity_to_tps(double velocity);
 };
 
 #endif

@@ -127,18 +127,18 @@ KoalaBear::KoalaBear() : Device(DeviceType::KOALA_BEAR, 13) {
 }
 
 size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
-    float* float_buf = (float*) data_buf;
+    double* double_buf = (double*) data_buf;
     bool* bool_buf = (bool*) data_buf;
     int32_t* int_buf = (int32_t*) data_buf;
 
     switch (param) {
             // Params for Motor A
         case VELOCITY_A:
-            float_buf[0] = this->velocity_a;
-            return sizeof(float);
+            double_buf[0] = this->velocity_a;
+            return sizeof(double);
         case DEADBAND_A:
-            float_buf[0] = this->deadband_a;
-            return sizeof(float);
+            double_buf[0] = this->deadband_a;
+            return sizeof(double);
         case INVERT_A:
             bool_buf[0] = this->invert_a;
             return sizeof(uint8_t);
@@ -146,25 +146,25 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
             bool_buf[0] = this->pid_enabled_a;
             return sizeof(uint8_t);
         case PID_KP_A:
-            float_buf[0] = this->pid_a->get_kp();
-            return sizeof(float);
+            double_buf[0] = this->pid_a->get_kp();
+            return sizeof(double);
         case PID_KI_A:
-            float_buf[0] = this->pid_a->get_ki();
-            return sizeof(float);
+            double_buf[0] = this->pid_a->get_ki();
+            return sizeof(double);
         case PID_KD_A:
-            float_buf[0] = this->pid_a->get_kd();
-            return sizeof(float);
+            double_buf[0] = this->pid_a->get_kd();
+            return sizeof(double);
         case ENC_A:
             int_buf[0] = enc_a;
             return sizeof(int32_t);
 
         // Params for Motor B
         case VELOCITY_B:
-            float_buf[0] = this->velocity_b;
-            return sizeof(float);
+            double_buf[0] = this->velocity_b;
+            return sizeof(double);
         case DEADBAND_B:
-            float_buf[0] = this->deadband_b;
-            return sizeof(float);
+            double_buf[0] = this->deadband_b;
+            return sizeof(double);
         case INVERT_B:
             bool_buf[0] = this->invert_b;
             return sizeof(uint8_t);
@@ -172,14 +172,14 @@ size_t KoalaBear::device_read(uint8_t param, uint8_t* data_buf) {
             bool_buf[0] = this->pid_enabled_b;
             return sizeof(uint8_t);
         case PID_KP_B:
-            float_buf[0] = this->pid_b->get_kp();
-            return sizeof(float);
+            double_buf[0] = this->pid_b->get_kp();
+            return sizeof(double);
         case PID_KI_B:
-            float_buf[0] = this->pid_b->get_ki();
-            return sizeof(float);
+            double_buf[0] = this->pid_b->get_ki();
+            return sizeof(double);
         case PID_KD_B:
-            float_buf[0] = this->pid_b->get_kd();
-            return sizeof(float);
+            double_buf[0] = this->pid_b->get_kd();
+            return sizeof(double);
         case ENC_B:
             int_buf[0] = enc_b;
             return sizeof(int32_t);
@@ -191,14 +191,14 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
     switch (param) {
             // Params for Motor A
         case VELOCITY_A:
-            this->velocity_a = ((float*) data_buf)[0];
+            this->velocity_a = ((double*) data_buf)[0];
             // limit to range [-1.0, 1.0]
             this->velocity_a = (this->velocity_a > 1.0) ? 1.0 : this->velocity_a;
             this->velocity_a = (this->velocity_a < -1.0) ? -1.0 : this->velocity_a;
-            return sizeof(float);
+            return sizeof(double);
         case DEADBAND_A:
-            this->deadband_a = ((float*) data_buf)[0];
-            return sizeof(float);
+            this->deadband_a = ((double*) data_buf)[0];
+            return sizeof(double);
         case INVERT_A:
             this->invert_a = data_buf[0];
             return sizeof(uint8_t);
@@ -207,31 +207,31 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             return sizeof(uint8_t);
         case PID_KP_A:
             this->pid_a->set_coefficients(((double*) data_buf)[0], this->pid_a->get_ki(), this->pid_a->get_kd());
-            return sizeof(float);
+            return sizeof(double);
         case PID_KI_A:
             this->pid_a->set_coefficients(this->pid_a->get_kp(), ((double*) data_buf)[0], this->pid_a->get_kd());
-            return sizeof(float);
+            return sizeof(double);
         case PID_KD_A:
             this->pid_a->set_coefficients(this->pid_a->get_kp(), this->pid_a->get_ki(), ((double*) data_buf)[0]);
-            return sizeof(float);
+            return sizeof(double);
         case ENC_A:
             // detaching the interrupt here prevets race codition on enc_a variable between this and the interrupt service routine
             detachInterrupt(digitalPinToInterrupt(AENC1));
             enc_a = ((int32_t*) data_buf)[0];
-            this->pid_a->set_position((float) enc_a);
+            this->pid_a->set_position((double) enc_a);
             attachInterrupt(digitalPinToInterrupt(AENC1), handle_enc_a_tick, RISING);
             return sizeof(int32_t);
 
         // Params for Motor B
         case VELOCITY_B:
-            this->velocity_b = ((float*) data_buf)[0];
+            this->velocity_b = ((double*) data_buf)[0];
             // limit to range [-1.0, 1.0]
             this->velocity_b = (this->velocity_b > 1.0) ? 1.0 : this->velocity_b;
             this->velocity_b = (this->velocity_b < -1.0) ? -1.0 : this->velocity_b;
-            return sizeof(float);
+            return sizeof(double);
         case DEADBAND_B:
-            this->deadband_b = ((float*) data_buf)[0];
-            return sizeof(float);
+            this->deadband_b = ((double*) data_buf)[0];
+            return sizeof(double);
         case INVERT_B:
             this->invert_b = data_buf[0];
             return sizeof(uint8_t);
@@ -240,18 +240,18 @@ size_t KoalaBear::device_write(uint8_t param, uint8_t* data_buf) {
             return sizeof(uint8_t);
         case PID_KP_B:
             this->pid_b->set_coefficients(((double*) data_buf)[0], this->pid_b->get_ki(), this->pid_b->get_kd());
-            return sizeof(float);
+            return sizeof(double);
         case PID_KI_B:
             this->pid_b->set_coefficients(this->pid_b->get_kp(), ((double*) data_buf)[0], this->pid_b->get_kd());
-            return sizeof(float);
+            return sizeof(double);
         case PID_KD_B:
             this->pid_b->set_coefficients(this->pid_b->get_kp(), this->pid_b->get_ki(), ((double*) data_buf)[0]);
-            return sizeof(float);
+            return sizeof(double);
         case ENC_B:
             // detaching the interrupt here prevets race codition on enc_b variable between this and the interrupt service routine
             detachInterrupt(digitalPinToInterrupt(BENC1));
             enc_b = ((int32_t*) data_buf)[0];
-            this->pid_b->set_position((float) enc_b);
+            this->pid_b->set_position((double) enc_b);
             attachInterrupt(digitalPinToInterrupt(BENC1), handle_enc_b_tick, RISING);
             return sizeof(int32_t);
         default:
@@ -302,9 +302,9 @@ void KoalaBear::device_actions() {
         return;
     }
 
-    float duty_cycle_a, duty_cycle_b, adjusted_velocity_a, adjusted_velocity_b;
+    double duty_cycle_a, duty_cycle_b, adjusted_velocity_a, adjusted_velocity_b;
     unsigned long curr_time = millis();
-    float interval_secs = ((float) (curr_time - this->prev_loop_time)) / 1000.0;  // compute time passed between loops, in seconds
+    double interval_secs = ((double) (curr_time - this->prev_loop_time)) / 1000.0;  // compute time passed between loops, in seconds
 
     // switch between displaying info about MTRA and MTRB every 2 seconds
     if (curr_time - this->prev_led_time > 2000) {
@@ -337,14 +337,14 @@ void KoalaBear::device_actions() {
     // compute the actual duty cycle to command the motors at (depending on whether pid is enabled)
     if (this->pid_enabled_a) {
         this->pid_a->set_velocity(adjusted_velocity_a);
-        duty_cycle_a = this->pid_a->compute((float) enc_a);
+        duty_cycle_a = this->pid_a->compute((double) enc_a);
     } else {
         duty_cycle_a = adjusted_velocity_a;
     }
 
     if (this->pid_enabled_b) {
         this->pid_b->set_velocity(adjusted_velocity_b);
-        duty_cycle_b = this->pid_b->compute((float) enc_b);
+        duty_cycle_b = this->pid_b->compute((double) enc_b);
     } else {
         duty_cycle_b = adjusted_velocity_b;
     }
@@ -363,11 +363,11 @@ void KoalaBear::device_actions() {
 
 //************************* KOALABEAR HELPER FUNCTIONS *************************//
 
-void KoalaBear::drive(float target, uint8_t mtr) {
+void KoalaBear::drive(double target, uint8_t mtr) {
     int pin1 = (mtr == MTRA) ? AIN1 : BIN1;  // select the correct pins based on the motor
     int pin2 = (mtr == MTRA) ? AIN2 : BIN2;
 
-    float direction = (target > 0.0) ? 1.0 : -1.0;
+    double direction = (target > 0.0) ? 1.0 : -1.0;
     /* If moving forwards, set pwm2 to 255 (stop), then move pwm1 down
      * If moving backwards, set pwm1 to 255, then move pwm2 down
      * Make sure that at least one of the pins is set to 255 at all times.

@@ -17,7 +17,7 @@ class LEDKoala {
      *    enabled: Whether or not to enable the LED
      *      if set to false, the LEDs will be turned off.
      */
-    void ctrl_LEDs(float vel, float deadband, bool enabled);
+    void ctrl_LEDs(double vel, double deadband, bool enabled);
 
     /**
      * Blinks all LEDs once at the same time to verify that they work
@@ -35,13 +35,13 @@ class LEDKoala {
     bool green_state;
 
     // decides when the red LED is on
-    void ctrl_red(float vel, float deadband, bool enabled);
+    void ctrl_red(double vel, double deadband, bool enabled);
 
     // decides when the yellow LED is on
-    void ctrl_yellow(float vel, float deadband, bool enabled);
+    void ctrl_yellow(double vel, double deadband, bool enabled);
 
     // decides when the green LED is on
-    void ctrl_green(float vel, float deadband, bool enabled);
+    void ctrl_green(double vel, double deadband, bool enabled);
 };
 
 #endif /* LEDKOALA_H */
