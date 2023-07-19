@@ -1,10 +1,10 @@
+#include <logger.h>
+#include <runtime_util.h>
+#include <shm_wrapper.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
-#include <logger.h>
-#include <runtime_util.h>
-#include <shm_wrapper.h>
 
 
 #define SLEEP_DELAY 1
@@ -32,7 +32,7 @@ int main() {
 
     char local_router[32];
     char local_password[32];
-    char *local_args[5];
+    char* local_args[5];
     char team_router[] = "teamrouter.txt";
     get_router_name_password(local_router, local_password, team_router);
     local_args[0] = bash_exe;
@@ -43,7 +43,7 @@ int main() {
 
     char pie_router[32];
     char pie_password[32];
-    char *pie_args[5];
+    char* pie_args[5];
     char pie_router_file[] = "pierouter.txt";
     get_router_name_password(pie_router, pie_password, pie_router_file);
     pie_args[0] = bash_exe;
@@ -92,7 +92,7 @@ int main() {
                             log_printf(ERROR, "network_switch: Failed to fork");
                             sleep(SLEEP_DELAY);
                         } else if (pid == 0) {
-                            execv(bash_exe, pie_args); // call the bash script with pioneers router arguments
+                            execv(bash_exe, pie_args);  // call the bash script with pioneers router arguments
                         } else {
                             waitpid(pid, &status, 0);
                         }
@@ -102,18 +102,18 @@ int main() {
                             log_printf(ERROR, "network_switch: Failed to fork");
                             sleep(SLEEP_DELAY);
                         } else if (pid == 0) {
-                            execv(bash_exe, local_args); // call the bash script with local router arguments
+                            execv(bash_exe, local_args);  // call the bash script with local router arguments
                         } else {
                             waitpid(pid, &status, 0);
                         }
                     }
-                    char buf[5]; 
+                    char buf[5];
                     FILE* exit_status = fopen("exit_status.txt", "r");
-                    fgets(buf, 5, exit_status); // retrieve the output of the bash script in the exit_status.txt
-                    if (strcmp(buf, "1") == 0) { // if output is 1, we successfully connected. Set previous switch = current switch
+                    fgets(buf, 5, exit_status);   // retrieve the output of the bash script in the exit_status.txt
+                    if (strcmp(buf, "1") == 0) {  // if output is 1, we successfully connected. Set previous switch = current switch
                         log_printf(WARN, "SUCCESSFULLY CONNECTED TO NETWORK");
                         prev_switch = curr_switch;
-                    } else { // if output is not 1, we loop again to call the bash script again
+                    } else {  // if output is not 1, we loop again to call the bash script again
                         log_printf(WARN, "FAILED TO CONNECT TO NETWORK");
                     }
                     fclose(exit_status);

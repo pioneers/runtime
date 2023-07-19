@@ -17,11 +17,9 @@ size_t LimitSwitch::device_read(uint8_t param, uint8_t* data_buf) {
     if (param < NUM_SWITCHES && param >= 0) {
         data_buf[0] = (digitalRead(this->pins[param]) == LOW);
         return sizeof(uint8_t);
-    }
-    else {
+    } else {
         return 0;
     }
-    
 }
 
 void LimitSwitch::device_enable() {

@@ -317,7 +317,7 @@ int parse_message(uint8_t data[], message_t* msg_to_fill) {
         // Smaller than valid message
         free(decoded);
         return 3;
-    } else if (ret > (int)(MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE)) {
+    } else if (ret > (int) (MESSAGE_ID_SIZE + PAYLOAD_LENGTH_SIZE + MAX_PAYLOAD_SIZE + CHECKSUM_SIZE)) {
         // Larger than the largest valid message
         free(decoded);
         return 3;

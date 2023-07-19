@@ -5,10 +5,10 @@
 
 #include <termios.h>  // for POSIX terminal control definitions in serialport_open()
 
+#include <dev_handler_message.h>
 #include <logger.h>
 #include <runtime_util.h>
 #include <shm_wrapper.h>
-#include <dev_handler_message.h>
 
 /**
  * Each device will have a unique port number.
@@ -24,7 +24,7 @@
  * These file paths may also be referred to as "port_prefix" in the code.
  */
 #define LOWCAR_FILE_PATH "/dev/ttyACM"
-#define VIRTUAL_FILE_PATH "ttyACM"			// will be created in the home directory
+#define VIRTUAL_FILE_PATH "ttyACM"  // will be created in the home directory
 #define LOWCAR_USB_FILE_PATH "/dev/ttyUSB"
 
 // **************************** PRIVATE STRUCT ****************************** //
@@ -93,7 +93,7 @@ uint32_t used_lowcar_usb_ports = 0;
 pthread_mutex_t used_ports_lock;  // poll_connected_devices() and relay_clean_up() shouldn't access used_ports at the same time
 
 // String to hold the home directory path (for looking for virtual device sockets)
-const char *home_dir;
+const char* home_dir;
 
 #define MAX_PORT_NAME_SIZE 64
 
@@ -872,7 +872,7 @@ int main(int argc, char* argv[]) {
     // If SIGINT (Ctrl+C) is received, call stop() to clean up
     signal(SIGINT, stop);
     init();
-    home_dir = getenv("HOME"); // set the home directory
+    home_dir = getenv("HOME");  // set the home directory
     log_printf(INFO, "DEV_HANDLER initialized.");
     poll_connected_devices();
     return 0;

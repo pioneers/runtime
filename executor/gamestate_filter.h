@@ -21,10 +21,10 @@
  *           will flip the sign of VALUE before being written to shared memory.
  */
 
-#include <stdbool.h>
 #include <logger.h>
 #include <runtime_util.h>
 #include <shm_wrapper.h>
+#include <stdbool.h>
 
 /**
  * Starts the gamestate handler thread so that gamestates are deactivated

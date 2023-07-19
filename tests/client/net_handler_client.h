@@ -3,8 +3,8 @@
 
 #include <stdbool.h>
 #include <sys/wait.h>
+#include "../../logger/logger.h"  // for log_printf
 #include "../../net_handler/net_util.h"
-#include "../../logger/logger.h" // for log_printf
 
 /**
  * Helper function to print out contents of a DevData message

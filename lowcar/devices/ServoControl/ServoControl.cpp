@@ -27,7 +27,6 @@ size_t ServoControl::device_read(uint8_t param, uint8_t* data_buf) {
     } else {
         return 0;
     }
-
 }
 
 size_t ServoControl::device_write(uint8_t param, uint8_t* data_buf) {

@@ -1,5 +1,5 @@
-#include <gamestate_filter.h>
 #include <connection.h>
+#include <gamestate_filter.h>
 #include <net_util.h>
 
 /*

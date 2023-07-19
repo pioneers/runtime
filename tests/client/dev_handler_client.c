@@ -180,9 +180,9 @@ int connect_virtual_device(char* dev_name, uint64_t uid) {
     } else {  // Parent process
         // Take note of child pid so we can kill it in disconnect_device()
         used_sockets[socket_num]->pid = pid;
-		
-		// close duplicate connection file descriptor
-		close(used_sockets[socket_num]->fd);
+
+        // close duplicate connection file descriptor
+        close(used_sockets[socket_num]->fd);
     }
     return socket_num;
 }
