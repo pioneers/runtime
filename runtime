@@ -32,7 +32,6 @@ case $1 in
         ;;
 
     test)
-        mkdir -p tests/bin # make the runtime/tests/bin directory
         shift 1
         scripts/test.sh $@
         ;;

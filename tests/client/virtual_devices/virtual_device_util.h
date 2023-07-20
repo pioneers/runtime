@@ -5,8 +5,8 @@
 #ifndef VIRTUAL_DEV_UTIL_H
 #define VIRTUAL_DEV_UTIL_H
 
-#include "../../../dev_handler/message.h"
-#include "../../../runtime_util/runtime_util.h"
+#include <dev_handler_message.h>
+#include <runtime_util.h>
 
 /**
  * Builds an ACKNOWLEDGEMENT message.

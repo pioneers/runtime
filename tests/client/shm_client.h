@@ -1,9 +1,9 @@
 #ifndef SHM_CLIENT_H
 #define SHM_CLIENT_H
 
+#include <logger.h>  // for log_printf
+#include <shm_wrapper.h>
 #include <sys/wait.h>
-#include "../../logger/logger.h"  // for log_printf
-#include "../../shm_wrapper/shm_wrapper.h"
 
 /**
  * Creates and initializes the shared memory process

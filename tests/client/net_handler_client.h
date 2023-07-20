@@ -1,10 +1,10 @@
 #ifndef NET_CLIENT_H
 #define NET_CLIENT_H
 
+#include <logger.h>  // for log_printf
+#include <net_util.h>
 #include <stdbool.h>
 #include <sys/wait.h>
-#include "../../logger/logger.h"  // for log_printf
-#include "../../net_handler/net_util.h"
 
 /**
  * Helper function to print out contents of a DevData message

@@ -1,18 +1,18 @@
 #ifndef DEV_CLIENT_H
 #define DEV_CLIENT_H
 
-#include <errno.h>                // for errno
-#include <signal.h>               // for SIGINT (Ctrl+C)
-#include <stdbool.h>              // for boolean types
-#include <stdint.h>               // for int with specific widths
-#include <stdio.h>                // for printf()
-#include <stdlib.h>               // for exit()
-#include <string.h>               // for strerr()
-#include <sys/socket.h>           // for sockets
-#include <sys/un.h>               // for sockaddr_un
-#include <sys/wait.h>             // for waitpid()
-#include <unistd.h>               // for read()
-#include "../../logger/logger.h"  // for log_printf
+#include <errno.h>       // for errno
+#include <logger.h>      // for log_printf
+#include <signal.h>      // for SIGINT (Ctrl+C)
+#include <stdbool.h>     // for boolean types
+#include <stdint.h>      // for int with specific widths
+#include <stdio.h>       // for printf()
+#include <stdlib.h>      // for exit()
+#include <string.h>      // for strerr()
+#include <sys/socket.h>  // for sockets
+#include <sys/un.h>      // for sockaddr_un
+#include <sys/wait.h>    // for waitpid()
+#include <unistd.h>      // for read()
 
 // Starts dev handler with "virtual" argument
 void start_dev_handler();
