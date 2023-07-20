@@ -14,7 +14,7 @@
 
 // runtime includes
 #include <logger.h>        // for runtime logger
-#include <runtime_util.h>  //for runtime constants (TODO: consider removing relative pathname in include)
+#include <runtime_util.h>  // for runtime constants
 #include <shm_wrapper.h>   // Shared memory wrapper to get/send device data
 
 
