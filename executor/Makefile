@@ -16,7 +16,7 @@ TARGET = executor
 
 all: $(TARGET) studentapi.c
 
-# include top-level Makefile
+# include top-level Makefile for common variables and rules
 include ../Makefile_defs
 
 $(TARGET): $(BIN)/$(TARGET)

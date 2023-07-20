@@ -11,7 +11,7 @@ TARGET = dev_handler
 
 all: $(TARGET)
 
-# include top-level Makefile
+# include top-level Makefile for some common variables and rules
 include ../Makefile_defs
 
 # resolve phony target "dev_handler" as ../bin/dev_handler

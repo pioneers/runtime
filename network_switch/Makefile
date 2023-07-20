@@ -11,7 +11,7 @@ TARGET = network_switch
 
 all: $(TARGET)
 
-# include top-level Makefile
+# include top-level Makefile for some common variables and rules
 include ../Makefile_defs
 
 # resolve phony target "network_switch" as ../bin/network_switch

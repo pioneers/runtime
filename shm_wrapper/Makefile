@@ -11,7 +11,7 @@ TARGETS = shm_start shm_stop
 
 all: $(TARGETS)
 
-# include top-level Makefile
+# include top-level Makefile for some common variables and rules
 include ../Makefile_defs
 
 shm_start: $(BIN)/shm_start

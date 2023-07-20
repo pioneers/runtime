@@ -14,11 +14,17 @@ cd $RUNTIME_DIR
 
 case $1 in
     build)
-        make
+        cd dev_handler && make && cd ..
+        cd net_handler && make && cd ..
+        cd executor && make && cd ..
+        cd network_switch && make && cd ..
+        cd shm_wrapper && make && cd ..
         ;;
 
     clean)
-        make clean
+        cd executor && make clean && cd .. # executor needs to take care of Cython build products
+        rm -rf build
+        rm -rf bin
         rm -f /tmp/log-fifo
         rm -f /tmp/ttyACM*
         ;;
