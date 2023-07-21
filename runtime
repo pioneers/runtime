@@ -45,7 +45,6 @@ case $1 in
     format)
         shift 1
 	scripts/format.sh $@
-#        scripts/run_clang_format.py $@
         ;;
 
     flash)
@@ -66,7 +65,6 @@ case $1 in
         printf "commands:\n"
 
         printf "\tbuild\t\tRuns 'make' on files needed to run Runtime.\n"
-        printf "\t\t\tOptional: pass in 'make' arguments. (Ex: runtime make shm_wrapper)\n"
 
         printf "\tclean\t\tRuns 'make clean' for Runtime and removes Runtime files in '/tmp/'\n"
 
@@ -75,11 +73,11 @@ case $1 in
         printf "\tstop\t\tStops Runtime.\n"
 
         printf "\ttest\t\tRuns all Runtime tests.\n"
-        printf "\t\t\tOptional: Pass in a specific test case. (Ex: runtime test integration/tc_71_14)\n"
+        printf "\t\t\tOptional: Pass in a specific test case. (Ex: runtime test tc_71_2)\n"
 
         printf "\tformat\t\tUses Clang to format the repo.\n"
-        printf "\t\t\tUse 'runtime format -ir .' to format the repo and save the changes.\n"
-        printf "\t\t\tRun without args to see full list of options.\n"
+        printf "\t\t\tUse 'runtime format fix' to format the repo and save the changes.\n"
+        printf "\t\tUse 'runtime format check' to check if the code in the repo conforms to format standards.\n"
 
         printf "\tflash\t\tFlashes a plugged in Arduino with Lowcar code.\n"
         printf "\t\t\tEx: 'runtime flash DummyDevice'\n"
