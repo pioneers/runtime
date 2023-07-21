@@ -26,7 +26,7 @@ $(BIN)/$(TARGET): $(OBJS) | $(BIN)
 	$(CC) $(OBJS) -o $@ $(LIBS) $(PY_LIB)
 
 # rule to compile studentapi.c
-studentapi.c: studentapi.pyx runtime.pxd setup.py
+studentapi.c: studentapi.pyx studentapi.pxd setup.py
 	$(PY_VER) setup.py build_ext -i
 
 # rule to compile testapi

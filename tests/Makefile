@@ -162,7 +162,7 @@ $(TEST_EXE): $$(patsubst $(BIN)/%,$(OBJ)/$(THIS_DIR)/%.o,$$@) $(TEST_OBJS) $(PBC
 # [gcc][-MMD -MP ...][-I../runtime_util -I../net_handler/pbc_gen .....] -c [client/net_handler_client.c]
 #            -o [../build/obj/tests/client/net_handler_client.o]
 $(OBJ)/$(THIS_DIR)/%.o: %.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ $(LIBS)
 
 ################################ general rule for making a build or bin directory
 
