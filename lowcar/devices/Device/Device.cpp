@@ -63,10 +63,11 @@ void Device::loop() {
     if (this->enabled && (this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
         this->enabled = FALSE;
+
         // Send RST message
-        this->curr_msg->message_id = MessageID::RST;
-        this->curr_msg->payload_length = 0;
-        memset(this->curr_msg->payload, 0, MAX_PAYLOAD_SIZE);
+        this->curr_msg.message_id = MessageID::RST;
+        this->curr_msg.payload_length = 0;
+        memset(this->curr_msg.payload, 0, MAX_PAYLOAD_SIZE);
         this->msngr->send_message(MessageID::RST, &(this->curr_msg));
     }
 
