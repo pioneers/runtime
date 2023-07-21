@@ -92,7 +92,7 @@ jobs:
       # Before we build Runtime, we check the formatting
       - name: Format
         run: |
-           ./runtime format -r .
+           ./runtime format check
 
       # Now that we are done installing Runtime's dependencies, we build Runtime
       - name: Build
