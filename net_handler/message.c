@@ -1,4 +1,5 @@
 #include "message.h"
+#include "security/security.h"
 
 // ******************************************* SEND MESSAGES ***************************************** //
 
@@ -260,6 +261,33 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     }
     free(dev_data.devices);
     free(buffer);  // Free buffer with device data protobuf
+}
+
+
+/**
+ * Sends Public Key to Dawn.
+ * Arguments:
+ *    - int dawn_socket_fd: socket fd for Dawn connection
+ */
+void send_public_key(int dawn_socket_fd) {
+    initialize_BIO();
+    char* public_key_string;
+    create_public_key(&public_key_string);
+    
+    SecurityMessage security_msg = SECURITYMESSAGE__INIT;
+    security_msg.type = TYPE__REQUEST;
+    security_msg.publicKey = public_key_string;
+
+    uint16_t len_pb = securitymessage__get_packed_size(&security_msg);
+    uint8_t* send_buf = make_buf(SECURITY_MSG, len_pb);
+    securitymessage__pack(&security_msg, send_buf + BUFFER_OFFSET);
+
+    if (writen(dawn_socket_fd, send_buf, len_pb + BUFFER_OFFSET) == -1) {
+        log_printf(ERROR, "send_public_key: sending public key over socket failed: &s", strerror(errno));
+    }
+
+    free(security_msg.publicKey);
+    free(send_buf);
 }
 
 // **************************************** RECEIVE MESSAGES ***************************************** //

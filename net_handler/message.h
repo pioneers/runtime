@@ -25,6 +25,13 @@ void send_timestamp_msg(int conn_fd, TimeStamps* dawn_timestamp_msg);
  */
 void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time);
 
+/**
+ * Sends Public Key to Dawn.
+ * Arguments:
+ *    - int dawn_socket_fd: socket fd for Dawn connection
+ */
+void send_public_key(int dawn_socket_fd);
+
 /*
  * Receives new message from client on TCP connection and processes the message.
  * Arguments:
