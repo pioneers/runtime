@@ -275,7 +275,7 @@ void send_public_key(int dawn_socket_fd) {
     create_public_key(&public_key_string);
     
     SecurityMessage security_msg = SECURITYMESSAGE__INIT;
-    security_msg.type = TYPE__REQUEST;
+    security_msg.type = TYPE__EncryptKey;
     security_msg.publicKey = public_key_string;
 
     uint16_t len_pb = securitymessage__get_packed_size(&security_msg);
@@ -472,6 +472,58 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
     }
     user_inputs__free_unpacked(inputs, NULL);
 
+    return 0;
+}
+
+/*
+ * Processes new security message from client and reacts appropriately
+ * Arguments:
+ *    - uint8_t *buf: buffer containing packed protobuf with security message
+ *    - uint16_t len_pb: length of buf
+ * Returns:
+ *      0 on success (message was processed correctly)
+ *     -1 on error unpacking message
+ */
+static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
+    SecurityMessage* security_message = security_message__unpack(NULL, len_pb, buf);
+    if (security_message == NULL) {
+        log_printf(ERROR, "recv_new_msg: Failed to unpack SecurityMessage");
+        return -1;
+    }
+    char* decrypted_message = NULL;
+    if (initialize_BIO() < 0) {
+        log_printf(ERROR, "recv_new_msg: Failed to initialize BIO");
+        return -1;
+    }
+    switch (security_message->type) {
+        case (TYPE__Request):
+            send_security_message(conn_fd);
+            break;
+        //Still need to fix this case to fit my implementation
+        case (TYPE__LoginInfo):
+            if (decrypt_login_info(*security_message->signedencryptedpassword, decrypted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to decrypt login info");
+                return -1;
+            }
+            char* salted_message = NULL;
+            if (salt_string(decrypted_message, salted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to salt login info");
+                return -1;
+            }
+            unsigned char* hashed_salted_message = NULL;
+            if (hash_message(salted_message, hashed_salted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to hash login info");
+                return -1;
+            }
+            if (compare_hashed_password((char*) hashed_salted_message) != 0) {
+                log_printf(ERROR, "recv_new_msg: Failed to compare the hashed password to the on file password");
+                return -1;
+            }
+            break;
+        default:
+            log_printf(ERROR, "sent security action: %s", security_message->type);
+            return -1;
+    }
     return 0;
 }
 
