@@ -10,11 +10,15 @@ OBJ = $(BUILD)/obj
 # this is the name of the lower level directory (e.g. THIS_DIR in the dev_handler folder is "dev_handler")
 THIS_DIR = $(strip $(shell pwd | xargs basename -z))
 
-COMPONENT_DIRS = dev_handler net_handler executor network_switch shm_wrapper runtime_util logger # list of runtime component directories
-OBJ_SUBDIR = $(foreach dir,$(COMPONENT_DIRS),$(OBJ)/$(dir)) # list of subfolders in $(OBJ) for runtime object files
-INCLUDE += $(foreach dir,$(COMPONENT_DIRS),-I../$(dir)) # list of folders to include in compilation commands
+# list of runtime component directories
+COMPONENT_DIRS = dev_handler net_handler executor network_switch shm_wrapper runtime_util logger
+ # list of subfolders in $(OBJ) for runtime object files
+OBJ_SUBDIR = $(foreach dir,$(COMPONENT_DIRS),$(OBJ)/$(dir))
+# list of folders to include in compilation commands
+INCLUDE += $(foreach dir,$(COMPONENT_DIRS),-I../$(dir))
 
-OBJS = $(patsubst %.c,$(OBJ)/$(THIS_DIR)/%.o,$(SRCS)) # make a list of all object files this executable is dependent on relative to this Makefile
+# list of all object files this executable is dependent on relative to this Makefile
+OBJS = $(patsubst %.c,$(OBJ)/$(THIS_DIR)/%.o,$(SRCS))
 
 # list of build folders
 BUILD_DIR += $(OBJ) $(BIN) $(BUILD) $(OBJ_SUBDIR)
