@@ -269,10 +269,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
  * Arguments:
  *    - int dawn_socket_fd: socket fd for Dawn connection
  */
-void send_public_key(int dawn_socket_fd) {
-    initialize_BIO();
-    char* public_key_string;
-    create_public_key(&public_key_string);
+void send_public_key(int dawn_socket_fd, char* public_key_string) {
     
     SecurityMessage security_msg = SECURITYMESSAGE__INIT;
     security_msg.type = TYPE__EncryptKey;
@@ -490,18 +487,28 @@ static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
         log_printf(ERROR, "recv_new_msg: Failed to unpack SecurityMessage");
         return -1;
     }
+    char* public_key_string
     char* decrypted_message = NULL;
     if (initialize_BIO() < 0) {
-        log_printf(ERROR, "recv_new_msg: Failed to initialize BIO");
+        log_printf(ERROR, "send_new_msg: Failed to initialize BIO");
         return -1;
     }
+
     switch (security_message->type) {
         case (TYPE__Request):
-            send_security_message(conn_fd);
+            if (create_public_key(&public_key_string) != 0) {
+                log_printf(ERROR, "send_new_msg: Failed to generate public key");
+                return -1;
+            }
+            send_security_message(conn_fd, public_key_string);
             break;
         //Still need to fix this case to fit my implementation
-        case (TYPE__LoginInfo):
-            if (decrypt_login_info(*security_message->signedencryptedpassword, decrypted_message) != 0) {
+        case (TYPE__EncryptKey):
+            if (strcmp(*security_message->publicKey, public_key_string) != 0) {
+                log_printf(ERROR, "recv_new_msg: Login request from unauthorized Dawn client");
+                return -1
+            }
+            if (decrypt_login_info(*security_message->encryptedPassword, strlen(*security_message->encryptedPassword), decrypted_message) != 0) {
                 log_printf(ERROR, "recv_new_msg: Failed to decrypt login info");
                 return -1;
             }
@@ -514,9 +521,29 @@ static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
             if (hash_message(salted_message, hashed_salted_message) != 0) {
                 log_printf(ERROR, "recv_new_msg: Failed to hash login info");
                 return -1;
+            } else if (hash_message(salted_message, hashed_salted_message) == 0) {
+                char* hex_hash = malloc((2 * EVP_MD_size(EVP_sha256()) + 1) * sizeof(char));
+                for (int i = 0; i < EVP_MD_size(EVP_sha256()); i++) {
+                    sprintf(&hex_hash[i * 2], "%02x", hashed_salted_message[i]);
+                }
+                hex_hash[2 * EVP_MD_size(EVP_sha256())] = '\0';
+
+                FILE* file = fopen("hashed.txt", "r");
+                char buffer[BUFLEN];
+                if (fgets(buffer, sizeof(buffer), file) == NULL) {
+                    printf(ERROR, "Error reading hashed string from the disk.\n");
+                    fclose(file);
+                    return -1;
+                }
+                fclose(file);
+                if (strcmp(buffer, hex_hash) != 0) {
+                    printf(ERROR, "recv_new_msg: Hash value stored in disk does not match user login info");
+                    return -1;
+                }
             }
-            if (compare_hashed_password((char*) hashed_salted_message) != 0) {
-                log_printf(ERROR, "recv_new_msg: Failed to compare the hashed password to the on file password");
+            const char* public_key_file = "public_key.pem";
+            if (verify_signature((const unsigned char*) decrypted_message, strlen(decrypted_message), (const unsigned char*) *security_message->signature, strlen(*security_message->signature), public_key_file) != 1) {
+                printf(ERROR, "recv_new_msg: Failed to verify the signature received from user");
                 return -1;
             }
             break;
