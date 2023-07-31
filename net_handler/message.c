@@ -490,14 +490,14 @@ static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
     char* public_key_string
     char* decrypted_message = NULL;
     if (initialize_BIO() < 0) {
-        log_printf(ERROR, "send_new_msg: Failed to initialize BIO");
+        log_printf(ERROR, "recv_new_msg: Failed to initialize BIO");
         return -1;
     }
 
     switch (security_message->type) {
         case (TYPE__Request):
             if (create_public_key(&public_key_string) != 0) {
-                log_printf(ERROR, "send_new_msg: Failed to generate public key");
+                log_printf(ERROR, "recv_new_msg: Failed to generate public key");
                 return -1;
             }
             send_security_message(conn_fd, public_key_string);
@@ -506,7 +506,7 @@ static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
         case (TYPE__EncryptKey):
             if (strcmp(*security_message->publicKey, public_key_string) != 0) {
                 log_printf(ERROR, "recv_new_msg: Login request from unauthorized Dawn client");
-                return -1
+                return -1;
             }
             if (decrypt_login_info(*security_message->encryptedPassword, strlen(*security_message->encryptedPassword), decrypted_message) != 0) {
                 log_printf(ERROR, "recv_new_msg: Failed to decrypt login info");
@@ -521,27 +521,33 @@ static int process_security_msg(int conn_fd, uint8_t* buf, uint16_t len_pb) {
             if (hash_message(salted_message, hashed_salted_message) != 0) {
                 log_printf(ERROR, "recv_new_msg: Failed to hash login info");
                 return -1;
-            } else if (hash_message(salted_message, hashed_salted_message) == 0) {
-                char* hex_hash = malloc((2 * EVP_MD_size(EVP_sha256()) + 1) * sizeof(char));
-                for (int i = 0; i < EVP_MD_size(EVP_sha256()); i++) {
-                    sprintf(&hex_hash[i * 2], "%02x", hashed_salted_message[i]);
-                }
-                hex_hash[2 * EVP_MD_size(EVP_sha256())] = '\0';
+            } 
 
-                FILE* file = fopen("hashed.txt", "r");
-                char buffer[BUFLEN];
-                if (fgets(buffer, sizeof(buffer), file) == NULL) {
-                    printf(ERROR, "Error reading hashed string from the disk.\n");
-                    fclose(file);
-                    return -1;
-                }
-                fclose(file);
-                if (strcmp(buffer, hex_hash) != 0) {
-                    printf(ERROR, "recv_new_msg: Hash value stored in disk does not match user login info");
-                    return -1;
-                }
+            char* hex_hash = malloc((2 * EVP_MD_size(EVP_sha256()) + 1) * sizeof(char));
+            for (int i = 0; i < EVP_MD_size(EVP_sha256()); i++) {
+                sprintf(&hex_hash[i * 2], "%02x", hashed_salted_message[i]);
             }
+            hex_hash[2 * EVP_MD_size(EVP_sha256())] = '\0';
+
+            FILE* file = fopen("hashed.txt", "r"); // hashed.txt should exist for each team. Contains the hex value of hashed login information from each team.
+            char buffer[BUFLEN];
+            if (fgets(buffer, sizeof(buffer), file) == NULL) {
+                printf(ERROR, "Error reading hashed string from the disk.\n");
+                fclose(file);
+                return -1;
+            }
+            fclose(file);
+            if (strcmp(buffer, hex_hash) != 0) {
+                printf(ERROR, "recv_new_msg: Hash value stored in disk does not match user login info");
+                return -1;
+            }
+
+            char* public_key = *security_message->signaturePublicKey;
+            FILE* public_key_fp = fopen("public_key.pem", "w");
+            PEM_Write_PUBKEY(public_key_fp, public_key); // need to create another public_key file and write the public key that dawn sent to runtime which was used for creating the signature.
+            fclose(public_key_fp);
             const char* public_key_file = "public_key.pem";
+
             if (verify_signature((const unsigned char*) decrypted_message, strlen(decrypted_message), (const unsigned char*) *security_message->signature, strlen(*security_message->signature), public_key_file) != 1) {
                 printf(ERROR, "recv_new_msg: Failed to verify the signature received from user");
                 return -1;
