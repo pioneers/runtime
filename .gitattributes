@@ -1,5 +1,8 @@
 # in language profile, ignore third-party libraries used in lowcar
-lowcar/lib/* linguist-vendored
+lowcar/lib/** linguist-vendored
+
+# force everything in the lowcar/devices directory to be classified as C++
+lowcar/devices/** linguist-language=C++
 
 # force the Makefile_defs file to be classified as Makefile and be syntax highlighted as Makefile
 Makefile_defs linguist-language=Makefile
