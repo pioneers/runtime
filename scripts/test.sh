@@ -10,7 +10,7 @@ function clean_up {
 function sigint_handler {
 	# if logger/logger.config.orig exists, we need to restore it
 	if [[ -f ../logger/logger.config.orig ]]; then
-        clean_up
+            clean_up
 	fi
 	exit 1
 }
@@ -38,12 +38,19 @@ function run_tests {
 		if [[ $? != 0 ]]; then
 			failing_tests="$failing_tests $test"  # add this test to list of failing tests
 			failed=1
-            continue
+			continue
 		fi
 
 		# run test
 		printf "Running $test...\n"
-		./bin/$test
+
+		if [[ -f bin/integration/$test ]]; then
+			./bin/integration/$test
+		elif [[ -f bin/performance/$test ]]; then
+			./bin/performance/$test
+		else
+			./bin/$test
+		fi
 
 		# if that test failed, set failed to 1
 		if [[ $? != 0 ]]; then

@@ -833,9 +833,9 @@ void check_latency(uint64_t uid, int32_t upper_bound_latency, uint64_t start_tim
         print_fail();
         fprintf_delimiter(stderr, "Elapsed time is negative!");
         fprintf_delimiter(stderr, "Got:");
-        fprintf(stderr, "Elapsed time == %d\n", param_name, elapsed_time);
-        fprintf(stderr, "Start time(shortened) == %d\n", param_name, start_time_shortened);
-        fprintf(stderr, "End time == %d\n", param_name, end_time.p_i);
+        fprintf(stderr, "Elapsed time == %d\n", elapsed_time);
+        fprintf(stderr, "Start time(shortened) == %d\n", start_time_shortened);
+        fprintf(stderr, "End time == %d\n", end_time.p_i);
         fail_test();
     }
     print_pass();

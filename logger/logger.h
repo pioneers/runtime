@@ -6,7 +6,7 @@
 #include <wordexp.h>  // for wordexp
 
 
-#include "../runtime_util/runtime_util.h"
+#include <runtime_util.h>
 
 #define CONFIG_FILE "logger.config"  // path to logger config file
 #define LOG_FIFO "/tmp/log-fifo"     // location of the log FIFO pipe in filesystem

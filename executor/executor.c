@@ -1,19 +1,21 @@
 #define PY_SSIZE_T_CLEAN
-#include <arpa/inet.h>                     //for networking
-#include <pthread.h>                       //for POSIX threads
-#include <python3.10/Python.h>             // For Python's C API
-#include <signal.h>                        // Used to handle SIGTERM, SIGINT, SIGKILL
-#include <stdint.h>                        //for standard int types
-#include <stdio.h>                         //for i/o
-#include <stdlib.h>                        //for standard utility functions (exit, sleep)
-#include <sys/types.h>                     //for sem_t and other standard system types
-#include <sys/un.h>                        //for unix sockets
-#include <sys/wait.h>                      //for wait functions
-#include <time.h>                          // for getting time
-#include <unistd.h>                        //for sleep
-#include "../logger/logger.h"              // for runtime logger
-#include "../runtime_util/runtime_util.h"  //for runtime constants (TODO: consider removing relative pathname in include)
-#include "../shm_wrapper/shm_wrapper.h"    // Shared memory wrapper to get/send device data
+#include <arpa/inet.h>          //for networking
+#include <pthread.h>            //for POSIX threads
+#include <python3.10/Python.h>  // For Python's C API
+#include <signal.h>             // Used to handle SIGTERM, SIGINT, SIGKILL
+#include <stdint.h>             //for standard int types
+#include <stdio.h>              //for i/o
+#include <stdlib.h>             //for standard utility functions (exit, sleep)
+#include <sys/types.h>          //for sem_t and other standard system types
+#include <sys/un.h>             //for unix sockets
+#include <sys/wait.h>           //for wait functions
+#include <time.h>               // for getting time
+#include <unistd.h>             //for sleep
+
+// runtime includes
+#include <logger.h>        // for runtime logger
+#include <runtime_util.h>  // for runtime constants
+#include <shm_wrapper.h>   // Shared memory wrapper to get/send device data
 
 
 // Global variables to all functions and threads

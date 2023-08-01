@@ -2,6 +2,7 @@
 #define DEV_CLIENT_H
 
 #include <errno.h>       // for errno
+#include <logger.h>      // for log_printf
 #include <signal.h>      // for SIGINT (Ctrl+C)
 #include <stdbool.h>     // for boolean types
 #include <stdint.h>      // for int with specific widths
@@ -12,7 +13,6 @@
 #include <sys/un.h>      // for sockaddr_un
 #include <sys/wait.h>    // for waitpid()
 #include <unistd.h>      // for read()
-#include "../../logger/logger.h" // for log_printf
 
 // Starts dev handler with "virtual" argument
 void start_dev_handler();

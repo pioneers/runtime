@@ -2,9 +2,6 @@
 bin/*
 tests/bin/*
 
-# ignore the tests/devices
-tests/devices
-
 # ignore the entire lowcar/Device folder
 lowcar/Device
 
@@ -24,7 +21,7 @@ network_switch/exit_status.txt
 *.pyc
 *.pyo
 __pycache__/
-build/
+executor/build/
 
 # VS Code
 .vscode
@@ -38,29 +35,11 @@ build/
 *.o
 *.obj
 
-# Precompiled Headers
-*.gch
-*.pch
-
 # Compiled Dynamic libraries
 *.so
 *.dylib
 *.dll
 *.pyd
 
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
+# .DS_Store
 *.DS_Store

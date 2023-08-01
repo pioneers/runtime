@@ -1,16 +1,35 @@
+# list of libraries that shm_wrapper needs to compile
 LIBS=-pthread -lrt -Wall
 
-FILES=shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
-BIN=../bin
+# list of source files that the targets (shm_start and shm_stop) depend on, relative to this folder
+SRCS = shm_start.c shm_stop.c shm_wrapper.c ../logger/logger.c ../runtime_util/runtime_util.c
 
-all: shm_start shm_stop
+# specify the targets (executables we want to make)
+TARGETS = shm_start shm_stop
 
-shm_start: shm_start.c $(FILES)
-	gcc $^ -o $(BIN)/$@ $(LIBS)
+.PHONY: all clean $(TARGETS)
 
-shm_stop: shm_stop.c $(FILES)
-	gcc $^ -o $(BIN)/$@ $(LIBS)
+all: $(TARGETS)
 
+# include top-level Makefile for some common variables and rules
+include ../Makefile_defs
+
+shm_start: $(BIN)/shm_start
+
+shm_stop: $(BIN)/shm_stop
+
+# rule to compile shm_start
+$(BIN)/shm_start: $(filter-out %/shm_stop.o, $(OBJS)) | $(BIN)
+	$(CC) $^ -o $@ $(LIBS)
+
+# rule to compile shm_stop
+$(BIN)/shm_stop: $(filter-out %/shm_start.o, $(OBJS)) | $(BIN)
+	$(CC) $^ -o $@ $(LIBS)
+
+# remove build artifacts
 clean:
-	rm -f $(BIN)/shm_start $(BIN)/shm_stop
-	rm -f shm_start shm_stop
+	rm -f $(OBJS)
+	rm -f $(patsubst %.o,%.d,$(OBJS))
+	rm -f $(BINS)
+
+-include $(patsubst %.o,%.d,$(OBJS))

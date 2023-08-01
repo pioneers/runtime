@@ -14,33 +14,21 @@ cd $RUNTIME_DIR
 
 case $1 in
     build)
-        mkdir -p bin # make the runtime/bin directory
-        shift 1
-        pushd shm_wrapper && make $@
-        popd
-        pushd net_handler && make $@
-        popd
-        pushd executor    && make $@
-        popd
-        pushd dev_handler && make $@
-        popd
-        pushd network_switch && make $@ 
-        popd
-        scripts/run_clang_format.py -ir .        
+        cd dev_handler && make && cd ..
+        cd net_handler && make && cd ..
+        cd executor && make && cd ..
+        cd network_switch && make && cd ..
+        cd shm_wrapper && make && cd ..
         ;;
 
     clean)
-        pushd shm_wrapper && make clean && popd
-        pushd net_handler && make clean && popd
-        pushd executor    && make clean && popd
-        pushd dev_handler && make clean && popd
-        pushd tests       && make clean && popd
-        pushd network_switch && make clean && popd
+        cd executor && make clean && cd .. # executor needs to take care of Cython build products
+        rm -rf build
+        rm -rf bin
         rm -f /tmp/log-fifo
-        rm -f /tmp/challenge.sock
         rm -f /tmp/ttyACM*
         ;;
-    
+
     run)
         scripts/run.sh
         ;;
@@ -48,16 +36,15 @@ case $1 in
     stop)
         scripts/stop.sh
         ;;
-    
+
     test)
-        mkdir -p tests/bin # make the runtime/tests/bin directory
         shift 1
         scripts/test.sh $@
         ;;
 
     format)
         shift 1
-        scripts/run_clang_format.py $@
+	scripts/format.sh $@
         ;;
 
     flash)
@@ -78,7 +65,6 @@ case $1 in
         printf "commands:\n"
 
         printf "\tbuild\t\tRuns 'make' on files needed to run Runtime.\n"
-        printf "\t\t\tOptional: pass in 'make' arguments. (Ex: runtime make shm_wrapper)\n"
 
         printf "\tclean\t\tRuns 'make clean' for Runtime and removes Runtime files in '/tmp/'\n"
 
@@ -87,11 +73,11 @@ case $1 in
         printf "\tstop\t\tStops Runtime.\n"
 
         printf "\ttest\t\tRuns all Runtime tests.\n"
-        printf "\t\t\tOptional: Pass in a specific test case. (Ex: runtime test integration/tc_71_14)\n"
+        printf "\t\t\tOptional: Pass in a specific test case. (Ex: runtime test tc_71_2)\n"
 
         printf "\tformat\t\tUses Clang to format the repo.\n"
-        printf "\t\t\tUse 'runtime format -ir .' to format the repo and save the changes.\n"
-        printf "\t\t\tRun without args to see full list of options.\n"
+        printf "\t\t\tUse 'runtime format fix' to format the repo and save the changes.\n"
+        printf "\t\tUse 'runtime format check' to check if the code in the repo conforms to format standards.\n"
 
         printf "\tflash\t\tFlashes a plugged in Arduino with Lowcar code.\n"
         printf "\t\t\tEx: 'runtime flash DummyDevice'\n"

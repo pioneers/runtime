@@ -1,4 +1,4 @@
-#include "message.h"
+#include <net_handler_message.h>
 
 // ******************************************* SEND MESSAGES ***************************************** //
 
@@ -41,7 +41,7 @@ void send_log_msg(int conn_fd, FILE* log_file) {
         } else {  // Error occurred
             log_printf(ERROR, "send_log_msg: Error reading from log fifo: %s", strerror(errno));
             // Free loaded payload contents and the payload itself
-            for (int i = 0; i < log_msg.n_payload; i++) {
+            for (size_t i = 0; i < log_msg.n_payload; i++) {
                 free(log_msg.payload[i]);
             }
             free(log_msg.payload);
@@ -60,7 +60,7 @@ void send_log_msg(int conn_fd, FILE* log_file) {
     }
 
     // free all allocated memory
-    for (int i = 0; i < log_msg.n_payload; i++) {
+    for (size_t i = 0; i < log_msg.n_payload; i++) {
         free(log_msg.payload[i]);
     }
     free(log_msg.payload);
@@ -202,7 +202,7 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     custom->name = "CustomData";
     custom->type = MAX_DEVICES;
     custom->uid = 2020;
-    for (int i = 0; i < custom->n_params; i++) {
+    for (size_t i = 0; i < custom->n_params; i++) {
         Param* param = malloc(sizeof(Param));
         if (param == NULL) {
             log_printf(FATAL, "send_device_data: Failed to malloc");
@@ -251,8 +251,8 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     }
 
     // free everything
-    for (int i = 0; i < dev_data.n_devices; i++) {
-        for (int j = 0; j < dev_data.devices[i]->n_params; j++) {
+    for (size_t i = 0; i < dev_data.n_devices; i++) {
+        for (size_t j = 0; j < dev_data.devices[i]->n_params; j++) {
             free(dev_data.devices[i]->params[j]);
         }
         free(dev_data.devices[i]->params);
@@ -427,7 +427,7 @@ static int process_inputs_msg(uint8_t* buf, uint16_t len_pb) {
         log_printf(ERROR, "recv_new_msg: Failed to unpack UserInputs");
         return -1;
     }
-    for (int i = 0; i < inputs->n_inputs; i++) {
+    for (size_t i = 0; i < inputs->n_inputs; i++) {
         Input* input = inputs->inputs[i];
         // Convert Protobuf source enum to Runtime source enum
         robot_desc_field_t source = (input->source == SOURCE__GAMEPAD) ? GAMEPAD : KEYBOARD;

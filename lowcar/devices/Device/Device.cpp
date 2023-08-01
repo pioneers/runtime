@@ -57,14 +57,14 @@ void Device::loop() {
     } else if (sts != Status::NO_DATA) {
         this->msngr->lowcar_printf("Error when reading message by lowcar device");
     }
-    device_actions();  //[MOVED TO HERE]
+    device_actions();
     // If it's been too long since we received a DEVICE_PING, disable the device
     // Send a message to Runtime that we will terminate the connection
     if (this->enabled && (this->timeout > 0) && (this->curr_time - this->last_received_ping_time >= this->timeout)) {
         device_reset();
         this->enabled = FALSE;
 
-        //Send RST message
+        // Send RST message
         this->curr_msg.message_id = MessageID::RST;
         this->curr_msg.payload_length = 0;
         memset(this->curr_msg.payload, 0, MAX_PAYLOAD_SIZE);

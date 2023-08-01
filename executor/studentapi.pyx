@@ -1,7 +1,7 @@
 # cython: nonecheck=True
 
 # from libc.stdint cimport *
-from runtime cimport *
+from studentapi cimport *
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from libc.string cimport strcmp
 

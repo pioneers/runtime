@@ -13,18 +13,18 @@
 #include <unistd.h>  //for read, write, close
 
 // include other runtime files
-#include "../logger/logger.h"
-#include "../runtime_util/runtime_util.h"
-#include "../shm_wrapper/shm_wrapper.h"
+#include <logger.h>
+#include <runtime_util.h>
+#include <shm_wrapper.h>
 
 // include compiled protobuf headers
-#include "pbc_gen/device.pb-c.h"
-#include "pbc_gen/gamestate.pb-c.h"
-#include "pbc_gen/input.pb-c.h"
-#include "pbc_gen/run_mode.pb-c.h"
-#include "pbc_gen/start_pos.pb-c.h"
-#include "pbc_gen/text.pb-c.h"
-#include "pbc_gen/timestamp.pb-c.h"
+#include <device.pb-c.h>
+#include <gamestate.pb-c.h>
+#include <input.pb-c.h>
+#include <run_mode.pb-c.h>
+#include <start_pos.pb-c.h>
+#include <text.pb-c.h>
+#include <timestamp.pb-c.h>
 
 #define RASPI_ADDR "127.0.0.1"  // The IP address of Runtime (Raspberry Pi) that clients can request a connection to
 #define RASPI_TCP_PORT 8101     // Port for Runtime as a TCP socket server
