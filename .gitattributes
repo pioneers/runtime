@@ -1,3 +1,5 @@
-# in language profile, ignore third-party libraries and protobuf-generated code
+# in language profile, ignore third-party libraries used in lowcar
 lowcar/lib/* linguist-vendored
-executor/studentapi.c linguist-generated
+
+# force the Makefile_defs file to be classified as Makefile and be syntax highlighted as Makefile
+Makefile_defs linguist-language=Makefile

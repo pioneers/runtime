@@ -9,7 +9,7 @@ function clean_up {
     rm -f diff_output.txt
 }
 
-# make sure to remove output.txt if Ctrl-C is pressed
+# make sure to remove clang_suggestions.txt and diff_output.txt if Ctrl-C is pressed
 trap 'clean_up' INT
 
 # get a list of all runtime files that we could want to check
