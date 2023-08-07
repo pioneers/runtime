@@ -302,10 +302,6 @@ static int process_run_mode_msg(uint8_t* buf, uint16_t len_pb, robot_desc_field_
             log_printf(DEBUG, "entering TELEOP mode");
             robot_desc_write(RUN_MODE, TELEOP);
             break;
-        case (MODE__ESTOP):
-            log_printf(DEBUG, "ESTOP RECEIVED! entering IDLE mode");
-            robot_desc_write(RUN_MODE, IDLE);
-            break;
         default:
             log_printf(ERROR, "recv_new_msg: requested robot to enter invalid robot mode %s", run_mode_msg->mode);
             break;
