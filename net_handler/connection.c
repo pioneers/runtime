@@ -149,7 +149,7 @@ static void* tcp_poll_thread(void* tcp_args) {
 /************************ PUBLIC FUNCTIONS *************************/
 
 
-void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
+void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs, uint8_t* buf, uint16_t len_pb) {
     if (client != DAWN && client != SHEPHERD) {
         log_printf(ERROR, "start_tcp_conn: Invalid TCP client %d, not DAWN(%d) or SHEPHERD(%d)", client, DAWN, SHEPHERD);
         return;
@@ -182,7 +182,25 @@ void start_tcp_conn(robot_desc_field_t client, int conn_fd, int send_logs) {
 
     // Update the start time of the TCP connection with Dawn
     if (client == DAWN) {
+        if (process_security_msg(conn_fd, buf, len_pb) != 0){
+            log_printf(ERROR, "start_tcp_conn: Failed to establish connection with DAWN");
+            return;
+        }
+        if (process_security_msg(conn_fd, buf, len_pb) != 0){
+            log_printf(ERROR, "start_tcp_conn: Failed to establish connection with DAWN");
+            return;
+        }
+
         dawn_start_time = millis();
+    } else if (client == SHEPHERD) {
+        if (process_security_msg(conn_fd, buf, len_pb) != 0){
+            log_printf(ERROR, "start_tcp_conn: Failed to establish connection with SHEPHERD");
+            return;
+        }
+        if (process_security_msg(conn_fd, buf, len_pb) != 0){
+            log_printf(ERROR, "start_tcp_conn: Failed to establish connection with SHEPHERD");
+            return;
+        }
     }
 
     // create the main control threads for this client
