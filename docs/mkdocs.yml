@@ -1,0 +1,10 @@
+site_name: MkLorum
+site_url: https://example.com/
+nav:
+  - Home: index.md
+  - About: about.md
+  - Student API: api.md
+  - Devices: device.md
+  - Device Get: device_get.md
+  - Device Set: device_set.md
+theme: readthedocs
