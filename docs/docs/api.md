@@ -15,9 +15,8 @@ for more infomation refer to the Student API section of the [Runtime Wiki](https
     * [`Robot.run(function_name, args...)`](#robotrunfunction_name-args)
     * [`Robot.is_running(function_name)`](#robotis_runningfunction_name)
     * [`Robot.sleep(seconds)`](#robotsleepseconds)
-* [`Gamepad` Class](#gamepad-class)
+* [Input Classes](#input-classes)
       * [`Gamepad.get_value(name_of_input)`](#gamepadget_valuename_of_input)
-      * [`Keyboard` Class](#keyboard-class)
       * [`Keyboard.get_value(name_of_key)`](#keyboardget_valuename_of_key)
 
 # Run Mode
@@ -77,14 +76,12 @@ def autonomous_setup(): #code segment run before the autonomous_main() function
 The robot class holds all methods for interacting with various arduino devices connected to a student’s robot. These devices include servos, motors, and sensors. 
 
 ## `Robot.get_value(device_id, param)`
-The get_value function returns the current value of a specified param of the device with the specified device_id. 
+The get_value function returns the current value of a specified `param` of the device with the specified device_id. 
 
 * `device_id`: the ID that specifies which PiE device will be read
-* `param`: identifies which parameter on the specified PiE device will be read. Possible param values depend on the specified device. Find a list of params for each device on the lowcar devices page
+* `param`: identifies which parameter on the specified PiE device will be read. Possible param values depend on the specified device. Find a list of params for each device on the device get page
 
-The function is useful for checking the current state of devices while driving. For example, getting the current state of the limit switch using its device_id and the param “switch0” will return the value True when pressed down and False if not.
-
-For more examples and devices refer to the devices page in the reference
+The function is useful for checking the current state of devices. For example, getting the current state of the limit switch using its device_id and the param “switch0” will return the value True when pressed down and False if not.
 
 ```py
 #first segment of code ran in the teleop process
@@ -106,12 +103,13 @@ def teleop_main():
   pass
 
 ```
+For more examples and devices refer to the devices page in the reference
 
 
 ## `Robot.set_value(device_id, param, value)`
 The `set_value` function sets a specified value to a device’s parameter
 
-* `device_id` string: the ID that specifies which PiE device will have its parameter set
+* `device_id`: the ID that specifies which PiE device will have its parameter set
 * `param`: determines which parameter should be set. The parameters depend on the specified Lowcar device and can be found at INCLUDE LINK TO LOWCAR DEVICE PAGE
 * `value` <int, bool, float> - the value to set the parameter to
 
@@ -140,7 +138,7 @@ def teleop_main():
 ```
 
 ## `Robot.run(function_name, args)`
-Executes another function with the given args passed into the robot.run function. The `function_name` is run both at the same time and independently of any following code in the stack.
+The `Robot.run()` runs another function, passing the `args` fed into the function. The `function_name` is run in parallel to any other code run following the `Robot.run()` function.
 
 * `function_name`: the name of a function in the student code which will be run simultaneously with the main loop
 
@@ -188,13 +186,23 @@ def teleop_main():
 
 
 ## `Robot.is_running(function_name)`
-Returns a boolean value (`True` or `False`) for whether or not the specified function is still running. 
+The `Robot.is_running()` function returns a boolean value (`True` or `False`) for whether or not the specified function is still running. 
 
-`function_name`: the name of a function defined by the student that may or may not have been run using Robot.run
+`function_name`: the name of a function defined by the student. If run through `Robot.run()` it will be the same inputted `function_name`
 
-an example use of this would be if a student would like to know if a function is currently running via `Robot.run()`.
+An example usage of this would be to wait for a `Robot.run()` process to finish before allowing user input for another process.
 
 ```py
+
+def robot_actions():
+  #series of actions from the Robot.set_value(). 
+
+def teleop_setup():
+  pass
+
+def teleop_main():
+  if Gamepad.get_value(button_a) && !Robot.is_running(robot_actions): #if the button A is pressed down and robot_actions are not running. Then the robot will be able to run robot_actions again. Will not run if the button A is not pressed or if robot_actions is running
+    Robot.run(robot_actions)
 
 
 ```
@@ -232,11 +240,11 @@ def autonomous_actions():
 
 ```
 
-# Gamepad Class
-The purpose of the gamepad class is to provide students with an easy way to control their robots. The gamepad class consists of one function getting any value sent from the student's controller.
+# Input Classes
+The input classes are both of the input classes that can only be run durring the teleoperated game phase. These two classes allow a student to recieve a booliean value for whether or not a button is pressed down or not. Most students will use these classes to 
 
 ## `Gamepad.get_value(input)`
-returns the state of a button or joystick from a connected gamepad
+The `Gamepad` class recieves input for when there is a change to a controller. This class is only usable durring the `def teleop_main():` process.
 
 `input`: identifies which button or joystick will be returned. This function is useful for checking the state of a button or joystick
 
@@ -276,3 +284,5 @@ The possible joystick inputs are:
 
 Note that the joysticks function differently from the button inputs. Rather then returning a Boolean `[True or False]`, they return a floating point value ranging from `-1.0 `and` 1.0` (inclusive)
 
+## `Keyboard.get_value(input)`
+The `Keyboard` class allows for user input to be collected from a keyboard input. Like the `Gamepad` class, it is only usable durring the teleop game phase.
