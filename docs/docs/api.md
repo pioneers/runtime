@@ -5,27 +5,30 @@ The Student API is the set of functions available to students to communicate wit
 for more infomation refer to the Student API section of the [Runtime Wiki](https://github.com/pioneers/runtime/wiki)
 
 #
-- [Overview](#Overview)
-- [`Robot` Class](#robot-class)
-  - [`Robot.get_value(device_id, param)`](#robotget_valuedevice_id-param)
-  - [`Robot.set_value(device_id, param, value)`](#robotset_valuedevice_id-param-value)
-  - [`Robot.run(function_name, args...)`](#robotrunfunction_name-args)
-  - [`Robot.is_running(function_name)`](#robotis_runningfunction_name)
-  - [`Robot.sleep(seconds)`](#robotsleepseconds)
-- [`Gamepad` Class](#gamepad-class)
-  - [`Gamepad.get_value(name_of_input)`](#gamepadget_valuename_of_input)
-- [`Keyboard` Class](#keyboard-class)
-  - [`Keyboard.get_value(name_of_key)`](#keyboardget_valuename_of_key)
+[//]: # (find better word for code periods later)
+* [Run Mode](#run-mode)
+    * [`Teleop` Period](#teleop-period)
+    * [`Auto` Period](#auto-period)
+* [`Robot` Class](#robot-class)
+    * [`Robot.get_value(device_id, param)`](#robotget_valuedevice_id-param)
+    * [`Robot.set_value(device_id, param, value)`](#robotset_valuedevice_id-param-value)
+    * [`Robot.run(function_name, args...)`](#robotrunfunction_name-args)
+    * [`Robot.is_running(function_name)`](#robotis_runningfunction_name)
+    * [`Robot.sleep(seconds)`](#robotsleepseconds)
+* [`Gamepad` Class](#gamepad-class)
+      * [`Gamepad.get_value(name_of_input)`](#gamepadget_valuename_of_input)
+      * [`Keyboard` Class](#keyboard-class)
+      * [`Keyboard.get_value(name_of_key)`](#keyboardget_valuename_of_key)
 
-# Overview
-The main event loop of PiE code consists of the `SETUP`, `AUTO`, and `TELEOP` functions. Durring a PiE compatition, each one of these three function loops will be run and depending and will rely on what a team has programed before hand. 
+# Run Mode
+The two run modes, `autonomous` and  `teleop` are where a majority of student code will be run. These functions are run in the Autonous period and Teleoperated period of a PiE compatition. Autonomous code restricts student's access to the `Keyboard` and `Gamepad` functions, forcing them to write code that will run without any input. The Teleoperated perod allows for control from both, giving students more freedom to control ther robot through any of the challenges presented in that phase. 
 
 
 
-## `AUTO` Phase
-The autonomous or `AUTO` phase is used anytime keyboard or controller input is restricted. Within this period you are encouraged to write code that will be able to run without any user input.
+## `AUTO` Period
+The autonomous or `AUTO` period is used anytime keyboard or controller input is restricted. Within this period you are encouraged to write code that will be able to run without any user input.
 
-An example of this would be running a robot foward for a set duration within an `AUTO` phase
+An example of this would be running a robot foward for a set duration within an `AUTO` period
 
 ```py
 motor = "//INSERT MOTOR ID HERE//"
@@ -36,14 +39,14 @@ def autonomous_main():
   Robot.sleep(10) #stops the execution of any other functions for a specified number of seconds
     Robot.set_value(motor, velocity_a, 0)
 ```
+For more recources please refer to the [Software Hub Autonomous Guide](https://pioneers.berkeley.edu/competition/SoftwareHub/Teleop/)
 
 
-
-
-## `TELEOP` Phase
-  The teleoperated or `TELEOP` phase is used anytime remote input via a controller or keyboard is used. The `teleop_main()` function runs in a loop until the teleoperated period has completed.
+## `TELEOP` Period
+  The teleoperated or `TELEOP` period is used anytime remote input via a controller or keyboard is used. The `teleop_main()` function runs in a loop until the teleoperated period has completed.
 
   This code is most useful when a student would like to use controller or keyboard input to control their robot on the gamefield.
+
 ```py
 motor = "//INSERT MOTOR ID HERE//"
 
@@ -53,6 +56,7 @@ def teleop_main():
     Robot.set_value(motor, velocity_a, 1)
 ```
 
+For more recources please refer to the [Software Hub Teleop Guide](https://pioneers.berkeley.edu/competition/SoftwareHub/Teleop/)
 ## `SETUP` Phase
   The `SETUP` phase prepares for either the `AUTO` or `TELEOP` function to be run. In this phase a student can set or get the value of any lowcar device (any device connected to the robot interactable using the PiE api).  
 
@@ -145,33 +149,20 @@ Executes another function with the given args passed into the robot.run function
 [//]: <> (I want to seperate the code example and this line of text. Not exactly sure how to do it so adding this comment to come back to it)
 An example of this would if a student would want to run a process alongside the teleop_main loop. Using the Robot.sleep class to define the amount of time a motor should rotate for without stopping the teleop_main loop. 
 ​
-```py
-def arm_movement():# moves arm up for 1 second and then moves it down for 1 second
-    # assumes arm is attached to motor A of MC "ARM_MOTOR"
-    while True:
-        #control arm
-
-
-def teleop_setup(): #starts before teleop-main
-    # starts the arm_movement subroutine in parallel to the main thread
-    Robot.run(arm_movement)
-    pass
-
-def teleop_main():
-    #location where all student drive code is ran
-```
 
 [//]: <> (FULL CODE WITHOUT ANY REMOVED CODE SEGMENTS //REMOVE//)
 ```py
+ARM_MOTOR = "INSERT MOTOR_ID HERE"
+DRIVE_MOTOR = "INSERT MOTOR_ID HERE"
+
+
 def arm_movement():
     # moves arm up for 1 second and then moves it down for 1 second
     # assumes arm is attached to motor A of MC "ARM_MOTOR"
-    while True:
-        if Gamepad.get_value("a_button"):
-            Robot.set_value(ARM_MOTOR, "velocity_a", 0.5)
-            Robot.sleep(1)
-            Robot.set_value(ARM_MOTOR, "velocity_a", -0.5)
-            Robot.sleep(1)
+    Robot.set_value(ARM_MOTOR, "velocity_a", 0.5)
+    Robot.sleep(1)
+    Robot.set_value(ARM_MOTOR, "velocity_a", -0.5)
+    Robot.sleep(1)
 ​
 def teleop_setup():
     # starts the arm_movement subroutine in parallel to the main thread
@@ -201,7 +192,12 @@ Returns a boolean value (`True` or `False`) for whether or not the specified fun
 
 `function_name`: the name of a function defined by the student that may or may not have been run using Robot.run
 
+an example use of this would be if a student would like to know if a function is currently running via `Robot.run()`.
 
+```py
+
+
+```
 
 
 
@@ -211,7 +207,30 @@ Pauses the execution of the current function for the specified number of `second
 `seconds`: the number of `seconds` to pause the execution of the current function for.
 It should be emphasized that calling `Robot.sleep` in one function does not cause any other function that is being run by `Robot.run()` or the main loop function to pause. Only the instance of the function that is executing the call to `Robot.sleep` will pause execution. It is highly recommended to not use this function in the setup functions or main loop functions--only in functions executed by `Robot.run()`.
 
+a great place to use `Robot.sleep()` would be to make a robot go to a specific spot using set motor velocities and ammount of time each function should run. 
+[//]: <> (could go further and say that `Robot.sleep()` combined with encoder ticks per revolution could allow you to specify a distance your robot could go)
 
+```py
+MOTOR_ID = "INSERT MOTOR_ID HERE"
+
+def autonomous_setup():
+  print("Autonomous mode has started!")
+  robot.run(autonomous_actions) #runs the autonomous_actions function in parallel to autonomous main
+
+
+def autonomous_main():
+  pass
+
+def autonomous_actions():
+        print("Action 1") #action one sets the motor velocites to 1
+        Robot.set_value(MOTOR_ID, "velocity_b", 1.0)
+        Robot.set_value(MOTOR_ID, "velocity_a", 1.0)
+        Robot.sleep(1.0) #holds the function for one second before running the next lines
+        print("Action 2") #the following code sets the motor velocities to 0
+        Robot.set_value(KOALA_BEAR, "velocity_b", 0)
+        Robot.set_value(KOALA_BEAR, "velocity_a", 0)
+
+```
 
 # Gamepad Class
 The purpose of the gamepad class is to provide students with an easy way to control their robots. The gamepad class consists of one function getting any value sent from the student's controller.
