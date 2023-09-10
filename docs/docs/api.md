@@ -157,10 +157,11 @@ DRIVE_MOTOR = "INSERT MOTOR_ID HERE"
 def arm_movement():
     # moves arm up for 1 second and then moves it down for 1 second
     # assumes arm is attached to motor A of MC "ARM_MOTOR"
-    Robot.set_value(ARM_MOTOR, "velocity_a", 0.5)
-    Robot.sleep(1)
-    Robot.set_value(ARM_MOTOR, "velocity_a", -0.5)
-    Robot.sleep(1)
+    if(Gamepad.get_value("button_a")):
+      Robot.set_value(ARM_MOTOR, "velocity_a", 0.5)
+      Robot.sleep(1)
+      Robot.set_value(ARM_MOTOR, "velocity_a", -0.5)
+      Robot.sleep(1)
 ​
 def teleop_setup():
     # starts the arm_movement subroutine in parallel to the main thread
@@ -168,19 +169,9 @@ def teleop_setup():
     pass
 ​
 def teleop_main():
-    # normal tank drive student code
-    left_stick_val = Gamepad.get_value("joystick_left_y")
-    right_stick_val = Gamepad.get_value("joystick_right_y")
-    
-    if abs(left_stick_val) > 0.1:
-        Robot.set_value(DRIVE_MOTOR, "velocity_a", left_stick_val)
-    else:
-        Robot.set_value(DRIVE_MOTOR, "velocity_a", 0)
-    
-    if abs(right_stick_val) > 0.1:
-        Robot.set_value(DRIVE_MOTOR, "velocity_b", right_stick_val)
-    else:
-        Robot.set_value(DRIVE_MOTOR, "velocity_b", 0)
+    # put your teleop code here and it will run along side the arm_movement thread
+    if(Gamepad.get_value("button_b")):
+      Robot.set_value(DRIVE_MOTOR, "velocity_a", 1)
 
 ```
 
@@ -244,7 +235,7 @@ def autonomous_actions():
 The input classes are both of the input classes that can only be run durring the teleoperated game phase. These two classes allow a student to recieve a booliean value for whether or not a button is pressed down or not. Most students will use these classes to 
 
 ## `Gamepad.get_value(input)`
-The `Gamepad` class recieves input for when there is a change to a controller. This class is only usable durring the `def teleop_main():` process.
+The `Gamepad` class recieves input for when there is a change to a controller. This class is only usable durring the teleop phase.
 
 `input`: identifies which button or joystick will be returned. This function is useful for checking the state of a button or joystick
 
@@ -252,8 +243,9 @@ For example, if you wanted to print `"hello world"` when the `"button_a"` is pre
 
 ```py
 #segment of code will print "hello world" into the console when button_a is pressed
-if Gamepad.get_value("button_a"):
-  print("hello world")
+def teleop_main():
+  if Gamepad.get_value("button_a"):
+    print("hello world")
 ```
 This function is essential for controlling your robot with the gamepad. 
 
@@ -285,4 +277,23 @@ The possible joystick inputs are:
 Note that the joysticks function differently from the button inputs. Rather then returning a Boolean `[True or False]`, they return a floating point value ranging from `-1.0 `and` 1.0` (inclusive)
 
 ## `Keyboard.get_value(input)`
-The `Keyboard` class allows for user input to be collected from a keyboard input. Like the `Gamepad` class, it is only usable durring the teleop game phase.
+The `Keyboard` class allows a student to recieve keyboard input. Like the `Gamepad` class, it is only usable durring the teleop game phase.
+
+`input`: identifies which key is being read. When pressed the `get_value` will return a `True` boolean and `False` when not.
+
+possible keyboard inputs are:
+* The letters on the keyboard, lowercase and no spaces `"a"`-`"z"`
+* The numbers on the keyboard, no spaces `"0"`-`"9"`
+* The punctuation keys `","`, `"."`,  `"/"`,  `";"`,  `"'"`,  `"["`,  `"]"`
+* The four arrow keys `"left_arrow"`, `"right_arrow"`, `"up_arrow"`, `"down_arrow"`
+
+For example, if you wanted to print `"hello world"` when the `"w"` is pressed and false when it isn't you would use the function as a condition in an if statement
+ 
+```py
+#segment of code will print "hello world" into the console when the w key is pressed
+def teleop_main():
+  if Keyboard.get_value("w"):
+    print("hello world")
+
+
+```
