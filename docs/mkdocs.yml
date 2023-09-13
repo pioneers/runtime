@@ -2,12 +2,18 @@ site_name: Pioneers in Engineering Documentation
 site_url: https://example.com/
 site_author: Ian Leung
 nav:
+  #introductions
   - Home: 'index.md'
-  #- Building Your First Robot:
-    #- Base Kit Manual: 'https://docs.google.com/presentation/d/1kOey75pST0KuZBpdi2XSr_sBCPJOZlzW_mR5YUjE6n4/edit#slide=id.g11867c812eb_0_0'
-  #- Software:
-    #- Dawn Tutorial: 'https://pioneers.berkeley.edu/competition/SoftwareHub/QuickstartGuide/'
-    #- Quickstart Guide: 'https://pioneers.berkeley.edu/competition/SoftwareHub/QuickstartGuide/'
+  #starting your first robot
+  - Building Your First Robot:
+  - Base Kit Manual: 
+  - Software:
+  - Dawn Tutorial: 
+  - Quickstart Guide:
+  #software stuff
+  - Getting Started:
+  - Your First Program:
+    -
   - API Refrence: 'api.md'
   - Devices:
     - Devices: 'device.md'
