@@ -36,7 +36,7 @@ def autonomous_main():
   #keeps motor A running at max speed for 10 seconds
   Robot.set_value(motor, velocity_a, 1)
   Robot.sleep(10) #stops the execution of any other functions for a specified number of seconds
-    Robot.set_value(motor, velocity_a, 0)
+  Robot.set_value(motor, velocity_a, 0)
 ```
 For more recources please refer to the [Software Hub Autonomous Guide](https://pioneers.berkeley.edu/competition/SoftwareHub/Teleop/)
 
@@ -50,9 +50,9 @@ For more recources please refer to the [Software Hub Autonomous Guide](https://p
 motor = "//INSERT MOTOR ID HERE//"
 
 def teleop_main():
-  #sets the motor's velocity to max if the button A is pressed
-  if(Gamepad.get_value(button_a) == True): 
-    Robot.set_value(motor, velocity_a, 1)
+    #sets the motor's velocity to max if the button A is pressed
+    if Gamepad.get_value(button_a) == True: 
+        Robot.set_value(motor, velocity_a, 1)
 ```
 
 For more recources please refer to the [Software Hub Teleop Guide](https://pioneers.berkeley.edu/competition/SoftwareHub/Teleop/)
@@ -64,12 +64,12 @@ For more recources please refer to the [Software Hub Teleop Guide](https://pione
 motor = "//INSERT MOTOR ID HERE//"
 
 def teleop_setup(): #code segment run before the teleop_main() function
-  Robot.set_value(motor, pid_enabled_a, False)
-  Robot.set_value(motor, pid_enabled_b, False)
+    Robot.set_value(motor, pid_enabled_a, False)
+    Robot.set_value(motor, pid_enabled_b, False)
   
 def autonomous_setup(): #code segment run before the autonomous_main() function
-  Robot.set_value(motor, pid_enabled_a, False)
-  Robot.set_value(motor, pid_enabled_b, False)
+    Robot.set_value(motor, pid_enabled_a, False)
+    Robot.set_value(motor, pid_enabled_b, False)
 ```
 
 # `Robot` Class
@@ -84,23 +84,23 @@ The get_value function returns the current value of a specified `param` of the d
 The function is useful for checking the current state of devices. For example, getting the current state of the limit switch using its device_id and the param “switch0” will return the value True when pressed down and False if not.
 
 ```py
-#first segment of code ran in the teleop process
+# first segment of code ran in the teleop process
 limit_switch = "//INSERT SWITCH ID HERE//"
 
 def teleop_setup():
-  print("Tele-operated mode has started!")
-  pass
+    print("Tele-operated mode has started!")
+    pass
 
 def teleop_main():
-  #example code for getting the value of a limit switch
+    # example code for getting the value of a limit switch
 
-  #first parameter is the limit switch's id
-  #second parameter tells which switch to get the value from
+    # first parameter is the limit switch's id
+    # second parameter tells which switch to get the value from
 
-  #in this case the method will retun True or False depending on if the switch is pressed down or not
+    # in this case the method will retun True or False depending on if the switch is pressed down or not
 
-  Robot.get_value(limit_switch, switch0)
-  pass
+    Robot.get_value(limit_switch, switch0)
+    pass
 
 ```
 For more examples and devices refer to the devices page in the reference
@@ -118,22 +118,22 @@ This function is useful for setting the state of parts of your robot while drivi
 
 [//]: <> (MAKE CODE SEGMENTS COLLAPSABLE)
 ```py
-#first segment of code ran in the teleop process
+# first segment of code ran in the teleop process
 motor = "//INSERT MOTOR ID HERE//"
 
 def teleop_setup():
-  print("Tele-operated mode has started!")
-  pass
+    print("Tele-operated mode has started!")
+    pass
 
 def teleop_main():
-  #example code for turning a motor foward at full speed
+    # example code for turning a motor foward at full speed
 
-  #first parameter is the motor controller's id set as a varible
-  #second parameter 'velocity_a' tells a motor controller which motor to drive
-  #third parameter sets the value
+    # first parameter is the motor controller's id set as a varible
+    # second parameter 'velocity_a' tells a motor controller which motor to drive
+    # third parameter sets the value
 
-  Robot.set_value(motor, velocity_a, 1)
-  pass
+    Robot.set_value(motor, velocity_a, 1)
+    pass
 
 ```
 
@@ -157,11 +157,11 @@ DRIVE_MOTOR = "INSERT MOTOR_ID HERE"
 def arm_movement():
     # moves arm up for 1 second and then moves it down for 1 second
     # assumes arm is attached to motor A of MC "ARM_MOTOR"
-    if(Gamepad.get_value("button_a")):
-      Robot.set_value(ARM_MOTOR, "velocity_a", 0.5)
-      Robot.sleep(1)
-      Robot.set_value(ARM_MOTOR, "velocity_a", -0.5)
-      Robot.sleep(1)
+    if Gamepad.get_value("button_a"):
+        Robot.set_value(ARM_MOTOR, "velocity_a", 0.5)
+        Robot.sleep(1)
+        Robot.set_value(ARM_MOTOR, "velocity_a", -0.5)
+        Robot.sleep(1)
 ​
 def teleop_setup():
     # starts the arm_movement subroutine in parallel to the main thread
@@ -170,8 +170,8 @@ def teleop_setup():
 ​
 def teleop_main():
     # put your teleop code here and it will run along side the arm_movement thread
-    if(Gamepad.get_value("button_b")):
-      Robot.set_value(DRIVE_MOTOR, "velocity_a", 1)
+    if Gamepad.get_value("button_b"):
+        Robot.set_value(DRIVE_MOTOR, "velocity_a", 1)
 
 ```
 
@@ -186,14 +186,17 @@ An example usage of this would be to wait for a `Robot.run()` process to finish 
 ```py
 
 def robot_actions():
-  #series of actions from the Robot.set_value(). 
+    #series of actions from the Robot.set_value().
 
 def teleop_setup():
-  pass
+    pass
 
 def teleop_main():
-  if Gamepad.get_value(button_a) && !Robot.is_running(robot_actions): #if the button A is pressed down and robot_actions are not running. Then the robot will be able to run robot_actions again. Will not run if the button A is not pressed or if robot_actions is running
-    Robot.run(robot_actions)
+    if Gamepad.get_value(button_a) and not Robot.is_running(robot_actions):
+        # if the button A is pressed down and robot_actions are not running.
+        # Then the robot will be able to run robot_actions again. Will not run if the button A is not pressed or
+        # if robot_actions is running.
+        Robot.run(robot_actions)
 
 
 ```
@@ -213,21 +216,21 @@ a great place to use `Robot.sleep()` would be to make a robot go to a specific s
 MOTOR_ID = "INSERT MOTOR_ID HERE"
 
 def autonomous_setup():
-  print("Autonomous mode has started!")
-  robot.run(autonomous_actions) #runs the autonomous_actions function in parallel to autonomous main
+    print("Autonomous mode has started!")
+    robot.run(autonomous_actions) #runs the autonomous_actions function in parallel to autonomous main
 
 
 def autonomous_main():
-  pass
+    pass
 
 def autonomous_actions():
-        print("Action 1") #action one sets the motor velocites to 1
-        Robot.set_value(MOTOR_ID, "velocity_b", 1.0)
-        Robot.set_value(MOTOR_ID, "velocity_a", 1.0)
-        Robot.sleep(1.0) #holds the function for one second before running the next lines
-        print("Action 2") #the following code sets the motor velocities to 0
-        Robot.set_value(KOALA_BEAR, "velocity_b", 0)
-        Robot.set_value(KOALA_BEAR, "velocity_a", 0)
+    print("Action 1")   # action one sets the motor velocites to 1
+    Robot.set_value(MOTOR_ID, "velocity_b", 1.0)
+    Robot.set_value(MOTOR_ID, "velocity_a", 1.0)
+    Robot.sleep(1.0)    # holds the function for one second before running the next lines
+    print("Action 2")   # the following code sets the motor velocities to 0
+    Robot.set_value(KOALA_BEAR, "velocity_b", 0)
+    Robot.set_value(KOALA_BEAR, "velocity_a", 0)
 
 ```
 
@@ -242,10 +245,10 @@ The `Gamepad` class recieves input for when there is a change to a controller. T
 For example, if you wanted to print `"hello world"` when the `"button_a"` is pressed and false when it isn't you would use the function as a condition in an if statement
 
 ```py
-#segment of code will print "hello world" into the console when button_a is pressed
+# segment of code will print "hello world" into the console when button_a is pressed
 def teleop_main():
-  if Gamepad.get_value("button_a"):
-    print("hello world")
+    if Gamepad.get_value("button_a"):
+        print("hello world")
 ```
 This function is essential for controlling your robot with the gamepad. 
 
@@ -290,10 +293,10 @@ possible keyboard inputs are:
 For example, if you wanted to print `"hello world"` when the `"w"` is pressed and false when it isn't you would use the function as a condition in an if statement
  
 ```py
-#segment of code will print "hello world" into the console when the w key is pressed
+# segment of code will print "hello world" into the console when the w key is pressed
 def teleop_main():
-  if Keyboard.get_value("w"):
-    print("hello world")
+    if Keyboard.get_value("w"):
+        print("hello world")
 
 
 ```

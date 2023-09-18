@@ -47,7 +47,7 @@ motor_id = "YOUR MOTOR ID HERE" # varible that holds the motor_id
 
 async def autonomous_actions(): # a custom asynchronous function with a sequence of actions
     Robot.set_value(motor_id, "velocity_a", 1)
-    Robot.sleep(10) # stops for 10 seconds
+    Robot.sleep(10)  # stops for 10 seconds
     Robot.set_value(motor_id, "velocity_a", 0.5)
     Robot.sleep(0.5) # stops for 0.5 seconds
     Robot.set_value(motor_id, "velocity_a", 0)
@@ -80,11 +80,11 @@ This example code is how your program could be organized. Each
 
 left_motor = "YOUR MOTOR ID HERE"
 right_motor = "YOUR MOTOR ID HERE"
-def autonomous_setup(): #determines what will be done before  `def_autonomous_main():` runs
+def autonomous_setup(): # determines what will be done before  `def_autonomous_main():` runs
     print("Autonomous mode has started!")
     Robot.run(autonomous_actions)
 
-def autonomous_main(): #where you put a sequence of actions
+def autonomous_main(): # where you put a sequence of actions
     pass
 
 async def autonomous_actions(): # a seperate function that runs

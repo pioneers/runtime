@@ -52,7 +52,7 @@ The parameters for a Servo describes what angle the servo has turned to. It retu
 
 **Sample Usage:**
 ```py
-#returns the current angle of servo0 
+# returns the current angle of servo0 
 Robot.get_value(servo_id, "servo0")
 ```
 ## KoalaBear
