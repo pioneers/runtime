@@ -2,23 +2,22 @@ site_name: Pioneers in Engineering Documentation
 site_url: https://example.com/
 site_author: Ian Leung
 nav:
-  #introductions
+  # introduction
   - Home: 'index.md'
-  #starting your first robot
-  - Building Your First Robot:
+  # starting your first robot
+  - Building Your First Robot: 'building_first_robot.md'
+  - Connecting To Your Robot: 'dawn_quickstart.md'
+  # kit extension
   - Base Kit Manual: 
-  - Software:
-  - Dawn Tutorial: 
-  - Quickstart Guide:
-  #software stuff
+  - Dawn Tutorial: 'dawn_quickstart.md'
+  # software stuff
   - Getting Started:
-  - Your First Program:
-    -
+    - Your First Program: 'first_program.md'
   - API Refrence: 'api.md'
   - Devices:
-    - Devices: 'device.md'
+    - Devices:
     - Device Get: 'device_get.md'
     - Device Set: 'device_set.md'
 
 theme: readthedocs
-#to start this server cd into docs and use `mkdocs serve`
+# to start this server cd into docs and use `mkdocs serve`
