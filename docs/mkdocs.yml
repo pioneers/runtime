@@ -5,7 +5,6 @@ nav:
   # introduction
   - Home: 'index.md'
   # starting your first robot
-  - Building Your First Robot: 'building_first_robot.md'
   - Connecting To Your Robot: 'dawn_quickstart.md'
   # kit extension
   - Base Kit Manual: 
@@ -15,7 +14,6 @@ nav:
     - Your First Program: 'first_program.md'
   - API Refrence: 'api.md'
   - Devices:
-    - Devices:
     - Device Get: 'device_get.md'
     - Device Set: 'device_set.md'
 
