@@ -1,28 +1,28 @@
 # Getting Started
 
-Python is a interperited, object-oriented, high-level programming languge. All robots in PiE are coded in Python 3 using a Application User Interface (API) known as the the student API. This API includes essental methods such as `Robot.get_value()`, `Robot.set_value()`, `keyboard.get_value()`, and `Gamepad.get_value()`, which you'll frequently use as a student.
+Python is a interpreted, object-oriented, high-level programming language. All robots in PiE are coded in Python 3 using a Application User Interface (API) known as the the student API. This API includes essential methods such as `Robot.get_value()`, `Robot.set_value()`, `keyboard.get_value()`, and `Gamepad.get_value()`, which you'll frequently use as a student.
 
-This section is intended for individuals with a basic understanding of Python coding. If you're new to Python, we recommend startiing with [The Python Tutorial](https://docs.python.org/3/tutorial/index.html) first to familiarize yourself with the language. 
+This section is intended for individuals with a basic understanding of Python coding. If you're new to Python, we recommend starting with [The Python Tutorial](https://docs.python.org/3/tutorial/index.html) first to familiarize yourself with the language. 
 ## Teleoperated And Autonomous
 
-The student rulebook outlines two distinct phases: the teloperated phase and the Autonomous phase. During the Autonomous phase, you are restricted to utilizing only the `Robot` class and it's methods. In contrast to the Teleoperated mode allowing use for all classes and thus the ability to control the robot in real time.
+The student rule book outlines two distinct phases: the teleoperated phase and the Autonomous phase. During the Autonomous phase, you are restricted to utilizing only the `Robot` class and it's methods. In contrast to the Teleoperated mode allowing use for all classes and thus the ability to control the robot in real time.
 
 # Autonomous Mode
 
-The autonomous mode is the first game phase you will encounter. In this mode, you will be required to navigate a task without the use of any input classes: `gamepad` or `keyboard`. Autonomous actions defined in the `def autonomous_main()` will only run once from top to bottom. In contrast, the Teleoperated phase gives you unrestricted access to all of the Student API classes. This means you're allowed to use input from both the `Keyboard` and `Gamepad` classes. Also keep in mind the function `def teleop_main()` will run in a continous loop. This is where you can use decision making statements like `if`, `elif`, and/or `else` to control any of the PiE devices.
+The autonomous mode is the first game phase you will encounter. In this mode, you will be required to navigate a task without the use of any input classes: `gamepad` or `keyboard`. Autonomous actions defined in the `def autonomous_main()` will only run once from top to bottom. In contrast, the Teleoperated phase gives you unrestricted access to all of the Student API classes. This means you're allowed to use input from both the `Keyboard` and `Gamepad` classes. Also keep in mind the function `def teleop_main()` will run in a continuous loop. This is where you can use decision making statements like `if`, `elif`, and/or `else` to control any of the PiE devices.
 
 ## Autonomous Setup
 
 The autonomous setup phase is what happens before the autonomous main function. Within the function `def autonomous_setup()` any code ran within this function will be done before running the `def autonomous_main()` function. The best use for this would be to set the value of a device before the autonomous main function.
 
-For instance, if you wanted your motors to drive in the oppisite direction as your set velocity you could do something like:
+For instance, if you wanted your motors to drive in the opposite direction as your set velocity you could do something like:
 
 ```py
-motor_id = "YOUR MOTOR ID HERE" # varible that holds the motor_id
+motor_id = "YOUR MOTOR ID HERE" # variable that holds the motor_id
 
 
 def autonomous_setup(): # setup function
-    Robot.set_value(motor_id, "invert_a", True) # inverts the direction of the device with a coresponding motor_id
+    Robot.set_value(motor_id, "invert_a", True) # inverts the direction of the device with a corresponding motor_id
 ```
 
 ## Autonomous Main
@@ -32,7 +32,7 @@ Autonomous Main is the function run after `autonomous_setup`. In the function `a
 This sample code uses the `autonomous_main():` function to set the value of a motor to full speed
 
 ```py
-motor_id = "YOUR MOTOR ID HERE" # varible that holds the motor_id
+motor_id = "YOUR MOTOR ID HERE" # variable that holds the motor_id
 
 def autonomous_setup(): # setup function runs before autonomous main
     pass
@@ -41,12 +41,12 @@ def autonomous_main():
 Robot.set_value(motor_id, "velocity_a", 1) # sets the motor speed to the max speed
 ```
 
-The `autonomous_main` function and `autonomous_setup` aren't very useful alone. However combined with the `Robot.run()` allows for further control over the timings of the code sequence. `Robot.run()` allows someone to run a process on a seperate thread (runs the code at the same time as a main loop). This means a student will be able to use `Robot.sleep(seconds)` to wait before running the next function call.
+The `autonomous_main` function and `autonomous_setup` aren't very useful alone. However combined with the `Robot.run()` allows for further control over the timings of the code sequence. `Robot.run()` allows someone to run a process on a separate thread (runs the code at the same time as a main loop). This means a student will be able to use `Robot.sleep(seconds)` to wait before running the next function call.
 
-do note that although it's not required, you're recommended to assign the function type `async` for any function being run within the `Robot.run()` function. This will define the function as a coroutine and make it easier to seperate from any of your other functions.
+do note that although it's not required, you're recommended to assign the function type `async` for any function being run within the `Robot.run()` function. This will define the function as a coroutine and make it easier to separate from any of your other functions.
 
 ```py
-motor_id = "YOUR MOTOR ID HERE" # varible that holds the motor_id
+motor_id = "YOUR MOTOR ID HERE" # variable that holds the motor_id
 
 async def autonomous_actions(): # a custom asynchronous function with a sequence of actions
     Robot.set_value(motor_id, "velocity_a", 1)
@@ -61,7 +61,7 @@ def autonomous_setup(): # runs before autonomous_main()
 
 def autonomous_main():
     # where the autonomous actions are ran
-    Robot.run(autonomous_actions) # runs the function autonomous actions on a seperate thread
+    Robot.run(autonomous_actions) # runs the function autonomous actions on a separate thread
 ```
 
 # Teleoperated Mode
@@ -72,7 +72,7 @@ Following the Autonomous mode, the Teleoperated Mode happens after the Autonomou
 
 ## Teleop Setup
 
-Just as with the autonomous setup, the Teleop setup and Autonomous setup serve the same purpose. The `def teleop_setup():` function is best used to preconfigure any necessary values or settings prior to executing the `teleop_main` loop. To call the Teleop setup use the function `def telop_setup():`. This function is used to prepare any values before running the main telop loop. 
+Just as with the autonomous setup, the Teleop setup and Autonomous setup serve the same purpose. The `def teleop_setup():` function is best used to pre-configure any necessary values or settings prior to executing the `teleop_main` loop. To call the Teleop setup use the function `def telop_setup():`. This function is used to prepare any values before running the main teleop loop. 
 
 A example usage of this would be to turn off the pid on the motor controllers. To do this do:
 
@@ -92,7 +92,7 @@ Just as with the `autonomous_main()` the `teleop_main()` function serves as the 
 To best take advantage of the teleop_main loop, you can create a control structure using `if`, `elif`, and `else` statements. In this example a Robot is responding to when a keyboard w key is pressed.
 
 ```py
-motor_id = "YOUR MOTOR ID HERE" # varible that holds the motor_id
+motor_id = "YOUR MOTOR ID HERE" # variable that holds the motor_id
 
 def teleop_setup(): # setup function
     pass
@@ -134,7 +134,7 @@ def teleop_main():
         Robot.set_value(motor_id, "velocity_a", 0.0) # sets the value of motor 1 to 0% power when w is not pressed
 
 #--------------- Extra Functions ---------------#
-async def autonomous_actions(): # a seperate function that runs
+async def autonomous_actions(): # a separate function that runs
     print("Autonomous action sequence started")
     await Actions.sleep(1.0)
     print("1 second has passed in autonomous mode")
