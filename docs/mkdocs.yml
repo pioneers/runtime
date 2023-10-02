@@ -7,15 +7,12 @@ nav:
   # starting your first robot
   - Connecting To Your Robot: 'dawn_quickstart.md'
   # kit extension
-  - Base Kit Manual: 
   - Dawn Tutorial: 'dawn_quickstart.md'
   # software stuff
-  - Getting Started:
-    - Your First Program: 'first_program.md'
-  - API Refrence: 'api.md'
-  - Devices:
-    - Device Get: 'device_get.md'
-    - Device Set: 'device_set.md'
+  - Your First Program: 'first_program.md'
+  - API Reference: 'api.md'
+  - Device Get: 'device_get.md'
+  - Device Set: 'device_set.md'
 
 theme: readthedocs
 # to start this server cd into docs and use `mkdocs serve`
