@@ -1,9 +1,9 @@
 #!/bin/bash
 
 function sigint_handler {
-    pkill -u pi /home/pi/ngrok
+    pkill -u ubuntu /home/ubuntu/ngrok
 }
 
 trap 'sigint_handler' INT
 
-nohup /home/pi/ngrok start --all --config /home/pi/runtime/systemd/ngrok.yml > /dev/null
+nohup /home/ubuntu/ngrok start --all --config /home/ubuntu/runtime/systemd/ngrok.yml > /dev/null

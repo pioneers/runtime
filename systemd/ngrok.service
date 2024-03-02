@@ -4,10 +4,10 @@ After=net_handler.service
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/runtime/systemd/
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime/systemd/
 ExecStartPre=/bin/sleep 1
-ExecStart=/home/pi/runtime/systemd/ngrok.sh
+ExecStart=/home/ubuntu/runtime/systemd/ngrok.sh
 ExecReload=/bin/kill -SIGINT $MAINPID
 
 [Install]
