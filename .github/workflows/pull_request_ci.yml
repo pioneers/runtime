@@ -25,7 +25,7 @@ jobs:
     steps:
       # First, we check out the repository's code using the Github Actions' "Checkout" tool.
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: 'recursive'
       
@@ -59,7 +59,7 @@ jobs:
             sudo chown root:root /usr/bin/tar && sudo chmod u+s /usr/bin/tar
       - name: Cache protobuf-c
         id: cache-protobuf-c
-        uses: actions/cache@v3 # Uses the Github Actions' "Cache" tool
+        uses: actions/cache@v4 # Uses the Github Actions' "Cache" tool
         with:
           # These are the files we cache
           path: |
@@ -73,6 +73,15 @@ jobs:
       - name: Take away tar root permissions
         run: |
           sudo chown runner:runner /usr/bin/tar && sudo chmod u+x /usr/bin/tar
+
+      # Before we build Runtime, we check the formatting
+      - name: Debug
+        run: |
+            ls
+            pwd
+      - name: Format
+        run: |
+           ./runtime format check
 
       # This if statement determine whether the cache lookup was a hit (true) or miss (not true--idk, false doesn't work)
       # If the cache lookup hit, we just run "sudo ldconfig" to tell the linker where to look for
@@ -88,11 +97,6 @@ jobs:
             wget https://github.com/protobuf-c/protobuf-c/releases/download/v1.4.1/protobuf-c-1.4.1.tar.gz
             tar -xzf protobuf-c-1.4.1.tar.gz
             cd protobuf-c-1.4.1 && ./configure && make && sudo make install && sudo ldconfig
-
-      # Before we build Runtime, we check the formatting
-      - name: Format
-        run: |
-           ./runtime format check
 
       # Now that we are done installing Runtime's dependencies, we build Runtime
       - name: Build
