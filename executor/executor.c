@@ -1,7 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <arpa/inet.h>          //for networking
 #include <pthread.h>            //for POSIX threads
-#include <python3.10/Python.h>  // For Python's C API
+#include <python3.11/Python.h>  // For Python's C API
 #include <signal.h>             // Used to handle SIGTERM, SIGINT, SIGKILL
 #include <stdint.h>             //for standard int types
 #include <stdio.h>              //for i/o
