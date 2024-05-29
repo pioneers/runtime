@@ -208,64 +208,51 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
             max_time = timeout->tv_sec * 1e9 + timeout->tv_nsec;
         }
 
-        do {
-            clock_gettime(CLOCK_MONOTONIC, &start);
-            pValue = PyObject_CallObject(pFunc, args);  // make call to Python function
-            clock_gettime(CLOCK_MONOTONIC, &end);
+        pValue = PyObject_CallObject(pFunc, args);  // make call to Python function
 
-            // if the time the Python function took was greater than max_time, warn that it's taking too long
-            time = (end.tv_sec - start.tv_sec) * 1e9 + (end.tv_nsec - start.tv_nsec);
-            if (timeout != NULL && time > max_time) {
-                log_printf(WARN, "Function %s is taking longer than %lu milliseconds, indicating a loop or sleep in the code. You probably forgot to put a Robot.sleep call into a robot action instead of a regular function.", func_name, (long) (max_time / 1e6));
-            }
-            // if the time the Python function took was less than min_time, sleep to slow down execution
-            if (time < min_time) {
-                usleep((min_time - time) / 1000);  // Need to convert nanoseconds to microseconds
-            }
+        // Set return value
+        if (py_ret != NULL) {
+            Py_XDECREF(*py_ret);  // Decrement previous reference, if it exists
+            *py_ret = pValue;
+        } else {
+            Py_XDECREF(pValue);
+        }
 
-            // Set return value
-            if (py_ret != NULL) {
-                Py_XDECREF(*py_ret);  // Decrement previous reference, if it exists
-                *py_ret = pValue;
+        // catch execution error
+        if (pValue == NULL) {
+            if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
+                PyErr_Print();
+                log_printf(ERROR, "Python function %s call failed", func_name);
+                ret = 2;
             } else {
-                Py_XDECREF(pValue);
+                ret = 3;  // Timed out by parent process
             }
-
-            // catch execution error
-            if (pValue == NULL) {
+            break;
+        } else if (mode == AUTO || mode == TELEOP) {
+            // Need to check if error occurred in action thread
+            PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
+            if (event == NULL) {
+                PyErr_Print();
+                log_printf(ERROR, "Could not get error_event from Robot instance");
+                exit(2);
+            }
+            PyObject* event_set = PyObject_CallMethod(event, "is_set", NULL);
+            if (event_set == NULL) {
                 if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
                     PyErr_Print();
-                    log_printf(ERROR, "Python function %s call failed", func_name);
-                    ret = 2;
+                    log_printf(DEBUG, "Could not get if error is set from error_event");
+                    exit(2);
                 } else {
                     ret = 3;  // Timed out by parent process
                 }
                 break;
-            } else if (mode == AUTO || mode == TELEOP) {
-                // Need to check if error occurred in action thread
-                PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
-                if (event == NULL) {
-                    PyErr_Print();
-                    log_printf(ERROR, "Could not get error_event from Robot instance");
-                    exit(2);
-                }
-                PyObject* event_set = PyObject_CallMethod(event, "is_set", NULL);
-                if (event_set == NULL) {
-                    if (!PyErr_ExceptionMatches(PyExc_TimeoutError)) {
-                        PyErr_Print();
-                        log_printf(DEBUG, "Could not get if error is set from error_event");
-                        exit(2);
-                    } else {
-                        ret = 3;  // Timed out by parent process
-                    }
-                    break;
-                } else if (PyObject_IsTrue(event_set) == 1) {
-                    log_printf(ERROR, "Stopping %s due to error in action", func_name);
-                    ret = 1;
-                    break;
-                }
+            } else if (PyObject_IsTrue(event_set) == 1) {
+                log_printf(ERROR, "Stopping %s due to error in action", func_name);
+                ret = 1;
+                break;
             }
-        } while (loop);
+        }
+
         Py_DECREF(pFunc);
     } else {
         if (PyErr_Occurred()) {
@@ -290,16 +277,10 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
 static void run_mode(robot_desc_val_t mode) {
     // Set up the arguments to the threads that will run the setup and main threads
     char* mode_str = get_mode_str(mode);
-    char setup_str[20], main_str[20];
-    sprintf(setup_str, "%s_setup", mode_str);
+    char main_str[20];
     sprintf(main_str, "%s_main", mode_str);
 
-    int err = run_py_function(setup_str, &setup_time, 0, NULL, NULL);  // Run setup function once
-    if (err == 0) {
-        err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
-    } else {
-        log_printf(WARN, "Won't run %s due to error %d in %s", main_str, err, setup_str);
-    }
+    err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
     return;
 }
 
