@@ -195,19 +195,13 @@ static void executor_init(char* student_code) {
  *      3: Timed out by executor
  *      4: Unable to find the given function in the student code
  */
-static uint8_t run_py_function(const char* func_name, struct timespec* timeout, int loop, PyObject* args, PyObject** py_ret) {
+static uint8_t run_py_function(const char* func_name, struct timespec* timeout, PyObject* args, PyObject** py_ret) {
     uint8_t ret = 0;
 
     // retrieve the Python function from the student code
     PyObject* pFunc = PyObject_GetAttrString(pModule, func_name);
     PyObject* pValue = NULL;
     if (pFunc && PyCallable_Check(pFunc)) {
-        struct timespec start, end;
-        uint64_t time, max_time = 0;
-        if (timeout != NULL) {
-            max_time = timeout->tv_sec * 1e9 + timeout->tv_nsec;
-        }
-
         pValue = PyObject_CallObject(pFunc, args);  // make call to Python function
 
         // Set return value
@@ -262,26 +256,6 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
         ret = 4;
     }
     return ret;
-}
-
-
-/**
- *  Begins the given game mode and calls setup and main appropriately. Will run main forever.
- *
- *  Behavior: This is a blocking function and will block the calling thread forever.
- *  This should only be run as a separate thread.
- *
- *  Inputs:
- *      args: string of the mode to start running
- */
-static void run_mode(robot_desc_val_t mode) {
-    // Set up the arguments to the threads that will run the setup and main threads
-    char* mode_str = get_mode_str(mode);
-    char main_str[20];
-    sprintf(main_str, "%s_main", mode_str);
-
-    err = run_py_function(main_str, &main_interval, 1, NULL, NULL);  // Run main function on loop
-    return;
 }
 
 
@@ -342,7 +316,10 @@ static pid_t start_mode_subprocess(char* student_code) {
         signal(SIGINT, SIG_IGN);  // Disable Ctrl+C for child process
         executor_init(student_code);
         signal(SIGTERM, python_exit_handler);  // Set handler for killing subprocess
-        run_mode(mode);
+
+        char* mode_str = get_mode_str(mode);
+        err = run_py_function(mode_str, &main_interval, 1, NULL, NULL);  // Run main function
+
         exit(0);
         return pid;  // Never reach this statement due to exit, needed to fix compiler warning
     } else {
