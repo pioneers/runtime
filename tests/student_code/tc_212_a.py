@@ -10,5 +10,6 @@ def autonomous():
     pass
 
 def teleop():
-    Robot.set_value(DEVICE, PARAM, 999)
+    while True:
+        Robot.set_value(DEVICE, PARAM, 999)
     
