@@ -3,8 +3,7 @@ import time
 time_dev = '60_123'
 
 def autonomous():
-    while True:
-        pass
+    pass
 
 def teleop():
     while True:

@@ -1,8 +1,7 @@
 simple_device = "62_20"
 
 def autonomous():
-    while True:
-        pass
+    pass
 
 def teleop():
     while True:

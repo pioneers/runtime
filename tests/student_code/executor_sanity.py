@@ -9,10 +9,7 @@ def constant_print(msg):
         time.sleep(2)
 
 def autonomous():
-    print('Autonomous has begun!')
-    print(f"Starting position: {Robot.start_pos}")
-    while True:
-        Robot.run(constant_print, "autonomous")
+    pass
 
 # This teleop code generates a DivisionByZero Python error
 

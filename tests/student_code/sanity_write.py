@@ -25,5 +25,4 @@ def autonomous():
         pass
 
 def teleop():
-    while True:
-        pass
+    pass
