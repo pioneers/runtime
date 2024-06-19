@@ -29,7 +29,6 @@ def teleop():
         if i < 3 and Gamepad.get_value('joystick_left_x') != 0.0:
             print("Left joystick moved in x direction!")
             i += 1
-        Robot.sleep(0.1)
 
 def autonomous():
     pass

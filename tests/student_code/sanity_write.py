@@ -21,8 +21,6 @@ def constant_write():
 
 def autonomous():
     Robot.run(constant_write)
-    while True:
-        pass
 
 def teleop():
     pass
