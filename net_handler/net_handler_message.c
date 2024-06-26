@@ -111,22 +111,25 @@ void send_device_data(int dawn_socket_fd, uint64_t dawn_start_time) {
     get_device_identifiers(dev_ids);
 
     // calculate num_devices, get valid device indices
-    int num_devices = 0;
-    for (int i = 0; i < MAX_DEVICES; i++) {
+    // Start from 1 due to new custom device
+    int num_devices = 1;
+    for (int i = 1; i < MAX_DEVICES; i++) {
         if (catalog & (1 << i)) {
             valid_dev_idxs[num_devices] = i;
             num_devices++;
         }
     }
-    dev_data.devices = malloc((num_devices + 1) * sizeof(Device*));  // + 1 is for custom data
+
+    dev_data.devices = malloc((num_devices) * sizeof(Device*));  
     if (dev_data.devices == NULL) {
         log_printf(FATAL, "send_device_data: Failed to malloc");
         exit(1);
     }
 
     // populate dev_data.device[i]
-    int dev_idx = 0;
-    for (int i = 0; i < num_devices; i++) {
+    // Starts from int i = 1 due to new custom device
+    int dev_idx = 1;
+    for (int i = 1; i < num_devices; i++) {
         int idx = valid_dev_idxs[i];
         device_t* device_info = get_device(dev_ids[idx].type);
         if (device_info == NULL) {

@@ -7,16 +7,12 @@
 DEVICE = "62_1"
 PARAM = "MY_INT"
 
-def autonomous_setup():
+def autonomous():
     pass
 
-def autonomous_main():
-    pass
-
-def teleop_setup():
+def teleop():
     Robot.set_value(DEVICE, PARAM, 999)
-
-def teleop_main():
-    if Keyboard.get_value('w'):
-        Robot.set_value(DEVICE, PARAM, 1000)
+    while True:
+        if Keyboard.get_value('w'):
+            Robot.set_value(DEVICE, PARAM, 1000)
     

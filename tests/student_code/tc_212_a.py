@@ -6,15 +6,10 @@
 DEVICE = "62_1"
 PARAM = "MY_INT"
 
-def autonomous_setup():
+def autonomous():
     pass
 
-def autonomous_main():
-    pass
-
-def teleop_setup():
-    pass
-
-def teleop_main():
-    Robot.set_value(DEVICE, PARAM, 999)
+def teleop():
+    while True:
+        Robot.set_value(DEVICE, PARAM, 999)
     
