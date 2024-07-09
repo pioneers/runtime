@@ -1,3 +1,4 @@
+
 simple_device = "62_20"
 
 def autonomous():
@@ -9,4 +10,4 @@ def teleop():
             Robot.set_value(simple_device, "MY_INT", 123454321)
         elif Keyboard.get_value('y'):
             print(Robot.get_value(simple_device, "MY_INT"))
-            Robot.sleep(0.45)
+            Robot.sleep(.45)

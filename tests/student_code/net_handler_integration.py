@@ -21,7 +21,7 @@ def modify_my_int():
         Robot.sleep(1)
 
 def teleop():
-    print("Teleop has begun!")
+    print("Teleop setup has begun!")
     Robot.run(print_if_button_a)
     Robot.run(modify_my_int)
     while True:
@@ -29,6 +29,3 @@ def teleop():
         if i < 3 and Gamepad.get_value('joystick_left_x') != 0.0:
             print("Left joystick moved in x direction!")
             i += 1
-
-def autonomous():
-    pass
