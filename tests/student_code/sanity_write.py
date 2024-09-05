@@ -19,14 +19,8 @@ def constant_write():
         float_val += 3.14
         bool_val = not bool_val
 
-def autonomous_setup():
+def autonomous():
     Robot.run(constant_write)
 
-def autonomous_main():
-    pass
-
-def teleop_setup():
-    pass
-
-def teleop_main():
+def teleop():
     pass

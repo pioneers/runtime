@@ -20,13 +20,12 @@ def modify_my_int():
             Robot.set_value(SIMPLE_DEV, "MY_INT", Robot.get_value(SIMPLE_DEV, "MY_INT") - 1)
         Robot.sleep(1)
 
-def teleop_setup():
+def teleop():
     print("Teleop setup has begun!")
     Robot.run(print_if_button_a)
     Robot.run(modify_my_int)
-
-def teleop_main():
     global i
-    if i < 3 and Gamepad.get_value('joystick_left_x') != 0.0:
-        print("Left joystick moved in x direction!")
-        i += 1
+    while True:
+        if i < 3 and Gamepad.get_value('joystick_left_x') != 0.0:
+            print("Left joystick moved in x direction!")
+            i += 1
