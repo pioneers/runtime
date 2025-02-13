@@ -1,7 +1,7 @@
-def autonomous_main():
+def autonomous():
     print("Autonomous has begun!")
     pass
 
-def teleop_main():
+def teleop():
     print("Teleop has begun!")
     pass

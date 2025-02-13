@@ -1,7 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <arpa/inet.h>          //for networking
 #include <pthread.h>            //for POSIX threads
-#include <python3.10/Python.h>  // For Python's C API
+#include <python3.11/Python.h>  // For Python's C API
 #include <signal.h>             // Used to handle SIGTERM, SIGINT, SIGKILL
 #include <stdint.h>             //for standard int types
 #include <stdio.h>              //for i/o
@@ -201,6 +201,7 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
     // retrieve the Python function from the student code
     PyObject* pFunc = PyObject_GetAttrString(pModule, func_name);
     PyObject* pValue = NULL;
+    log_printf(ERROR, "%s",func_name);
     if (pFunc && PyCallable_Check(pFunc)) {
         pValue = PyObject_CallObject(pFunc, args);  // make call to Python function
 
@@ -221,7 +222,6 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
             } else {
                 ret = 3;  // Timed out by parent process
             }
-            break;
         } else if (mode == AUTO || mode == TELEOP) {
             // Need to check if error occurred in action thread
             PyObject* event = PyObject_GetAttrString(pRobot, "error_event");
@@ -239,11 +239,9 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
                 } else {
                     ret = 3;  // Timed out by parent process
                 }
-                break;
             } else if (PyObject_IsTrue(event_set) == 1) {
                 log_printf(ERROR, "Stopping %s due to error in action", func_name);
                 ret = 1;
-                break;
             }
         }
 
@@ -318,8 +316,10 @@ static pid_t start_mode_subprocess(char* student_code) {
         signal(SIGTERM, python_exit_handler);  // Set handler for killing subprocess
 
         char* mode_str = get_mode_str(mode);
-        err = run_py_function(mode_str, &main_interval, 1, NULL, NULL);  // Run main function
-
+        int err = run_py_function(mode_str, &main_interval, NULL, NULL);  // Run main function
+	if (err) {
+	    log_printf(WARN, "NEED TO EDIT STATEMENT"); // "Problem Child"
+	}
         exit(0);
         return pid;  // Never reach this statement due to exit, needed to fix compiler warning
     } else {
