@@ -8,7 +8,7 @@
  */
 
 char check_output_6[] =
-    "  File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 19, in teleop_main\n"
+    "  File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 19, in teleop\n"
     "    oops = 1 / 0\n"
     "           ~~^~~\n"
     "ZeroDivisionError: division by zero\n";
