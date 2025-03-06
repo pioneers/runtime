@@ -8,8 +8,10 @@
  */
 
 char check_output_6[] =
-    "line 25, in teleop_main\n"
-    "    oops = 1 / 0\n"
+    "Traceback (most recent call last):\n"
+    "    File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 25, in teleop_main\n"
+    "        oops = 1 / 0\n"
+    "               ~~^~~"
     "ZeroDivisionError: division by zero\n";
 
 int main() {
