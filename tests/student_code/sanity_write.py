@@ -15,7 +15,7 @@ def constant_write():
         Robot.set_value(GeneralTestDevice, "RED_INT", int_val)
         Robot.set_value(GeneralTestDevice, "ORANGE_FLOAT", float_val)
         Robot.set_value(GeneralTestDevice, "YELLOW_BOOL", bool_val)
-        int_val += 2;
+        int_val += 2
         float_val += 3.14
         bool_val = not bool_val
 
