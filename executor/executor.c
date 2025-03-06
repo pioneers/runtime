@@ -1,11 +1,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <arpa/inet.h>          //for networking
 #include <pthread.h>            //for POSIX threads
-<<<<<<< HEAD
-#include <python3.11/Python.h>  // For Python's C API
-=======
 #include <python3.12/Python.h>  // For Python's C API
->>>>>>> c02bcc59add84236ca74b9652ff8e2528b2c1394
 #include <signal.h>             // Used to handle SIGTERM, SIGINT, SIGKILL
 #include <stdint.h>             //for standard int types
 #include <stdio.h>              //for i/o
@@ -205,7 +201,7 @@ static uint8_t run_py_function(const char* func_name, struct timespec* timeout, 
     // retrieve the Python function from the student code
     PyObject* pFunc = PyObject_GetAttrString(pModule, func_name);
     PyObject* pValue = NULL;
-    log_printf(ERROR, "%s",func_name);
+    log_printf(ERROR, "%s", func_name);
     if (pFunc && PyCallable_Check(pFunc)) {
         pValue = PyObject_CallObject(pFunc, args);  // make call to Python function
 
@@ -321,9 +317,9 @@ static pid_t start_mode_subprocess(char* student_code) {
 
         char* mode_str = get_mode_str(mode);
         int err = run_py_function(mode_str, &main_interval, NULL, NULL);  // Run main function
-	if (err) {
-	    log_printf(WARN, "NEED TO EDIT STATEMENT"); // "Problem Child"
-	}
+        if (err) {
+            log_printf(WARN, "NEED TO EDIT STATEMENT");  // "Problem Child"
+        }
         exit(0);
         return pid;  // Never reach this statement due to exit, needed to fix compiler warning
     } else {
