@@ -9,9 +9,9 @@
 
 char check_output_6[] =
     // "Traceback (most recent call last):\n"
-    "    File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 25, in teleop_main\n"
-    "        oops = 1 / 0\n"
-    "               ~~^~~\n"
+    "  File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 25, in teleop_main\n"
+    "    oops = 1 / 0\n"
+    "           ~~^~~\n"
     "ZeroDivisionError: division by zero\n";
 
 int main() {
