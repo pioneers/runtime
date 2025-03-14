@@ -3,9 +3,9 @@ Description=Update process for Runtime
 
 [Service]
 Type=oneshot
-User=pi
-WorkingDirectory=/home/pi/runtime
-ExecStart=/home/pi/runtime/scripts/update.sh
+User=ubuntu
+WorkingDirectory=/home/ubuntu/runtime
+ExecStart=/home/ubuntu/runtime/scripts/update.sh
 KillSignal=SIGINT
 
 [Install]

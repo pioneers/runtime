@@ -1,4 +1,5 @@
 # Student code that plays pitches from keyboard inputs
+# Commented out print_buttons and play_notes functions as they are not run 
 import time
 
 SOUND = '59_1'
@@ -23,8 +24,8 @@ MAP = {
 
 ################################## AUTONOMOUS ##################################
 
-def autonomous_setup():
-    print("Now executing AUTONOMOUS SETUP")
+def autonomous():
+    print("Now executing AUTONOMOUS")
     # Write pitches
     for note in NOTES:
         if (note == ' '):
@@ -35,35 +36,30 @@ def autonomous_setup():
             Robot.set_value(SOUND, "PITCH", MAP[note])
             time.sleep(NOTE_DURATION)
 
-def autonomous_main():
-    pass
-
 #################################### TELEOP ####################################
 
-def teleop_setup():
-    print("Now executing TELEOP SETUP")
+def teleop():
+    print("Now executing TELEOP")
     # Robot.run(print_button)
     # Robot.run(play_notes)
-    pass
-
-def teleop_main():
-    if Gamepad.get_value('button_a'):
-        Robot.set_value(SOUND, "PITCH", MAP['C'])
-        print("Wrote Button A: Pitch C")
-        time.sleep(NOTE_DURATION);
-    if Gamepad.get_value('button_b'):
-        Robot.set_value(SOUND, "PITCH", MAP['B'])
-        print("Wrote Button B: Pitch B")
-        time.sleep(NOTE_DURATION);
+    while True:
+        if Gamepad.get_value('button_a'):
+            Robot.set_value(SOUND, "PITCH", MAP['C'])
+            print("Wrote Button A: Pitch C")
+            time.sleep(NOTE_DURATION);
+        if Gamepad.get_value('button_b'):
+            Robot.set_value(SOUND, "PITCH", MAP['B'])
+            print("Wrote Button B: Pitch B")
+            time.sleep(NOTE_DURATION);
 
 ################################### THREADS ####################################
 
-def print_button():
-    while (1):
-        if Gamepad.get_value('button_a'):
-            print("BUTTON A IS PRESSED")
-        if Gamepad.get_value('button_b'):
-            print("BUTTON B IS PRESSED")
+# def print_button():
+#    while (1):
+#        if Gamepad.get_value('button_a'):
+#            print("BUTTON A IS PRESSED")
+#        if Gamepad.get_value('button_b'):
+#            print("BUTTON B IS PRESSED")
 
 # def play_notes():
 #     while (1):

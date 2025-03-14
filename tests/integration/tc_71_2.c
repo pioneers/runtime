@@ -8,7 +8,7 @@
  */
 
 char check_output_6[] =
-    "  File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 25, in teleop_main\n"
+    "  File \"/home/runner/work/runtime/runtime/tests/student_code/executor_sanity.py\", line 19, in teleop\n"
     "    oops = 1 / 0\n"
     "           ~~^~~\n"
     "ZeroDivisionError: division by zero\n";
@@ -37,7 +37,7 @@ int main() {
     send_run_mode(SHEPHERD, TELEOP);
     add_ordered_string_output("Traceback (most recent call last):\n");
     add_ordered_string_output(check_output_6);
-    add_ordered_string_output("Python function teleop_main call failed\n");
+    add_ordered_string_output("Python function teleop call failed\n");
     check_run_mode(TELEOP);
 
     send_run_mode(DAWN, IDLE);
