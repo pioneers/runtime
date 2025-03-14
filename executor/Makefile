@@ -5,7 +5,7 @@ LIBS=-pthread -lrt -Wall -export-dynamic -fPIC
 SRCS = executor.c gamestate_filter.c ../logger/logger.c ../runtime_util/runtime_util.c ../shm_wrapper/shm_wrapper.c
 
 # Python compilation definitions
-PY_VER = python3.12
+PY_VER = python3.11
 PY_LIB = -l$(PY_VER)
 CFLAGS = $(shell $(PY_VER)-config --cflags)
 
