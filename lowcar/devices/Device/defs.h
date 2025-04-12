@@ -61,7 +61,7 @@ enum class DeviceType : uint8_t {
     POLAR_BEAR = 0x05,
     KOALA_BEAR = 0x06,
     PDB = 0x07,
-    DISTANCE_SENSOR   = 0x08 //Uncomment when implemented
+    ULTRASONIC_SENSOR = 0x08
 };
 
 // identification for resulting status types
