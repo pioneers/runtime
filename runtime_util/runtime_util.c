@@ -116,6 +116,13 @@ device_t PDB = {
         {.name = "dv_cell3", .type = FLOAT, .read = 1, .write = 0},
         {.name = "network_switch", .type = BOOL, .read = 1, .write = 0}}};
 
+device_t UltrasonicSensor = {
+    .type = 8,
+    .name = "UltrasonicSensor",
+    .num_params = 1,
+    .params = {
+        {.name = "distance", .type = FLOAT, .read = 1, .write = 0}}};
+
 // *********************** VIRTUAL DEVICE DEFINITIONS *********************** //
 
 // A CustomDevice is unusual because the parameters are dynamic
@@ -216,6 +223,7 @@ __attribute__((constructor)) void devices_arr_init() {
     DEVICES[PolarBear.type] = &PolarBear;
     DEVICES[KoalaBear.type] = &KoalaBear;
     DEVICES[PDB.type] = &PDB;
+    DEVICES[UltrasonicSensor.type] = &UltrasonicSensor;
     DEVICES[CustomDevice.type] = &CustomDevice;
     DEVICES[SoundDevice.type] = &SoundDevice;
     DEVICES[TimeTestDevice.type] = &TimeTestDevice;
