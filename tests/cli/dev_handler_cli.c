@@ -133,6 +133,13 @@ int main(int argc, char** argv) {
     // If the argument "attach" is specified, then set the global variable
     if (argc == 2 && strcmp(argv[1], "attach") == 0) {
         attach = true;
+    } else {
+        // Display all the prgrams called ubuntu: "ps -ef | grep ubuntu"
+        // popen() runs a shell command and lets your C program read its output like a file
+         
+        // Run a C script and parse through the current Runtime processes running
+        // If it is running set "attach = true" else continue with false
+        // Push notification to add "attach" nextime 
     }
 
     // Start dev handler if we aren't attaching to existing dev handler
