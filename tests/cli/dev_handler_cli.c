@@ -123,6 +123,31 @@ void prompt_device_disconnect() {
     }
 }
 
+int running_check() {
+    FILE *fp;
+    char buffer[256];
+    int found = 0;
+
+    // Run command
+    fp = popen("ps -ef | grep dev_handler | grep -v grep", "r");
+    if (fp == NULL) {
+        perror("popen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Read output line by line
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        // If we get any line, process is running
+        found = 1;
+        break;
+    }
+
+    // Close pipe
+    pclose(fp);
+
+    return found; // 1 if running, 0 if not
+}
+
 // ********************************** MAIN PROCESS ****************************************** //
 
 int main(int argc, char** argv) {
@@ -134,11 +159,13 @@ int main(int argc, char** argv) {
     if (argc == 2 && strcmp(argv[1], "attach") == 0) {
         attach = true;
     } else {
-        // Display all the prgrams called ubuntu: "ps -ef | grep ubuntu"
-        // popen() runs a shell command and lets your C program read its output like a file
-         
-        // Run a C script and parse through the current Runtime processes running
+        // Check if runtime is running
         // If it is running set "attach = true" else continue with false
+        if(running_check() == 0){
+            attach = true;
+        } else {
+            attach = false;
+        }
         // Push notification to add "attach" nextime 
     }
 
