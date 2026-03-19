@@ -145,7 +145,7 @@ int running_check() {
     // Close pipe
     pclose(fp);
 
-    return found;   // 1 if running, 0 if not
+    return found;  // 1 if running, 0 if not
 }
 
 // ********************************** MAIN PROCESS ****************************************** //
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
     } else {
         // Check if runtime is running
         // If it is running set "attach = true" else continue with false
-        if(running_check() == 0) {
+        if (running_check() == 0) {
             attach = true;
         } else {
             attach = false;
