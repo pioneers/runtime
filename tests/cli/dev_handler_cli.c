@@ -124,7 +124,7 @@ void prompt_device_disconnect() {
 }
 
 int running_check() {
-    FILE *fp;
+    FILE* fp;
     char buffer[256];
     int found = 0;
 
@@ -145,7 +145,7 @@ int running_check() {
     // Close pipe
     pclose(fp);
 
-    return found; // 1 if running, 0 if not
+    return found;   // 1 if running, 0 if not
 }
 
 // ********************************** MAIN PROCESS ****************************************** //
@@ -161,12 +161,13 @@ int main(int argc, char** argv) {
     } else {
         // Check if runtime is running
         // If it is running set "attach = true" else continue with false
-        if(running_check() == 0){
+        if(running_check() == 0) {
             attach = true;
         } else {
             attach = false;
         }
-        // Push notification to add "attach" nextime 
+        // Push notification to add "attach" nextime
+        printf("Notice: 'dev_handler' already running. 'attach' added.");
     }
 
     // Start dev handler if we aren't attaching to existing dev handler
