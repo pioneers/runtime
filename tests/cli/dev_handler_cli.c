@@ -163,11 +163,12 @@ int main(int argc, char** argv) {
         // If it is running set "attach = true" else continue with false
         if (running_check() == 0) {
             attach = true;
+            // Push notification to add "attach" nextime
+            printf("Notice: 'dev_handler' already running. 'attach' added.");
         } else {
             attach = false;
+            printf("Notice: 'dev_handler' not found");
         }
-        // Push notification to add "attach" nextime
-        printf("Notice: 'dev_handler' already running. 'attach' added.");
     }
 
     // Start dev handler if we aren't attaching to existing dev handler
