@@ -123,6 +123,34 @@ void prompt_device_disconnect() {
     }
 }
 
+int running_check() {
+    FILE* fp;
+    char buffer[256];
+    int found = 0;
+
+    // Run command
+    // grep -v grep: avoids matching the grep dev_handler command itself
+    fp = popen("ps -ef | grep dev_handler | grep -v grep", "r");
+    if (fp == NULL) {
+        perror("popen failed");
+        found = 2; // error occured
+        exit(EXIT_FAILURE);
+    }
+
+    // Read output line by line
+    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        printf("Loop A"); // TODO: For testing
+        // If we get any line, process is running
+        found = 1;
+        break;
+    }
+
+    // Close pipe
+    pclose(fp);
+
+    return found;  // 1 if running, 0 if not
+}
+
 // ********************************** MAIN PROCESS ****************************************** //
 
 int main(int argc, char** argv) {
@@ -133,10 +161,22 @@ int main(int argc, char** argv) {
     // If the argument "attach" is specified, then set the global variable
     if (argc == 2 && strcmp(argv[1], "attach") == 0) {
         attach = true;
+    } else {
+        // Check if runtime is running
+        // If it is running set "attach = true" else continue with false
+        if (running_check() == 0) {
+            attach = true;
+            // Push notification to add "attach" nextime
+            printf("Notice: 'dev_handler' already running. 'attach' added.");
+        } else {
+            attach = false;
+            printf("Notice: 'dev_handler' not found");
+        }
     }
 
     // Start dev handler if we aren't attaching to existing dev handler
     if (!attach) {
+        printf("attach = false"); // TODO: For testing
         start_dev_handler();
         sleep(1);  // Allow dev handler to initialize
     }
@@ -149,6 +189,7 @@ int main(int argc, char** argv) {
     fflush(stdout);
 
     // main loop
+    printf("entering main loop"); // TODO: For testing
     while (stop) {
         // Get the next command
         sleep(1);  // Guarantee that the "> " prompt appears after dev handler logs
