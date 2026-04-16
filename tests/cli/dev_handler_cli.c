@@ -129,14 +129,17 @@ int running_check() {
     int found = 0;
 
     // Run command
+    // grep -v grep: avoids matching the grep dev_handler command itself
     fp = popen("ps -ef | grep dev_handler | grep -v grep", "r");
     if (fp == NULL) {
         perror("popen failed");
+        found = 2; // error occured
         exit(EXIT_FAILURE);
     }
 
     // Read output line by line
     while (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        printf("Loop A"); // TODO: For testing
         // If we get any line, process is running
         found = 1;
         break;
@@ -173,6 +176,7 @@ int main(int argc, char** argv) {
 
     // Start dev handler if we aren't attaching to existing dev handler
     if (!attach) {
+        printf("attach = false"); // TODO: For testing
         start_dev_handler();
         sleep(1);  // Allow dev handler to initialize
     }
@@ -185,6 +189,7 @@ int main(int argc, char** argv) {
     fflush(stdout);
 
     // main loop
+    printf("entering main loop"); // TODO: For testing
     while (stop) {
         // Get the next command
         sleep(1);  // Guarantee that the "> " prompt appears after dev handler logs
