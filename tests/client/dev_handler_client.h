@@ -51,4 +51,16 @@ void disconnect_all_devices();
  */
 void list_devices();
 
+/**
+ * @brief Checks whether the "dev_handler" process is currently running.
+ *
+ * This function executes a system command to scan active processes
+ * and determines if a process named "dev_handler" exists.
+ *
+ * @return int
+ *         - 0 if the process is running
+ *         - 1 if the process is not running
+ */
+int running_check();
+
 #endif
