@@ -138,11 +138,12 @@ int running_check() {
     }
 
     // Read output line by line
-    while (fgets(buffer, sizeof(buffer), fp) != NULL) {
-        printf("Loop A"); // TODO: For testing
+    if (fgets(buffer, sizeof(buffer), fp) != NULL) {
+        printf("found = 1 \n"); // TODO: For testing
         // If we get any line, process is running
         found = 1;
-        break;
+    } else {
+        printf("not found \n"); // TODO: For testing
     }
 
     // Close pipe
@@ -162,21 +163,22 @@ int main(int argc, char** argv) {
     if (argc == 2 && strcmp(argv[1], "attach") == 0) {
         attach = true;
     } else {
-        // Check if runtime is running
+        // Check if runtime is running 
+        // Will run if attach isn't specified or if argument number isn't matching
         // If it is running set "attach = true" else continue with false
         if (running_check() == 0) {
             attach = true;
             // Push notification to add "attach" nextime
-            printf("Notice: 'dev_handler' already running. 'attach' added.");
+            printf("Notice: 'dev_handler' already running. 'attach' added. \n");
         } else {
             attach = false;
-            printf("Notice: 'dev_handler' not found");
+            printf("Notice: 'dev_handler' not found \n");
         }
     }
 
     // Start dev handler if we aren't attaching to existing dev handler
     if (!attach) {
-        printf("attach = false"); // TODO: For testing
+        printf("attach = false \n"); // TODO: For testing
         start_dev_handler();
         sleep(1);  // Allow dev handler to initialize
     }
