@@ -205,14 +205,14 @@ function get_lib_install_dir {
     
     # read in config line by line until we find the "user: LIB_INSTALL_DIR" line	
     while read line; do	
-        if [[ $line == "user"* ]]; then	
-            LIB_INSTALL_DIR=$(echo $line | awk '{ print $2 }')	
+        if [[ $line == *"user:"* ]]; then	
+            LIB_INSTALL_DIR=${line#*user: }	
             LIB_INSTALL_DIR="$LIB_INSTALL_DIR/libraries" # append /libraries to it	
             mkdir -p $LIB_INSTALL_DIR # Make library directory if it doesn't exist
             printf "\nFound Library Installation Directory: $LIB_INSTALL_DIR\n"	
             return 1
         fi	
-    done <<< "$(arduino-cli config dump)"
+    done <<< "$(arduino-cli config dump | tr -d '\r')"
     
     # if we get here, we didn't find the library installation directory	
     printf "\nERROR: could not find Library Installation Directory\n\n"	
@@ -236,7 +236,7 @@ function symlink_libs {
         fi
         
         printf "Creating symbolic link for $lib\n"
-        ln -s "$PWD/lib/$lib" "$LIB_INSTALL_DIR/$lib"
+        cp -r "$PWD/lib/$lib" "$LIB_INSTALL_DIR/"
     done
     
     # process each element in devices_to_install
@@ -247,7 +247,7 @@ function symlink_libs {
         fi
         
         printf "Creating symbolic link for $lib\n"
-        ln -s "$PWD/devices/$lib" "$LIB_INSTALL_DIR/$lib"
+        cp -r "$PWD/devices/$lib" "$LIB_INSTALL_DIR/"
     done
     
     printf "\nFinished creating symbolic links to libraries!\n"
@@ -351,7 +351,7 @@ printf "\nAttempting to flash a $DEVICE_NAME!\n\n"
 arduino-cli config init
 
 # update the core index (see arduino-cli documentation)
-arduino-cli core update-index --override
+arduino-cli core update-index
 
 # symlink libraries
 symlink_libs
@@ -367,7 +367,7 @@ arduino-cli core install $DEVICE_CORE
 
 # compile the code
 printf "\nCompiling code...\n\n"
-if !(arduino-cli compile --fqbn $DEVICE_FQBN Device); then
+if !(arduino-cli compile --fqbn $DEVICE_FQBN --libraries "$LIB_INSTALL_DIR" Device); then
     printf "\nERROR: code did not compile correctly\n\n"
     exit 1
 fi
